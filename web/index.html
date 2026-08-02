@@ -1,0 +1,1305 @@
+<!-- LedBox appliance control UI — self-contained, offline, landscape-first. Talks to the control API on its own origin over relative URLs. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KSCW Scoreboard — Controller</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='22' y='72' width='56' height='22' rx='11' fill='%231e3a8a'/%3E%3Crect x='44' y='46' width='12' height='32' rx='6' fill='%232563eb'/%3E%3Ccircle cx='50' cy='34' r='24' fill='%23f8fafc' stroke='%230f172a' stroke-width='4'/%3E%3Cg fill='none' stroke='%230f172a' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M50 11 Q41 34 50 57'/%3E%3Cpath d='M31 18 Q50 32 43 55'/%3E%3Cpath d='M69 18 Q50 32 57 55'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#e6e9f0; --card:#eaedf4; --fg:#2a2e3a; --muted:#5f6880;
+    --sh-lo:#c4c9d8; --sh-hi:#ffffff;
+    --blue:#3b6fe0; --red:#e0453d; --gold:#e3a400;
+    --ok:#25b567; --warn:#d99320; --bad:#e0453d;
+    --left:#3b6fe0; --right:#e0453d; --r:20px;
+  }
+  @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
+    font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  button,input{font-family:inherit}
+  :focus-visible{outline:2.5px solid var(--blue);outline-offset:2px}
+  .licon{width:1.15em;height:1.15em;flex:0 0 auto;vertical-align:-.17em}
+  /* neumorphic primitives */
+  .raise{background:var(--card);box-shadow:6px 6px 14px var(--sh-lo),-6px -6px 14px var(--sh-hi)}
+  .press,button:active{box-shadow:inset 4px 4px 9px var(--sh-lo),inset -4px -4px 9px var(--sh-hi)}
+  #app{display:flex;flex-direction:column;height:100dvh;overflow:hidden;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+
+  .topbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 14px}
+  .brand{font-weight:800;font-size:15px;white-space:nowrap;color:var(--fg)}
+  #dot{font-size:12px}
+  #mode{flex:1;min-width:0;font-size:12px;color:var(--muted);display:flex;gap:7px;align-items:center;white-space:nowrap;overflow:hidden}
+  #mode b{color:var(--fg)} #setNo{padding:2px 10px;border-radius:20px;font-weight:800;color:var(--fg);background:var(--card);box-shadow:inset 2px 2px 5px var(--sh-lo),inset -2px -2px 5px var(--sh-hi)}
+  .nav{display:flex;gap:8px;flex:0 0 auto}
+  .nav button{min-height:40px;min-width:40px;padding:0 15px;font-size:13px;font-weight:700;line-height:1;
+    border:0;background:var(--card);color:var(--muted);border-radius:12px;cursor:pointer;
+    box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .nav button.active{color:var(--blue)}
+  #fsBtn,#awakeBtn,#tabSettingsBtn{font-size:16px;padding:0 12px}
+  #awakeBtn.active{color:var(--gold)}
+
+  main{flex:1;position:relative;overflow:hidden}
+  .tab{display:none;height:100%} .tab.active{display:flex;flex-direction:column}
+
+  /* ---- GAME ---- */
+  .game{padding:10px;gap:10px}
+  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+  .side{min-width:0;min-height:0;display:flex;flex-direction:column;gap:8px}
+  .side.left{--edge:var(--left)} .side.right{--edge:var(--right)}
+  .teamcard{flex:0 1 auto;max-height:100%;min-height:0;display:flex;flex-direction:column;gap:14px;
+    background:var(--card);border-radius:var(--r);padding:12px 14px;
+    box-shadow:7px 7px 16px var(--sh-lo),-7px -7px 16px var(--sh-hi)}
+  .sidehdr{flex:0 0 auto;display:flex;align-items:center;gap:8px}
+  .side.right .sidehdr{flex-direction:row-reverse}
+  input.short{flex:1;min-width:0;padding:9px 12px;font-size:16px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.03em;background:var(--card);color:var(--fg);border:0;border-radius:12px;
+    box-shadow:inset 3px 3px 7px var(--sh-lo),inset -3px -3px 7px var(--sh-hi)}
+  .side.right input.short{text-align:right}
+  input.short.flashname{animation:nameflash 1s ease 3}
+  @keyframes nameflash{50%{color:var(--ok)}}
+  input.color{width:38px;height:38px;padding:0;border:0;border-radius:12px;background:var(--card);cursor:pointer;flex:0 0 auto;
+    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
+
+  .score{flex:0 0 auto;max-height:30vh;min-height:0;display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;gap:8px}
+  .score .val{flex:1;min-width:0;text-align:center;font-weight:800;line-height:.9;color:var(--edge);
+    font-variant-numeric:tabular-nums;font-size:clamp(48px,16vh,88px);
+    text-shadow:0 0 22px color-mix(in srgb,var(--edge) 45%,transparent)}
+  .score .val.flash{animation:ptflash .8s ease}
+  @keyframes ptflash{25%{transform:scale(1.3);color:var(--ok);text-shadow:0 0 26px var(--ok)}100%{transform:scale(1)}}
+  .bigbtn{flex:0 0 auto;width:clamp(54px,9vw,74px);height:clamp(54px,9vw,74px);
+    font-size:34px;font-weight:700;line-height:1;border:0;background:var(--card);color:var(--fg);border-radius:50%;cursor:pointer;
+    box-shadow:6px 6px 13px var(--sh-lo),-6px -6px 13px var(--sh-hi)}
+
+  /* stat blocks: label + number on top, -/+ UNDERNEATH */
+  .statrow{flex:0 0 auto;display:flex;gap:8px}
+  .stat{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;
+    background:var(--card);border-radius:14px;padding:7px 4px 8px;
+    box-shadow:inset 3px 3px 7px var(--sh-lo),inset -3px -3px 7px var(--sh-hi)}
+  .stat .name{font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+  .stat .num{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--fg);line-height:1}
+  .stat .num.bump{animation:numbump .5s ease}
+  @keyframes numbump{40%{transform:scale(1.5);color:var(--ok)}}
+  .stat .pm{display:flex;gap:6px;margin-top:2px}
+  .smbtn{width:34px;height:30px;font-size:17px;font-weight:700;line-height:1;border:0;background:var(--card);color:var(--fg);
+    border-radius:10px;cursor:pointer;box-shadow:3px 3px 7px var(--sh-lo),-3px -3px 7px var(--sh-hi)}
+  .stat.warn{color:var(--warn)} .stat.warn .num,.stat.warn .name{color:var(--warn)}
+  .stat.maxed .num,.stat.maxed .name{color:var(--bad)}
+
+  /* centre column: serve + quick controls */
+  .centercol{flex:0 0 auto;align-self:center;display:flex;flex-direction:column;align-items:center;gap:12px;
+    background:var(--card);border-radius:26px;padding:14px 10px;
+    box-shadow:7px 7px 16px var(--sh-lo),-7px -7px 16px var(--sh-hi)}
+  .servebox{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .servebox .lbl{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted)}
+  .serveind{font-size:20px;transition:opacity .15s}
+  .servebtn{width:44px;height:38px;font-size:16px;border:0;background:var(--card);color:var(--muted);border-radius:12px;cursor:pointer;
+    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
+  .servebtn.on{color:var(--ok)}
+  .iconbtn{width:48px;height:44px;font-size:18px;border:0;background:var(--card);color:var(--muted);border-radius:14px;cursor:pointer;
+    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
+  .iconbtn.active{color:var(--gold)}
+
+  .gfooter{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
+  .setstrip{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto}
+  .setstrip[hidden]{display:none}
+  .setpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:5px 11px;border-radius:20px;
+    background:var(--card);font-size:12px;font-variant-numeric:tabular-nums;
+    box-shadow:inset 2px 2px 5px var(--sh-lo),inset -2px -2px 5px var(--sh-hi)}
+  .setpill .sn{font-size:10px;font-weight:700;color:var(--muted);margin-right:3px}
+  .setpill b{font-weight:600;color:var(--muted)} .setpill b.w{color:var(--fg);font-weight:800} .setpill em{color:var(--muted)}
+  .setundo{width:30px;height:26px;border-radius:9px;font-size:12px;border:0;background:var(--card);color:var(--muted);cursor:pointer;
+    box-shadow:3px 3px 7px var(--sh-lo),-3px -3px 7px var(--sh-hi)}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .actions button{min-height:44px;padding:0 16px;font-size:13px;font-weight:800;white-space:nowrap;border:0;
+    background:var(--card);color:var(--fg);border-radius:13px;cursor:pointer;
+    box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .actions .switch{color:var(--blue)}
+  .actions .danger{color:var(--bad)} .actions .danger:first-of-type{margin-left:auto}
+
+  /* countdown overlay */
+  #cd{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:15;display:flex;align-items:center;gap:14px;
+    padding:10px 18px;border-radius:16px;background:var(--card);box-shadow:8px 8px 20px var(--sh-lo),-8px -8px 20px var(--sh-hi)}
+  #cd[hidden]{display:none}
+  #cd .cd-time{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--warn)}
+  #cd .cd-label{font-size:14px;font-weight:800;letter-spacing:.03em;color:var(--fg);text-transform:uppercase}
+  #cd .cd-stop{min-width:36px;height:36px;padding:0 12px;border-radius:11px;font-size:15px;font-weight:800;border:0;background:var(--card);color:var(--fg);cursor:pointer;
+    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
+  #cd.major{top:50%;transform:translate(-50%,-50%);flex-direction:column;gap:10px;padding:26px 42px}
+  #cd.major .cd-time{font-size:66px} #cd.major .cd-label{font-size:16px}
+  #cd.major .cd-stop{height:44px;font-size:16px;padding:0 20px;color:var(--blue)}
+
+  /* ---- LINK ---- */
+  .link{padding:14px;overflow-y:auto}
+  .linkbar{display:flex;gap:8px;margin-bottom:12px}
+  .linkbar button,#matches .linkbtn{padding:11px 18px;font-size:14px;font-weight:700;border:0;background:var(--card);color:var(--blue);border-radius:13px;cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  #matches{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+  #matches li{display:flex;align-items:center;gap:12px;padding:13px;border-radius:14px;background:var(--card);box-shadow:5px 5px 12px var(--sh-lo),-5px -5px 12px var(--sh-hi)}
+  #matches .info{flex:1;min-width:0} #matches .label{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #matches .sub{font-size:12px;color:var(--muted)}
+  .live{font-size:11px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--ok);padding:3px 8px;border-radius:20px}
+  #matches li.linked .linkbtn{color:#fff;background:var(--blue)}
+  .note{color:var(--muted);font-size:13px;padding:8px 2px} .err{color:var(--bad);font-size:13px;padding:6px 2px}
+
+  /* ---- SETTINGS ---- */
+  .settings{padding:14px;overflow-y:auto}
+  .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+  .settings fieldset{border:0;border-radius:16px;padding:12px 16px 14px;margin:0;background:var(--card);min-width:0;box-shadow:6px 6px 14px var(--sh-lo),-6px -6px 14px var(--sh-hi)}
+  .settings legend{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--blue);text-transform:uppercase;padding:0 4px 2px;display:flex;align-items:center;gap:6px}
+  .settings .row{display:flex;align-items:center;gap:8px;padding:9px 0;font-size:13px}
+  .settings .row + .row{border-top:1px solid rgba(150,160,190,.16)}
+  .settings .row span{flex:1;min-width:0} .settings .row em{font-style:normal;color:var(--muted);font-size:11px;width:16px}
+  .settings input[type=number],.settings input[type=text],.settings select{padding:7px 10px;font-size:13px;border:0;border-radius:10px;background:var(--card);color:var(--fg);box-shadow:inset 3px 3px 6px var(--sh-lo),inset -3px -3px 6px var(--sh-hi)}
+  .settings input[type=number]{width:84px} .settings input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:46px;height:26px;border-radius:13px;position:relative;cursor:pointer;background:var(--card);box-shadow:inset 3px 3px 6px var(--sh-lo),inset -3px -3px 6px var(--sh-hi);transition:background .2s}
+  .settings input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--card);box-shadow:3px 3px 6px var(--sh-lo),-2px -2px 5px var(--sh-hi);transition:transform .2s}
+  .settings input[type=checkbox]:checked{background:var(--blue);box-shadow:inset 2px 2px 5px rgba(40,60,120,.5)}
+  .settings input[type=checkbox]:checked::after{transform:translateX(20px);background:#fff;box-shadow:2px 2px 5px rgba(0,0,0,.25)}
+  .settings .hint{font-size:11px;color:var(--muted);margin:4px 0 0} #setStatus.saved{color:var(--ok)}
+
+  #rotate{display:none}
+  @media (orientation:portrait) and (max-width:600px){
+    #rotate{display:flex;position:fixed;inset:0;z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);color:var(--fg);text-align:center;padding:28px}
+    #rotate .ic{font-size:56px;animation:rothint 2.4s ease-in-out infinite} #rotate .t{font-size:17px;font-weight:800} #rotate .s{font-size:13px;color:var(--muted);max-width:280px}
+    @keyframes rothint{0%,55%{transform:rotate(0)}78%,100%{transform:rotate(-90deg)}}
+  }
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--card);color:var(--fg);padding:12px 18px;border-radius:13px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:60;text-align:center;box-shadow:6px 6px 16px var(--sh-lo),-6px -6px 16px var(--sh-hi)}
+  #toast.show{opacity:1}
+  #edit{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(120,128,150,.35)}
+  #edit[hidden]{display:none}
+  .editbox{background:var(--card);border-radius:20px;padding:18px;width:min(300px,90vw);box-shadow:10px 10px 30px var(--sh-lo),-10px -10px 30px var(--sh-hi)}
+  .editlabel{font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;text-align:center}
+  #editInput{width:100%;padding:14px;font-size:32px;font-weight:800;text-align:center;border:0;border-radius:12px;background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;box-shadow:inset 4px 4px 9px var(--sh-lo),inset -4px -4px 9px var(--sh-hi)}
+  .editbtns{display:flex;gap:10px;margin-top:14px}
+  .editbtns button{flex:1;padding:13px;font-size:15px;font-weight:800;border-radius:12px;border:0;background:var(--card);color:var(--fg);cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  #editOk{color:var(--blue)}
+  #offline{display:none;align-items:center;gap:10px;padding:11px 15px;margin:0 10px;border-radius:13px;background:var(--card);color:var(--bad);font-weight:700;box-shadow:inset 3px 3px 7px var(--sh-lo),inset -3px -3px 7px var(--sh-hi)}
+  #offline.show{display:flex} #offline .sub{font-weight:400;color:var(--muted);font-size:.82rem}
+  .editable{cursor:pointer}
+  /* Power / shutdown */
+  .dangerbtn{width:100%;margin-top:6px;padding:14px;font-size:15px;font-weight:800;border:0;border-radius:13px;background:var(--card);color:var(--bad);cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  #shutdown{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);color:var(--fg);text-align:center;padding:32px}
+  #shutdown.show{display:flex}
+  #shutdown .ic{font-size:66px;color:var(--muted)}
+  #shutdown .t{font-size:23px;font-weight:800}
+  #shutdown .s{font-size:14px;color:var(--muted);max-width:340px}
+  #shutdown .press{font-size:19px;font-weight:800;color:var(--blue);background:var(--card);padding:16px 26px;border-radius:16px;box-shadow:inset 3px 3px 8px var(--sh-lo),inset -3px -3px 8px var(--sh-hi)}
+  @media (prefers-reduced-motion: no-preference){#shutdown .press{animation:pulsePress 1.6s ease-in-out infinite}@keyframes pulsePress{50%{transform:scale(1.04)}}}
+  /* ---- HISTORY ---- */
+  .history{padding:14px;overflow-y:auto}
+  .histbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .histbar button{padding:11px 16px;font-size:14px;font-weight:700;border:0;background:var(--card);color:var(--blue);border-radius:13px;cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .histbar button.danger{color:var(--bad)}
+  #histList{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+  .histcard{padding:13px 16px;border-radius:14px;background:var(--card);box-shadow:5px 5px 12px var(--sh-lo),-5px -5px 12px var(--sh-hi)}
+  .histcard .top{display:flex;align-items:center;gap:10px}
+  .histcard .teams{flex:1;min-width:0;font-weight:800;font-size:15px}
+  .histcard .final{font-variant-numeric:tabular-nums;font-weight:800;font-size:18px}
+  .histcard .final .win{color:var(--ok)}
+  .histcard .meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;gap:14px;flex-wrap:wrap}
+  .histcard .sets{font-variant-numeric:tabular-nums}
+  /* confirm modal (T/O + subs) */
+  #confirm{position:fixed;inset:0;z-index:75;display:flex;align-items:center;justify-content:center;background:rgba(120,128,150,.35)}
+  #confirm[hidden]{display:none}
+  #confirm .editlabel{font-size:16px;text-transform:none;letter-spacing:0;color:var(--fg);margin-bottom:14px}
+  #confirmYes{color:var(--blue)}
+  /* scorer PIN lock */
+  #pinModal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(120,128,150,.35)}
+  #pinModal[hidden]{display:none}
+  #pinInput{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;border:0;border-radius:12px;background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;box-shadow:inset 4px 4px 9px var(--sh-lo),inset -4px -4px 9px var(--sh-hi)}
+  #pinOk{color:var(--blue)}
+  #lockBtn{font-size:16px;padding:0 12px}
+  #lockBtn.on{color:var(--bad)}
+  body.locked #tab-manual .board,body.locked #tab-manual .gfooter{filter:opacity(.72)}
+  /* live LED-board mirror */
+  .boardview{flex:1 1 auto;min-height:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:4px}
+  .bvlabel{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .bvpanel{height:100%;width:auto;max-width:100%;aspect-ratio:192/64;container-type:size;position:relative;
+    background:#080a12;border-radius:12px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;
+    box-shadow:inset 4px 4px 12px #04060c,inset -3px -3px 9px #141d38,6px 6px 16px var(--sh-lo),-6px -6px 16px var(--sh-hi)}
+  .bvinner{position:absolute;inset:0;transform:scale(.85);transform-origin:center}
+  .bvsec{position:absolute;white-space:nowrap;line-height:1;font-weight:400;letter-spacing:-.03em}
+  .bvrect{position:absolute;border-radius:.5cqh}
+  .bvbox{background:transparent;border:2.2cqh solid #555;box-sizing:border-box}
+  .bvblink{animation:bvblink 1.8s steps(1,end)}
+  @keyframes bvblink{0%,100%{opacity:1}12%,37%,62%,87%{opacity:.1}}
+  /* mirror non-match board states */
+  #bvPanel[data-mode="idle"] .bvinner,#bvPanel[data-mode="countdown"] .bvinner,#bvPanel[data-mode="blank"] .bvinner{display:none}
+  .bvidle{position:absolute;inset:0;display:none;align-items:center;justify-content:center;gap:5cqw;padding:0 6cqw;font-family:Arial,Helvetica,sans-serif}
+  #bvPanel[data-mode="idle"] .bvidle{display:flex}
+  .bvcrest{height:80cqh;width:auto;flex:0 0 auto}
+  .bvnames{display:flex;flex-direction:column;justify-content:center;min-width:0}
+  .bvnames .bvn{font-weight:700;font-size:23cqh;line-height:1.02;letter-spacing:-.02em;white-space:nowrap}
+  .bvnames .bvsep{height:.6cqh;background:#39415f;margin:2.5cqh 0;border-radius:1cqh}
+  .bvcd{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqh;font-family:Arial,Helvetica,sans-serif}
+  #bvPanel[data-mode="countdown"] .bvcd{display:flex}
+  .bvcd .bvcdlabel{font-weight:700;font-size:12cqh;letter-spacing:.06em;color:#aeb8d8;text-transform:uppercase;white-space:nowrap}
+  .bvcd .bvcdtime{font-weight:700;font-size:42cqh;line-height:.85;color:#ffcf47;font-variant-numeric:tabular-nums}
+  .bvcd .bvcdsub{font-weight:700;font-size:15cqh;color:#e7ecff;font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;gap:1.5cqw;align-items:baseline}
+  /* Board mirror + top-anchored cards only where there's room (tablets and up) */
+  @media (min-width:740px){
+    .board{flex:0 0 auto}
+    .boardview{display:flex}
+    /* lift the big break-countdown card so the board mirror below stays visible */
+    #cd.major{top:32%}
+  }
+  /* portrait: size the panel by WIDTH so it never stretches in a tall window */
+  @media (orientation:portrait){
+    .bvpanel{width:100%;height:auto;max-height:100%}
+  }
+  .taphint{font-size:10px;color:var(--muted);text-align:center;opacity:.75;margin-top:-4px}
+</style>
+
+<div id="app">
+  <header class="topbar">
+    <span class="brand"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> LedBox</span>
+    <span id="dot" title="LedBox connection"><svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg></span>
+    <div id="mode">Mode <b id="modeName">…</b><span id="setNo"></span><span id="matchTag"></span></div>
+    <nav class="nav">
+      <button id="tabManualBtn" class="active" data-tab="manual">Game</button>
+      <button id="tabLinkBtn" data-tab="link">Link</button>
+      <button id="tabHistoryBtn" data-tab="history">History</button>
+      <button id="lockBtn" hidden title="Scorer lock" aria-label="Scorer lock"><svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></button>
+      <button id="tabSettingsBtn" data-tab="settings" title="Settings" aria-label="Settings"><svg class="licon l-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /></svg></button>
+                </nav>
+  </header>
+
+  <div id="offline" role="status" aria-live="polite">
+    <span aria-hidden="true"><svg class="licon l-triangle-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></svg></span>
+    <span>
+      <span class="big">Board not connected</span><br>
+      <span class="sub" id="offlineHint">Scores are still being recorded — the panel is not updating.</span>
+    </span>
+  </div>
+
+  <main>
+    <!-- GAME -->
+    <section id="tab-manual" class="tab game active">
+  <div class="board">
+    <div class="side left" data-side="left">
+      <div class="teamcard">
+        <div class="sidehdr">
+          <input class="short" data-field="short" maxlength="12" placeholder="TEAM A">
+          <input class="color" type="color" data-field="color" value="#3b6fe0" aria-label="left team colour">
+        </div>
+        <div class="score">
+          <button class="bigbtn" data-pt="1" aria-label="left plus point">+</button>
+          <span class="val" data-val="points">0</span>
+          <button class="bigbtn" data-pt="-1" aria-label="left minus point">−</button>
+        </div>
+        <span class="taphint">Tap to set the score manually</span>
+        <div class="statrow">
+          <div class="stat"><span class="name">T/O</span><span class="num" data-val="to">0</span>
+            <div class="pm"><button class="smbtn" data-stat="timeout" data-d="-1" aria-label="left timeout minus">−</button><button class="smbtn" data-stat="timeout" data-d="1" aria-label="left timeout plus">+</button></div></div>
+          <div class="stat"><span class="name">Sets</span><span class="num" data-val="sets">0</span>
+            <div class="pm"><button class="smbtn" data-stat="set" data-d="-1" aria-label="left set minus">−</button><button class="smbtn" data-stat="set" data-d="1" aria-label="left set plus">+</button></div></div>
+          <div class="stat"><span class="name">Subs</span><span class="num" data-val="sub">0</span>
+            <div class="pm"><button class="smbtn" data-stat="sub" data-d="-1" aria-label="left sub minus">−</button><button class="smbtn" data-stat="sub" data-d="1" aria-label="left sub plus">+</button></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="centercol">
+      <div class="servebox">
+        <span class="lbl">SERVE</span>
+        <button class="servebtn" data-serve="left" aria-label="Serve left"><svg class="licon l-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></button>
+        <span class="serveind" id="serveInd" aria-hidden="true"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg></span>
+        <button class="servebtn" data-serve="right" aria-label="Serve right"><svg class="licon l-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></button>
+      </div>
+      <button id="awakeBtn" class="iconbtn" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
+      <button id="fsBtn" class="iconbtn" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
+    </div>
+    <div class="side right" data-side="right">
+      <div class="teamcard">
+        <div class="sidehdr">
+          <input class="short" data-field="short" maxlength="12" placeholder="TEAM B">
+          <input class="color" type="color" data-field="color" value="#e0453d" aria-label="right team colour">
+        </div>
+        <div class="score">
+          <button class="bigbtn" data-pt="1" aria-label="right plus point">+</button>
+          <span class="val" data-val="points">0</span>
+          <button class="bigbtn" data-pt="-1" aria-label="right minus point">−</button>
+        </div>
+        <span class="taphint">Tap to set the score manually</span>
+        <div class="statrow">
+          <div class="stat"><span class="name">T/O</span><span class="num" data-val="to">0</span>
+            <div class="pm"><button class="smbtn" data-stat="timeout" data-d="-1" aria-label="right timeout minus">−</button><button class="smbtn" data-stat="timeout" data-d="1" aria-label="right timeout plus">+</button></div></div>
+          <div class="stat"><span class="name">Sets</span><span class="num" data-val="sets">0</span>
+            <div class="pm"><button class="smbtn" data-stat="set" data-d="-1" aria-label="right set minus">−</button><button class="smbtn" data-stat="set" data-d="1" aria-label="right set plus">+</button></div></div>
+          <div class="stat"><span class="name">Subs</span><span class="num" data-val="sub">0</span>
+            <div class="pm"><button class="smbtn" data-stat="sub" data-d="-1" aria-label="right sub minus">−</button><button class="smbtn" data-stat="sub" data-d="1" aria-label="right sub plus">+</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="boardview">
+    <span class="bvlabel">On the board now</span>
+    <div class="bvpanel" id="bvPanel"></div>
+  </div>
+  <div class="gfooter">
+    <div id="setStrip" class="setstrip" hidden></div>
+    <div class="actions">
+      <button id="idleBtn" title="Show team names + VS on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
+      <button id="warmupBtn" title="Pre-match warm-up countdown"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Warm-up</button>
+      <button id="swapBtn" class="switch" title="Teams change ends"><svg class="licon l-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></svg> Switch sides</button>
+      <button id="resetBtn" class="danger" title="Clear the board to 0–0">Reset</button>
+      <button id="blankBtn" class="danger" title="Blank the display">Blank</button>
+    </div>
+  </div>
+</section>
+
+    <!-- LINK -->
+    <section id="tab-link" class="tab link">
+      <div class="linkbar">
+        <button id="refreshBtn">↻ Refresh matches</button>
+      </div>
+      <div id="linkErrs"></div>
+      <ul id="matches"></ul>
+      <p class="note" id="matchesNote">Tap “Refresh matches” to discover live matches on the LAN.</p>
+    </section>
+
+    <!-- SETTINGS (Phase 2 placeholder) -->
+    <section id="tab-settings" class="tab settings">
+      <div class="setgrid">
+        <fieldset>
+          <legend><svg class="licon l-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /> <path d="M9 18h6" /> <path d="M10 22h4" /></svg> Board feedback</legend>
+          <label class="row"><span>Blink the point on the board</span>
+            <input type="checkbox" data-set="blinkPoint"></label>
+          <label class="row"><span>Blink substitutions</span>
+            <input type="checkbox" data-set="blinkSub"></label>
+          <label class="row"><span>Blink length</span>
+            <input type="number" data-set="blinkMs" min="200" max="10000" step="100"><em>ms</em></label>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Countdowns</legend>
+          <label class="row"><span>Show on timeout</span>
+            <input type="checkbox" data-set="countdownOnTimeout"></label>
+          <label class="row"><span>Timeout length</span>
+            <input type="number" data-set="timeoutSeconds" min="5" max="600"><em>s</em></label>
+          <label class="row"><span>Show on set interval</span>
+            <input type="checkbox" data-set="countdownOnSetInterval"></label>
+          <label class="row"><span>Set interval</span>
+            <input type="number" data-set="setIntervalSeconds" min="10" max="1800"><em>s</em></label>
+          <label class="row"><span>Warm-up</span>
+            <input type="number" data-set="warmupSeconds" min="10" max="3600"><em>s</em></label>
+          <label class="row"><span>Horn when a countdown ends</span>
+            <input type="checkbox" data-set="hornOnCountdownEnd"></label>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> Match format</legend>
+          <label class="row"><span>Best of</span>
+            <select data-set="bestOf"><option value="3">3 sets</option><option value="5">5 sets</option></select></label>
+          <label class="row"><span>Total timeouts / set</span>
+            <input type="number" data-set="totalTimeouts" min="1" max="9"></label>
+          <label class="row"><span>Total subs / set</span>
+            <input type="number" data-set="totalSubs" min="1" max="15"></label>
+          <p class="hint">Best-of decides how many sets win the match. Timeouts go red at the
+            total; subs go amber one short and red at the total.</p>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Crest screen</legend>
+          <label class="row"><span>Show full club names</span>
+            <input type="checkbox" data-set="idleFullNames"></label>
+          <label class="row"><span>Largest name size</span>
+            <input type="number" data-set="idleFontMax" min="10" max="30"><em>px</em></label>
+          <p class="hint">The pre-match screen beside the crest. Long names are shrunk
+            automatically to fit the panel, so this size is the ceiling — what a short
+            name like KSCW gets. Turn the switch off to show short codes instead.</p>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-landmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 18v-7" /> <path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z" /> <path d="M14 18v-7" /> <path d="M18 18v-7" /> <path d="M3 22h18" /> <path d="M6 18v-7" /></svg> Club</legend>
+          <label class="row"><span>Club name</span>
+            <input type="text" data-set="clubName" maxlength="20" style="width:130px"></label>
+          <p class="hint">For the club logo / idle screen — available once the board accepts an
+            image upload. Countdowns now use fixed labels (TO ·, INTERVAL, WARM UP).</p>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg> Access</legend>
+          <label class="row"><span>Scorer PIN</span>
+            <input type="password" inputmode="numeric" data-set="scorerPin" maxlength="8" autocomplete="off" placeholder="unchanged" style="width:110px"></label>
+          <p class="hint">Set a digits-only PIN so only your scorer can change the score — anyone who scans the board can still watch, not touch. Leave blank to keep the current PIN.</p>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10" /> <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg> Power</legend>
+          <p class="hint">Halt the scoreboard cleanly before switching the power off — protects the memory card.</p>
+          <button id="shutdownBtn" class="dangerbtn"><svg class="licon l-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10" /> <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg> Shut down</button>
+        </fieldset>
+      </div>
+      <p class="hint" id="setStatus">Saved on the board — these survive a restart.</p>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="tab-history" class="tab history">
+      <div class="histbar">
+        <button id="expCsvBtn"><svg class="licon l-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></svg> CSV</button>
+        <button id="expJsonBtn"><svg class="licon l-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></svg> JSON</button>
+        <button id="clearHistBtn" class="danger">Clear history</button>
+      </div>
+      <ul id="histList"></ul>
+      <p class="note" id="histNote">No matches recorded yet.</p>
+    </section>
+
+    <!-- Countdown overlay: TIME + label (e.g. "TO WIEDIKON") -->
+    <div id="cd" hidden>
+      <span class="cd-time" id="cdTime">0:00</span>
+      <span class="cd-label" id="cdLabel"></span>
+      <button class="cd-stop" id="cdStop" title="Skip">✕</button>
+    </div>
+  </main>
+
+  <!-- Portrait nudge -->
+  <div id="rotate">
+    <div class="ic">📱</div>
+    <div class="t">Rotate to landscape</div>
+    <div class="s">The scoreboard controller is built for a landscape screen.</div>
+  </div>
+</div>
+
+<!-- Direct-entry editor for a score / set / T-O / sub number (tap the number to open). -->
+<div id="edit" hidden>
+  <div class="editbox">
+    <div class="editlabel" id="editLabel">Edit</div>
+    <input id="editInput" type="number" inputmode="numeric" min="0" step="1">
+    <div class="editbtns">
+      <button id="editCancel">Cancel</button>
+      <button id="editOk">Set</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="confirm" hidden>
+  <div class="editbox">
+    <div class="editlabel" id="confirmMsg">Confirm</div>
+    <div class="editbtns">
+      <button id="confirmNo">Cancel</button>
+      <button id="confirmYes">Confirm</button>
+    </div>
+  </div>
+</div>
+<div id="pinModal" hidden>
+  <div class="editbox">
+    <div class="editlabel" id="pinLabel">Enter scorer PIN</div>
+    <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+    <div class="editbtns">
+      <button id="pinCancel">Cancel</button>
+      <button id="pinOk">Unlock</button>
+    </div>
+  </div>
+</div>
+<div id="shutdown" role="alertdialog" aria-live="assertive">
+  <div class="ic"><svg class="licon l-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10" /> <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg></div>
+  <div class="t">Shutting down…</div>
+  <div class="s">The panel will go dark in a few seconds.</div>
+  <div class="press">Now press the power button to switch it off</div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const IC = {
+    wifiOn:'<svg class="licon l-wifi" viewBox="0 0 24 24" fill="none" stroke="#25b567" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M2 8.82a15 15 0 0 1 20 0" /> <path d="M5 12.859a10 10 0 0 1 14 0" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /></svg>', wifiOff:'<svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg>',
+    ball:'<svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg>', chevL:'<svg class="licon l-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>', chevR:'<svg class="licon l-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>',
+    lock:'<svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>', lockOpen:'<svg class="licon l-lock-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>', min:'<svg class="licon l-minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3" /> <path d="M21 8h-3a2 2 0 0 1-2-2V3" /> <path d="M3 16h3a2 2 0 0 1 2 2v3" /> <path d="M16 21v-3a2 2 0 0 1 2-2h3" /></svg>', max:'<svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>' };
+  IC.del = '<svg class="licon l-delete" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z" /> <path d="m12 9 6 6" /> <path d="m18 9-6 6" /></svg>';
+
+  // --- tiny helpers -------------------------------------------------------
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const num = (x) => Array.isArray(x) ? x.length : (Number(x) || 0);
+  const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
+  const roman = (n) => ROMAN[n] || String(n);
+
+  // Preset team colours — tap-friendly on mobile (the native picker is fiddly).
+  const PRESETS = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#22c55e", "#14b8a6",
+    "#0ea5e9", "#3b82f6", "#2563eb", "#6366f1", "#a855f7", "#ec4899",
+    "#ffffff", "#111827"];
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+  }
+
+  // Scorer lock: a PIN (when the board has one set) gates all scoring; stored per-device.
+  let SCORER_PIN = ""; try { SCORER_PIN = localStorage.getItem("kscwScorerPin") || ""; } catch {}
+  let pinRequired = false;
+
+  async function api(path, opts) {
+    const res = await fetch(path, opts);
+    let body = null;
+    try { body = await res.json(); } catch { /* non-JSON */ }
+    if (res.status === 403) onPinRejected();
+    if (!res.ok) throw new Error((body && body.error) || (path + " → " + res.status));
+    return body;
+  }
+  const postJSON = (path, obj) => api(path, {
+    method: "POST",
+    headers: { "content-type": "application/json", "X-Scorer-Pin": SCORER_PIN },
+    body: JSON.stringify(obj || {}),
+  });
+
+  let lastLedbox = {};   // remembered so optimistic renders keep the status dot right
+  let SETTINGS = {};     // operator preferences, loaded from the board
+  // What the LED board is currently showing, so the mirror can reflect non-match states.
+  let bvLast = { s: null, serving: null };
+  const board = { mode: "match", cd: null };
+
+  // --- countdown ----------------------------------------------------------
+  // On finish OR ✕ it disappears (back to normal scoring); an optional onFinish
+  // runs then (set interval -> next set; set-5 8-switch -> swap sides).
+  let cdTimer = null, cdEnd = 0, cdOnFinish = null;
+  const fmt = (s) => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  // Mirror the countdown onto the server so the /mockledbox board shows the same timer.
+  const publishCountdown = (seconds, label, content, swapFirst, side) =>
+    postJSON("/api/countdown", { seconds, label, content, swapFirst, side }).catch(() => null);
+  const stopServerCountdown = (expired) => postJSON("/api/countdown/stop", { expired: !!expired }).catch(() => {});
+  function clearCountdown() {
+    if (cdTimer) { clearInterval(cdTimer); cdTimer = null; }
+    cdOnFinish = null;
+    $("#cd").hidden = true;
+    $("#cd").classList.remove("major");
+    if (board.mode === "countdown") { board.mode = "match"; paintBoardMode(); }
+  }
+  // expired=true when the clock ran out (fires the board horn); false on a manual skip.
+  function finishCountdown(expired) {
+    const cb = cdOnFinish;
+    clearCountdown();
+    stopServerCountdown(expired);
+    if (cb) cb();
+  }
+  // opts.major = take over the screen (set interval / warm-up, where play has stopped).
+  // opts.action = label for the button, which RUNS onFinish rather than just dismissing —
+  // "✕" read as "cancel" when it actually means "start the next set now".
+  function startCountdown(seconds, label, onFinish, opts = {}) {
+    clearCountdown();
+    cdOnFinish = onFinish || null;
+    cdEnd = Date.now() + seconds * 1000;
+    $("#cdLabel").textContent = label;
+    $("#cdStop").textContent = opts.action || "✕";
+    $("#cdStop").title = opts.action ? label : "Skip";
+    $("#cd").classList.toggle("major", !!opts.major);
+    $("#cd").hidden = false;
+    board.mode = "countdown";
+    board.cd = { label: (opts.label || label || "").toUpperCase(), content: opts.content || "full", side: opts.side || null, end: cdEnd };
+    paintBoardMode();
+    cdButton = () => finishCountdown(false); // the ✕ / "start next set" button: skip, no horn
+    // content: what the BOARD shows beside the clock — 'full' (points+sets), 'sets', or 'none'.
+    // swapFirst (set interval): the server swaps ends + resets points atomically, then returns
+    // the new state so the phone reflects the switched sides immediately.
+    publishCountdown(seconds, opts.label || label, opts.content || "full", opts.swapFirst, opts.side).then((r) => {
+      if (opts.swapFirst && r && r.state) {
+        renderStatus({ mode: "manual", matchId: null, ledbox: lastLedbox, state: r.state });
+      }
+    });
+    const tick = () => {
+      const left = (cdEnd - Date.now()) / 1000;
+      $("#cdTime").textContent = fmt(left);
+      const bt = document.querySelector('#bvPanel [data-n="cdtime"]');
+      if (bt && board.mode === "countdown") bt.textContent = fmt(left);
+      if (left <= 0) finishCountdown(true); // ran out -> horn
+    };
+    tick(); cdTimer = setInterval(tick, 250);
+  }
+
+  // When a set ends we DON'T jump straight into the interval — the board holds the final
+  // score, and this prompt waits for the operator to press "Start interval". Only then does
+  // the interval countdown (and the board's countdown screen) begin.
+  function showSetEndPrompt(state) {
+    clearCountdown();
+    const sd = sides(state);
+    $("#cdLabel").textContent = "SET ENDED";
+    $("#cdTime").textContent = sd ? (sd.left.points + "–" + sd.right.points) : "";
+    $("#cdStop").textContent = "Start interval →";
+    $("#cdStop").title = "Start the set interval";
+    $("#cd").classList.add("major");
+    $("#cd").hidden = false;
+    // The board stays on the match layout showing the final score — no publishCountdown here.
+    cdButton = () => {
+      // No countdown wanted → just swap + advance.
+      if (SETTINGS.countdownOnSetInterval === false) { clearCountdown(); sendAction({ type: "next-set" }); return; }
+      // swapFirst does the end-swap + point-reset ATOMICALLY on the server (paint suppressed),
+      // so the board jumps straight from the final score to the interval screen showing the set
+      // score in the NEW positions — no intermediate 0-0 flash, no race with the layout switch.
+      // onFinish is null: the next set is already set up, so ending the interval returns to the
+      // match view, which paints POINTS in the big boxes again.
+      startCountdown(SETTINGS.setIntervalSeconds || 180, "INTERVAL", null,
+        { major: true, action: "Start next set →", content: "sets", swapFirst: true });
+    };
+  }
+
+  let cdButton = () => finishCountdown(false);
+  $("#cdStop").addEventListener("click", () => cdButton());
+
+  // --- state -> physical left/right (honour side_a) -----------------------
+  function sides(state) {
+    if (!state) return null;
+    const a = {
+      short: state.team_a_short || "", color: state.team_a_color || "#2563eb",
+      points: num(state.points_a), sets: num(state.sets_won_a),
+      to: num(state.timeouts_a), sub: num(state.subs_a),
+    };
+    const b = {
+      short: state.team_b_short || "", color: state.team_b_color || "#ef4444",
+      points: num(state.points_b), sets: num(state.sets_won_b),
+      to: num(state.timeouts_b), sub: num(state.subs_b),
+    };
+    const aIsLeft = state.side_a !== "right";
+    return {
+      left: aIsLeft ? a : b,
+      right: aIsLeft ? b : a,
+      serving: state.serving_team || null,
+    };
+  }
+
+  // Which physical side does the higher a/b value sit on? (winner detection)
+  function sideOf(state, aWins) {
+    const aIsLeft = state.side_a !== "right";
+    return aWins === aIsLeft ? "left" : "right";
+  }
+
+  // --- render -------------------------------------------------------------
+  let linkedMatchId = null;
+  const MODE_LABELS = { manual: "Manual", lan: "Live (LAN)", cloud: "Cloud", idle: "Idle" };
+
+  function renderStatus(st) {
+    lastLedbox = st.ledbox || lastLedbox;
+    const connected = !!(st.ledbox && st.ledbox.connected);
+    $("#dot").innerHTML = connected ? IC.wifiOn : IC.wifiOff;
+    $("#dot").title = connected
+      ? `LedBox connected (${st.ledbox.host}:${st.ledbox.port})`
+      : "LedBox not connected";
+    // Say it in words too — the dot is easy to miss and has no tooltip on touch.
+    const off = $("#offline");
+    if (off) {
+      off.classList.toggle("show", !connected);
+      if (!connected) {
+        const hint = $("#offlineHint");
+        // The bridge retries on its own, so this is information, not a to-do list.
+        if (hint) hint.textContent = st.ledbox && st.ledbox.host
+          ? `Scores are still being recorded. Retrying ${st.ledbox.host}… check the board is on and the cable is in.`
+          : "Scores are still being recorded — the panel is not updating.";
+      }
+    }
+    $("#modeName").textContent = MODE_LABELS[st.mode]
+      || (st.mode ? st.mode[0].toUpperCase() + st.mode.slice(1) : "Idle");
+    $("#setNo").textContent = setLabel(st.state);
+    linkedMatchId = st.matchId != null ? String(st.matchId) : null;
+    $("#matchTag").textContent = st.matchId ? " · match " + st.matchId : "";
+    renderBoard(sides(st.state));
+    renderSetStrip(st.state);
+    markLinked();
+    pinRequired = !!st.pinRequired;
+    updateLock();
+  }
+
+  function setLabel(state) {
+    if (!state) return "";
+    const a = num(state.sets_won_a), b = num(state.sets_won_b);
+    if (a >= 3 || b >= 3) return "Final";
+    return "Set " + roman(Math.min(5, a + b + 1));
+  }
+
+  function flashSide(side) {
+    const el = $(`.side.${side} [data-val="points"]`);
+    if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+  }
+  function flashName(side) {
+    const el = $(`.side.${side} .short`);
+    if (el) { el.classList.remove("flashname"); void el.offsetWidth; el.classList.add("flashname"); }
+  }
+
+  // Completed-set results strip (a/b in state, projected to left/right by side_a).
+  function renderSetStrip(state) {
+    const strip = $("#setStrip");
+    const results = (state && state.set_results) || [];
+    if (!results.length) { strip.hidden = true; strip.innerHTML = ""; return; }
+    const aIsLeft = !state || state.side_a !== "right";
+    strip.hidden = false;
+    strip.innerHTML = "";
+    results.forEach((r, i) => {
+      const l = num(aIsLeft ? r.a : r.b), rt = num(aIsLeft ? r.b : r.a);
+      const pill = document.createElement("span");
+      pill.className = "setpill";
+      pill.innerHTML = `<i class="sn">${roman(i + 1)}</i>` +
+        `<b class="${l > rt ? "w" : ""}">${l}</b><em>–</em><b class="${rt > l ? "w" : ""}">${rt}</b>`;
+      strip.appendChild(pill);
+    });
+    const undo = document.createElement("button");
+    undo.className = "setundo"; undo.title = "Remove last set"; undo.innerHTML = IC.del;
+    undo.addEventListener("click", () => { if (confirm("Remove the last set result?")) sendAction({ type: "remove-set" }); });
+    strip.appendChild(undo);
+  }
+
+  // Last values actually painted, so we can flash only what CHANGED. Driven off state
+  // rather than off the button press, so a point entered on another phone flashes here too.
+  const shown = { left: {}, right: {} };
+
+  // 1:1 mirror of the LedBox: replicates the real volleyball_matchscore_02 layout exactly
+  // (bordered score boxes, big scores, sets "1 - 1", T/S columns, serve bar). Blinks on a point.
+  const BW = 192, BH = 64;
+  const LAYOUT = [
+    { n:"team1", t:"text", x:0,   y:-4, fs:18, a:"left"   },
+    { n:"bg_score1", t:"box", x:0, y:17, w:64, h:46 },
+    { n:"score1", t:"text", x:32, y:40, fs:50, a:"center", vc:true },
+    { n:"set1", t:"text", x:91,  y:-5, fs:26, a:"right"  },
+    { n:"vs",   t:"text", x:97,  y:-1, fs:18, a:"center", fixed:"-", col:"#dfe6ff" },
+    { n:"set2", t:"text", x:102, y:-5, fs:26, a:"left"   },
+    { n:"timeout1", t:"text", x:78, y:23, fs:18, a:"center" },
+    { n:"lbl_to", t:"text", x:96, y:26, fs:14, a:"center", fixed:"T", col:"#aeb8d8" },
+    { n:"timeout2", t:"text", x:115, y:23, fs:18, a:"center" },
+    { n:"sub1", t:"text", x:78, y:39, fs:18, a:"center" },
+    { n:"lbl_sub", t:"text", x:96, y:42, fs:14, a:"center", fixed:"S", col:"#aeb8d8" },
+    { n:"sub2", t:"text", x:115, y:39, fs:18, a:"center" },
+    { n:"serve1", t:"bar", x:70, y:60, w:16, h:5 },
+    { n:"serve2", t:"bar", x:107, y:60, w:16, h:5 },
+    { n:"team2", t:"text", x:192, y:-4, fs:18, a:"right"  },
+    { n:"bg_score2", t:"box", x:127, y:17, w:64, h:46 },
+    { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
+  ];
+  const cq = (v, ax) => (v / (ax === "x" ? BW : BH) * 100) + (ax === "x" ? "cqw" : "cqh");
+  function buildBoard() {
+    const p = $("#bvPanel"); if (!p || p.dataset.built) return; p.dataset.built = "1";
+    const inner = document.createElement("div"); inner.className = "bvinner";
+    for (const s of LAYOUT) {
+      const el = document.createElement("div"); el.dataset.n = s.n;
+      el.style.left = cq(s.x, "x"); el.style.top = cq(s.y, "y");
+      if (s.t === "text") {
+        el.className = "bvsec"; el.style.fontSize = cq(s.fs, "y");
+        if (s.a === "center") el.style.transform = s.vc ? "translate(-50%,-50%)" : "translateX(-50%)";
+        else if (s.a === "right") el.style.transform = "translateX(-100%)";
+        if (s.fixed) el.textContent = s.fixed; if (s.col) el.style.color = s.col;
+      } else {
+        el.className = s.t === "box" ? "bvrect bvbox" : "bvrect";
+        el.style.width = cq(s.w, "x"); el.style.height = cq(s.h, "y");
+      }
+      inner.appendChild(el);
+    }
+    p.appendChild(inner);
+    // overlay layers shown for non-match board states (idle crest, break countdown)
+    const idle = document.createElement("div"); idle.className = "bvidle";
+    idle.innerHTML =
+      '<svg class="bvcrest" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<path d="M50 4 L90 16 V50 C90 74 72 90 50 96 C28 90 10 74 10 50 V16 Z" fill="#3a5fb0" stroke="#e3b23c" stroke-width="4"/>' +
+      '<circle cx="50" cy="39" r="17" fill="#f7fafc" stroke="#14213d" stroke-width="2.4"/>' +
+      '<g fill="none" stroke="#14213d" stroke-width="2.1" stroke-linecap="round">' +
+      '<path d="M50 22 Q44 39 50 56"/><path d="M35 27 Q50 38 45 55"/><path d="M65 27 Q50 38 55 55"/></g>' +
+      '<text x="50" y="83" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="19" fill="#f2c14e">KSCW</text></svg>' +
+      '<div class="bvnames"><span class="bvn" data-n="idle1"></span><span class="bvsep"></span><span class="bvn" data-n="idle2"></span></div>';
+    p.appendChild(idle);
+    const cd = document.createElement("div"); cd.className = "bvcd";
+    cd.innerHTML =
+      '<span class="bvcdlabel" data-n="cdlabel"></span>' +
+      '<span class="bvcdtime" data-n="cdtime">0:00</span>' +
+      '<span class="bvcdsub" data-n="cdsub"></span>';
+    p.appendChild(cd);
+  }
+  const bvSeen = { s1:null, s2:null };
+  function renderPreview(s, serving) {
+    buildBoard();
+    bvLast = { s: s, serving: serving };
+    const p = $("#bvPanel"); if (!p) return;
+    const g = (n) => p.querySelector('[data-n="' + n + '"]');
+    const d = s || { left:{short:"",points:0,sets:0,to:0,sub:0,color:"#4a6cff"}, right:{short:"",points:0,sets:0,to:0,sub:0,color:"#ff5b52"} };
+    const tt = (SETTINGS.totalTimeouts || 2), ts = (SETTINGS.totalSubs || 6);
+    const toCol = (n) => n >= tt ? "#ff5b52" : "#e7ecff";
+    const subCol = (n) => n >= ts ? "#ff5b52" : n >= ts - 1 ? "#ffbf3f" : "#e7ecff";
+    const put = (n, v, c) => { const e = g(n); if (e) { e.textContent = v; if (c) e.style.color = c; } };
+    put("team1", (d.left.short || "").toUpperCase(), d.left.color);
+    put("team2", (d.right.short || "").toUpperCase(), d.right.color);
+    put("score1", d.left.points, d.left.color);   put("score2", d.right.points, d.right.color);
+    put("set1", d.left.sets, d.left.color);        put("set2", d.right.sets, d.right.color);
+    put("timeout1", d.left.to, toCol(d.left.to));  put("timeout2", d.right.to, toCol(d.right.to));
+    put("sub1", d.left.sub, subCol(d.left.sub));   put("sub2", d.right.sub, subCol(d.right.sub));
+    const b1 = g("bg_score1"); if (b1) b1.style.borderColor = d.left.color;
+    const b2 = g("bg_score2"); if (b2) b2.style.borderColor = d.right.color;
+    const v1 = g("serve1"); if (v1) v1.style.background = serving === "left" ? d.left.color : "#161c30";
+    const v2 = g("serve2"); if (v2) v2.style.background = serving === "right" ? d.right.color : "#161c30";
+    const blink = (el, v, key) => { if (!el) return; if (bvSeen[key] !== null && bvSeen[key] !== v) { el.classList.remove("bvblink"); void el.offsetWidth; el.classList.add("bvblink"); } bvSeen[key] = v; };
+    blink(g("score1"), d.left.points, "s1");
+    blink(g("score2"), d.right.points, "s2");
+    paintBoardMode();
+  }
+
+  // Reflect the board's non-match states onto the mirror: idle (crest + names),
+  // break countdown (timeout / interval / warm-up), or blank.
+  function paintBoardMode() {
+    const p = $("#bvPanel"); if (!p) return;
+    buildBoard();
+    p.dataset.mode = board.mode;
+    const s = bvLast.s;
+    const set = (n, v, c) => { const e = p.querySelector('[data-n="' + n + '"]'); if (e) { e.textContent = v; if (c) e.style.color = c; } };
+    if (board.mode === "idle") {
+      set("idle1", (s && s.left.short ? s.left.short : "HOME").toUpperCase(), s ? s.left.color : "#ffcf47");
+      set("idle2", (s && s.right.short ? s.right.short : "GUEST").toUpperCase(), s ? s.right.color : "#ff7a3d");
+    } else if (board.mode === "countdown" && board.cd) {
+      let label = board.cd.label || "";
+      if (board.cd.side && s) { const t = board.cd.side === "left" ? s.left : s.right; if (t && t.short) label += " \u00b7 " + t.short.toUpperCase(); }
+      set("cdlabel", label);
+      set("cdtime", fmt((board.cd.end - Date.now()) / 1000));
+      const sub = p.querySelector('[data-n="cdsub"]');
+      if (sub) {
+        const pick = board.cd.content === "sets" ? "sets" : board.cd.content === "full" ? "points" : null;
+        if (pick && s) sub.innerHTML =
+          '<b style="color:' + s.left.color + '">' + s.left[pick] + '</b>' +
+          '<em style="color:#8892b0;font-style:normal">\u2013</em>' +
+          '<b style="color:' + s.right.color + '">' + s.right[pick] + '</b>';
+        else sub.innerHTML = "";
+      }
+    }
+  }
+
+  function renderBoard(s) {
+    for (const side of ["left", "right"]) {
+      const root = $(`.side.${side}`);
+      const d = s ? s[side] : { short: "", color: "#888", points: 0, sets: 0, to: 0, sub: 0 };
+      setIfIdle(root, ".short", d.short);
+      setColorIfIdle(root, ".color", d.color);
+      root.style.setProperty("--edge", d.color || "var(--" + side + ")");
+      const prev = shown[side];
+      // The point just assigned pulses green — confirmation that the tap registered.
+      paint($('[data-val="points"]', root), d.points, prev.points, "flash");
+      paint($('[data-val="sets"]', root), d.sets, prev.sets, "bump");
+      paint($('[data-val="to"]', root), d.to, prev.to, "bump");
+      paint($('[data-val="sub"]', root), d.sub, prev.sub, "bump");
+      // Match the board: timeouts red at the total (no amber); subs amber one short, red at it.
+      const tt = SETTINGS.totalTimeouts || 2, ts = SETTINGS.totalSubs || 6;
+      limitClass($('[data-val="to"]', root).closest(".stat"), d.to, tt, tt);
+      limitClass($('[data-val="sub"]', root).closest(".stat"), d.sub, ts - 1, ts);
+      shown[side] = d;
+    }
+    const serving = s ? s.serving : null;
+    $$('[data-serve]').forEach((b) =>
+      b.classList.toggle("on", serving === b.dataset.serve));
+    const ind = $("#serveInd");
+    if (ind) {
+      ind.innerHTML = serving === "left" ? IC.chevL+IC.ball : serving === "right" ? IC.ball+IC.chevR : IC.ball;
+      ind.style.opacity = serving ? "1" : ".35";
+    }
+    renderPreview(s, serving);
+  }
+
+  // Write a value and, when it actually changed, replay the animation. Re-adding the
+  // class alone won't restart a CSS animation — the reflow between is what does it.
+  function paint(el, value, previous, cls) {
+    if (!el) return;
+    el.textContent = value;
+    if (previous === undefined || previous === value) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
+
+  function limitClass(stat, value, warnAt, maxAt) {
+    if (!stat) return;
+    stat.classList.toggle("warn", value >= warnAt && value < maxAt);
+    stat.classList.toggle("maxed", value >= maxAt);
+  }
+
+  // Don't clobber an input the operator is currently editing.
+  function setIfIdle(root, sel, v) {
+    const el = $(sel, root);
+    if (document.activeElement !== el) el.value = v;
+  }
+  function setColorIfIdle(root, sel, v) {
+    const el = $(sel, root);
+    if (document.activeElement !== el && /^#[0-9a-fA-F]{6}$/.test(v || "")) el.value = v;
+  }
+
+  // --- actions ------------------------------------------------------------
+  async function refreshStatus() {
+    // Some browser extensions (mobile simulators, readers) replace the document body and
+    // re-load the page in their own frame. Our interval survives that, so bail out and
+    // stop polling instead of throwing on every tick against a DOM that no longer exists.
+    if (!document.getElementById("app")) { stopPolling(); return; }
+    try { renderStatus(await api("/api/status")); }
+    catch (e) {
+      const dot = $("#dot");
+      if (dot) dot.innerHTML = IC.wifiOff; // keep quiet on poll errors
+    }
+  }
+
+  async function sendAction(action) {
+    try {
+      const r = await postJSON("/api/action", { action });
+      const s = r && r.state;
+      if (s && (board.mode === "idle" || board.mode === "blank")) board.mode = "match";
+      if (s) renderStatus({ mode: "manual", matchId: null, ledbox: lastLedbox, state: s });
+      handleEvent(r && r.event, s);
+      refreshStatus();
+    } catch (e) { toast(e.message); }
+  }
+
+  // Game-flow reactions signalled by the backend on a point.
+  function handleEvent(event, s) {
+    if (!event || !s) return;
+    if (event === "set-end") {
+      // Flash the set-winning side, then WAIT: the board holds the final score and the operator
+      // presses "Start interval" to begin the countdown. This keeps the winning point visible
+      // instead of the interval screen swallowing it the instant the set closes.
+      flashSide(sideOf(s, num(s.points_a) > num(s.points_b)));
+      showSetEndPrompt(s);
+    } else if (event === "match-end") {
+      const winSide = sideOf(s, num(s.sets_won_a) > num(s.sets_won_b));
+      const name = (winSide === "left" ? sides(s).left.short : sides(s).right.short) || winSide.toUpperCase();
+      flashSide(sideOf(s, num(s.points_a) > num(s.points_b)));
+      flashName(winSide);
+      toast("🏆 " + name + " wins the match");
+    } else if (event === "switch-8") {
+      // Deciding set: first to 8 -> show "Side switch" for 5s, then swap sides.
+      startCountdown(5, "Side switch", () => sendAction({ type: "swap" }));
+    }
+  }
+
+  async function blank() {
+    try { await postJSON("/api/blank"); toast("Board blanked"); refreshStatus(); }
+    catch (e) { toast(e.message); }
+  }
+
+  // --- LINK ---------------------------------------------------------------
+  async function refreshMatches() {
+    const list = $("#matches"), note = $("#matchesNote"), errs = $("#linkErrs");
+    errs.innerHTML = ""; note.textContent = "Loading…";
+    try {
+      const r = await api("/api/matches");
+      const matches = (r && r.matches) || [];
+      (r && r.errors || []).forEach((m) => {
+        const p = document.createElement("div");
+        p.className = "err"; p.textContent = "⚠ " + m; errs.appendChild(p);
+      });
+      list.innerHTML = "";
+      if (!matches.length) { note.textContent = "No matches found."; return; }
+      note.textContent = "";
+      for (const m of matches) {
+        const li = document.createElement("li");
+        li.dataset.id = String(m.id); li.dataset.source = m.source || "lan";
+        li.innerHTML =
+          `<div class="info"><div class="label"></div>` +
+          `<div class="sub">${(m.source || "lan").toUpperCase()} · id ${m.id}</div></div>` +
+          (m.live ? `<span class="live">LIVE</span>` : "") +
+          `<button class="linkbtn">Link</button>`;
+        li.querySelector(".label").textContent = m.label || String(m.id);
+        li.querySelector(".linkbtn").addEventListener("click", () => linkMatch(m));
+        list.appendChild(li);
+      }
+      markLinked();
+    } catch (e) { note.textContent = ""; toast(e.message); }
+  }
+
+  function markLinked() {
+    $$("#matches li").forEach((li) => {
+      const on = linkedMatchId != null && li.dataset.id === linkedMatchId;
+      li.classList.toggle("linked", on);
+      const b = li.querySelector(".linkbtn");
+      if (b) b.textContent = on ? "Linked" : "Link";
+    });
+  }
+
+  async function linkMatch(m) {
+    try {
+      await postJSON("/api/link", { source: m.source || "lan", matchId: m.id });
+      toast("Linked to " + (m.label || m.id));
+      refreshStatus();
+    } catch (e) { toast(e.message); }
+  }
+
+  // --- wiring -------------------------------------------------------------
+  // tabs / nav — [data-tab] only: the nav also holds the fullscreen button, and letting
+  // that through would match no tab and blank the whole page.
+  $$(".nav button[data-tab]").forEach((b) => b.addEventListener("click", () => {
+    $$(".nav button[data-tab]").forEach((x) => x.classList.toggle("active", x === b));
+    $$(".tab").forEach((t) => t.classList.toggle(
+      "active", t.id === "tab-" + b.dataset.tab));
+    if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
+    if (b.dataset.tab === "history") refreshHistory();
+  }));
+
+  // Direct-entry editor: tap a number to type an exact value (a correction), confirmed before
+  // it's sent. An absolute value carries no delta, so it never blinks and never triggers set-win.
+  let editConfirm = null;
+  function openEdit(label, current, onConfirm) {
+    $("#editLabel").textContent = label;
+    const input = $("#editInput");
+    input.value = current;
+    editConfirm = onConfirm;
+    $("#edit").hidden = false;
+    input.focus(); input.select();
+  }
+  function closeEdit() { $("#edit").hidden = true; editConfirm = null; }
+  $("#editCancel").addEventListener("click", closeEdit);
+  $("#editOk").addEventListener("click", () => {
+    const v = Math.max(0, Math.floor(Number($("#editInput").value) || 0));
+    if (editConfirm) editConfirm(v);
+    closeEdit();
+  });
+  $("#editInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $("#editOk").click();
+    else if (e.key === "Escape") closeEdit();
+  });
+  $("#edit").addEventListener("click", (e) => { if (e.target.id === "edit") closeEdit(); }); // backdrop = cancel
+
+  // Styled yes/no confirm (used for the consequential T/O + substitution taps).
+  let confirmResolve = null;
+  function askConfirm(msg) {
+    $("#confirmMsg").textContent = msg;
+    $("#confirm").hidden = false;
+    return new Promise((res) => { confirmResolve = res; });
+  }
+  function closeConfirm(v) { $("#confirm").hidden = true; const r = confirmResolve; confirmResolve = null; if (r) r(v); }
+  $("#confirmYes").addEventListener("click", () => closeConfirm(true));
+  $("#confirmNo").addEventListener("click", () => closeConfirm(false));
+  $("#confirm").addEventListener("click", (e) => { if (e.target.id === "confirm") closeConfirm(false); });
+
+  const VAL_TYPE = { points: "point", sets: "set", to: "timeout", sub: "sub" };
+  const VAL_NAME = { points: "score", sets: "sets", to: "timeouts", sub: "subs" };
+
+  // per-side controls
+  $$(".side").forEach((root) => {
+    const side = root.dataset.side;
+    root.querySelectorAll("[data-pt]").forEach((b) => b.addEventListener("click",
+      () => sendAction({ type: "point", side, delta: Number(b.dataset.pt) })));
+    root.querySelectorAll("[data-stat]").forEach((b) => b.addEventListener("click", async () => {
+      const stat = b.dataset.stat, d = Number(b.dataset.d);
+      if (stat === "timeout" || stat === "sub") {
+        const nm = ($(".short", root).value || side).toUpperCase();
+        const what = stat === "timeout" ? "timeout" : "substitution";
+        if (!(await askConfirm((d > 0 ? "Add a " : "Remove a ") + what + " for " + nm + "?"))) return;
+      }
+      sendAction({ type: stat, side, delta: d });
+      if (stat === "timeout" && d > 0) {
+        const nm = ($(".short", root).value || side).toUpperCase();
+        if (SETTINGS.countdownOnTimeout !== false) {
+          // The phone still shows "TO KSCW" on one line; the board has a separate
+          // line for the calling team, so it gets `side` and a bare label.
+          startCountdown(SETTINGS.timeoutSeconds || 30, "TO " + nm, null,
+            { content: "full", side, label: "TIME OUT" });
+        }
+      }
+    }));
+    // Tap any number to edit it directly.
+    root.querySelectorAll("[data-val]").forEach((el) => {
+      const type = VAL_TYPE[el.dataset.val]; if (!type) return;
+      el.classList.add("editable");
+      el.addEventListener("click", () => openEdit(
+        (side === "left" ? "Left " : "Right ") + VAL_NAME[el.dataset.val],
+        Number(el.textContent) || 0,
+        (v) => sendAction({ type, side, value: v })));
+    });
+    const shortEl = $(".short", root), colorEl = $(".color", root);
+    shortEl.addEventListener("change",
+      () => sendAction({ type: "team", side, short: shortEl.value }));
+    colorEl.addEventListener("change",
+      () => sendAction({ type: "team", side, color: colorEl.value }));
+  });
+
+  // serve toggle
+  $$('[data-serve]').forEach((b) => b.addEventListener("click",
+    () => sendAction({ type: "serve", side: b.dataset.serve })));
+
+  // global actions
+  // Pre-match "names + VS" screen on the board. Any scoring action lifts it automatically.
+  $("#idleBtn").addEventListener("click", async () => {
+    try { await postJSON("/api/idle", { on: true }); clearCountdown(); board.mode = "idle"; paintBoardMode(); toast("Idle screen on the board"); }
+    catch (e) { toast(e.message); }
+  });
+  // Pre-match warm-up: a plain 10-minute clock, no side effects when it ends.
+  $("#warmupBtn").addEventListener("click", () =>
+    startCountdown(SETTINGS.warmupSeconds || 600, "WARM UP", null, { major: true, action: "End warm-up", content: "none" }));
+  $("#swapBtn").addEventListener("click", () => sendAction({ type: "swap" }));
+  $("#resetBtn").addEventListener("click", () => {
+    if (confirm("Reset the board to neutral?")) { clearCountdown(); board.mode = "match"; sendAction({ type: "reset" }); }
+  });
+  $("#blankBtn").addEventListener("click", () => {
+    if (confirm("Blank the LedBox display?")) { clearCountdown(); board.mode = "blank"; paintBoardMode(); blank(); }
+  });
+  $("#refreshBtn").addEventListener("click", refreshMatches);
+  // Power: halt the board cleanly, then tell the operator it's safe to cut the power.
+  const shutdownBtn = $("#shutdownBtn");
+  if (shutdownBtn) shutdownBtn.addEventListener("click", async () => {
+    if (!confirm("Shut down the scoreboard?")) return;
+    try {
+      await postJSON("/api/shutdown");
+      stopPolling();
+      $("#shutdown").classList.add("show");
+    } catch (e) { toast(e.message || "Shutdown failed"); }
+  });
+
+  // --- settings -----------------------------------------------------------
+  // Persisted on the board, so they follow the scoreboard rather than the phone that set them.
+  const setEls = () => $$("[data-set]");
+  async function loadSettings() {
+    try {
+      const s = await api("/api/settings");
+      for (const el of setEls()) {
+        const v = s[el.dataset.set];
+        if (v === undefined) continue;
+        if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+      }
+      SETTINGS = s;
+    } catch { /* leave the form at its defaults */ }
+  }
+  async function saveSettings() {
+    const patch = {};
+    for (const el of setEls()) {
+      patch[el.dataset.set] =
+        el.type === "checkbox" ? el.checked :
+        el.type === "number" ? Number(el.value) :
+        el.value; // text / select stay as strings; the server coerces + clamps
+    }
+    const newPin = String(patch.scorerPin || "").trim(); // adopt after save so setting a PIN never locks the setter out
+    try {
+      SETTINGS = await postJSON("/api/settings", patch);
+      if (newPin) { SCORER_PIN = newPin; try { localStorage.setItem("kscwScorerPin", newPin); } catch {} }
+      pinRequired = !!SETTINGS.pinSet; updateLock();
+      const st = $("#setStatus");
+      st.textContent = "Saved.";
+      st.classList.add("saved");
+      // The server clamps out-of-range values, so reflect what it actually stored.
+      for (const el of setEls()) {
+        const v = SETTINGS[el.dataset.set];
+        if (v === undefined) continue;
+        if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+      }
+      setTimeout(() => { st.textContent = "Saved on the board — these survive a restart."; st.classList.remove("saved"); }, 1800);
+    } catch (e) { toast(e.message); }
+  }
+  setEls().forEach((el) => el.addEventListener("change", saveSettings));
+
+  // --- scorer lock ---------------------------------------------------------
+  function updateLock() {
+    const b = $("#lockBtn"); if (!b) return;
+    b.hidden = !pinRequired;
+    const open = !SCORER_PIN;
+    b.innerHTML = open ? IC.lock : IC.lockOpen;
+    b.classList.toggle("on", pinRequired && open);
+    b.title = open ? "Scoring locked — tap to enter PIN" : "Scoring unlocked (tap to change PIN)";
+    document.body.classList.toggle("locked", pinRequired && open);
+  }
+  function openPinModal() { $("#pinModal").hidden = false; const i = $("#pinInput"); i.value = ""; setTimeout(() => i.focus(), 30); }
+  function closePinModal() { $("#pinModal").hidden = true; }
+  async function tryUnlock(pin) {
+    if (!pin) return;
+    try {
+      const r = await api("/api/unlock", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pin }) });
+      if (r && r.ok) {
+        SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
+        closePinModal(); updateLock(); toast("Unlocked — you can score");
+      } else { const i = $("#pinInput"); i.value = ""; i.focus(); toast("Wrong PIN"); }
+    } catch (e) { toast(e.message); }
+  }
+  // A rejected action means our PIN is wrong/absent — forget it and prompt again.
+  function onPinRejected() {
+    SCORER_PIN = ""; try { localStorage.removeItem("kscwScorerPin"); } catch {}
+    pinRequired = true; updateLock();
+    if ($("#pinModal").hidden) openPinModal();
+  }
+  $("#lockBtn").addEventListener("click", openPinModal);
+  $("#pinCancel").addEventListener("click", closePinModal);
+  $("#pinOk").addEventListener("click", () => tryUnlock($("#pinInput").value.trim()));
+  $("#pinInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#pinOk").click(); else if (e.key === "Escape") closePinModal(); });
+  $("#pinModal").addEventListener("click", (e) => { if (e.target.id === "pinModal") closePinModal(); });
+
+  // fullscreen (also locks landscape where the platform allows it)
+  const fsBtn = $("#fsBtn");
+  const inFS = () => document.fullscreenElement || document.webkitFullscreenElement;
+  async function toggleFS() {
+    if (inFS()) {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) await exit.call(document).catch(() => {});
+      return;
+    }
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) { toast("Full screen isn't supported by this browser"); return; }
+    try {
+      await req.call(el);
+    } catch (e) {
+      // Most common cause: the page is inside an iframe without allow="fullscreen"
+      // (browser-extension device simulators do this). Say so instead of doing nothing.
+      toast(window.top !== window.self
+        ? "Full screen is blocked inside this frame — open the page in its own tab"
+        : "Full screen was refused: " + (e && e.message ? e.message : e));
+      return;
+    }
+    // Phone-only and gesture-bound; desktop Chrome rejects it. Never fatal.
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock("landscape").catch(() => {});
+    }
+  }
+  if (fsBtn) fsBtn.addEventListener("click", toggleFS);
+  const syncFsBtn = () => { if (fsBtn) fsBtn.innerHTML = inFS() ? IC.min : IC.max; };
+  document.addEventListener("fullscreenchange", syncFsBtn);
+  document.addEventListener("webkitfullscreenchange", syncFsBtn);
+
+  // Keep-awake: hold a Screen Wake Lock so the phone/tablet doesn't sleep mid-match. The lock
+  // is dropped whenever the page is hidden (locked/backgrounded), so re-acquire it when the
+  // page becomes visible again while the toggle is on.
+  const awakeBtn = $("#awakeBtn");
+  let wakeLock = null, keepAwake = false;
+  async function acquireWakeLock() {
+    if (!keepAwake || !("wakeLock" in navigator)) return;
+    try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); }
+    catch { /* denied (e.g. not fullscreen / low battery) — the toggle stays on and retries on visibility */ }
+  }
+  async function setKeepAwake(on) {
+    keepAwake = on;
+    awakeBtn.classList.toggle("active", on); // .nav button.active = accent highlight
+    try { localStorage.setItem("keepAwake", on ? "1" : "0"); } catch {} // survive a reload mid-match
+    if (on) { await acquireWakeLock(); if (!wakeLock && !("wakeLock" in navigator)) toast("This browser can't keep the screen awake"); }
+    else if (wakeLock) { try { await wakeLock.release(); } catch {} wakeLock = null; }
+  }
+  if (awakeBtn) awakeBtn.addEventListener("click", () => setKeepAwake(!keepAwake));
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") acquireWakeLock(); });
+  try { if (localStorage.getItem("keepAwake") === "1") setKeepAwake(true); } catch {}
+
+  // --- HISTORY ------------------------------------------------------------
+  let HISTORY = [];
+  async function refreshHistory() {
+    const list = $("#histList"), note = $("#histNote");
+    try { const r = await api("/api/history"); HISTORY = (r && r.matches) || []; }
+    catch { HISTORY = []; }
+    list.innerHTML = "";
+    if (!HISTORY.length) { note.textContent = "No matches recorded yet."; return; }
+    note.textContent = "";
+    for (const m of HISTORY) {
+      const li = document.createElement("li"); li.className = "histcard";
+      const aw = m.sets_a > m.sets_b, bw = m.sets_b > m.sets_a;
+      const sets = (m.sets || []).map((s) => s.a + "–" + s.b).join("   ");
+      li.innerHTML =
+        `<div class="top"><div class="teams"></div>` +
+        `<div class="final"><span class="${aw?"win":""}">${m.sets_a}</span>–<span class="${bw?"win":""}">${m.sets_b}</span></div></div>` +
+        `<div class="meta"><span class="date"></span><span class="sets">${sets}</span><span>${(m.events||[]).length} events</span></div>`;
+      li.querySelector(".teams").textContent = (m.team_a || "A") + "  vs  " + (m.team_b || "B");
+      li.querySelector(".date").textContent = m.date || "";
+      list.appendChild(li);
+    }
+  }
+  function download(name, text, type) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+  function exportJSON() { download("kscw-matches.json", JSON.stringify(HISTORY, null, 2), "application/json"); toast("Downloaded JSON"); }
+  function exportCSV() {
+    const head = ["match","date","team_a","team_b","sets_a","sets_b","event_time","event_type","side","score_a","score_b","set"];
+    const rows = [head];
+    HISTORY.forEach((m, i) => (m.events || []).forEach((e) => rows.push([
+      i+1, m.date||"", m.team_a||"", m.team_b||"", m.sets_a, m.sets_b,
+      e.t||"", e.type||"", e.side||"", (e.score&&e.score[0])??"", (e.score&&e.score[1])??"", e.set??""])));
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    download("kscw-matches.csv", csv, "text/csv"); toast("Downloaded CSV");
+  }
+  $("#expCsvBtn").addEventListener("click", exportCSV);
+  $("#expJsonBtn").addEventListener("click", exportJSON);
+  $("#clearHistBtn").addEventListener("click", async () => {
+    if (!confirm("Clear all recorded matches? This can't be undone.")) return;
+    try { await postJSON("/api/history/clear"); } catch {}
+    HISTORY = []; refreshHistory(); toast("History cleared");
+  });
+
+  // boot
+  let pollTimer = null;
+  const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
+  loadSettings();
+  refreshStatus();
+  pollTimer = setInterval(refreshStatus, 1500);
+})();
+</script>
