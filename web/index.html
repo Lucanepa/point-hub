@@ -5,11 +5,12 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='22' y='72' width='56' height='22' rx='11' fill='%231e3a8a'/%3E%3Crect x='44' y='46' width='12' height='32' rx='6' fill='%232563eb'/%3E%3Ccircle cx='50' cy='34' r='24' fill='%23f8fafc' stroke='%230f172a' stroke-width='4'/%3E%3Cg fill='none' stroke='%230f172a' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M50 11 Q41 34 50 57'/%3E%3Cpath d='M31 18 Q50 32 43 55'/%3E%3Cpath d='M69 18 Q50 32 57 55'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#e6e9f0; --card:#eaedf4; --fg:#2a2e3a; --muted:#5f6880;
-    --sh-lo:#c4c9d8; --sh-hi:#ffffff;
-    --blue:#3b6fe0; --red:#e0453d; --gold:#e3a400;
-    --ok:#25b567; --warn:#d99320; --bad:#e0453d;
-    --left:#3b6fe0; --right:#e0453d; --r:20px;
+    --bg:#ffffff; --card:#ffffff; --fill:#fafafc; --fg:#0A0B0D; --muted:#5a606b;
+    --line:#111318; --line-soft:#e3e5ea;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --blue:#0A34D6; --gold:#B45309;
+    --ok:#12813f; --warn:#B45309; --bad:#E0301A;
+    --left:#0A34D6; --right:#E0301A; --r:3px;
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -18,21 +19,19 @@
   button,input{font-family:inherit}
   :focus-visible{outline:2.5px solid var(--blue);outline-offset:2px}
   .licon{width:1.15em;height:1.15em;flex:0 0 auto;vertical-align:-.17em}
-  /* neumorphic primitives */
-  .raise{background:var(--card);box-shadow:6px 6px 14px var(--sh-lo),-6px -6px 14px var(--sh-hi)}
-  .press,button:active{box-shadow:inset 4px 4px 9px var(--sh-lo),inset -4px -4px 9px var(--sh-hi)}
+  /* flat primitive (Console) */
+  .press,button:active{background:var(--fill)}
   #app{display:flex;flex-direction:column;height:100dvh;overflow:hidden;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)}
 
   .topbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 14px}
   .brand{font-weight:800;font-size:15px;white-space:nowrap;color:var(--fg)}
   #dot{font-size:12px}
   #mode{flex:1;min-width:0;font-size:12px;color:var(--muted);display:flex;gap:7px;align-items:center;white-space:nowrap;overflow:hidden}
-  #mode b{color:var(--fg)} #setNo{padding:2px 10px;border-radius:20px;font-weight:800;color:var(--fg);background:var(--card);box-shadow:inset 2px 2px 5px var(--sh-lo),inset -2px -2px 5px var(--sh-hi)}
+  #mode b{color:var(--fg)} #setNo{padding:2px 10px;border-radius:4px;font-weight:800;font-family:var(--mono);color:var(--fg);background:var(--card);border:1.5px solid var(--line)}
   .nav{display:flex;gap:8px;flex:0 0 auto}
   .nav button{min-height:40px;min-width:40px;padding:0 15px;font-size:13px;font-weight:700;line-height:1;
-    border:0;background:var(--card);color:var(--muted);border-radius:12px;cursor:pointer;
-    box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
-  .nav button.active{color:var(--blue)}
+    border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:var(--r);cursor:pointer}
+  .nav button.active{color:var(--blue);border-color:var(--fg)}
   #fsBtn,#awakeBtn,#tabSettingsBtn{font-size:16px;padding:0 12px}
   #awakeBtn.active{color:var(--gold)}
 
@@ -46,112 +45,145 @@
   .side.left{--edge:var(--left)} .side.right{--edge:var(--right)}
   .teamcard{flex:0 1 auto;max-height:100%;min-height:0;display:flex;flex-direction:column;gap:14px;
     background:var(--card);border-radius:var(--r);padding:12px 14px;
-    box-shadow:7px 7px 16px var(--sh-lo),-7px -7px 16px var(--sh-hi)}
+    border:1.5px solid var(--line)}
   .sidehdr{flex:0 0 auto;display:flex;align-items:center;gap:8px}
   .side.right .sidehdr{flex-direction:row-reverse}
   input.short{flex:1;min-width:0;padding:9px 12px;font-size:16px;font-weight:800;text-transform:uppercase;
-    letter-spacing:.03em;background:var(--card);color:var(--fg);border:0;border-radius:12px;
-    box-shadow:inset 3px 3px 7px var(--sh-lo),inset -3px -3px 7px var(--sh-hi)}
+    letter-spacing:.03em;background:var(--card);color:var(--fg);border:1.5px solid var(--line);border-radius:var(--r)}
   .side.right input.short{text-align:right}
   input.short.flashname{animation:nameflash 1s ease 3}
   @keyframes nameflash{50%{color:var(--ok)}}
-  input.color{width:38px;height:38px;padding:0;border:0;border-radius:12px;background:var(--card);cursor:pointer;flex:0 0 auto;
-    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
+  input.color{width:38px;height:38px;padding:0;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);cursor:pointer;flex:0 0 auto}
 
   .score{flex:0 0 auto;max-height:30vh;min-height:0;display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;gap:8px}
   .score .val{flex:1;min-width:0;text-align:center;font-weight:800;line-height:.9;color:var(--edge);
-    font-variant-numeric:tabular-nums;font-size:clamp(48px,16vh,88px);
-    text-shadow:0 0 22px color-mix(in srgb,var(--edge) 45%,transparent)}
+    font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:clamp(48px,16vh,88px)}
   .score .val.flash{animation:ptflash .8s ease}
   @keyframes ptflash{25%{transform:scale(1.3);color:var(--ok);text-shadow:0 0 26px var(--ok)}100%{transform:scale(1)}}
   .bigbtn{flex:0 0 auto;width:clamp(54px,9vw,74px);height:clamp(54px,9vw,74px);
-    font-size:34px;font-weight:700;line-height:1;border:0;background:var(--card);color:var(--fg);border-radius:50%;cursor:pointer;
-    box-shadow:6px 6px 13px var(--sh-lo),-6px -6px 13px var(--sh-hi)}
+    font-size:34px;font-weight:700;line-height:1;border:1.5px solid var(--line);background:var(--card);color:var(--fg);border-radius:var(--r);cursor:pointer}
 
   /* stat blocks: label + number on top, -/+ UNDERNEATH */
   .statrow{flex:0 0 auto;display:flex;gap:8px}
   .stat{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;
-    background:var(--card);border-radius:14px;padding:7px 4px 8px;
-    box-shadow:inset 3px 3px 7px var(--sh-lo),inset -3px -3px 7px var(--sh-hi)}
-  .stat .name{font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
-  .stat .num{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--fg);line-height:1}
+    background:var(--card);border-radius:var(--r);padding:7px 4px 8px;
+    border:1.5px solid var(--line)}
+  .stat .name{font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+  .stat .num{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--fg);line-height:1}
   .stat .num.bump{animation:numbump .5s ease}
   @keyframes numbump{40%{transform:scale(1.5);color:var(--ok)}}
   .stat .pm{display:flex;gap:6px;margin-top:2px}
-  .smbtn{width:34px;height:30px;font-size:17px;font-weight:700;line-height:1;border:0;background:var(--card);color:var(--fg);
-    border-radius:10px;cursor:pointer;box-shadow:3px 3px 7px var(--sh-lo),-3px -3px 7px var(--sh-hi)}
+  .smbtn{width:34px;height:30px;font-size:17px;font-weight:700;line-height:1;border:1.5px solid var(--line);background:var(--card);color:var(--fg);
+    border-radius:var(--r);cursor:pointer}
   .stat.warn{color:var(--warn)} .stat.warn .num,.stat.warn .name{color:var(--warn)}
   .stat.maxed .num,.stat.maxed .name{color:var(--bad)}
 
+  /* ===== Arena team blocks: each side is a solid colour panel (blue L / red R) with white mono
+     numerals, framed by the Console black hairline. Controls become translucent-white on the block. */
+  /* --on-edge = readable ink for the panel colour (JS sets it per side by luminance; #fff default
+     for the dark blue/red fallback). Text uses it directly; surfaces color-mix off it so they flip
+     to translucent-black on a light team colour and translucent-white on a dark one. */
+  .side{--on-edge:#fff}
+  .side .teamcard{background:var(--edge)}
+  .side .score .val{color:var(--on-edge)}
+  .side input.short{background:color-mix(in srgb,var(--on-edge) 16%,transparent);color:var(--on-edge);border-color:color-mix(in srgb,var(--on-edge) 42%,transparent)}
+  .side input.short::placeholder{color:color-mix(in srgb,var(--on-edge) 60%,transparent)}
+  .side input.color{border-color:color-mix(in srgb,var(--on-edge) 50%,transparent)}
+  .side .bigbtn,.side .smbtn,.side .score .ptbtn{background:color-mix(in srgb,var(--on-edge) 16%,transparent);border-color:color-mix(in srgb,var(--on-edge) 34%,transparent);color:var(--on-edge)}
+  .side .bigbtn:active,.side .smbtn:active,.side .score .ptbtn:active{background:color-mix(in srgb,var(--on-edge) 30%,transparent)}
+  .side .score .bigbtn.minus{background:color-mix(in srgb,var(--on-edge) 12%,transparent)}
+  .side .stat{background:color-mix(in srgb,var(--on-edge) 15%,transparent);border-color:color-mix(in srgb,var(--on-edge) 26%,transparent)}
+  .side .stat .name{color:color-mix(in srgb,var(--on-edge) 85%,transparent)}
+  .side .stat .num{color:var(--on-edge)}
+  .side .stat.warn .num,.side .stat.warn .name{color:#ffe08a}
+  .side .stat.maxed{background:color-mix(in srgb,var(--on-edge) 30%,transparent);border-color:var(--on-edge)}
+  .side .stat.maxed .num,.side .stat.maxed .name{color:var(--on-edge)}
+  .side .taphint{color:color-mix(in srgb,var(--on-edge) 72%,transparent)}
+
   /* centre column: serve + quick controls */
   .centercol{flex:0 0 auto;align-self:center;display:flex;flex-direction:column;align-items:center;gap:12px;
-    background:var(--card);border-radius:26px;padding:14px 10px;
-    box-shadow:7px 7px 16px var(--sh-lo),-7px -7px 16px var(--sh-hi)}
+    background:var(--card);border-radius:var(--r);padding:14px 10px;
+    border:1.5px solid var(--line)}
   .servebox{display:flex;flex-direction:column;align-items:center;gap:8px}
-  .servebox .lbl{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted)}
-  .serveind{font-size:20px;transition:opacity .15s}
-  .servebtn{width:44px;height:38px;font-size:16px;border:0;background:var(--card);color:var(--muted);border-radius:12px;cursor:pointer;
-    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
-  .servebtn.on{color:var(--ok)}
-  .iconbtn{width:48px;height:44px;font-size:18px;border:0;background:var(--card);color:var(--muted);border-radius:14px;cursor:pointer;
-    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
+  .servebox .lbl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  /* one consolidated SERVE pill: two arrows + label; the serving side fills its team colour */
+  .servetoggle{display:flex;align-items:center;gap:4px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:4px}
+  .sv-arrow{display:flex;align-items:center;justify-content:center;width:42px;height:38px;border:0;background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;transition:background .14s,color .14s}
+  .sv-arrow:hover{color:var(--fg)}
+  .sv-arrow[data-serve="left"].on{background:var(--left);color:#fff}
+  .sv-arrow[data-serve="right"].on{background:var(--right);color:#fff}
+  .sv-lbl{padding:0 3px}
+  /* beach serve-player control (centre column, beach only) */
+  #beachServe{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+  #beachServe[hidden]{display:none}
+  .plrbtn{display:flex;flex-direction:column;align-items:center;gap:2px;width:64px;padding:7px 0;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
+  .plrbtn .plrlbl{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .plrbtn .plrnum{font-size:24px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .ordbtn{font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--blue);background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:8px 10px;cursor:pointer}
+  .iconbtn{width:48px;height:44px;font-size:18px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:var(--r);cursor:pointer}
   .iconbtn.active{color:var(--gold)}
 
   .gfooter{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
   .setstrip{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto}
   .setstrip[hidden]{display:none}
-  .setpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:5px 11px;border-radius:20px;
-    background:var(--card);font-size:12px;font-variant-numeric:tabular-nums;
-    box-shadow:inset 2px 2px 5px var(--sh-lo),inset -2px -2px 5px var(--sh-hi)}
+  .setpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:5px 11px;border-radius:4px;
+    background:var(--card);font-size:12px;font-variant-numeric:tabular-nums;font-family:var(--mono);
+    border:1.5px solid var(--line)}
   .setpill .sn{font-size:10px;font-weight:700;color:var(--muted);margin-right:3px}
   .setpill b{font-weight:600;color:var(--muted)} .setpill b.w{color:var(--fg);font-weight:800} .setpill em{color:var(--muted)}
-  .setundo{width:30px;height:26px;border-radius:9px;font-size:12px;border:0;background:var(--card);color:var(--muted);cursor:pointer;
-    box-shadow:3px 3px 7px var(--sh-lo),-3px -3px 7px var(--sh-hi)}
+  .setundo{width:30px;height:26px;border-radius:var(--r);font-size:12px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer}
   .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .actions button{min-height:44px;padding:0 16px;font-size:13px;font-weight:800;white-space:nowrap;border:0;
-    background:var(--card);color:var(--fg);border-radius:13px;cursor:pointer;
-    box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .actions button{min-height:44px;padding:0 16px;font-size:13px;font-weight:800;white-space:nowrap;border:1.5px solid var(--line);
+    background:var(--card);color:var(--fg);border-radius:var(--r);cursor:pointer}
   .actions .switch{color:var(--blue)}
   .actions .danger{color:var(--bad)} .actions .danger:first-of-type{margin-left:auto}
 
   /* countdown overlay */
   #cd{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:15;display:flex;align-items:center;gap:14px;
-    padding:10px 18px;border-radius:16px;background:var(--card);box-shadow:8px 8px 20px var(--sh-lo),-8px -8px 20px var(--sh-hi)}
+    padding:10px 18px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   #cd[hidden]{display:none}
-  #cd .cd-time{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--warn)}
+  #cd .cd-time{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--warn)}
   #cd .cd-label{font-size:14px;font-weight:800;letter-spacing:.03em;color:var(--fg);text-transform:uppercase}
-  #cd .cd-stop{min-width:36px;height:36px;padding:0 12px;border-radius:11px;font-size:15px;font-weight:800;border:0;background:var(--card);color:var(--fg);cursor:pointer;
-    box-shadow:4px 4px 9px var(--sh-lo),-4px -4px 9px var(--sh-hi)}
+  #cd .cd-stop{min-width:36px;height:36px;padding:0 12px;border-radius:var(--r);font-size:15px;font-weight:800;border:1.5px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
   #cd.major{top:50%;transform:translate(-50%,-50%);flex-direction:column;gap:10px;padding:26px 42px}
   #cd.major .cd-time{font-size:66px} #cd.major .cd-label{font-size:16px}
   #cd.major .cd-stop{height:44px;font-size:16px;padding:0 20px;color:var(--blue)}
+  /* COURT SWITCH: flash the banner (and the board mirror below) for the ~3 s change of ends. */
+  #cd.blink .cd-label,#cd.blink .cd-time{animation:cdblink .7s steps(1,end) infinite}
+  #cd.blink .cd-label{color:var(--blue)}
+  @keyframes cdblink{50%{opacity:.15}}
 
   /* ---- LINK ---- */
   .link{padding:14px;overflow-y:auto}
   .linkbar{display:flex;gap:8px;margin-bottom:12px}
-  .linkbar button,#matches .linkbtn{padding:11px 18px;font-size:14px;font-weight:700;border:0;background:var(--card);color:var(--blue);border-radius:13px;cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .linkbar button,#matches .linkbtn{padding:11px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   #matches{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
-  #matches li{display:flex;align-items:center;gap:12px;padding:13px;border-radius:14px;background:var(--card);box-shadow:5px 5px 12px var(--sh-lo),-5px -5px 12px var(--sh-hi)}
+  #matches li{display:flex;align-items:center;gap:12px;padding:13px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--line)}
   #matches .info{flex:1;min-width:0} #matches .label{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #matches .sub{font-size:12px;color:var(--muted)}
   .live{font-size:11px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--ok);padding:3px 8px;border-radius:20px}
-  #matches li.linked .linkbtn{color:#fff;background:var(--blue)}
+  #matches li.linked .linkbtn{color:#fff;background:var(--blue);border-color:var(--blue)}
   .note{color:var(--muted);font-size:13px;padding:8px 2px} .err{color:var(--bad);font-size:13px;padding:6px 2px}
 
   /* ---- SETTINGS ---- */
   .settings{padding:14px;overflow-y:auto}
   .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
-  .settings fieldset{border:0;border-radius:16px;padding:12px 16px 14px;margin:0;background:var(--card);min-width:0;box-shadow:6px 6px 14px var(--sh-lo),-6px -6px 14px var(--sh-hi)}
+  .settings fieldset{border:1.5px solid var(--line);border-radius:var(--r);padding:12px 16px 14px;margin:0;background:var(--card);min-width:0}
   .settings legend{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--blue);text-transform:uppercase;padding:0 4px 2px;display:flex;align-items:center;gap:6px}
   .settings .row{display:flex;align-items:center;gap:8px;padding:9px 0;font-size:13px}
-  .settings .row + .row{border-top:1px solid rgba(150,160,190,.16)}
+  .settings .row + .row{border-top:1px solid var(--line-soft)}
   .settings .row span{flex:1;min-width:0} .settings .row em{font-style:normal;color:var(--muted);font-size:11px;width:16px}
-  .settings input[type=number],.settings input[type=text],.settings select{padding:7px 10px;font-size:13px;border:0;border-radius:10px;background:var(--card);color:var(--fg);box-shadow:inset 3px 3px 6px var(--sh-lo),inset -3px -3px 6px var(--sh-hi)}
-  .settings input[type=number]{width:84px} .settings input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:46px;height:26px;border-radius:13px;position:relative;cursor:pointer;background:var(--card);box-shadow:inset 3px 3px 6px var(--sh-lo),inset -3px -3px 6px var(--sh-hi);transition:background .2s}
-  .settings input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--card);box-shadow:3px 3px 6px var(--sh-lo),-2px -2px 5px var(--sh-hi);transition:transform .2s}
-  .settings input[type=checkbox]:checked{background:var(--blue);box-shadow:inset 2px 2px 5px rgba(40,60,120,.5)}
-  .settings input[type=checkbox]:checked::after{transform:translateX(20px);background:#fff;box-shadow:2px 2px 5px rgba(0,0,0,.25)}
+  .settings input[type=number],.settings input[type=text],.settings select{padding:7px 10px;font-size:13px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
+  .settings input[type=number]{width:84px} .settings input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:46px;height:26px;border-radius:3px;position:relative;cursor:pointer;background:var(--card);border:1.5px solid var(--line);transition:background .2s}
+  .settings input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:2px;background:var(--muted);transition:transform .2s}
+  .settings input[type=checkbox]:checked{background:var(--blue);border-color:var(--blue)}
+  .settings input[type=checkbox]:checked::after{transform:translateX(20px);background:#fff}
   .settings .hint{font-size:11px;color:var(--muted);margin:4px 0 0} #setStatus.saved{color:var(--ok)}
+  /* explicit per-section Save: muted "Saved" when clean, filled blue "Save" when there are unsaved edits */
+  .setsaverow{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft)}
+  .setsavebtn{min-height:38px;padding:0 20px;font-size:13px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--muted);cursor:pointer}
+  .setsavebtn.dirty{background:var(--blue);border-color:var(--blue);color:#fff}
+  .setsavebtn.ok{border-color:var(--ok);color:var(--ok)}
 
   #rotate{display:none}
   @media (orientation:portrait) and (max-width:600px){
@@ -159,60 +191,82 @@
     #rotate .ic{font-size:56px;animation:rothint 2.4s ease-in-out infinite} #rotate .t{font-size:17px;font-weight:800} #rotate .s{font-size:13px;color:var(--muted);max-width:280px}
     @keyframes rothint{0%,55%{transform:rotate(0)}78%,100%{transform:rotate(-90deg)}}
   }
-  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--card);color:var(--fg);padding:12px 18px;border-radius:13px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:60;text-align:center;box-shadow:6px 6px 16px var(--sh-lo),-6px -6px 16px var(--sh-hi)}
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--card);color:var(--fg);padding:12px 18px;border-radius:var(--r);font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:60;text-align:center;border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   #toast.show{opacity:1}
-  #edit{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(120,128,150,.35)}
+  #edit{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
   #edit[hidden]{display:none}
-  .editbox{background:var(--card);border-radius:20px;padding:18px;width:min(300px,90vw);box-shadow:10px 10px 30px var(--sh-lo),-10px -10px 30px var(--sh-hi)}
-  .editlabel{font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;text-align:center}
-  #editInput{width:100%;padding:14px;font-size:32px;font-weight:800;text-align:center;border:0;border-radius:12px;background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;box-shadow:inset 4px 4px 9px var(--sh-lo),inset -4px -4px 9px var(--sh-hi)}
+  .editbox{background:var(--card);border-radius:var(--r);padding:18px;width:min(300px,90vw);border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
+  .editlabel{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;text-align:center}
+  #editInput{width:100%;padding:14px;font-size:32px;font-weight:800;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;font-family:var(--mono)}
   .editbtns{display:flex;gap:10px;margin-top:14px}
-  .editbtns button{flex:1;padding:13px;font-size:15px;font-weight:800;border-radius:12px;border:0;background:var(--card);color:var(--fg);cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .editbtns button{flex:1;padding:13px;font-size:15px;font-weight:800;border-radius:var(--r);border:1.5px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
   #editOk{color:var(--blue)}
-  #offline{display:none;align-items:center;gap:10px;padding:11px 15px;margin:0 10px;border-radius:13px;background:var(--card);color:var(--bad);font-weight:700;box-shadow:inset 3px 3px 7px var(--sh-lo),inset -3px -3px 7px var(--sh-hi)}
+  #offline{display:none;align-items:center;gap:10px;padding:11px 15px;margin:0 10px;border-radius:var(--r);background:var(--card);color:var(--bad);font-weight:700;border:1.5px solid var(--bad)}
   #offline.show{display:flex} #offline .sub{font-weight:400;color:var(--muted);font-size:.82rem}
   .editable{cursor:pointer}
   /* Power / shutdown */
-  .dangerbtn{width:100%;margin-top:6px;padding:14px;font-size:15px;font-weight:800;border:0;border-radius:13px;background:var(--card);color:var(--bad);cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .dangerbtn{width:100%;margin-top:6px;padding:14px;font-size:15px;font-weight:800;border:1.5px solid var(--bad);border-radius:var(--r);background:var(--card);color:var(--bad);cursor:pointer}
   #shutdown{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);color:var(--fg);text-align:center;padding:32px}
   #shutdown.show{display:flex}
   #shutdown .ic{font-size:66px;color:var(--muted)}
   #shutdown .t{font-size:23px;font-weight:800}
   #shutdown .s{font-size:14px;color:var(--muted);max-width:340px}
-  #shutdown .press{font-size:19px;font-weight:800;color:var(--blue);background:var(--card);padding:16px 26px;border-radius:16px;box-shadow:inset 3px 3px 8px var(--sh-lo),inset -3px -3px 8px var(--sh-hi)}
+  #shutdown .press{font-size:19px;font-weight:800;color:var(--blue);background:var(--card);padding:16px 26px;border-radius:var(--r);border:1.5px solid var(--line)}
   @media (prefers-reduced-motion: no-preference){#shutdown .press{animation:pulsePress 1.6s ease-in-out infinite}@keyframes pulsePress{50%{transform:scale(1.04)}}}
   /* ---- HISTORY ---- */
   .history{padding:14px;overflow-y:auto}
   .histbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-  .histbar button{padding:11px 16px;font-size:14px;font-weight:700;border:0;background:var(--card);color:var(--blue);border-radius:13px;cursor:pointer;box-shadow:5px 5px 11px var(--sh-lo),-5px -5px 11px var(--sh-hi)}
+  .histbar button{padding:11px 16px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   .histbar button.danger{color:var(--bad)}
   #histList{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
-  .histcard{padding:13px 16px;border-radius:14px;background:var(--card);box-shadow:5px 5px 12px var(--sh-lo),-5px -5px 12px var(--sh-hi)}
+  .histcard{padding:13px 16px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--line)}
   .histcard .top{display:flex;align-items:center;gap:10px}
   .histcard .teams{flex:1;min-width:0;font-weight:800;font-size:15px}
-  .histcard .final{font-variant-numeric:tabular-nums;font-weight:800;font-size:18px}
+  .histcard .final{font-variant-numeric:tabular-nums;font-family:var(--mono);font-weight:800;font-size:18px}
   .histcard .final .win{color:var(--ok)}
   .histcard .meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;gap:14px;flex-wrap:wrap}
-  .histcard .sets{font-variant-numeric:tabular-nums}
+  .histcard .sets{font-variant-numeric:tabular-nums;font-family:var(--mono)}
   /* confirm modal (T/O + subs) */
-  #confirm{position:fixed;inset:0;z-index:75;display:flex;align-items:center;justify-content:center;background:rgba(120,128,150,.35)}
+  #confirm{position:fixed;inset:0;z-index:75;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
   #confirm[hidden]{display:none}
   #confirm .editlabel{font-size:16px;text-transform:none;letter-spacing:0;color:var(--fg);margin-bottom:14px}
   #confirmYes{color:var(--blue)}
+  /* beach serve-order modal */
+  #serveOrder{position:fixed;inset:0;z-index:76;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32);padding:20px}
+  #serveOrder[hidden]{display:none}
+  #serveOrder .editbox{width:min(340px,92vw)}
+  #serveOrder h3{margin:0 0 4px;font-size:18px;font-weight:800}
+  #serveOrder .sub{margin:0 0 15px;font-size:12px;color:var(--muted)}
+  .ordgrp{margin-bottom:13px}
+  .ordq{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:7px}
+  .segbtns{display:flex;gap:9px}
+  .segbtns button{flex:1;padding:12px;font-size:15px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
+  .segbtns button.on{color:var(--blue);background:var(--fill);border-color:var(--blue)}
+  #ordOk{color:var(--blue)}
   /* scorer PIN lock */
-  #pinModal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(120,128,150,.35)}
+  #pinModal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
   #pinModal[hidden]{display:none}
-  #pinInput{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;border:0;border-radius:12px;background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;box-shadow:inset 4px 4px 9px var(--sh-lo),inset -4px -4px 9px var(--sh-hi)}
+  #pinInput{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;font-family:var(--mono)}
   #pinOk{color:var(--blue)}
   #lockBtn{font-size:16px;padding:0 12px}
   #lockBtn.on{color:var(--bad)}
   body.locked #tab-manual .board,body.locked #tab-manual .gfooter{filter:opacity(.72)}
+  /* whole-UI entry lock — a PIN screen over everything until the scorer unlocks */
+  #lockGate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px}
+  #lockGate[hidden]{display:none}
+  .lg-box{width:min(360px,92vw);background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:32px 26px;text-align:center;box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
+  .lg-ic .licon{width:40px;height:40px;color:var(--fg)}
+  .lg-title{font-size:20px;font-weight:800;margin:12px 0 4px}
+  .lg-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+  #lgPin{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;font-family:var(--mono);font-variant-numeric:tabular-nums;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
+  #lgUnlock{width:100%;margin-top:14px;min-height:48px;font-size:15px;font-weight:800;border:1.5px solid var(--blue);background:var(--blue);color:#fff;border-radius:var(--r);cursor:pointer}
+  .lg-err{min-height:18px;margin-top:12px;font-size:13px;font-weight:700;color:var(--bad)}
   /* live LED-board mirror */
   .boardview{flex:1 1 auto;min-height:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:4px}
   .bvlabel{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .bvpanel{height:100%;width:auto;max-width:100%;aspect-ratio:192/64;container-type:size;position:relative;
     background:#080a12;border-radius:12px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;
-    box-shadow:inset 4px 4px 12px #04060c,inset -3px -3px 9px #141d38,6px 6px 16px var(--sh-lo),-6px -6px 16px var(--sh-hi)}
+    border:1.5px solid var(--line);box-shadow:inset 4px 4px 12px #04060c,inset -3px -3px 9px #141d38}
   .bvinner{position:absolute;inset:0;transform:scale(.85);transform-origin:center}
   .bvsec{position:absolute;white-space:nowrap;line-height:1;font-weight:400;letter-spacing:-.03em}
   .bvrect{position:absolute;border-radius:.5cqh}
@@ -229,6 +283,7 @@
   .bvnames .bvsep{height:.6cqh;background:#39415f;margin:2.5cqh 0;border-radius:1cqh}
   .bvcd{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqh;font-family:Arial,Helvetica,sans-serif}
   #bvPanel[data-mode="countdown"] .bvcd{display:flex}
+  #bvPanel[data-mode="countdown"] .bvcd.blink{animation:cdblink .7s steps(1,end) infinite}
   .bvcd .bvcdlabel{font-weight:700;font-size:12cqh;letter-spacing:.06em;color:#aeb8d8;text-transform:uppercase;white-space:nowrap}
   .bvcd .bvcdtime{font-weight:700;font-size:42cqh;line-height:.85;color:#ffcf47;font-variant-numeric:tabular-nums}
   .bvcd .bvcdsub{font-weight:700;font-size:15cqh;color:#e7ecff;font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;gap:1.5cqw;align-items:baseline}
@@ -244,6 +299,42 @@
     .bvpanel{width:100%;height:auto;max-height:100%}
   }
   .taphint{font-size:10px;color:var(--muted);text-align:center;opacity:.75;margin-top:-4px}
+
+  /* ---- multi-sport: header badge, per-sport score cluster, sport picker ---- */
+  .sportbadge{display:inline-flex;align-items:center;gap:6px;min-height:40px;min-width:40px;padding:0 12px;border:1.5px solid var(--line);border-radius:var(--r);
+    background:var(--card);color:var(--blue);font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;flex:0 0 auto}
+  .sportbadge .sbico{display:inline-flex;align-items:center} .sportbadge .sbico .licon{width:1.15em;height:1.15em}
+  @media (max-width:560px){ .sportbadge .sbtxt{display:none} }
+  /* Tapping a number opens the direct-entry editor — show it's tappable on every sport. */
+  .side [data-val]{cursor:pointer}
+  /* Basketball score cluster: a big running total, +1/+2/+3, and a −1 correction. */
+  .score.bball{flex-direction:column;max-height:none;gap:8px;justify-content:center}
+  .score.bball .val{font-size:clamp(40px,13vh,72px)}
+  .score.bball .ptrow{display:flex;gap:8px;width:100%}
+  .score .ptbtn{flex:1 1 0;min-width:0;min-height:46px;height:clamp(46px,7vh,58px);font-size:20px;font-weight:800;line-height:1;border:1.5px solid var(--line);
+    background:var(--card);color:var(--fg);border-radius:var(--r);cursor:pointer}
+  .score .bigbtn.minus{width:auto;height:40px;min-height:40px;border-radius:var(--r);font-size:18px;padding:0 20px;align-self:center}
+  /* Author display rules beat the [hidden] attribute, so restate it for the toggled bits. */
+  .stat[hidden]{display:none} .actions button[hidden]{display:none}
+  /* Plain branding: drop the crest on the board-mirror idle screen (names only). */
+  #bvPanel[data-branding="plain"] .bvcrest{display:none}
+  /* Full-screen sport selector (landing + re-open from the header badge). */
+  #sportPicker{position:fixed;inset:0;z-index:78;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+  #sportPicker[hidden]{display:none}
+  .spbox{width:min(560px,94vw);max-height:92vh;overflow-y:auto;background:var(--card);border-radius:var(--r);padding:26px 24px;
+    border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
+  .sptitle{font-size:20px;font-weight:800;text-align:center;color:var(--fg)}
+  .spsub{font-size:13px;color:var(--muted);text-align:center;margin:6px 0 18px}
+  .splist{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px}
+  .spopt{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:110px;padding:18px 12px;border:1.5px solid var(--line);border-radius:var(--r);
+    background:var(--card);color:var(--fg);font-size:15px;font-weight:800;cursor:pointer;position:relative}
+  .spopt:disabled{opacity:.5;cursor:default} .spopt .spico .licon{width:34px;height:34px}
+  .spopt.on{color:var(--blue);background:var(--fill);border-color:var(--blue)}
+  .spopt .spcur{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue)}
+  .spstatus{font-size:13px;text-align:center;color:var(--muted);margin:16px 0 0} .spstatus.err{color:var(--bad)}
+  .spcancel{display:block;margin:18px auto 0;min-height:44px;padding:0 22px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);
+    font-size:14px;font-weight:800;cursor:pointer}
+  .spcancel:disabled{opacity:.5;cursor:default}
 </style>
 
 <div id="app">
@@ -251,6 +342,7 @@
     <span class="brand"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> LedBox</span>
     <span id="dot" title="LedBox connection"><svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg></span>
     <div id="mode">Mode <b id="modeName">…</b><span id="setNo"></span><span id="matchTag"></span></div>
+    <button id="sportBadge" class="sportbadge" title="Change sport" aria-label="Change sport"><span class="sbico" aria-hidden="true"></span><span class="sbtxt"></span></button>
     <nav class="nav">
       <button id="tabManualBtn" class="active" data-tab="manual">Game</button>
       <button id="tabLinkBtn" data-tab="link">Link</button>
@@ -296,10 +388,15 @@
     </div>
     <div class="centercol">
       <div class="servebox">
-        <span class="lbl">SERVE</span>
-        <button class="servebtn" data-serve="left" aria-label="Serve left"><svg class="licon l-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></button>
-        <span class="serveind" id="serveInd" aria-hidden="true"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg></span>
-        <button class="servebtn" data-serve="right" aria-label="Serve right"><svg class="licon l-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></button>
+        <div class="servetoggle" role="group" aria-label="Serve">
+          <button class="sv-arrow" data-serve="left" aria-label="Serve left"><svg class="licon l-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></button>
+          <span class="lbl sv-lbl">SERVE</span>
+          <button class="sv-arrow" data-serve="right" aria-label="Serve right"><svg class="licon l-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></button>
+        </div>
+      </div>
+      <div id="beachServe" hidden>
+        <button class="plrbtn" id="servePlrBtn" title="Serving player — tap to switch" aria-label="Switch the serving player"><span class="plrlbl">PLAYER</span><span class="plrnum" id="servePlrNum">–</span></button>
+        <button class="ordbtn" id="serveOrderBtn" title="Set the beach serve order">Serve order</button>
       </div>
       <button id="awakeBtn" class="iconbtn" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
       <button id="fsBtn" class="iconbtn" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
@@ -336,6 +433,7 @@
     <div class="actions">
       <button id="idleBtn" title="Show team names + VS on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
       <button id="warmupBtn" title="Pre-match warm-up countdown"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Warm-up</button>
+      <button id="nextPeriodBtn" hidden title="End the quarter / period"><svg class="licon l-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /> <line x1="4" x2="4" y1="22" y2="15" /></svg> End period</button>
       <button id="swapBtn" class="switch" title="Teams change ends"><svg class="licon l-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></svg> Switch sides</button>
       <button id="resetBtn" class="danger" title="Clear the board to 0–0">Reset</button>
       <button id="blankBtn" class="danger" title="Blank the display">Blank</button>
@@ -367,10 +465,13 @@
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Countdowns</legend>
+          <p class="hint" id="perSportNote">Timing, allowances, blink and match format are set per sport.</p>
           <label class="row"><span>Show on timeout</span>
             <input type="checkbox" data-set="countdownOnTimeout"></label>
           <label class="row"><span>Timeout length</span>
             <input type="number" data-set="timeoutSeconds" min="5" max="600"><em>s</em></label>
+          <label class="row"><span>Technical time-out</span>
+            <input type="number" data-set="ttoSeconds" min="0" max="600"><em>s</em></label>
           <label class="row"><span>Show on set interval</span>
             <input type="checkbox" data-set="countdownOnSetInterval"></label>
           <label class="row"><span>Set interval</span>
@@ -379,6 +480,14 @@
             <input type="number" data-set="warmupSeconds" min="10" max="3600"><em>s</em></label>
           <label class="row"><span>Horn when a countdown ends</span>
             <input type="checkbox" data-set="hornOnCountdownEnd"></label>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg> Display</legend>
+          <label class="row"><span>Panel brightness</span>
+            <input type="number" data-set="brightness" min="0" max="100" step="5"><em>%</em></label>
+          <p class="hint">How bright the LED panel drives. <strong>0 turns the panel off</strong> to save power —
+            the controller stays reachable, so set any value above 0 to switch it back on. 5–100 is on; the panel
+            blinks for about a second while it restarts at the new level.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> Match format</legend>
@@ -400,6 +509,16 @@
           <p class="hint">The pre-match screen beside the crest. Long names are shrunk
             automatically to fit the panel, so this size is the ceiling — what a short
             name like KSCW gets. Turn the switch off to show short codes instead.</p>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Board identity</legend>
+          <label class="row"><span>Crest / branding</span>
+            <select data-set="branding"><option value="kscw">KSC Wiedikon</option><option value="plain">Plain (no logo)</option></select></label>
+          <label class="row"><span>Connect to live scoring</span>
+            <select data-set="liveScoring"><option value="off">Off</option><option value="kscw">KSC Wiedikon</option></select></label>
+          <p class="hint">Branding sets the idle / crest screen — KSC Wiedikon shows the club crest,
+            Plain shows the team names only. Live scoring publishes the running score to the
+            public /live page.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-landmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 18v-7" /> <path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z" /> <path d="M14 18v-7" /> <path d="M18 18v-7" /> <path d="M3 22h18" /> <path d="M6 18v-7" /></svg> Club</legend>
@@ -472,6 +591,37 @@
     </div>
   </div>
 </div>
+<div id="serveOrder" hidden role="dialog" aria-label="Beach serve order">
+  <div class="editbox">
+    <h3>Beach serve order</h3>
+    <p class="sub">Who serves first, and each pair's first server. The board tracks it automatically after that — override any time.</p>
+    <div class="ordgrp">
+      <span class="ordq">Serves first</span>
+      <div class="segbtns" id="ordFirst">
+        <button type="button" data-first="left" class="on">Team L</button>
+        <button type="button" data-first="right">Team R</button>
+      </div>
+    </div>
+    <div class="ordgrp">
+      <span class="ordq" id="ordLlbl">Team L — first server</span>
+      <div class="segbtns" id="ordLeft">
+        <button type="button" data-p="1" class="on">Player 1</button>
+        <button type="button" data-p="2">Player 2</button>
+      </div>
+    </div>
+    <div class="ordgrp">
+      <span class="ordq" id="ordRlbl">Team R — first server</span>
+      <div class="segbtns" id="ordRight">
+        <button type="button" data-p="1" class="on">Player 1</button>
+        <button type="button" data-p="2">Player 2</button>
+      </div>
+    </div>
+    <div class="editbtns">
+      <button id="ordCancel">Cancel</button>
+      <button id="ordOk">Set order</button>
+    </div>
+  </div>
+</div>
 <div id="pinModal" hidden>
   <div class="editbox">
     <div class="editlabel" id="pinLabel">Enter scorer PIN</div>
@@ -489,14 +639,42 @@
   <div class="press">Now press the power button to switch it off</div>
 </div>
 
+<!-- Sport selector: shown on load (current sport pre-highlighted) and re-openable from the header badge. -->
+<div id="sportPicker" hidden role="dialog" aria-label="Choose the sport">
+  <div class="spbox">
+    <div class="sptitle">Choose the sport</div>
+    <p class="spsub">Switching restarts the board with the new rules and layout — about 8 seconds.</p>
+    <div class="splist" id="spList"></div>
+    <p class="spstatus" id="spStatus" hidden role="status" aria-live="polite"></p>
+    <button class="spcancel" id="spCancel">Keep current sport</button>
+  </div>
+</div>
+
+<!-- Whole-UI entry lock: a PIN screen over everything on load until the scorer unlocks. Starts
+     visible; boot dismisses it for a no-PIN board or a remembered valid PIN. -->
+<div id="lockGate" role="dialog" aria-modal="true" aria-label="Enter scorer PIN">
+  <div class="lg-box">
+    <div class="lg-ic"><svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
+    <div class="lg-title">Scoreboard locked</div>
+    <div class="lg-sub">Enter the scorer PIN to open the controller.</div>
+    <input id="lgPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••">
+    <button id="lgUnlock" type="button">Unlock</button>
+    <div class="lg-err" id="lgErr" role="alert"></div>
+  </div>
+</div>
+
 <script>
 (() => {
   "use strict";
   const IC = {
     wifiOn:'<svg class="licon l-wifi" viewBox="0 0 24 24" fill="none" stroke="#25b567" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M2 8.82a15 15 0 0 1 20 0" /> <path d="M5 12.859a10 10 0 0 1 14 0" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /></svg>', wifiOff:'<svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg>',
-    ball:'<svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg>', chevL:'<svg class="licon l-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>', chevR:'<svg class="licon l-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>',
+    ball:'<svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg>',
     lock:'<svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>', lockOpen:'<svg class="licon l-lock-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>', min:'<svg class="licon l-minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3" /> <path d="M21 8h-3a2 2 0 0 1-2-2V3" /> <path d="M3 16h3a2 2 0 0 1 2 2v3" /> <path d="M16 21v-3a2 2 0 0 1 2-2h3" /></svg>', max:'<svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>' };
   IC.del = '<svg class="licon l-delete" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z" /> <path d="m12 9 6 6" /> <path d="m18 9-6 6" /></svg>';
+  // Sport glyphs for the picker + header badge: Lucide volleyball, Lucide sun for beach, and
+  // Tabler ball-basketball for basketball (Lucide has no basketball icon — same 24px stroke style).
+  IC.beach = '<svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg>';
+  IC.basketball = '<svg class="licon l-basketball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /> <path d="M5.65 5.65l12.7 12.7" /> <path d="M5.65 18.35l12.7 -12.7" /> <path d="M12 3a9 9 0 0 0 9 9" /> <path d="M3 12a9 9 0 0 1 9 9" /></svg>';
 
   // --- tiny helpers -------------------------------------------------------
   const $ = (s, r = document) => r.querySelector(s);
@@ -504,6 +682,35 @@
   const num = (x) => Array.isArray(x) ? x.length : (Number(x) || 0);
   const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
   const roman = (n) => ROMAN[n] || String(n);
+
+  // --- multi-sport --------------------------------------------------------
+  // Three sports share ONE set of action verbs (see PROTOCOL.md); only the labels, the score
+  // buttons, the per-side stat slots and the board-mirror layout differ per sport. SPORT is the
+  // active key from /api/status; applySportUI() reshapes the Game tab whenever it changes, so the
+  // live volleyball flow is the untouched default and beach/basketball are additive branches.
+  let SPORT = "";                 // active sport key — "" until the first /api/status arrives
+  let SPORTS_LIST = [];           // [{key,label}] from GET /api/sport (the picker's options)
+  let pickerCurrent = "";         // sport to pre-highlight before the first status lands
+  const BONUS_AT = 5;             // basketball team-foul bonus/penalty threshold (matches the source)
+  const curSport = () => SPORT || pickerCurrent || "volleyball";
+  const periodLabel = (p) => { p = Number(p) || 1; return p <= 4 ? "Q" + p : "OT" + (p - 4); };
+  // Beach court-change cue: every 7 points (sum) in sets 1-2, every 5 in the decider (mirrors beachMapper).
+  const switchDue = (d) => {
+    if (!d) return false;
+    const cadence = (d.left.sets === 1 && d.right.sets === 1) ? 5 : 7;
+    const total = (d.left.points || 0) + (d.right.points || 0);
+    return total > 0 && total % cadence === 0;
+  };
+  // `teams` = the short-name input placeholders (and any A/B label) per sport. Beach plays by
+  // court POSITION (fixed board, pairs change ends), so it reads "Team L" / "Team R"; the indoor
+  // sports keep the A/B identities.
+  const SPORT_UI = {
+    volleyball: { serveLabel: "SERVE", stat: { to: "T/O", set: "Sets", sub: "Subs" }, show: { set: true, sub: true }, teams: { left: "TEAM A", right: "TEAM B" } },
+    beach: { serveLabel: "SERVE", stat: { to: "T/O", set: "Sets", sub: "Subs" }, show: { set: true, sub: false }, teams: { left: "TEAM L", right: "TEAM R" } },
+    basketball: { serveLabel: "POSS.", stat: { to: "T/O", set: "Period", sub: "Fouls" }, show: { set: true, sub: true }, teams: { left: "TEAM A", right: "TEAM B" } },
+  };
+  const sportLabel = (k) => (SPORTS_LIST.find((s) => s.key === k) || {}).label || (k ? k[0].toUpperCase() + k.slice(1) : "");
+  const sportIcon = (k) => k === "basketball" ? IC.basketball : k === "beach" ? IC.beach : IC.ball;
 
   // Preset team colours — tap-friendly on mobile (the native picker is fiddly).
   const PRESETS = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#22c55e", "#14b8a6",
@@ -556,6 +763,7 @@
     cdOnFinish = null;
     $("#cd").hidden = true;
     $("#cd").classList.remove("major");
+    $("#cd").classList.remove("blink");
     if (board.mode === "countdown") { board.mode = "match"; paintBoardMode(); }
   }
   // expired=true when the clock ran out (fires the board horn); false on a manual skip.
@@ -576,9 +784,10 @@
     $("#cdStop").textContent = opts.action || "✕";
     $("#cdStop").title = opts.action ? label : "Skip";
     $("#cd").classList.toggle("major", !!opts.major);
+    $("#cd").classList.toggle("blink", !!opts.blink);
     $("#cd").hidden = false;
     board.mode = "countdown";
-    board.cd = { label: (opts.label || label || "").toUpperCase(), content: opts.content || "full", side: opts.side || null, end: cdEnd };
+    board.cd = { label: (opts.label || label || "").toUpperCase(), content: opts.content || "full", side: opts.side || null, end: cdEnd, blink: !!opts.blink };
     paintBoardMode();
     cdButton = () => finishCountdown(false); // the ✕ / "start next set" button: skip, no horn
     // content: what the BOARD shows beside the clock — 'full' (points+sets), 'sets', or 'none'.
@@ -646,6 +855,10 @@
       left: aIsLeft ? a : b,
       right: aIsLeft ? b : a,
       serving: state.serving_team || null,
+      // Beach carries the serving player number (1|2); 0/unused for the other sports.
+      servePlayer: Number(state.serve_player) || 0,
+      // Basketball carries these shared scalars (harmless/unused for the volleyball sports).
+      period: Number(state.period) || 1, over: !!state.over,
     };
   }
 
@@ -657,13 +870,18 @@
 
   // --- render -------------------------------------------------------------
   let linkedMatchId = null;
+  let lastState = null; // last raw a/b state seen — prefills the beach serve-order modal
   const MODE_LABELS = { manual: "Manual", lan: "Live (LAN)", cloud: "Cloud", idle: "Idle" };
 
   function renderStatus(st) {
+    // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
+    if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
     lastLedbox = st.ledbox || lastLedbox;
     const connected = !!(st.ledbox && st.ledbox.connected);
-    $("#dot").innerHTML = connected ? IC.wifiOn : IC.wifiOff;
-    $("#dot").title = connected
+    // Only rewrite the icon SVG when the state flips — re-setting innerHTML every poll makes it flash.
+    const dotEl = $("#dot");
+    if (dotEl._conn !== connected) { dotEl.innerHTML = connected ? IC.wifiOn : IC.wifiOff; dotEl._conn = connected; }
+    dotEl.title = connected
       ? `LedBox connected (${st.ledbox.host}:${st.ledbox.port})`
       : "LedBox not connected";
     // Say it in words too — the dot is easy to miss and has no tooltip on touch.
@@ -683,18 +901,24 @@
     $("#setNo").textContent = setLabel(st.state);
     linkedMatchId = st.matchId != null ? String(st.matchId) : null;
     $("#matchTag").textContent = st.matchId ? " · match " + st.matchId : "";
+    lastState = st.state || lastState;
     renderBoard(sides(st.state));
     renderSetStrip(st.state);
     markLinked();
+    maybePromptServeOrder(st.state);
     pinRequired = !!st.pinRequired;
     updateLock();
   }
 
   function setLabel(state) {
     if (!state) return "";
+    // Basketball: the header shows the period (Q1–Q4 / OT1… / FINAL), not a set count.
+    if (SPORT === "basketball") return state.over ? "FINAL" : periodLabel(state.period);
     const a = num(state.sets_won_a), b = num(state.sets_won_b);
-    if (a >= 3 || b >= 3) return "Final";
-    return "Set " + roman(Math.min(5, a + b + 1));
+    // Sets needed to win: 2 for beach (best of 3), else best-of setting (default 5 → 3).
+    const win = SPORT === "beach" ? 2 : (SETTINGS.bestOf === 3 ? 2 : 3);
+    if (a >= win || b >= win) return "Final";
+    return "Set " + roman(Math.min(win * 2 - 1, a + b + 1));
   }
 
   function flashSide(side) {
@@ -735,30 +959,80 @@
   // 1:1 mirror of the LedBox: replicates the real volleyball_matchscore_02 layout exactly
   // (bordered score boxes, big scores, sets "1 - 1", T/S columns, serve bar). Blinks on a point.
   const BW = 192, BH = 64;
-  const LAYOUT = [
-    { n:"team1", t:"text", x:0,   y:-4, fs:18, a:"left"   },
-    { n:"bg_score1", t:"box", x:0, y:17, w:64, h:46 },
-    { n:"score1", t:"text", x:32, y:40, fs:50, a:"center", vc:true },
-    { n:"set1", t:"text", x:91,  y:-5, fs:26, a:"right"  },
-    { n:"vs",   t:"text", x:97,  y:-1, fs:18, a:"center", fixed:"-", col:"#dfe6ff" },
-    { n:"set2", t:"text", x:102, y:-5, fs:26, a:"left"   },
-    { n:"timeout1", t:"text", x:78, y:23, fs:18, a:"center" },
-    { n:"lbl_to", t:"text", x:96, y:26, fs:14, a:"center", fixed:"T", col:"#aeb8d8" },
-    { n:"timeout2", t:"text", x:115, y:23, fs:18, a:"center" },
-    { n:"sub1", t:"text", x:78, y:39, fs:18, a:"center" },
-    { n:"lbl_sub", t:"text", x:96, y:42, fs:14, a:"center", fixed:"S", col:"#aeb8d8" },
-    { n:"sub2", t:"text", x:115, y:39, fs:18, a:"center" },
-    { n:"serve1", t:"bar", x:70, y:60, w:16, h:5 },
-    { n:"serve2", t:"bar", x:107, y:60, w:16, h:5 },
-    { n:"team2", t:"text", x:192, y:-4, fs:18, a:"right"  },
-    { n:"bg_score2", t:"box", x:127, y:17, w:64, h:46 },
-    { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
-  ];
+  // One LAYOUT per sport, mirroring the firmware match layouts (192x64). Shared geometry
+  // (team names, score boxes, serve/possession bars) is kept identical across the three so the
+  // mirror reads as one board; only the sport-specific sections differ:
+  //   volleyball: two-number set line + S(ubs) row     (volleyball_matchscore_02)
+  //   beach:      set line + centre SWITCH cue, no subs (beach_matchscore.xml)
+  //   basketball: centre PERIOD, F(ouls)+bonus, T(imeouts), no set line (basketball_matchscore.xml)
+  // The big scores are drawn centred in the box (vc) for a clean mirror, as the volleyball
+  // mirror always has; the differentiating sections use the XML's own x/y/fontsize.
+  const LAYOUTS = {
+    volleyball: [
+      { n:"team1", t:"text", x:0,   y:-4, fs:18, a:"left"   },
+      { n:"bg_score1", t:"box", x:0, y:17, w:64, h:46 },
+      { n:"score1", t:"text", x:32, y:40, fs:50, a:"center", vc:true },
+      { n:"set1", t:"text", x:91,  y:-5, fs:26, a:"right"  },
+      { n:"vs",   t:"text", x:97,  y:-1, fs:18, a:"center", fixed:"-", col:"#dfe6ff" },
+      { n:"set2", t:"text", x:102, y:-5, fs:26, a:"left"   },
+      { n:"timeout1", t:"text", x:78, y:23, fs:18, a:"center" },
+      { n:"lbl_to", t:"text", x:96, y:26, fs:14, a:"center", fixed:"T", col:"#aeb8d8" },
+      { n:"timeout2", t:"text", x:115, y:23, fs:18, a:"center" },
+      { n:"sub1", t:"text", x:78, y:39, fs:18, a:"center" },
+      { n:"lbl_sub", t:"text", x:96, y:42, fs:14, a:"center", fixed:"S", col:"#aeb8d8" },
+      { n:"sub2", t:"text", x:115, y:39, fs:18, a:"center" },
+      { n:"serve1", t:"bar", x:70, y:60, w:16, h:5 },
+      { n:"serve2", t:"bar", x:107, y:60, w:16, h:5 },
+      { n:"team2", t:"text", x:192, y:-4, fs:18, a:"right"  },
+      { n:"bg_score2", t:"box", x:127, y:17, w:64, h:46 },
+      { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
+    ],
+    // beach_matchscore.xml — set line (fs20), centre SWITCH cue, single T row (nudged up),
+    // the serve-player digit below it, no subs.
+    beach: [
+      { n:"team1", t:"text", x:0,   y:-4, fs:18, a:"left"   },
+      { n:"bg_score1", t:"box", x:0, y:17, w:64, h:46 },
+      { n:"score1", t:"text", x:32, y:40, fs:50, a:"center", vc:true },
+      { n:"set1", t:"text", x:89,  y:-6, fs:20, a:"right"  },
+      { n:"vs",   t:"text", x:97,  y:-3, fs:15, a:"center", fixed:"-", col:"#dfe6ff" },
+      { n:"set2", t:"text", x:105, y:-6, fs:20, a:"left"   },
+      { n:"timeout1", t:"text", x:82, y:15, fs:14, a:"center" },
+      { n:"lbl_to", t:"text", x:98, y:15, fs:13, a:"center", fixed:"T", col:"#aeb8d8" },
+      { n:"timeout2", t:"text", x:111, y:15, fs:14, a:"center" },
+      { n:"serveplr1", t:"text", x:80, y:23, fs:40, a:"center" },
+      { n:"serveplr2", t:"text", x:111, y:23, fs:40, a:"center" },
+      { n:"switch", t:"text", x:96, y:30, fs:11, a:"center" },
+      { n:"team2", t:"text", x:192, y:-4, fs:18, a:"right"  },
+      { n:"bg_score2", t:"box", x:127, y:17, w:64, h:46 },
+      { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
+    ],
+    // basketball_matchscore.xml — centre PERIOD, per-side bonus dot, F(ouls) row, T(imeouts) row.
+    basketball: [
+      { n:"team1", t:"text", x:0,   y:-4, fs:18, a:"left"   },
+      { n:"bonus1", t:"text", x:60, y:0, fs:15, a:"center" },
+      { n:"bg_score1", t:"box", x:0, y:17, w:64, h:46 },
+      { n:"score1", t:"text", x:32, y:40, fs:50, a:"center", vc:true },
+      { n:"period", t:"text", x:96, y:-6, fs:15, a:"center", col:"#ffffff" },
+      { n:"foul1", t:"text", x:80, y:22, fs:15, a:"center" },
+      { n:"lbl_foul", t:"text", x:96, y:25, fs:11, a:"center", fixed:"F", col:"#aeb8d8" },
+      { n:"foul2", t:"text", x:112, y:22, fs:15, a:"center" },
+      { n:"timeout1", t:"text", x:80, y:38, fs:15, a:"center" },
+      { n:"lbl_to", t:"text", x:96, y:41, fs:11, a:"center", fixed:"T", col:"#aeb8d8" },
+      { n:"timeout2", t:"text", x:112, y:38, fs:15, a:"center" },
+      { n:"serve1", t:"bar", x:70, y:60, w:16, h:5 },
+      { n:"serve2", t:"bar", x:107, y:60, w:16, h:5 },
+      { n:"team2", t:"text", x:192, y:-4, fs:18, a:"right"  },
+      { n:"bonus2", t:"text", x:132, y:0, fs:15, a:"center" },
+      { n:"bg_score2", t:"box", x:127, y:17, w:64, h:46 },
+      { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
+    ],
+  };
   const cq = (v, ax) => (v / (ax === "x" ? BW : BH) * 100) + (ax === "x" ? "cqw" : "cqh");
   function buildBoard() {
     const p = $("#bvPanel"); if (!p || p.dataset.built) return; p.dataset.built = "1";
+    p.dataset.branding = SETTINGS.branding || "kscw";
     const inner = document.createElement("div"); inner.className = "bvinner";
-    for (const s of LAYOUT) {
+    for (const s of (LAYOUTS[SPORT] || LAYOUTS.volleyball)) {
       const el = document.createElement("div"); el.dataset.n = s.n;
       el.style.left = cq(s.x, "x"); el.style.top = cq(s.y, "y");
       if (s.t === "text") {
@@ -797,21 +1071,45 @@
     bvLast = { s: s, serving: serving };
     const p = $("#bvPanel"); if (!p) return;
     const g = (n) => p.querySelector('[data-n="' + n + '"]');
-    const d = s || { left:{short:"",points:0,sets:0,to:0,sub:0,color:"#4a6cff"}, right:{short:"",points:0,sets:0,to:0,sub:0,color:"#ff5b52"} };
-    const tt = (SETTINGS.totalTimeouts || 2), ts = (SETTINGS.totalSubs || 6);
-    const toCol = (n) => n >= tt ? "#ff5b52" : "#e7ecff";
-    const subCol = (n) => n >= ts ? "#ff5b52" : n >= ts - 1 ? "#ffbf3f" : "#e7ecff";
+    const d = s || { left:{short:"",points:0,sets:0,to:0,sub:0,color:"#4a6cff"}, right:{short:"",points:0,sets:0,to:0,sub:0,color:"#ff5b52"}, period:1, over:false };
     const put = (n, v, c) => { const e = g(n); if (e) { e.textContent = v; if (c) e.style.color = c; } };
+    // Shared on every sport: names, running scores, box borders, serve/possession bars.
     put("team1", (d.left.short || "").toUpperCase(), d.left.color);
     put("team2", (d.right.short || "").toUpperCase(), d.right.color);
     put("score1", d.left.points, d.left.color);   put("score2", d.right.points, d.right.color);
-    put("set1", d.left.sets, d.left.color);        put("set2", d.right.sets, d.right.color);
-    put("timeout1", d.left.to, toCol(d.left.to));  put("timeout2", d.right.to, toCol(d.right.to));
-    put("sub1", d.left.sub, subCol(d.left.sub));   put("sub2", d.right.sub, subCol(d.right.sub));
     const b1 = g("bg_score1"); if (b1) b1.style.borderColor = d.left.color;
     const b2 = g("bg_score2"); if (b2) b2.style.borderColor = d.right.color;
     const v1 = g("serve1"); if (v1) v1.style.background = serving === "left" ? d.left.color : "#161c30";
     const v2 = g("serve2"); if (v2) v2.style.background = serving === "right" ? d.right.color : "#161c30";
+    if (SPORT === "basketball") {
+      const tg = SETTINGS.totalTimeouts || 5;
+      const toCol = (n) => n >= tg ? "#ff5b52" : "#e7ecff";
+      const foulCol = (n) => n >= BONUS_AT ? "#ff3c28" : n >= BONUS_AT - 1 ? "#ffbf3f" : "#e7ecff";
+      put("period", d.over ? "FINAL" : periodLabel(d.period), "#ffffff");
+      put("foul1", d.left.sub, foulCol(d.left.sub));   put("foul2", d.right.sub, foulCol(d.right.sub));
+      put("bonus1", d.left.sub >= BONUS_AT ? "•" : "", d.left.sub >= BONUS_AT ? "#ff3c28" : "#40465e");
+      put("bonus2", d.right.sub >= BONUS_AT ? "•" : "", d.right.sub >= BONUS_AT ? "#ff3c28" : "#40465e");
+      put("timeout1", d.left.to, toCol(d.left.to));    put("timeout2", d.right.to, toCol(d.right.to));
+    } else if (SPORT === "beach") {
+      const t1 = SETTINGS.totalTimeouts || 1;
+      const toCol = (n) => n >= t1 ? "#ff5b52" : "#e7ecff";
+      const due = switchDue(d);
+      put("set1", d.left.sets, d.left.color);          put("set2", d.right.sets, d.right.color);
+      put("switch", due ? "SWITCH" : "", due ? "#ffbf3f" : "#3c3c3c");
+      put("timeout1", d.left.to, toCol(d.left.to));    put("timeout2", d.right.to, toCol(d.right.to));
+      // Serve-player digit sits over the SERVING side's bar (left or right), in that pair's colour;
+      // both blank while a court switch is due (the centre SWITCH cue shows instead).
+      const spCol = d.serving === "left" ? d.left.color : d.serving === "right" ? d.right.color : "#3c3c3c";
+      put("serveplr1", (!due && d.serving === "left" && d.servePlayer) ? String(d.servePlayer) : "", spCol);
+      put("serveplr2", (!due && d.serving === "right" && d.servePlayer) ? String(d.servePlayer) : "", spCol);
+    } else {
+      const tt = (SETTINGS.totalTimeouts || 2), ts = (SETTINGS.totalSubs || 6);
+      const toCol = (n) => n >= tt ? "#ff5b52" : "#e7ecff";
+      const subCol = (n) => n >= ts ? "#ff5b52" : n >= ts - 1 ? "#ffbf3f" : "#e7ecff";
+      put("set1", d.left.sets, d.left.color);          put("set2", d.right.sets, d.right.color);
+      put("timeout1", d.left.to, toCol(d.left.to));    put("timeout2", d.right.to, toCol(d.right.to));
+      put("sub1", d.left.sub, subCol(d.left.sub));     put("sub2", d.right.sub, subCol(d.right.sub));
+    }
     const blink = (el, v, key) => { if (!el) return; if (bvSeen[key] !== null && bvSeen[key] !== v) { el.classList.remove("bvblink"); void el.offsetWidth; el.classList.add("bvblink"); } bvSeen[key] = v; };
     blink(g("score1"), d.left.points, "s1");
     blink(g("score2"), d.right.points, "s2");
@@ -824,6 +1122,9 @@
     const p = $("#bvPanel"); if (!p) return;
     buildBoard();
     p.dataset.mode = board.mode;
+    p.dataset.branding = SETTINGS.branding || "kscw"; // 'plain' hides the crest via CSS
+    const cdEl = p.querySelector(".bvcd");
+    if (cdEl) cdEl.classList.toggle("blink", board.mode === "countdown" && !!(board.cd && board.cd.blink));
     const s = bvLast.s;
     const set = (n, v, c) => { const e = p.querySelector('[data-n="' + n + '"]'); if (e) { e.textContent = v; if (c) e.style.color = c; } };
     if (board.mode === "idle") {
@@ -846,6 +1147,13 @@
     }
   }
 
+  // Readable text colour for a coloured team panel: dark ink on a light team colour, white on a dark one.
+  const inkOn = (hex) => {
+    const h = String(hex || "").trim().replace("#", "");
+    if (h.length !== 6) return "#fff"; // no colour -> panel uses the dark blue/red fallback -> white text
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#111318" : "#ffffff";
+  };
   function renderBoard(s) {
     for (const side of ["left", "right"]) {
       const root = $(`.side.${side}`);
@@ -853,27 +1161,102 @@
       setIfIdle(root, ".short", d.short);
       setColorIfIdle(root, ".color", d.color);
       root.style.setProperty("--edge", d.color || "var(--" + side + ")");
+      root.style.setProperty("--on-edge", inkOn(d.color)); // readable ink for the Arena colour block
       const prev = shown[side];
       // The point just assigned pulses green — confirmation that the tap registered.
       paint($('[data-val="points"]', root), d.points, prev.points, "flash");
-      paint($('[data-val="sets"]', root), d.sets, prev.sets, "bump");
+      // The "Sets" slot doubles as the PERIOD readout in basketball (a shared label, not a count).
+      if (SPORT === "basketball") {
+        const el = $('[data-val="sets"]', root);
+        if (el) el.textContent = s ? (s.over ? "FINAL" : periodLabel(s.period)) : "Q1";
+      } else {
+        paint($('[data-val="sets"]', root), d.sets, prev.sets, "bump");
+      }
       paint($('[data-val="to"]', root), d.to, prev.to, "bump");
       paint($('[data-val="sub"]', root), d.sub, prev.sub, "bump");
-      // Match the board: timeouts red at the total (no amber); subs amber one short, red at it.
-      const tt = SETTINGS.totalTimeouts || 2, ts = SETTINGS.totalSubs || 6;
-      limitClass($('[data-val="to"]', root).closest(".stat"), d.to, tt, tt);
-      limitClass($('[data-val="sub"]', root).closest(".stat"), d.sub, ts - 1, ts);
+      // Counter colours per sport: volleyball TO red at total + subs amber/red; beach one TO;
+      // basketball TO red at the game total + fouls amber at 4, red at the 5th (bonus/penalty).
+      if (SPORT === "basketball") {
+        const tg = SETTINGS.totalTimeouts || 5;
+        limitClass($('[data-val="to"]', root).closest(".stat"), d.to, tg, tg);
+        limitClass($('[data-val="sub"]', root).closest(".stat"), d.sub, BONUS_AT - 1, BONUS_AT);
+      } else if (SPORT === "beach") {
+        const t1 = SETTINGS.totalTimeouts || 1;
+        limitClass($('[data-val="to"]', root).closest(".stat"), d.to, t1, t1);
+      } else {
+        // Match the board: timeouts red at the total (no amber); subs amber one short, red at it.
+        const tt = SETTINGS.totalTimeouts || 2, ts = SETTINGS.totalSubs || 6;
+        limitClass($('[data-val="to"]', root).closest(".stat"), d.to, tt, tt);
+        limitClass($('[data-val="sub"]', root).closest(".stat"), d.sub, ts - 1, ts);
+      }
       shown[side] = d;
     }
     const serving = s ? s.serving : null;
+    // Highlight the serving side on the consolidated SERVE pill (fills that side's team colour).
     $$('[data-serve]').forEach((b) =>
       b.classList.toggle("on", serving === b.dataset.serve));
-    const ind = $("#serveInd");
-    if (ind) {
-      ind.innerHTML = serving === "left" ? IC.chevL+IC.ball : serving === "right" ? IC.ball+IC.chevR : IC.ball;
-      ind.style.opacity = serving ? "1" : ".35";
+    // Beach serve-player readout: the serving pair's number (1|2) in that pair's colour.
+    if (SPORT === "beach") {
+      const spn = $("#servePlrNum");
+      if (spn) {
+        const n = s ? s.servePlayer : 0;
+        spn.textContent = n ? String(n) : "–";
+        spn.style.color = !s ? "" : serving === "left" ? s.left.color : serving === "right" ? s.right.color : "";
+      }
     }
     renderPreview(s, serving);
+  }
+
+  // Reshape the Game tab + board mirror for the active sport. Runs only when SPORT changes, so the
+  // default volleyball layout is untouched until a different sport is picked.
+  function applySportUI() {
+    const cfg = SPORT_UI[SPORT] || SPORT_UI.volleyball;
+    document.body.dataset.sport = SPORT;
+    $$(".side").forEach((root) => {
+      const side = root.dataset.side;
+      const scoreEl = $(".score", root);
+      if (scoreEl) { scoreEl.classList.toggle("bball", SPORT === "basketball"); scoreEl.innerHTML = scoreInner(SPORT, side); }
+      // Team-name placeholder per sport (beach = "Team L" / "Team R"; A/B otherwise).
+      const shortEl = root.querySelector(".short");
+      if (shortEl && cfg.teams && cfg.teams[side]) shortEl.placeholder = cfg.teams[side];
+      const statOf = (t) => root.querySelector('[data-stat="' + t + '"]').closest(".stat");
+      const toB = statOf("timeout"), setB = statOf("set"), subB = statOf("sub");
+      toB.querySelector(".name").textContent = cfg.stat.to;
+      setB.querySelector(".name").textContent = cfg.stat.set;
+      subB.querySelector(".name").textContent = cfg.stat.sub;
+      setB.hidden = !cfg.show.set;   // (always shown today; kept for future sports)
+      subB.hidden = !cfg.show.sub;   // beach hides subs
+    });
+    const sl = $(".servebox .lbl"); if (sl) sl.textContent = cfg.serveLabel;
+    const bs = $("#beachServe"); if (bs) bs.hidden = SPORT !== "beach"; // serve-player control: beach only
+    const nq = $("#nextPeriodBtn"); if (nq) nq.hidden = SPORT !== "basketball";
+    const bi = $("#sportBadge .sbico"), bt = $("#sportBadge .sbtxt");
+    if (bi) bi.innerHTML = sportIcon(SPORT); if (bt) bt.textContent = sportLabel(SPORT);
+    // Rebuild the board mirror on the new layout, then repaint the last known state.
+    const p = $("#bvPanel"); if (p) { p.dataset.built = ""; p.innerHTML = ""; delete p.dataset.mode; }
+    shown.left = {}; shown.right = {}; bvSeen.s1 = null; bvSeen.s2 = null;
+    buildBoard();
+    renderPreview(bvLast.s, bvLast.serving);
+  }
+
+  // The per-side score cluster: +/− for the volleyball sports, +1/+2/+3 (and a −1 correction)
+  // for basketball. The `data-pt` dispatch and the `[data-val="points"]` number are unchanged,
+  // so the delegated point/edit handlers keep working after a rebuild.
+  function scoreInner(sport, side) {
+    const s = side === "left" ? "left" : "right";
+    const T = side === "left" ? "Left" : "Right";
+    if (sport === "basketball") {
+      return '<span class="val" data-val="points">0</span>' +
+        '<div class="ptrow">' +
+        '<button class="ptbtn" data-pt="1" aria-label="' + T + ' add 1 point">+1</button>' +
+        '<button class="ptbtn" data-pt="2" aria-label="' + T + ' add 2 points">+2</button>' +
+        '<button class="ptbtn" data-pt="3" aria-label="' + T + ' add 3 points">+3</button>' +
+        '</div>' +
+        '<button class="bigbtn minus" data-pt="-1" aria-label="' + T + ' correct minus one">−1</button>';
+    }
+    return '<button class="bigbtn" data-pt="1" aria-label="' + s + ' plus point">+</button>' +
+      '<span class="val" data-val="points">0</span>' +
+      '<button class="bigbtn" data-pt="-1" aria-label="' + s + ' minus point">−</button>';
   }
 
   // Write a value and, when it actually changed, replay the animation. Re-adding the
@@ -912,7 +1295,7 @@
     try { renderStatus(await api("/api/status")); }
     catch (e) {
       const dot = $("#dot");
-      if (dot) dot.innerHTML = IC.wifiOff; // keep quiet on poll errors
+      if (dot && dot._conn !== false) { dot.innerHTML = IC.wifiOff; dot._conn = false; } // keep quiet on poll errors
     }
   }
 
@@ -942,10 +1325,40 @@
       flashSide(sideOf(s, num(s.points_a) > num(s.points_b)));
       flashName(winSide);
       toast("🏆 " + name + " wins the match");
-    } else if (event === "switch-8") {
-      // Deciding set: first to 8 -> show "Side switch" for 5s, then swap sides.
-      startCountdown(5, "Side switch", () => sendAction({ type: "swap" }));
+    } else if (event === "switch-due") {
+      // A change of ends is DUE (beach: every 7 pts, 5 in the decider; indoor decider: first to 8).
+      // NOT automatic — ask the operator, then blink COURT SWITCH and swap. See requestCourtSwitch.
+      requestCourtSwitch();
+    } else if (event === "tech-timeout") {
+      // Beach: automatic 1-minute technical timeout when the points sum reaches 21 (sets 1-2 only).
+      // Ending it — by the clock OR the operator's "End time-out" — flips the court (send `swap`).
+      startCountdown(SETTINGS.ttoSeconds || 60, "Technical Time-Out", () => sendAction({ type: "swap" }),
+        { major: true, content: "full", action: "End time-out →" });
+    } else if (event === "bonus") {
+      // Basketball: a side reached its 5th team foul — opponent now shoots free throws.
+      toast("Bonus — the opponent shoots free throws");
+    } else if (event === "period-end") {
+      // Basketball: a quarter/overtime just started; the header period label already refreshed.
+      toast(s.over ? "Game over" : periodLabel(s.period) + " starting");
+    } else if (event === "game-end") {
+      // Basketball: decided by SCORE (there is no set tally). Flash + name the leader.
+      const winSide = sideOf(s, num(s.points_a) > num(s.points_b));
+      const name = (winSide === "left" ? sides(s).left.short : sides(s).right.short) || winSide.toUpperCase();
+      flashSide(winSide);
+      flashName(winSide);
+      toast("🏆 " + name + " wins");
     }
+  }
+
+  // Operator-confirmed court switch. When the boundary point is scored the backend flags
+  // 'switch-due'; we ASK first ("Switch sides?"). YES -> blink "COURT SWITCH" full-panel for
+  // ~3 s on the break screen (content 'none' = no scores, just the label + a 3·2·1 clock), then
+  // send `swap` — which returns to the match layout and repaints the swapped score. NO -> nothing:
+  // the point stands and the manual "Switch sides" button is always available.
+  async function requestCourtSwitch() {
+    if (!(await askConfirm("Switch sides?"))) return;
+    startCountdown(3, "COURT SWITCH", () => sendAction({ type: "swap" }),
+      { major: true, content: "none", blink: true });
   }
 
   async function blank() {
@@ -1047,19 +1460,81 @@
   $("#confirmNo").addEventListener("click", () => closeConfirm(false));
   $("#confirm").addEventListener("click", (e) => { if (e.target.id === "confirm") closeConfirm(false); });
 
+  // --- beach serve order + serve-player override ---------------------------
+  let ordSel = { first: "left", left: 1, right: 1 };
+  const segPick = (groupId, match) => $$("#" + groupId + " button").forEach((b) => b.classList.toggle("on", match(b)));
+  function openServeOrder() {
+    const s = bvLast.s, raw = lastState || {};
+    // Prefill from the live state: who's serving now + each pair's current server.
+    ordSel.first = raw.serving_team === "right" ? "right" : "left";
+    ordSel.left = Number(raw.server_a) === 2 ? 2 : 1;
+    ordSel.right = Number(raw.server_b) === 2 ? 2 : 1;
+    const lname = s && s.left.short ? s.left.short.toUpperCase() : "TEAM L";
+    const rname = s && s.right.short ? s.right.short.toUpperCase() : "TEAM R";
+    $("#ordLlbl").textContent = lname + " — first server";
+    $("#ordRlbl").textContent = rname + " — first server";
+    const fb = $$("#ordFirst button"); fb[0].textContent = lname; fb[1].textContent = rname;
+    segPick("ordFirst", (b) => b.dataset.first === ordSel.first);
+    segPick("ordLeft", (b) => Number(b.dataset.p) === ordSel.left);
+    segPick("ordRight", (b) => Number(b.dataset.p) === ordSel.right);
+    $("#serveOrder").hidden = false;
+  }
+  const closeServeOrder = () => { $("#serveOrder").hidden = true; };
+  $("#ordFirst").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel.first = b.dataset.first; segPick("ordFirst", (x) => x === b); } });
+  $("#ordLeft").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel.left = Number(b.dataset.p); segPick("ordLeft", (x) => x === b); } });
+  $("#ordRight").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel.right = Number(b.dataset.p); segPick("ordRight", (x) => x === b); } });
+  $("#ordCancel").addEventListener("click", closeServeOrder);
+  $("#serveOrder").addEventListener("click", (e) => { if (e.target.id === "serveOrder") closeServeOrder(); });
+  $("#ordOk").addEventListener("click", () => {
+    sendAction({ type: "serve-order", first: ordSel.first, leftServer: ordSel.left, rightServer: ordSel.right });
+    closeServeOrder();
+  });
+  const serveOrderBtn = $("#serveOrderBtn");
+  if (serveOrderBtn) serveOrderBtn.addEventListener("click", openServeOrder);
+  const servePlrBtn = $("#servePlrBtn");
+  if (servePlrBtn) servePlrBtn.addEventListener("click", () => sendAction({ type: "serve-player" })); // bare = flip the serving pair
+
+  // Auto-prompt the serve order at the start of each beach set — once, and only after a real rally
+  // has been played (so an idle refresh never pops it). Match start is handled by chooseSport.
+  let beachSeenPoints = false, beachAskedSets = -1;
+  function maybePromptServeOrder(state) {
+    if (SPORT !== "beach" || !state || !$("#serveOrder").hidden) return;
+    if (!$("#cd").hidden) return; // wait out any countdown / set-interval / set-end overlay first
+    const pts = num(state.points_a) + num(state.points_b);
+    const sets = num(state.sets_won_a) + num(state.sets_won_b);
+    const over = num(state.sets_won_a) >= 2 || num(state.sets_won_b) >= 2;
+    if (pts > 0) { beachSeenPoints = true; return; }
+    if (beachSeenPoints && !over && beachAskedSets !== sets) {
+      beachAskedSets = sets; beachSeenPoints = false; openServeOrder();
+    }
+  }
+
   const VAL_TYPE = { points: "point", sets: "set", to: "timeout", sub: "sub" };
   const VAL_NAME = { points: "score", sets: "sets", to: "timeouts", sub: "subs" };
 
   // per-side controls
   $$(".side").forEach((root) => {
     const side = root.dataset.side;
-    root.querySelectorAll("[data-pt]").forEach((b) => b.addEventListener("click",
-      () => sendAction({ type: "point", side, delta: Number(b.dataset.pt) })));
+    // Score buttons (rebuilt per sport by applySportUI) and the tap-to-edit numbers are DELEGATED
+    // on the side, so they keep working after the +1/+2/+3 cluster replaces the +/− pair.
+    root.addEventListener("click", (e) => {
+      const pt = e.target.closest("[data-pt]");
+      if (pt && root.contains(pt)) { sendAction({ type: "point", side, delta: Number(pt.dataset.pt) }); return; }
+      const val = e.target.closest("[data-val]");
+      if (val && root.contains(val)) {
+        const type = VAL_TYPE[val.dataset.val]; if (!type) return;
+        // Basketball's "Sets" slot is the shared PERIOD label — adjust it with ± / End period, not a typed value.
+        if (SPORT === "basketball" && val.dataset.val === "sets") return;
+        const name = (SPORT === "basketball" && val.dataset.val === "sub") ? "fouls" : VAL_NAME[val.dataset.val];
+        openEdit((side === "left" ? "Left " : "Right ") + name,
+          Number(val.textContent) || 0, (v) => sendAction({ type, side, value: v }));
+      }
+    });
     root.querySelectorAll("[data-stat]").forEach((b) => b.addEventListener("click", async () => {
       const stat = b.dataset.stat, d = Number(b.dataset.d);
       if (stat === "timeout" || stat === "sub") {
         const nm = ($(".short", root).value || side).toUpperCase();
-        const what = stat === "timeout" ? "timeout" : "substitution";
+        const what = stat === "timeout" ? "timeout" : (SPORT === "basketball" ? "team foul" : "substitution");
         if (!(await askConfirm((d > 0 ? "Add a " : "Remove a ") + what + " for " + nm + "?"))) return;
       }
       sendAction({ type: stat, side, delta: d });
@@ -1073,15 +1548,6 @@
         }
       }
     }));
-    // Tap any number to edit it directly.
-    root.querySelectorAll("[data-val]").forEach((el) => {
-      const type = VAL_TYPE[el.dataset.val]; if (!type) return;
-      el.classList.add("editable");
-      el.addEventListener("click", () => openEdit(
-        (side === "left" ? "Left " : "Right ") + VAL_NAME[el.dataset.val],
-        Number(el.textContent) || 0,
-        (v) => sendAction({ type, side, value: v })));
-    });
     const shortEl = $(".short", root), colorEl = $(".color", root);
     shortEl.addEventListener("change",
       () => sendAction({ type: "team", side, short: shortEl.value }));
@@ -1110,6 +1576,92 @@
     if (confirm("Blank the LedBox display?")) { clearCountdown(); board.mode = "blank"; paintBoardMode(); blank(); }
   });
   $("#refreshBtn").addEventListener("click", refreshMatches);
+
+  // --- sport selector -----------------------------------------------------
+  // Shown on load (current sport pre-highlighted → one tap continues) and re-openable from the
+  // header badge. Picking a different sport POSTs /api/sport (which persists + restarts the bridge),
+  // then polls /api/status across the ~6-8s restart until it comes back on the new sport.
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function buildSportList() {
+    const list = $("#spList"); if (!list) return;
+    const cur = curSport();
+    const opts = SPORTS_LIST.length ? SPORTS_LIST
+      : [{ key: "volleyball", label: "Volleyball" }, { key: "beach", label: "Beach volleyball" }, { key: "basketball", label: "Basketball" }];
+    list.innerHTML = "";
+    opts.forEach((sp) => {
+      const b = document.createElement("button");
+      b.className = "spopt" + (sp.key === cur ? " on" : "");
+      b.dataset.key = sp.key;
+      b.innerHTML = '<span class="spico" aria-hidden="true">' + sportIcon(sp.key) + '</span>' +
+        '<span class="splabel">' + sp.label + '</span>' + (sp.key === cur ? '<span class="spcur">current</span>' : "");
+      b.addEventListener("click", () => chooseSport(sp.key));
+      list.appendChild(b);
+    });
+  }
+  function openSportPicker() {
+    buildSportList();
+    const st = $("#spStatus"); if (st) { st.hidden = true; st.classList.remove("err"); st.textContent = ""; }
+    spBusy(false);
+    $("#sportPicker").hidden = false;
+  }
+  function closeSportPicker() { $("#sportPicker").hidden = true; }
+  function spBusy(on) {
+    $$("#spList .spopt").forEach((b) => { b.disabled = on; });
+    const c = $("#spCancel"); if (c) c.disabled = on;
+  }
+  async function chooseSport(key) {
+    if (!key) return;
+    if (key === curSport()) { closeSportPicker(); return; } // current sport = just continue
+    const st = $("#spStatus");
+    if (st) { st.hidden = false; st.classList.remove("err"); st.textContent = "Switching to " + sportLabel(key) + "… the board restarts (about 8 seconds)."; }
+    spBusy(true);
+    try {
+      const r = await postJSON("/api/sport", { sport: key });
+      if (r && r.changed === false) { const now = await api("/api/status"); renderStatus(now); closeSportPicker(); return; }
+      const done = await waitForSwitch(key);
+      if (done) {
+        renderStatus(done); closeSportPicker(); toast(sportLabel(key) + " ready");
+        // Fresh beach match → ask the serve order straight away ("the beginning").
+        if (key === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
+      }
+      else if (st) { st.classList.add("err"); st.textContent = "The board is taking a while to restart — it'll switch on its own once it's back."; spBusy(false); }
+    } catch (e) {
+      // A 403 already opened the PIN modal (above the picker); tell the operator why here.
+      if (st) { st.classList.add("err"); st.textContent = /pin/i.test(e.message || "") ? "Scoring is locked — enter the scorer PIN, then choose again." : ("Couldn't switch: " + (e.message || e)); }
+      spBusy(false);
+    }
+  }
+  // Poll across the restart: accept once the bridge answers on the new sport AND we've either seen
+  // it drop (real board) or waited out a short grace (dev box, where nothing restarts).
+  async function waitForSwitch(key) {
+    const t0 = Date.now();
+    let sawDown = false;
+    while (Date.now() - t0 < 25000) {
+      await sleep(700);
+      try {
+        const s = await api("/api/status");
+        if (s && s.sport === key && (sawDown || Date.now() - t0 > 9000)) return s;
+      } catch { sawDown = true; }
+    }
+    try { return await api("/api/status"); } catch { return null; }
+  }
+  async function loadSportList() {
+    try {
+      const r = await api("/api/sport");
+      SPORTS_LIST = (r && r.sports) || [];
+      if (r && r.sport) pickerCurrent = r.sport;
+    } catch { SPORTS_LIST = []; }
+  }
+  const sportBadgeBtn = $("#sportBadge");
+  if (sportBadgeBtn) sportBadgeBtn.addEventListener("click", openSportPicker);
+  const spCancelBtn = $("#spCancel");
+  if (spCancelBtn) spCancelBtn.addEventListener("click", closeSportPicker);
+  const sportPickerEl = $("#sportPicker");
+  if (sportPickerEl) sportPickerEl.addEventListener("click", (e) => { if (e.target.id === "sportPicker") closeSportPicker(); });
+  const nextPeriodBtn = $("#nextPeriodBtn");
+  if (nextPeriodBtn) nextPeriodBtn.addEventListener("click", () => {
+    if (SPORT === "basketball" && confirm("End this period?")) sendAction({ type: "next-set" });
+  });
   // Power: halt the board cleanly, then tell the operator it's safe to cut the power.
   const shutdownBtn = $("#shutdownBtn");
   if (shutdownBtn) shutdownBtn.addEventListener("click", async () => {
@@ -1133,9 +1685,13 @@
         if (el.type === "checkbox") el.checked = !!v; else el.value = v;
       }
       SETTINGS = s;
+      const note = $("#perSportNote");
+      if (note && s.sport) note.textContent =
+        "Timing, allowances, blink and match format apply to " + sportLabel(s.sport) +
+        ". Brightness, club name, PIN, branding and live-scoring are shared across all sports.";
     } catch { /* leave the form at its defaults */ }
   }
-  async function saveSettings() {
+  async function saveSettings(clickedBtn) {
     const patch = {};
     for (const el of setEls()) {
       patch[el.dataset.set] =
@@ -1157,17 +1713,34 @@
         if (v === undefined) continue;
         if (el.type === "checkbox") el.checked = !!v; else el.value = v;
       }
+      // One save persists EVERY field, so every section is now clean.
+      $$(".setsavebtn").forEach((b) => { b.classList.remove("dirty", "ok"); b.textContent = "Saved"; });
+      if (clickedBtn) { clickedBtn.classList.add("ok"); clickedBtn.textContent = "Saved ✓"; setTimeout(() => { clickedBtn.classList.remove("ok"); clickedBtn.textContent = "Saved"; }, 1600); }
+      renderPreview(bvLast.s, bvLast.serving); // reflect branding / counter-threshold changes on the mirror now
       setTimeout(() => { st.textContent = "Saved on the board — these survive a restart."; st.classList.remove("saved"); }, 1800);
     } catch (e) { toast(e.message); }
   }
-  setEls().forEach((el) => el.addEventListener("change", saveSettings));
+  // Explicit save: a Save button per settings section (no silent auto-save). Editing a field marks
+  // its section as unsaved; clicking any Save persists ALL fields, so every section goes clean.
+  $$("#tab-settings fieldset").forEach((fs) => {
+    if (!fs.querySelector("[data-set]")) return; // skip sections with nothing to save (e.g. Power)
+    const row = document.createElement("div"); row.className = "setsaverow";
+    const btn = document.createElement("button"); btn.type = "button"; btn.className = "setsavebtn"; btn.textContent = "Saved";
+    btn.addEventListener("click", () => saveSettings(btn));
+    row.appendChild(btn); fs.appendChild(row);
+  });
+  const markSettingDirty = (el) => {
+    const fs = el.closest("fieldset"); const b = fs && fs.querySelector(".setsavebtn");
+    if (b) { b.classList.remove("ok"); b.classList.add("dirty"); b.textContent = "Save changes"; }
+  };
+  setEls().forEach((el) => { el.addEventListener("input", () => markSettingDirty(el)); el.addEventListener("change", () => markSettingDirty(el)); });
 
   // --- scorer lock ---------------------------------------------------------
   function updateLock() {
     const b = $("#lockBtn"); if (!b) return;
     b.hidden = !pinRequired;
     const open = !SCORER_PIN;
-    b.innerHTML = open ? IC.lock : IC.lockOpen;
+    if (b._open !== open) { b.innerHTML = open ? IC.lock : IC.lockOpen; b._open = open; } // avoid per-poll SVG flash
     b.classList.toggle("on", pinRequired && open);
     b.title = open ? "Scoring locked — tap to enter PIN" : "Scoring unlocked (tap to change PIN)";
     document.body.classList.toggle("locked", pinRequired && open);
@@ -1295,10 +1868,43 @@
     HISTORY = []; refreshHistory(); toast("History cleared");
   });
 
+  // --- whole-UI entry lock -------------------------------------------------
+  // A PIN screen (#lockGate) sits over everything on load. It dismisses itself if the board has no
+  // PIN, or if the PIN we remember from last time still checks out; otherwise the scorer types it.
+  const lockGate = $("#lockGate");
+  const hideGate = () => { if (lockGate) lockGate.hidden = true; };
+  const showGate = () => { if (lockGate) { lockGate.hidden = false; const i = $("#lgPin"); if (i) { i.value = ""; setTimeout(() => i.focus(), 50); } } };
+  async function bootLock() {
+    let pinSet = false;
+    try { const s = await api("/api/settings"); pinSet = !!s.pinSet; } catch { hideGate(); return; } // board down → don't trap the operator (writes stay server-gated anyway)
+    if (!pinSet) { hideGate(); return; }                 // no PIN configured → open access
+    if (SCORER_PIN) {                                     // remember a prior unlock if the PIN still checks out
+      try { const r = await postJSON("/api/unlock", { pin: SCORER_PIN }); if (r && r.ok) { pinRequired = true; updateLock(); hideGate(); return; } } catch {}
+    }
+    showGate();
+  }
+  async function gateUnlock() {
+    const el = $("#lgPin"); const pin = (el.value || "").trim();
+    if (!pin) return;
+    try {
+      const r = await postJSON("/api/unlock", { pin });
+      if (r && r.ok) {
+        SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
+        pinRequired = true; updateLock();
+        $("#lgErr").textContent = ""; hideGate();
+      } else { $("#lgErr").textContent = "Wrong PIN — try again."; el.value = ""; el.focus(); }
+    } catch { $("#lgErr").textContent = "Couldn't reach the board — try again."; }
+  }
+  { const u = $("#lgUnlock"); if (u) u.addEventListener("click", gateUnlock);
+    const p = $("#lgPin"); if (p) p.addEventListener("keydown", (e) => { if (e.key === "Enter") gateUnlock(); }); }
+
   // boot
   let pollTimer = null;
   const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
+  bootLock();
   loadSettings();
+  // Present the sport picker first (landing), with the current sport pre-highlighted.
+  loadSportList().then(openSportPicker);
   refreshStatus();
   pollTimer = setInterval(refreshStatus, 1500);
 })();
