@@ -1,6 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PROPOSAL — NOT WIRED IN. Nothing imports this file.
 //
+// (Moved out of src/ 2026-08-04: deploy-board.sh ships src/*.js wholesale, so an unwired
+// proposal was being copied onto the board. The wired implementation is src/livePush.js.)
+//
 // A board-side hook that POSTs manualSource.getState() to the wiedisync cloud
 // relay (Cloudflare Worker + Durable Object) on every scoring change, so club
 // members can follow the match live in the app. See the full design in
