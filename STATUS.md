@@ -95,8 +95,13 @@ settable **live** over `SetSections`; `x`/`y` are only honoured from the layout 
 
 | | |
 |---|---|
-| Control UI | `http://172.24.1.60:8890` (on board Wi-Fi) · `http://openvolley:8890` (Tailscale) |
-| Board web admin | `http://192.168.5.1` (from Pi) — `admin` / `admin` |
+| Control UI | `http://172.24.1.1:8890` (on the board's own Wi-Fi) · `http://ledbox:8890` (Tailscale) |
+| Board web admin | `http://192.168.5.1` — vendor UI, **disabled** by `provisioning/harden-board.sh`; credentials in Vaultwarden |
 | Board Wi-Fi | `ledbox_C0270` / passphrase in Vaultwarden (rotated 2026-08-02) |
-| Board on cable | `192.168.5.1` · Pi on cable `192.168.5.50` |
-| Service | `ledbox-bridge` on the Pi |
+| Board on cable | `192.168.5.1` — debug link only since 2026-08-04 (route metric 3000, so it is a silent last resort behind the Wi-Fi uplink) |
+| Service | `ledbox-bridge` **on the board** — the Pi does not run it, and must not |
+
+The board is its own Tailscale node and has its own Wi-Fi uplink, so it no longer depends on the
+`openvolley` Pi for anything. Put the board behind a `ledbox` alias in `~/.ssh/config`; addresses
+are deliberately not committed here. Deploy with `./deploy-board.sh`, or over the cable with
+`BOARD=pi@192.168.5.1 JUMP=openvolley ./deploy-board.sh`.

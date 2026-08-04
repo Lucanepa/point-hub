@@ -25,6 +25,15 @@ LOCK=/home/pi/ledbox/panel.lock       # serialises panel starts so we never spaw
 
 log() { logger -t ledbox-watchdog "$1"; echo "$(date '+%F %T') $1"; }
 
+# Monotonic seconds since boot. Deliberately NOT `date +%s`: this board has no RTC, so the first
+# successful NTP sync after the wifi uplink comes up steps the wall clock by hours in a single
+# jump. The old staleness check was `date +%s` minus buffer.png's mtime, so at that instant every
+# file on the box looked hours stale and the watchdog pkill'd a perfectly healthy scoreboard app
+# -- triggered by the exact event the uplink was added to cause, and mid-match if the match began
+# before NTP landed. Uptime cannot step, and "has the mtime CHANGED" does not care what the mtime
+# actually is, so both sides of the comparison are now immune to a clock jump.
+uptime_s() { awk '{print int($1)}' /proc/uptime; }
+
 app_running()   { pgrep -f "python3 -u ledbox.py" >/dev/null 2>&1; }
 # Match the driver by exact process name, not cmdline: the transient `sudo` wrapper around it
 # also carries "bin/flushBuffer2" in its args, and counting that as "running" during a restart
@@ -41,19 +50,33 @@ start_panel() { flock "$LOCK" -c 'pgrep -x flushBuffer2 >/dev/null 2>&1 || ( cd 
 sleep 90
 log "watchdog started"
 
+# Last mtime we saw on buffer.png, and the uptime at which it last changed. Empty last_mtime
+# means "no reading yet", which the first tick fills in.
+last_mtime=""
+last_paint=$(uptime_s)
+
 while true; do
     if ! app_running; then
         log "app not running -> starting"
         start_app
         sleep 25          # give it time to bind its sockets before re-checking
+        last_mtime=""; last_paint=$(uptime_s)
     elif [ -f "$BUFFER" ]; then
-        age=$(( $(date +%s) - $(stat -c %Y "$BUFFER" 2>/dev/null || date +%s) ))
+        mtime=$(stat -c %Y "$BUFFER" 2>/dev/null || echo 0)
+        if [ "$mtime" != "$last_mtime" ]; then
+            last_mtime="$mtime"
+            last_paint=$(uptime_s)
+        fi
+        age=$(( $(uptime_s) - last_paint ))
         if [ "$age" -gt "$STALE_AFTER" ]; then
-            log "panel frozen (buffer.png ${age}s old) -> restarting app"
+            log "panel frozen (buffer.png unchanged for ${age}s) -> restarting app"
             pkill -f "python3 -u ledbox.py"
             sleep 3
             start_app
             sleep 25
+            # Reset the clock on the new process, else the next tick re-reads the age we just
+            # acted on and restarts it all over again.
+            last_mtime=""; last_paint=$(uptime_s)
         fi
     fi
 

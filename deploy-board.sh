@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
 # Deploy the KSCW LedBox BRIDGE to the board.
-# Run this once the board (pi@192.168.5.1, reached via the `openvolley` Pi jump host) is ON.
-# From cold the board's ethernet only links ~50s after power-on and it answers ~2 min in, so a
-# run started straight after switching it on can fail step 1 — wait rather than assume a fault.
+#
+# The board is reached by SSH alias, default `ledbox`. Put it in your ~/.ssh/config — deliberately
+# NOT hardcoded here, because this repo is public and addresses do not belong in it:
+#
+#   Host ledbox
+#     HostName <the board's tailnet address>
+#     User pi
+#
+# This used to reach the board ONLY through the `openvolley` Pi as a jump host, over the
+# 192.168.5.0/24 cable. That Pi is no longer a permanent fixture: the board has its own wifi uplink
+# and its own tailnet node, and the cable is now a debug path rather than the deploy path. To
+# deploy over the cable anyway — board off the wifi, or you are standing next to it — set both:
+#
+#   BOARD=pi@192.168.5.1 JUMP=openvolley ./deploy-board.sh
+#
+# From cold the board answers ~2 min after power-on, so a run started straight after switching it
+# on can fail step 1 — wait rather than assume a fault.
 #
 # Ships the WHOLE of src/ and the WHOLE of web/. It used to name individual files, which meant
 # every change had to remember to add itself to the list — and one that didn't (a fix living in
@@ -13,15 +27,23 @@
 # power cycles — see firmware/idle-crest-qr/), settings.json (the board's operator preferences)
 # and data/ (its match history).
 set -euo pipefail
-J=(-J openvolley -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
+
+BOARD=${BOARD:-ledbox}
+JUMP=${JUMP:-}
+J=(-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
+[ -n "$JUMP" ] && J+=(-J "$JUMP")
+
 REPO="$(cd "$(dirname "$0")" && pwd)"
-BOARD=pi@192.168.5.1
 DEST=/home/pi/ledbox-bridge
 STAMP="$(date +%Y%m%d-%H%M%S)"
 KEEP=5 # how many previous deploys to keep under .deploy-backups (see step 2)
 
 echo "== 1) board reachable? =="
-ssh "${J[@]}" "$BOARD" hostname || { echo "!! board not reachable — is it powered on and the Pi up? (needs ~2 min from cold)"; exit 1; }
+ssh "${J[@]}" "$BOARD" hostname || {
+  echo "!! board not reachable as '$BOARD'${JUMP:+ via $JUMP} — powered on? tailnet up? (needs ~2 min from cold)"
+  echo "   over the debug cable instead:  BOARD=pi@192.168.5.1 JUMP=openvolley $0"
+  exit 1
+}
 
 echo "== 2) back up what is on the board now =="
 # KEEP is a cap, not a suggestion: the board is a 6.8G SD card and this used to add a backup per
@@ -46,18 +68,34 @@ ssh "${J[@]}" "$BOARD" 'sudo systemctl restart ledbox-bridge'
 sleep 6
 
 echo "== 5) verify =="
+# Every check contributes to a remote exit code. This block used to end each line in
+# `grep -q ... && echo ok || echo MISSING`, which is always 0 — so a bridge in a crash loop, a
+# failed status probe and every '✗ MISSING' all still printed "DONE." and exited clean.
+set +e
 ssh "${J[@]}" "$BOARD" "
-  echo -n '  bridge: '; systemctl is-active ledbox-bridge
+  rc=0
+  chk() { # chk <label> <ok-marker>  — reads the test's exit status from \$?
+    if [ \"\$1\" = 0 ]; then echo \"  ✓ \$2\"; else echo \"  ✗ \$2 MISSING\"; rc=1; fi
+  }
+  echo -n '  bridge: '; systemctl is-active ledbox-bridge || rc=1
   N=/opt/nodejs/bin/node
-  \$N -e 'fetch(\"http://127.0.0.1:8890/api/status\").then(r=>r.json()).then(s=>console.log(\"  connected=\"+(s.ledbox&&s.ledbox.connected),\"sport=\"+s.sport,\"pinRequired=\"+s.pinRequired)).catch(e=>console.log(\"  status ERR\",e.message))'
+  \$N -e 'fetch(\"http://127.0.0.1:8890/api/status\").then(r=>r.json()).then(s=>console.log(\"  connected=\"+(s.ledbox&&s.ledbox.connected),\"sport=\"+s.sport,\"pinRequired=\"+s.pinRequired)).catch(e=>{console.log(\"  status ERR\",e.message);process.exit(1)})' || rc=1
   # Prove the NEW code is what is actually running — not merely that something started.
-  grep -q SELF-CLOCKED     $DEST/src/ledboxClient.js && echo '  ✓ self-clocked blink'      || echo '  ✗ blink fix MISSING'
-  grep -q showSportConfirm $DEST/src/ledboxClient.js && echo '  ✓ sport confirmation'      || echo '  ✗ sport confirm MISSING'
-  grep -q sport-switch     $DEST/src/appliance.js    && echo '  ✓ sport-switch marker'     || echo '  ✗ marker MISSING'
-  grep -q LAST_STATUS      $DEST/web/index.html      && echo '  ✓ UI status-merge'         || echo '  ✗ UI fix MISSING'
-  test -f $DEST/web/logs.html                        && echo '  ✓ /logs viewer'            || echo '  ✗ logs.html MISSING'
-  grep -q logStore         $DEST/src/appliance.js    && echo '  ✓ structured logging'      || echo '  ✗ logging MISSING'"
+  grep -q SELF-CLOCKED     $DEST/src/ledboxClient.js; chk \$? 'self-clocked blink'
+  grep -q showSportConfirm $DEST/src/ledboxClient.js; chk \$? 'sport confirmation'
+  grep -q sport-switch     $DEST/src/appliance.js;    chk \$? 'sport-switch marker'
+  grep -q LAST_STATUS      $DEST/web/index.html;      chk \$? 'UI status-merge'
+  test -f $DEST/web/logs.html;                        chk \$? '/logs viewer'
+  grep -q logStore         $DEST/src/appliance.js;    chk \$? 'structured logging'
+  exit \$rc"
+VERIFY=$?
+set -e
 
 echo
-echo "DONE. Roll back with:"
-echo "  ssh -J openvolley $BOARD 'cp -a $DEST/.deploy-backups/$STAMP/src/. $DEST/src/ && cp -a $DEST/.deploy-backups/$STAMP/web/. $DEST/web/ && sudo systemctl restart ledbox-bridge'"
+if [ "$VERIFY" -ne 0 ]; then
+  echo "!! DEPLOY VERIFY FAILED (exit $VERIFY) — the board may be running broken code. Roll back:"
+else
+  echo "DONE. Roll back with:"
+fi
+echo "  ssh ${JUMP:+-J $JUMP }$BOARD 'cp -a $DEST/.deploy-backups/$STAMP/src/. $DEST/src/ && cp -a $DEST/.deploy-backups/$STAMP/web/. $DEST/web/ && sudo systemctl restart ledbox-bridge'"
+exit "$VERIFY"

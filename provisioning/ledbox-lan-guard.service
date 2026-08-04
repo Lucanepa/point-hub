@@ -1,0 +1,44 @@
+# LedBox board firewall, applied at every boot.
+#
+# This unit is the whole reason the firewall is not a hand-added iptables rule: a hand-added rule
+# is exactly what silently disappeared on a reboot once and took the board's clock with it (the
+# board has no RTC, so it stamps match history from whatever it last believed the time was).
+# README claimed this unit existed for a while before it actually did — install-firewall.sh now
+# installs it, and `--commit` is what enables it.
+#
+# Install: handled by provisioning/install-firewall.sh, which copies this to
+# /etc/systemd/system/ledbox-lan-guard.service DISABLED, and only enables it on --commit — an
+# uncommitted default-deny ruleset must not come back after a reboot.
+
+[Unit]
+Description=LedBox board firewall (default-deny INPUT, per-interface allows)
+Documentation=https://github.com/Lucanepa/point-hub
+# Same shape as ufw.service: run before anything brings interfaces up, so the board is never
+# briefly reachable on the house LAN with no policy during boot. DefaultDependencies=no is what
+# makes ordering before network-pre.target possible at all.
+DefaultDependencies=no
+After=local-fs.target
+Wants=network-pre.target
+Before=network-pre.target
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/ledbox-lan-guard.sh
+# No ExecStop: the rules stay up on shutdown. Tearing them down would leave the board wide open
+# for the seconds before the interfaces actually go away.
+#
+# No Restart= either — systemd forbids anything but Restart=no on Type=oneshot — so the script
+# retries its own build internally and this is only reached once that has also failed. At that
+# point the board is UNFIREWALLED and the only thing that says so is `systemctl status`, which
+# nobody reads mid-match. Shout it at emerg instead, where it lands in the journal and on every
+# logged-in terminal. Leading `-` so a failure to log cannot itself fail the unit; `$$` so the
+# variable is expanded by the shell (systemd sets it for ExecStopPost), not by systemd.
+ExecStopPost=-/bin/sh -c 'test "$$SERVICE_RESULT" = success || logger -p daemon.emerg -t ledbox-lan-guard "FIREWALL NOT APPLIED - board is UNFIREWALLED (INPUT policy ACCEPT); retry: sudo systemctl restart ledbox-lan-guard"'
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
