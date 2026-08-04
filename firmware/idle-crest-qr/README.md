@@ -61,9 +61,24 @@ QR contents:
   those two must match or the QR joins nothing.
 - `ui_qr.png` = `http://172.24.1.1:8890` (no secret — safe to commit)
 
-Regenerate the QR PNGs (pure-python, no PIL needed) — see the encoder used in the session
-(`qrcode.get_matrix()` + a hand-rolled PNG writer), both forced to QR version 3 so they render
-at the same 48×48 px. Labels are `<section type="text">` above each image in the two layouts.
+Regenerate both with `gen_qr.py` (needs `qrcode` + `pillow`). Labels are `<section type="text">`
+above each image in the two layouts.
+
+**Do not go back to stretching the matrix to fill the 48×48 box.** It used to force version 3 at
+error-correction M and then scale with `m[(my * n) // avail]`, which produced modules of uneven
+width — a mix of 1 px and 2 px columns. A scanner finds the finder patterns and then samples on a
+regular grid, so an irregular one is precisely what it cannot read. Worse, the version comment was
+wrong (53 bytes is v3 at EC **L**; at M it is 42), so the 48-byte wifi payload was silently
+promoted to version 4 — 33×33 modules of that distortion. Symptom in the hall: the UI code scanned
+instantly and the wifi code would not scan at all. Verified with OpenCV's decoder, at 4×/6×/10×/16×
+magnification: every old render failed, every new one decoded.
+
+`render()` now uses whole-pixel modules only and centres the remainder as quiet zone, choosing
+(biggest scale, then FEWEST modules, then strongest EC). The middle term matters — at 48 px
+everything from 29 to 44 modules scales to 1 px, so ranking on EC alone lands on H at 41×41, worse
+than where we started. Today that yields wifi 29×29 EC L with a 9 px quiet zone, and ui 25×25 EC M
+with 11 px. A longer passphrase pushes the wifi code up a version, so re-run this and re-check the
+reported module count after any rotation.
 
 ## Restore after a firmware reflash
 ```bash
