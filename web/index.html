@@ -1,6 +1,14 @@
 <!-- LedBox appliance control UI — self-contained, offline, landscape-first. Talks to the control API on its own origin over relative URLs. -->
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- interactive-widget=resizes-content is load-bearing, not tidiness. Without it the on-screen
+     keyboard does NOT change the layout viewport: the browser keeps #app at its full 100dvh and
+     PANS the visual viewport to hold the focused field above the keyboard. #app is
+     `height:100dvh; overflow:hidden`, so there is nothing to scroll back, and when the field is
+     dismissed the view can be left parked below the app entirely — showing the page background,
+     which on this dark theme is indistinguishable from a screen that has switched itself off.
+     That is the "the whole tablet went black after I typed a score" report. With this, the
+     keyboard shrinks the layout viewport instead and the app simply re-lays out above it. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Point Hub — KSCW Scoreboard</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1882,6 +1890,30 @@
     } catch { /* locked, or the board is down — the PIN gate / offline banner already says so */ }
   }
 
+  // Put the on-screen keyboard away, deliberately, before hiding whatever had focus.
+  //
+  // Hiding a still-focused input is what leaves the view stranded: the browser was holding that
+  // element above the keyboard, the element disappears, and the pan it was compensating for has
+  // nothing left to anchor to. Blurring first tells the browser the keyboard is finished with, so
+  // it unwinds the pan itself. The scroll reset is the belt for a browser that ignores
+  // `interactive-widget` (see the viewport meta) — on a page whose shell is a fixed 100dvh, a
+  // document scroll offset is never legitimate, so forcing it to zero cannot hurt anything.
+  function dismissKeyboard() {
+    const el = document.activeElement;
+    if (el && typeof el.blur === "function" && el !== document.body) el.blur();
+    if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+  }
+  // Same unwinding when the keyboard closes by any other route — the system back gesture, the
+  // keyboard's own hide key — which fire no event of ours at all.
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      // Growing back = the keyboard went away. Shrinking = it just appeared; leave that alone.
+      if (window.visualViewport.height >= window.innerHeight - 1 && (window.scrollY || window.scrollX)) {
+        window.scrollTo(0, 0);
+      }
+    });
+  }
+
   // Direct-entry editor: tap a number to type an exact value (a correction), confirmed before
   // it's sent. An absolute value carries no delta, so it never blinks and never triggers set-win.
   let editConfirm = null;
@@ -1893,7 +1925,7 @@
     $("#edit").hidden = false;
     input.focus(); input.select();
   }
-  function closeEdit() { $("#edit").hidden = true; editConfirm = null; }
+  function closeEdit() { dismissKeyboard(); $("#edit").hidden = true; editConfirm = null; }
   $("#editCancel").addEventListener("click", closeEdit);
   $("#editOk").addEventListener("click", () => {
     // Reject, never coerce. `Number(x) || 0` turned a cleared field — or anything the numeric
@@ -2191,8 +2223,15 @@
       }
     }));
     const shortEl = $(".short", root), colorEl = $(".color", root);
-    shortEl.addEventListener("change",
-      () => sendAction({ type: "team", side, short: shortEl.value }));
+    shortEl.addEventListener("change", () => {
+      // Typed straight into the board's own name box, so the keyboard is up and the view is
+      // panned; put it away before the repaint moves anything under it. Sent upper-cased to match
+      // what the panel will paint — the box only LOOKS upper-case (text-transform), and the raw
+      // value is what used to reach the hall.
+      shortEl.value = shortEl.value.toUpperCase();
+      dismissKeyboard();
+      sendAction({ type: "team", side, short: shortEl.value });
+    });
     colorEl.addEventListener("change",
       () => sendAction({ type: "team", side, color: colorEl.value }));
   });
@@ -2667,7 +2706,12 @@
     const open = !SCORER_PIN;
     if (b._open !== open) { b.innerHTML = open ? IC.lock : IC.lockOpen; b._open = open; } // avoid per-poll SVG flash
     b.classList.toggle("on", pinRequired && open);
-    b.title = open ? "Scoring locked — tap to enter PIN" : "Scoring unlocked (tap to change PIN)";
+    // What it says is what tapping it does. It used to claim "tap to change PIN" while unlocked
+    // and then open the UNLOCK pad, so the only thing that could happen was re-entering the PIN
+    // you already had — no visible change — or getting "Wrong PIN" for trying to set a new one.
+    // The PIN is changed in Settings ▸ Access; what a padlock is for up here is locking.
+    b.title = open ? "Scoring locked — tap to enter PIN" : "Scoring unlocked — tap to lock this device";
+    b.setAttribute("aria-label", b.title);
     document.body.classList.toggle("locked", pinRequired && open);
   }
   function openPinModal() { $("#pinModal").hidden = false; const i = $("#pinInput"); i.value = ""; setTimeout(() => i.focus(), 30); }
@@ -2688,7 +2732,16 @@
     pinRequired = true; updateLock();
     if ($("#pinModal").hidden) openPinModal();
   }
-  $("#lockBtn").addEventListener("click", openPinModal);
+  // Locked -> ask for the PIN. Unlocked -> hand the tablet on: forget the PIN this device is
+  // holding, so the next person has to enter it. Confirmed, because doing it mid-rally by accident
+  // would put the PIN pad between the scorer and the next point.
+  $("#lockBtn").addEventListener("click", async () => {
+    if (!SCORER_PIN) return openPinModal();
+    if (!(await askConfirm("Lock scoring on this device? You'll need the PIN to score again."))) return;
+    SCORER_PIN = ""; try { localStorage.removeItem("kscwScorerPin"); } catch {}
+    updateLock();
+    toast("Locked — the PIN is needed to score");
+  });
   $("#pinCancel").addEventListener("click", closePinModal);
   $("#pinOk").addEventListener("click", () => tryUnlock($("#pinInput").value.trim()));
   $("#pinInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#pinOk").click(); else if (e.key === "Escape") closePinModal(); });
