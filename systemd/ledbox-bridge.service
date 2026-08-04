@@ -14,7 +14,12 @@ EnvironmentFile=-/home/pi/ledbox-bridge/.env
 # Drives the real Tech4Sport LedBox at LEDBOX_HOST (see .env — cabled installs use
 # 192.168.5.1, box-as-AP installs 172.24.1.1). For a hardware-free bench test, set
 # MOCK=1 in .env rather than here, so the venue unit always means "real board".
-ExecStart=/usr/bin/node src/appliance.js
+# Not /usr/bin/node. The Tech4Sport board ships an ancient distro Node, so the runtime is a
+# tarball install under /opt/nodejs — a SYMLINK to a versioned directory
+# (/opt/nodejs -> /opt/nodejs-22.23.2), which makes an upgrade or a rollback one atomic flip
+# with the previous version still on disk. /usr/local/bin/node points at the same place, so the
+# shell and this unit can never disagree about which runtime is in use.
+ExecStart=/opt/nodejs/bin/node src/appliance.js
 Restart=always
 RestartSec=5
 

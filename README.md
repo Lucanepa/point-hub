@@ -16,6 +16,28 @@ Small Node service, **no production dependencies** (uses Node 22's built-in glob
 LAN relay, maps the live match state onto the LedBox `volleyball_matchscore` layout,
 and pushes it over TCP with the documented gzip/JSON protocol.
 
+### Runtime on the board
+
+The board's own distro Node is far too old, so the runtime is a tarball install kept
+outside the package manager:
+
+    /opt/nodejs -> /opt/nodejs-22.23.2      # symlink; the previous version stays on disk
+    /usr/local/bin/node -> /opt/nodejs/bin/node
+
+Upgrading or rolling back is one flip of that symlink plus `systemctl restart
+ledbox-bridge`, which is why the unit points at `/opt/nodejs/bin/node` rather than at a
+versioned path or at `/usr/bin/node`.
+
+**The board is armhf.** Its kernel is `aarch64` but the userland is 32-bit ARM, so it
+needs the `linux-armv7l` tarball — an arm64 build unpacks perfectly and then refuses to
+execute, which is a confusing way to find out.
+
+**Node 22 is the last version this board can run.** There is no `linux-armv7l` build of
+Node 24 at all; 32-bit ARM was dropped. Node 22 is supported until **2027-04-30**, and
+getting past that needs a 64-bit userland on the board, not a newer tarball. Zero
+production dependencies is what makes any of this cheap: there is nothing to rebuild
+against a new runtime, so an upgrade is a download, a checksum and a symlink.
+
 ## Fields shown
 points · team short names (in team colour) · sets won · timeouts (**T**) · substitutions (**S**) · serve indicator
 
