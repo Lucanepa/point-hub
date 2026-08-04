@@ -29,6 +29,7 @@
   #dot{font-size:12px}
   #mode{flex:1;min-width:0;font-size:12px;color:var(--muted);display:flex;gap:7px;align-items:center;white-space:nowrap;overflow:hidden}
   #mode b{color:var(--fg)} #setNo{padding:2px 10px;border-radius:4px;font-weight:800;font-family:var(--mono);color:var(--fg);background:var(--card);border:1.5px solid var(--line)}
+  #setNo.clickable{cursor:pointer;border-color:var(--gold);color:var(--gold)}
   .nav{display:flex;gap:8px;flex:0 0 auto}
   .nav button{min-height:40px;min-width:40px;padding:0 15px;font-size:13px;font-weight:700;line-height:1;
     border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:var(--r);cursor:pointer}
@@ -373,6 +374,20 @@
      tab's centre column, which is behind these two screens — so the one moment you actually want
      them (setting the tablet down on the table before the match) was the one moment they were
      unreachable. */
+  /* End-of-match summary. Shares .spbox with the two pickers so the three landing overlays read
+     as one family; only the result block is its own. */
+  #matchEnd{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+  #matchEnd[hidden]{display:none}
+  .mescore{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 16px}
+  .mescore .mt{font-size:15px;font-weight:800;text-transform:uppercase;max-width:34%;overflow-wrap:anywhere;text-align:center}
+  .mescore .mn{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);line-height:1}
+  .mescore .mdash{font-size:24px;color:var(--muted)}
+  .mesets{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 18px}
+  .mesets .msp{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px solid var(--line);
+    border-radius:var(--r);background:var(--card);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13px}
+  .mesets .msp .sn{font-style:normal;font-size:10px;font-weight:800;color:var(--muted);min-width:16px}
+  .mesets .msp b{font-weight:800;color:var(--muted)}
+  .mesets .msp b.w{color:var(--fg)}
   .sputil{display:flex;justify-content:center;gap:10px;margin:16px 0 0;flex-wrap:wrap}
   .sputil button{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;
     border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--muted);
@@ -784,6 +799,29 @@
   </div>
 </div>
 
+<!-- End-of-match summary. Offered once the winning set count is reached, and re-openable from the
+     "Final" chip in the header — declining the prompt must not bury the result for good. -->
+<div id="matchEnd" hidden role="dialog" aria-label="Match result">
+  <div class="spbox">
+    <div class="sptitle">Match result</div>
+    <p class="spsub" id="meWinner"></p>
+    <div class="mescore" id="meScore"></div>
+    <div class="mesets" id="meSets"></div>
+    <div class="gplist">
+      <button class="gpopt primary" id="meNew">
+        <span class="gplabel">New game</span>
+        <span class="gphint">Start the next match from 0–0</span>
+      </button>
+      <button class="gpopt" id="meClock">
+        <span class="gplabel">Show clock</span>
+        <span class="gphint">Leave the board on the crest and clock</span>
+      </button>
+    </div>
+    <p class="spstatus" id="meStatus" hidden role="status" aria-live="polite"></p>
+    <button class="spcancel" id="meClose">Close</button>
+  </div>
+</div>
+
 <!-- Whole-UI entry lock: a PIN screen over everything on load until the scorer unlocks. Starts
      visible; boot dismisses it for a no-PIN board or a remembered valid PIN. -->
 <div id="lockGate" role="dialog" aria-modal="true" aria-label="Enter scorer PIN">
@@ -1121,7 +1159,13 @@
     }
     $("#modeName").textContent = MODE_LABELS[st.mode]
       || (st.mode ? st.mode[0].toUpperCase() + st.mode.slice(1) : "Idle");
-    $("#setNo").textContent = setLabel(st.state);
+    const setNo = $("#setNo");
+    setNo.textContent = setLabel(st.state);
+    // Once it reads "Final" the chip becomes the way back into the result — otherwise declining
+    // the "End match?" prompt (or closing the summary) loses the set history for good.
+    const final = matchOver(st.state);
+    setNo.classList.toggle("clickable", final);
+    setNo.title = final ? "Show the match result" : "";
     linkedMatchId = st.matchId != null ? String(st.matchId) : null;
     $("#matchTag").textContent = st.matchId ? " · match " + st.matchId : "";
     lastState = st.state || lastState;
@@ -1129,18 +1173,30 @@
     renderSetStrip(st.state);
     markLinked();
     maybePromptServeOrder(st.state);
+    maybeAskEndMatch(st.state);
     pinRequired = !!st.pinRequired;
     updateLock();
+  }
+
+  // Sets needed to win: 2 for beach (best of 3), else the best-of setting (default 5 → 3).
+  const winSets = () => (SPORT === "beach" ? 2 : (SETTINGS.bestOf === 3 ? 2 : 3));
+  // One definition of "the match is finished", shared by the header chip and the end-of-match
+  // prompt. Two copies of this rule would eventually disagree, and the visible symptom would be
+  // the board reading "Final" while nothing offers to close the match (or the reverse).
+  function matchOver(state) {
+    if (!state) return false;
+    if (SPORT === "basketball") return !!state.over;
+    const w = winSets();
+    return num(state.sets_won_a) >= w || num(state.sets_won_b) >= w;
   }
 
   function setLabel(state) {
     if (!state) return "";
     // Basketball: the header shows the period (Q1–Q4 / OT1… / FINAL), not a set count.
     if (SPORT === "basketball") return state.over ? "FINAL" : periodLabel(state.period);
+    if (matchOver(state)) return "Final";
     const a = num(state.sets_won_a), b = num(state.sets_won_b);
-    // Sets needed to win: 2 for beach (best of 3), else best-of setting (default 5 → 3).
-    const win = SPORT === "beach" ? 2 : (SETTINGS.bestOf === 3 ? 2 : 3);
-    if (a >= win || b >= win) return "Final";
+    const win = winSets();
     return "Set " + roman(Math.min(win * 2 - 1, a + b + 1));
   }
 
@@ -1822,6 +1878,131 @@
   $("#confirmYes").addEventListener("click", () => closeConfirm(true));
   $("#confirmNo").addEventListener("click", () => closeConfirm(false));
   $("#confirm").addEventListener("click", (e) => { if (e.target.id === "confirm") closeConfirm(false); });
+
+  // --- end of match ---------------------------------------------------------
+  // The board used to just start reading "Final" and then sit there. Nothing closed the match off,
+  // nothing showed what had happened, and the operator's only route onward was the sport badge →
+  // game menu → New game, which reads like changing sport.
+  //
+  // Asked exactly ONCE per finished match. renderStatus runs on every 1.5s poll, so a naive check
+  // would reopen the confirm forever; the guard is a signature of the finished match rather than a
+  // bare boolean, so it also survives a page reload without nagging, and a genuinely new match
+  // (different teams or a different set tally) still gets asked.
+  const matchSig = (s) => [
+    s.team_a_short || s.team_a_name || "", s.team_b_short || s.team_b_name || "",
+    num(s.sets_won_a), num(s.sets_won_b),
+    // The set scores, not just how many there were: the same two teams meeting again and finishing
+    // 3-0 in three sets would otherwise sign identically to the match before it, and the second
+    // one would never get asked.
+    (s.set_results || []).map((r) => num(r.a) + ":" + num(r.b)).join(","),
+  ].join("|");
+  const SAFE_HEX = /^#[0-9a-fA-F]{6}$/;   // same shape the server enforces; never trust it blindly
+  let endAsking = false;
+  let lastFinal = null;                   // the finished state, so the Final chip can reopen this
+
+  async function maybeAskEndMatch(state) {
+    if (!state || endAsking) return;
+    if (!matchOver(state)) {
+      // A match is running again, so forget that we asked about the last one. This is what makes
+      // the guard safe: the signature only has to survive a reload of the SAME finished match, not
+      // stay unique against every match ever played on this tablet.
+      lastFinal = null;
+      try { localStorage.removeItem("endAskedSig"); } catch {}
+      return;
+    }
+    lastFinal = state;
+    const sig = matchSig(state);
+    let seen = null;
+    try { seen = localStorage.getItem("endAskedSig"); } catch { /* private mode: ask once per load */ }
+    if (seen === sig) return;
+    endAsking = true;
+    // Marked BEFORE the await, not after: the confirm is open for as long as it takes someone to
+    // read it, and several polls land in that window. Declining is also an answer — it must not
+    // be re-asked on the next tick.
+    try { localStorage.setItem("endAskedSig", sig); } catch {}
+    try {
+      if (await askConfirm("End match?")) showMatchEnd(state);
+    } finally { endAsking = false; }
+  }
+
+  function showMatchEnd(state) {
+    if (!state) return;
+    const nameA = (state.team_a_short || state.team_a_name || "TEAM A").toUpperCase();
+    const nameB = (state.team_b_short || state.team_b_name || "TEAM B").toUpperCase();
+    const sa = num(state.sets_won_a), sb = num(state.sets_won_b);
+    const colA = SAFE_HEX.test(state.team_a_color || "") ? state.team_a_color : null;
+    const colB = SAFE_HEX.test(state.team_b_color || "") ? state.team_b_color : null;
+
+    const win = $("#meWinner");
+    if (sa === sb) win.textContent = "Match drawn";
+    else {
+      const wName = sa > sb ? nameA : nameB;
+      const wCol = sa > sb ? colA : colB;
+      win.textContent = wName + " wins";
+      win.style.color = wCol || "";
+      win.style.fontWeight = "800";
+    }
+
+    // Set score. Built with DOM nodes rather than an HTML string: team names are operator input
+    // and go straight onto this screen, so nothing here interpolates them into markup.
+    const score = $("#meScore");
+    score.innerHTML = "";
+    const mk = (cls, txt, col) => {
+      const el = document.createElement("span");
+      el.className = cls; el.textContent = txt;
+      if (col) el.style.color = col;
+      return el;
+    };
+    score.append(
+      mk("mt", nameA, colA), mk("mn", String(sa), colA),
+      mk("mdash", "–"), mk("mn", String(sb), colB), mk("mt", nameB, colB),
+    );
+
+    // Every set, in the order they were played, in the same A–B orientation as the names above.
+    const sets = $("#meSets");
+    sets.innerHTML = "";
+    const results = state.set_results || [];
+    if (!results.length) {
+      sets.append(mk("msp", "No completed sets recorded"));
+    } else {
+      results.forEach((r, i) => {
+        const a = num(r.a), b = num(r.b);
+        const pill = document.createElement("span");
+        pill.className = "msp";
+        const n = document.createElement("i"); n.className = "sn"; n.textContent = roman(i + 1);
+        const la = document.createElement("b"); la.textContent = String(a); if (a > b) la.className = "w";
+        const dash = document.createElement("em"); dash.textContent = "–";
+        const lb = document.createElement("b"); lb.textContent = String(b); if (b > a) lb.className = "w";
+        pill.append(n, la, dash, lb);
+        sets.appendChild(pill);
+      });
+    }
+    meStatus("");
+    $("#matchEnd").hidden = false;
+  }
+
+  function meStatus(msg, bad) {
+    const el = $("#meStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.hidden = !msg;
+    el.classList.toggle("err", !!bad);
+  }
+  const closeMatchEnd = () => { $("#matchEnd").hidden = true; };
+  $("#meClose").addEventListener("click", closeMatchEnd);
+  $("#setNo").addEventListener("click", () => { if (lastFinal) showMatchEnd(lastFinal); });
+  $("#matchEnd").addEventListener("click", (e) => { if (e.target.id === "matchEnd") closeMatchEnd(); });
+  $("#meNew").addEventListener("click", async () => {
+    // "New game" already clears the saved slot server-side, so ending a match here is what stops
+    // the finished one being offered back as "Continue" on the next visit to the game menu.
+    if (!await gameChoice("new")) { meStatus("Couldn't start a new game — try the game menu.", true); return; }
+    closeMatchEnd(); goToTab("manual");
+    if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
+  });
+  $("#meClock").addEventListener("click", async () => {
+    if (!await gameChoice("clock")) { meStatus("Couldn't park the board on the clock.", true); return; }
+    closeMatchEnd();
+  });
 
   // --- beach serve order + serve-player override ---------------------------
   let ordSel = { first: "left", left: 1, right: 1 };
