@@ -261,12 +261,19 @@ const MATCH_NAME_WIDTH = 86
 // in its team colour — name, score, set count and score-box border all match — so the
 // board never shows one team in three different reds.
 //
-// `matchFontMax` is the CEILING for the two team names, not a fixed size: a short code keeps it,
-// a long one steps down until it fits MATCH_NAME_WIDTH. The default of 18 is exactly the value
-// baked into 02_volleyball_matchscore_02.xml, so leaving the setting alone paints what the
-// layout always painted — the only behaviour change is that an over-long name now shrinks
+// `matchFontMaxLeft`/`matchFontMaxRight` are the CEILING for each team name, not a fixed size: a
+// short code keeps it, a long one steps down until it fits MATCH_NAME_WIDTH. The default of 18 is
+// exactly the value baked into 02_volleyball_matchscore_02.xml, so leaving them alone paints what
+// the layout always painted — the only behaviour change is that an over-long name now shrinks
 // instead of running into the set counter.
-export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX, matchFontMax = 18 } = {}) {
+//
+// One per side rather than one shared number, because the two names are independent: the fitter
+// already shrinks a long name on its own, so a shared ceiling only ever gets in the way of making
+// a SHORT name bigger. "KSCW" can be 28 while the opponent sits at 9 to fit.
+//
+// These are physical sides, and toLeftRight() has already resolved side_a, so left always means
+// the left half of the panel whichever team is on it.
+export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX, matchFontMaxLeft = 18, matchFontMaxRight = 18 } = {}) {
   const v = toLeftRight(state)
   // Timeouts: red at the total, no amber (there are only a couple). Subs: amber one short,
   // red at the total.
@@ -274,9 +281,9 @@ export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MA
   const subColor = (n) => limitColor(n, totalSubs - 1, totalSubs)
   return [
     ...text('team1', v.leftName, v.leftColor),
-    attr('team1', 'fontsize', fitFontSize(v.leftName, MATCH_NAME_WIDTH, { max: matchFontMax })),
+    attr('team1', 'fontsize', fitFontSize(v.leftName, MATCH_NAME_WIDTH, { max: matchFontMaxLeft })),
     ...text('team2', v.rightName, v.rightColor),
-    attr('team2', 'fontsize', fitFontSize(v.rightName, MATCH_NAME_WIDTH, { max: matchFontMax })),
+    attr('team2', 'fontsize', fitFontSize(v.rightName, MATCH_NAME_WIDTH, { max: matchFontMaxRight })),
     ...text('score1', v.leftPoints, v.leftColor),
     ...text('score2', v.rightPoints, v.rightColor),
     ...box('bg_score1', v.leftColor),

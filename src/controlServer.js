@@ -424,7 +424,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           totalSubs: updated.totalSubs,
           idleFullNames: updated.idleFullNames,
           idleFontMax: updated.idleFontMax,
-          matchFontMax: updated.matchFontMax,
+          matchFontMaxLeft: updated.matchFontMaxLeft,
+          matchFontMaxRight: updated.matchFontMaxRight,
           clubName: updated.clubName,
         })
       }
@@ -755,7 +756,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Same options the real paint uses, so /api/board (and the virtual panel it feeds) shows
       // the same name sizes and counter colours as the panel on the wall.
       screen: sectionsToScreen(ledbox.mapper.toSections(state, {
-        totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs, matchFontMax: ledbox.matchFontMax,
+        totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs,
+        matchFontMaxLeft: ledbox.matchFontMaxLeft, matchFontMaxRight: ledbox.matchFontMaxRight,
       })),
     }
   }

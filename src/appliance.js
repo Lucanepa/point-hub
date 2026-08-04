@@ -161,7 +161,8 @@ export async function startAppliance(config = loadConfig()) {
     totalSubs: settings.values.totalSubs,
     idleFullNames: settings.values.idleFullNames,
     idleFontMax: settings.values.idleFontMax,
-    matchFontMax: settings.values.matchFontMax,
+    matchFontMaxLeft: settings.values.matchFontMaxLeft,
+    matchFontMaxRight: settings.values.matchFontMaxRight,
     clubName: settings.values.clubName,
   })
   const server = createControlServer({

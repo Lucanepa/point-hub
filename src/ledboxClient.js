@@ -68,10 +68,13 @@ export class LedboxClient extends EventEmitter {
     // idleFontMax is a ceiling (what a short name gets), not a fixed size.
     idleFullNames = true,
     idleFontMax = 24,
-    // Same idea for the SCOREBOARD names, but a separate number: the crest has a 125px name
-    // column and the match layout only ~86px, so they cannot share a ceiling. 18 == the value
-    // in the match layout XML, so the default paints exactly what the layout always painted.
-    matchFontMax = 18,
+    // Same idea for the SCOREBOARD names, but separate numbers: the crest has a 125px name
+    // column and the match layout only ~86px, so they cannot share a ceiling. One PER SIDE,
+    // because the fitter already shrinks a long name on its own — a shared ceiling would only
+    // stop a short name on the other side from being made bigger. 18 == the value in the match
+    // layout XML, so the defaults paint exactly what the layout always painted.
+    matchFontMaxLeft = 18,
+    matchFontMaxRight = 18,
     // Club name from settings; the matching side is painted in club gold on the crest.
     clubName = '',
     timerSection = 'timer',
@@ -117,7 +120,7 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMax, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
     this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
@@ -413,7 +416,7 @@ export class LedboxClient extends EventEmitter {
     // Idle overrides scoring: while the idle screen is up, a stray state push (e.g. a poll)
     // must not repaint the scoreboard over it. showIdle(false) lifts this.
     if (this._idle) return this._skipPaint('idle screen is up')
-    const paint = () => this.send('SetSections', this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, matchFontMax: this.matchFontMax }))
+    const paint = () => this.send('SetSections', this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight }))
     // Wrapped: reading the state for a log line must never be what breaks a paint.
     try {
       const v = this.mapper.toLeftRight(state)
@@ -445,13 +448,14 @@ export class LedboxClient extends EventEmitter {
 
   // Update the per-set allowances that drive the counter colours (from operator settings),
   // and repaint so the change shows immediately.
-  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMax, clubName } = {}) {
-    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMax, clubName })
+  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName } = {}) {
+    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName })
     if (Number.isFinite(totalTimeouts)) this.totalTimeouts = totalTimeouts
     if (Number.isFinite(totalSubs)) this.totalSubs = totalSubs
     if (typeof idleFullNames === 'boolean') this.idleFullNames = idleFullNames
     if (Number.isFinite(idleFontMax)) this.idleFontMax = idleFontMax
-    if (Number.isFinite(matchFontMax)) this.matchFontMax = matchFontMax
+    if (Number.isFinite(matchFontMaxLeft)) this.matchFontMaxLeft = matchFontMaxLeft
+    if (Number.isFinite(matchFontMaxRight)) this.matchFontMaxRight = matchFontMaxRight
     if (typeof clubName === 'string') this.clubName = clubName
     // If the crest screen is what's currently up, repaint it so a name-style change shows
     // immediately instead of waiting for the next time someone toggles idle.
@@ -546,7 +550,8 @@ export class LedboxClient extends EventEmitter {
       const sections = on
         ? this.mapper.toIdleSections(this._lastState)
         : this.mapper.toSections(this._lastState || {}, {
-          totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, matchFontMax: this.matchFontMax,
+          totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs,
+          matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight,
         })
       await this.send('SetSections', sections)
       return true

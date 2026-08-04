@@ -52,19 +52,19 @@ export const PER_SPORT_DEFAULTS = {
     blinkPoint: true, blinkSub: true, blinkMs: 2000,
     timeoutSeconds: 30, ttoSeconds: 0, setIntervalSeconds: 180, warmupSeconds: 600,
     countdownOnTimeout: true, countdownOnSetInterval: true, hornOnCountdownEnd: true,
-    totalTimeouts: 2, totalSubs: 6, bestOf: 5, matchFontMax: 18,
+    totalTimeouts: 2, totalSubs: 6, bestOf: 5, matchFontMaxLeft: 18, matchFontMaxRight: 18,
   },
   beach: {
     blinkPoint: true, blinkSub: false, blinkMs: 2000,
     timeoutSeconds: 60, ttoSeconds: 60, setIntervalSeconds: 60, warmupSeconds: 600,
     countdownOnTimeout: true, countdownOnSetInterval: true, hornOnCountdownEnd: true,
-    totalTimeouts: 1, totalSubs: 0, bestOf: 3, matchFontMax: 18,
+    totalTimeouts: 1, totalSubs: 0, bestOf: 3, matchFontMaxLeft: 18, matchFontMaxRight: 18,
   },
   basketball: {
     blinkPoint: true, blinkSub: true, blinkMs: 2000,
     timeoutSeconds: 60, ttoSeconds: 0, setIntervalSeconds: 120, warmupSeconds: 600,
     countdownOnTimeout: true, countdownOnSetInterval: true, hornOnCountdownEnd: true,
-    totalTimeouts: 5, totalSubs: 5, bestOf: 3, matchFontMax: 18,
+    totalTimeouts: 5, totalSubs: 5, bestOf: 3, matchFontMaxLeft: 18, matchFontMaxRight: 18,
   },
 }
 
@@ -75,7 +75,8 @@ export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
 
 const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames']
 const NUMS = {
-  idleFontMax: [10, 30], matchFontMax: [10, 30], brightness: [0, 100], blinkMs: [200, 10000],
+  idleFontMax: [10, 30], matchFontMaxLeft: [10, 30], matchFontMaxRight: [10, 30],
+  brightness: [0, 100], blinkMs: [200, 10000],
   timeoutSeconds: [5, 600], ttoSeconds: [0, 600], setIntervalSeconds: [10, 1800], warmupSeconds: [10, 3600],
   totalTimeouts: [1, 9], totalSubs: [0, 15],
 }
@@ -115,7 +116,13 @@ function normalize(input) {
   out.perSport = {}
   for (const sp of SPORTS) {
     const src = hasPerSport ? (raw.perSport[sp] || {}) : (sp === 'volleyball' ? raw : {})
-    out.perSport[sp] = sanitizeInto({ ...PER_SPORT_DEFAULTS[sp] }, PER_SPORT_KEYS, src)
+    // `matchFontMax` was briefly a single ceiling for both names before it became one per side.
+    // Seed both sides from it so a board written by that version keeps the size it was set to
+    // instead of silently snapping back to the default.
+    const seeded = (src && src.matchFontMax != null && src.matchFontMaxLeft == null && src.matchFontMaxRight == null)
+      ? { ...src, matchFontMaxLeft: src.matchFontMax, matchFontMaxRight: src.matchFontMax }
+      : src
+    out.perSport[sp] = sanitizeInto({ ...PER_SPORT_DEFAULTS[sp] }, PER_SPORT_KEYS, seeded)
   }
   return out
 }

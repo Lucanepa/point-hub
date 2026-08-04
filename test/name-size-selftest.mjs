@@ -1,4 +1,4 @@
-// Team-name size on the SCOREBOARD (`matchFontMax`) — the Game-tab −/+ control.
+// Team-name size on the SCOREBOARD — the per-side −/+ in each Game-tab name row.
 //
 // Two things need locking down, and they pull in opposite directions:
 //
@@ -10,8 +10,13 @@
 //      A control that saves a number the panel never reads is worse than no control, because the
 //      operator concludes the board is broken rather than the button.
 //
+//   3. The two sides must stay INDEPENDENT. There is one ceiling per panel half
+//      (`matchFontMaxLeft` / `matchFontMaxRight`) rather than one shared number, because the
+//      fitter already shrinks a long name by itself — a shared ceiling could therefore only ever
+//      hold a SHORT name down to whatever the opponent's long name allowed.
+//
 // The old hard-coded `{ max: 18 }` in the beach/basketball mappers is the reason this is a test
-// and not a one-line change: three mappers had to start honouring one setting without any of
+// and not a one-line change: three mappers had to start honouring these settings without any of
 // them shifting on the default.
 
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -49,6 +54,22 @@ console.log('[1] the default is exactly what the layout XML already painted')
   eq(fontOf(toBasketballSections(SHORT), 'team1'), 18, 'basketball default unchanged from its old hard-coded 18')
 }
 
+console.log('\n[1b] the two sides are independent')
+{
+  // The whole reason for one ceiling per side: raising one must not touch the other. A shared
+  // number could only ever be as large as the longer name allowed.
+  const s = toSections(SHORT, { matchFontMaxLeft: 28, matchFontMaxRight: 12 })
+  eq(fontOf(s, 'team1'), 28, 'left takes its own ceiling')
+  eq(fontOf(s, 'team2'), 12, 'right takes its own, unaffected by the left')
+  const flipped = toSections(SHORT, { matchFontMaxLeft: 12, matchFontMaxRight: 28 })
+  eq(fontOf(flipped, 'team1'), 12, 'and the mapping is not crossed over (left)')
+  eq(fontOf(flipped, 'team2'), 28, 'and the mapping is not crossed over (right)')
+  // Physical sides: with side_a='right', team A is painted on the RIGHT, so the right ceiling
+  // applies to it. toLeftRight() resolves this before any sizing happens.
+  const swapped = toSections({ ...SHORT, side_a: 'right' }, { matchFontMaxLeft: 28, matchFontMaxRight: 12 })
+  eq(fontOf(swapped, 'team1'), 28, 'left ceiling still belongs to the left half after a swap')
+}
+
 console.log('\n[2] a long name shrinks instead of running into the set counter')
 {
   const s = toSections(LONG)
@@ -67,20 +88,20 @@ console.log('\n[3] the setting is a ceiling, and it moves both ways')
   // Asserting 30 there would be asserting that the ceiling overrides the fit, which is the exact
   // bug this whole mechanism exists to avoid.
   const TINY = { side_a: 'left', team_a_short: 'AB', team_b_short: 'CD' }
-  eq(fontOf(toSections(TINY, { matchFontMax: 30 }), 'team1'), 30, 'volleyball takes the ceiling verbatim when the name fits')
-  eq(fontOf(toBeachSections(TINY, { matchFontMax: 24 }), 'team1'), 24, 'beach honours the setting (was hard-coded 18)')
-  eq(fontOf(toBasketballSections(TINY, { matchFontMax: 24 }), 'team1'), 24, 'basketball honours the setting (was hard-coded 18)')
-  eq(fontOf(toSections(SHORT, { matchFontMax: 10 }), 'team1'), 10, 'lowering it lowers even a short name')
+  eq(fontOf(toSections(TINY, { matchFontMaxLeft: 30 }), 'team1'), 30, 'volleyball takes the ceiling verbatim when the name fits')
+  eq(fontOf(toBeachSections(TINY, { matchFontMaxLeft: 24 }), 'team1'), 24, 'beach honours the setting (was hard-coded 18)')
+  eq(fontOf(toBasketballSections(TINY, { matchFontMaxLeft: 24 }), 'team1'), 24, 'basketball honours the setting (was hard-coded 18)')
+  eq(fontOf(toSections(SHORT, { matchFontMaxLeft: 10 }), 'team1'), 10, 'lowering it lowers even a short name')
 
   // For a name that does NOT fit at the ceiling, the guarantee is monotonicity: raising the
   // setting must never make the name smaller, and must actually move it.
-  const at = (n) => fontOf(toSections(SHORT, { matchFontMax: n }), 'team1')
+  const at = (n) => fontOf(toSections(SHORT, { matchFontMaxLeft: n }), 'team1')
   ok(at(30) >= at(24) && at(24) >= at(18) && at(18) >= at(12), `monotonic in the setting (${at(12)} ≤ ${at(18)} ≤ ${at(24)} ≤ ${at(30)})`)
   ok(at(30) > at(12), 'and the control has a real effect end to end')
   // A ceiling, not a fixed size: a name too wide for the ceiling still shrinks under it.
-  ok(fontOf(toSections(LONG, { matchFontMax: 30 }), 'team2') < 30, 'a long name still shrinks under a raised ceiling')
+  ok(fontOf(toSections(LONG, { matchFontMaxRight: 30 }), 'team2') < 30, 'a long name still shrinks under a raised ceiling')
   // The fitter never exceeds what fits, whatever the operator asks for.
-  ok(fontOf(toBasketballSections(SHORT, { matchFontMax: 30 }), 'team1') <= 20,
+  ok(fontOf(toBasketballSections(SHORT, { matchFontMaxLeft: 30 }), 'team1') <= 20,
     "basketball's narrower 62px box still caps KSCW regardless of the ceiling")
 }
 
@@ -92,18 +113,36 @@ console.log('\n[4] settings: per-sport, defaulted and clamped')
   // rather than land as undefined and paint NaN.
   fs.writeFileSync(file, JSON.stringify({ sport: 'volleyball', totalTimeouts: 2, brightness: 0 }))
   const s = new Settings(file)
-  eq(s.values.matchFontMax, 18, 'a settings.json with no matchFontMax migrates to the default 18')
-  eq(s.forSport('beach').matchFontMax, 18, 'beach gets its own copy')
+  eq(s.values.matchFontMaxLeft, 18, 'a settings.json with neither key migrates to the default 18 (left)')
+  eq(s.values.matchFontMaxRight, 18, 'and right')
+  eq(s.forSport('beach').matchFontMaxLeft, 18, 'beach gets its own copy')
 
-  s.update({ matchFontMax: 99 })
-  eq(s.values.matchFontMax, 30, 'clamped to the max')
-  s.update({ matchFontMax: 1 })
-  eq(s.values.matchFontMax, 10, 'clamped to the min')
-  s.update({ matchFontMax: 22 })
-  eq(s.values.matchFontMax, 22, 'a sane value is kept')
+  s.update({ matchFontMaxLeft: 99 })
+  eq(s.values.matchFontMaxLeft, 30, 'clamped to the max')
+  s.update({ matchFontMaxLeft: 1 })
+  eq(s.values.matchFontMaxLeft, 10, 'clamped to the min')
+  s.update({ matchFontMaxLeft: 22 })
+  eq(s.values.matchFontMaxLeft, 22, 'a sane value is kept')
+  eq(s.values.matchFontMaxRight, 18, 'and editing the left side leaves the right alone')
   // Per-sport, like the rest of the timing/format keys: a beach layout has a narrower name box.
-  eq(s.forSport('beach').matchFontMax, 18, 'editing volleyball did not touch beach')
-  eq(new Settings(file).values.matchFontMax, 22, 'and it survives a reload')
+  eq(s.forSport('beach').matchFontMaxLeft, 18, 'editing volleyball did not touch beach')
+  eq(new Settings(file).values.matchFontMaxLeft, 22, 'and it survives a reload')
+  fs.rmSync(dir, { recursive: true, force: true })
+}
+
+console.log('\n[4b] a board written by the single-ceiling version keeps its size')
+{
+  // `matchFontMax` shipped briefly as ONE ceiling for both names. A board saved by that build
+  // must not snap back to 18 on upgrade — it must carry the operator's number onto both sides.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-namesize-mig-'))
+  const file = path.join(dir, 'settings.json')
+  fs.writeFileSync(file, JSON.stringify({
+    sport: 'volleyball',
+    perSport: { volleyball: { matchFontMax: 26, totalTimeouts: 2 }, beach: {}, basketball: {} },
+  }))
+  const s = new Settings(file)
+  eq(s.values.matchFontMaxLeft, 26, 'the old single ceiling seeds the left side')
+  eq(s.values.matchFontMaxRight, 26, 'and the right side')
   fs.rmSync(dir, { recursive: true, force: true })
 }
 
@@ -131,19 +170,30 @@ console.log('\n[5] end to end: the −/+ control reaches the glass')
     await sleep(200)
     await post('/api/manual', {})
     await post('/api/action', { action: { type: 'team', side: 'left', short: 'KSCW' } })
+    await post('/api/action', { action: { type: 'team', side: 'right', short: 'VZH' } })
     await sleep(200)
     eq(mock.fontsize('team1'), '18', 'panel paints the default 18 for KSCW')
+    eq(mock.fontsize('team2'), '18', 'and for VZH')
 
-    const res = await post('/api/settings', { matchFontMax: 26 })
-    eq(res.status, 200, 'POST /api/settings {matchFontMax} -> 200')
+    // Exactly what the left −/+ posts: one key, nothing else.
+    const res = await post('/api/settings', { matchFontMaxLeft: 26 })
+    eq(res.status, 200, 'POST /api/settings {matchFontMaxLeft} -> 200')
     await sleep(250)
     // No point was scored in between — setLimits() has to repaint on its own.
-    eq(mock.fontsize('team1'), '26', 'panel repainted at 26 with nobody touching the score')
+    eq(mock.fontsize('team1'), '26', 'panel repainted the LEFT name at 26 with nobody touching the score')
+    eq(mock.fontsize('team2'), '18', 'and the RIGHT name did not move — the sides are independent')
 
-    // And the next point must not undo it (pushState builds its own sections).
+    // The other side, on its own, and both must now hold their own value.
+    await post('/api/settings', { matchFontMaxRight: 12 })
+    await sleep(250)
+    eq(mock.fontsize('team2'), '12', 'the right −/+ moves only the right name')
+    eq(mock.fontsize('team1'), '26', 'left keeps the 26 it was given')
+
+    // And the next point must not undo either (pushState builds its own sections).
     await post('/api/action', { action: { type: 'point', side: 'left', delta: 1 } })
     await sleep(200)
     eq(mock.fontsize('team1'), '26', 'still 26 after the next point lands')
+    eq(mock.fontsize('team2'), '12', 'and still 12 on the right')
   } catch (err) {
     fail++
     console.log(`  ❌ threw: ${err?.stack || err}`)

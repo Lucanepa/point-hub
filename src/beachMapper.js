@@ -45,7 +45,7 @@ export function switchDue(v) {
 // Returns the `value` array for a SetSections command on the beach_matchscore layout. Each
 // side is painted uniformly in its pair colour (name, score, set count, box border), like the
 // indoor mapper, so the board never shows one pair in three different reds.
-export function toBeachSections(state, { off = SERVE_OFF, totalTimeouts = BEACH_TIMEOUTS_PER_SET, matchFontMax = 18 } = {}) {
+export function toBeachSections(state, { off = SERVE_OFF, totalTimeouts = BEACH_TIMEOUTS_PER_SET, matchFontMaxLeft = 18, matchFontMaxRight = 18 } = {}) {
   const v = toLeftRight(state)
   const toColor = (n) => (n >= totalTimeouts ? MAXED_COUNTER : NEUTRAL_COUNTER)
   const due = switchDue(v)
@@ -55,9 +55,9 @@ export function toBeachSections(state, { off = SERVE_OFF, totalTimeouts = BEACH_
   const spColor = v.serving === 'left' ? v.leftColor : v.serving === 'right' ? v.rightColor : off
   return [
     ...text('team1', v.leftName, v.leftColor),
-    attr('team1', 'fontsize', fitFontSize(v.leftName, TEAM_NAME_WIDTH, { max: matchFontMax })),
+    attr('team1', 'fontsize', fitFontSize(v.leftName, TEAM_NAME_WIDTH, { max: matchFontMaxLeft })),
     ...text('team2', v.rightName, v.rightColor),
-    attr('team2', 'fontsize', fitFontSize(v.rightName, TEAM_NAME_WIDTH, { max: matchFontMax })),
+    attr('team2', 'fontsize', fitFontSize(v.rightName, TEAM_NAME_WIDTH, { max: matchFontMaxRight })),
     ...text('score1', v.leftPoints, v.leftColor),
     ...text('score2', v.rightPoints, v.rightColor),
     ...box('bg_score1', v.leftColor),
