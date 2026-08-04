@@ -24,7 +24,17 @@ const alog = log.child('action')
 // spectator's phone hitting a bug is exactly what we want to see, and it has no PIN), so it is
 // rate-limited instead — one misbehaving tab in a reload loop must not fill the card.
 const UI_LOG_PER_MIN = 60
-const uiRate = { windowStart: 0, count: 0 }
+// One window PER SOURCE ADDRESS rather than a single shared counter. A global counter had both
+// halves wrong: one phone in a reload loop silenced every other browser's error reports, and
+// 60 accepted posts/min from a single address was still enough to be the heap bomb (measured:
+// 59 x 1 MB posts took RSS 67 → 169 MB and wrote 15 MB to the card).
+const uiRate = new Map() // ip -> { windowStart, count }
+const UI_RATE_MAX_IPS = 256
+// A browser error report is a few hundred bytes. The general 1 MiB body cap on this — the one
+// mutating route with no PIN — is what a phone in RF range of the board's own AP used to fill
+// the heap with, so it gets its own, much smaller ceiling.
+const UI_LOG_MAX_BODY = 8 * 1024
+const UI_LOG_MAX_MSG = 300
 
 // Board shown when the operator picks "Blank" (all short names + serve cleared).
 const BLANK = {
@@ -36,6 +46,11 @@ const BLANK = {
 
 const ACTION_TYPES = new Set(['point', 'set', 'timeout', 'sub', 'serve', 'serve-order', 'serve-player', 'swap', 'team', 'next-set', 'remove-set', 'reset', 'set-state'])
 
+// A team colour ends up inside a `style` attribute in the console and as a SetSections colour on
+// the panel. Only a #rrggbb literal is ever legitimate, and anything else is either a mistake or
+// the stored-XSS path the review found — so it never gets past this regex.
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
+
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -45,10 +60,17 @@ const CONTENT_TYPES = {
   '.ico': 'image/x-icon',
 }
 
+// The console, the mirror and the log page are all served from this very origin, so nothing we
+// ship needs CORS at all. What `Access-Control-Allow-Origin: *` was buying instead was a
+// cross-origin READ of /api/status, /api/history and the whole 15 MB /api/logs/export by any
+// other page open on the venue LAN. So: no wildcard — reflect a same-origin Origin (see
+// corsHeaders) and send nothing at all to a foreign one.
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  // Deliberately NOT X-Scorer-Pin. Leaving it out is what makes a browser's preflight fail on a
+  // cross-origin mutating request, which is half of why a PIN-protected board is CSRF-safe.
   'Access-Control-Allow-Headers': 'Content-Type',
+  Vary: 'Origin',
 }
 
 // Max accepted request body — one bad/slow-drip POST must not exhaust the heap.
@@ -122,12 +144,15 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, reconnectMs, settings }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
-  // Completed-match log (History tab + CSV/JSON export). Persisted beside the bridge.
-  const history = new HistoryStore({ file: path.resolve(webDir, '..', 'data', 'history.json') })
+  // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
+  // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
+  const stateHome = dataDir ? path.resolve(dataDir) : path.resolve(webDir, '..', 'data')
+  // Completed-match log (History tab + CSV/JSON export).
+  const history = new HistoryStore({ file: path.resolve(stateHome, 'history.json') })
   // The per-sport "last game" slot behind the New / Continue / Delete menu (see resumeStore.js).
-  const resume = new ResumeStore({ file: path.resolve(webDir, '..', 'data', 'resume.json') })
+  const resume = new ResumeStore({ file: path.resolve(stateHome, 'resume.json') })
   const activeSport = () => (settings ? settings.values.sport : 'volleyball')
   // Scorer lock: with a PIN set, mutating requests must carry it (X-Scorer-Pin header) — a
   // spectator who scanned the QR can watch but not score. GET reads stay open.
@@ -173,10 +198,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // by the ticker below). Not part of the board liveState — a transient overlay.
   let countdown = null // { label, endsAt } | null
   let cdTicker = null
+  // Read-only, and it has to stay that way: this is reached from the open GET /api/board that
+  // web/mockledbox.html polls twice a second. It used to reap an expired countdown itself with a
+  // bare stopCountdown() — which defaults expired=false — so a poll landing on the zero-crossing
+  // nulled the countdown, killed the ticker, and swallowed the end-of-timeout horn: the referee
+  // got no buzzer and the later POST /api/countdown/stop {expired:true} hit the `if (!countdown)`
+  // guard. The 1s ticker below is the only thing that knows the clock genuinely ran out, so it
+  // is the only thing allowed to end one.
   function countdownView() {
     if (!countdown) return null
     const remainingMs = countdown.endsAt - Date.now()
-    if (remainingMs <= 0) { stopCountdown(); return null }
+    if (remainingMs <= 0) return null
     return { label: countdown.label, remainingMs }
   }
   function startCountdown(seconds, label, content = 'full', team = '') {
@@ -217,6 +249,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // second by every open tab, so they sit at `debug`; anything that mutates the board, and
     // anything that failed, is `info` or louder.
     const started = Date.now()
+    // Resolved once per request and read by send() below, so every response — including the SSE
+    // stream and the log export — answers with the same origin decision.
+    res._cors = corsHeaders(req)
     res.on('finish', () => {
       const ms = Date.now() - started
       const line = `${req.method} ${req.url} → ${res.statusCode} (${ms}ms)`
@@ -259,6 +294,25 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // Any API traffic means an operator has the control UI open (it polls /api/status every
     // 1.5s). The board uses this to drop the "how do I connect" QR codes for a wall clock.
     if (ledbox && typeof ledbox.noteViewer === 'function') ledbox.noteViewer()
+    // A web page open on some other device must not be able to drive the board. Both guards are
+    // free for the real client: a same-origin fetch sends no Origin header at all, and every
+    // caller we ship already sends `content-type: application/json`. What they stop is a page on
+    // a spectator's phone POSTing /api/action — or /api/shutdown — at a board with no PIN set,
+    // which is the shipped default. The Content-Type requirement is the important half: without
+    // it a text/plain POST is a CORS "simple request" that succeeds with no preflight to fail.
+    // HEAD is listed with GET because it is a safe method that carries no body — uptime probes and
+    // curl -I were answering 415 otherwise, which reads as a broken board rather than a refused one.
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+      if (!isSameOrigin(req)) {
+        clog.warn(`rejected a cross-origin ${req.method} ${pathname}`, { path: pathname, origin: String(req.headers.origin || ''), ip: clientIp(req) })
+        return sendJson(res, 403, { error: 'cross-origin request refused' })
+      }
+      const ctype = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase()
+      if (ctype !== 'application/json') {
+        clog.warn(`rejected ${req.method} ${pathname} — Content-Type ${ctype || '(none)'}`, { path: pathname, contentType: ctype, ip: clientIp(req) })
+        return sendJson(res, 415, { error: 'Content-Type: application/json required' })
+      }
+    }
     // GET /api/status
     if (pathname === '/api/status' && req.method === 'GET') {
       return sendJson(res, 200, status())
@@ -289,6 +343,13 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         alog.warn('rejected an unknown action', { action, ip: clientIp(req) })
         return sendJson(res, 400, { error: 'unknown or missing action.type' })
       }
+      // Colours are dropped, not rejected: an operator renaming a team should never lose the
+      // edit because something upstream handed us a colour we don't recognise. The source has
+      // to be clean because the value persists — resume.save writes it, and it comes back
+      // through set-state after a reboot.
+      scrubColors(action, (bad) => {
+        alog.warn(`dropped an invalid team colour: ${bad.slice(0, 40)}`, { color: bad.slice(0, 120), side: action.side, ip: clientIp(req) })
+      })
       if (sourceManager.status.mode !== 'manual') {
         sourceManager.setSource(manualSource, { mode: 'manual' })
       }
@@ -385,7 +446,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         return sendJson(res, 400, { error: 'unknown sport' })
       }
       const prev = settings.values.sport
-      const updated = settings.update({ sport: wanted })
+      // `allowSport` is what makes this the ONLY route that can change sport. The generic
+      // POST /api/settings refuses it, because switching there would persist the new sport and
+      // reshape the console while the running engine kept the old one — and without the marker
+      // below or the restart, the board would never announce or apply the change.
+      const updated = settings.update({ sport: wanted }, { allowSport: true })
       const changed = updated.sport !== prev
       // A sport change restarts the service, so this is the last line before a gap in the log —
       // worth being explicit about, or the restart reads as a crash.
@@ -576,7 +641,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       const level = p.get('level') || undefined
       const scope = p.get('scope') || undefined
       res.writeHead(200, {
-        ...CORS,
+        ...res._cors,
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         Connection: 'keep-alive',
@@ -606,12 +671,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // POST /api/logs { level, msg, data } — the browser's own errors. Deliberately open (no
     // PIN): a spectator's phone hitting a bug is exactly what this is for. Rate-limited above.
     if (pathname === '/api/logs' && req.method === 'POST') {
-      const body = await readJson(req)
-      const now = Date.now()
-      if (now - uiRate.windowStart > 60000) { uiRate.windowStart = now; uiRate.count = 0 }
-      if (++uiRate.count > UI_LOG_PER_MIN) return sendJson(res, 429, { error: 'too many log posts' })
+      // Its own small cap, not MAX_BODY: at 1 MiB this route was a remote OOM.
+      const body = await readJson(req, UI_LOG_MAX_BODY)
+      if (!uiRateOk(clientIp(req), Date.now())) return sendJson(res, 429, { error: 'too many log posts' })
       const level = LEVELS[body && body.level] ? body.level : 'error'
-      log.log(level, 'ui', String((body && body.msg) || 'ui event'), {
+      log.log(level, 'ui', String((body && body.msg) || 'ui event').slice(0, UI_LOG_MAX_MSG), {
         ...(body && typeof body.data === 'object' ? body.data : { detail: body && body.data }),
         ua: String(req.headers['user-agent'] || '').slice(0, 120),
         ip: clientIp(req),
@@ -642,15 +706,25 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/logs/export' && req.method === 'GET') {
       log.flush()
       const files = log.files().reverse() // .2 → .1 → active, so the download reads forward in time
-      let out = ''
-      for (const f of files) {
-        try { out += fs.readFileSync(f.path, 'utf8') } catch { /* skip an unreadable rotation */ }
-      }
-      if (!out) out = log.query({ limit: log.stats().maxEntries }).map((e) => JSON.stringify(e)).join('\n')
-      return send(res, 200, out, {
+      const headers = {
         'Content-Type': 'application/x-ndjson; charset=utf-8',
         'Content-Disposition': `attachment; filename="ledbox-logs-${new Date().toISOString().slice(0, 10)}.jsonl"`,
-      })
+      }
+      // Nothing on disk (memory-only board, or the logs were just cleared): serve the ring.
+      if (!files.length) {
+        return send(res, 200, log.query({ limit: log.stats().maxEntries }).map((e) => JSON.stringify(e)).join('\n'), headers)
+      }
+      // Streamed one rotation at a time rather than concatenated into a single ~15 MB string.
+      // The route stays open by design (docs/logging-DESIGN.md: reads stay open, writes need the
+      // PIN), so the cost of someone looping it has to be bounded here instead — and the old
+      // blocking readFileSync ran on the same event loop that paints the panel, which is a
+      // frozen scoreboard during a rally, not just a slow download.
+      res.writeHead(200, { ...res._cors, ...headers })
+      for (const f of files) {
+        if (res.writableEnded || res.destroyed) break // the client went away mid-download
+        await pipeFile(f.path, res)
+      }
+      return res.end()
     }
     return sendJson(res, 404, { error: 'not found' })
   }
@@ -702,7 +776,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         const home = m.homeShort || m.home_short || m.homeTeam || m.home || ''
         const away = m.awayShort || m.away_short || m.awayTeam || m.away || ''
         const teams = home || away ? ` ${home}-${away}` : ''
-        matches.push({ source: 'lan', id: String(m.id), label: `${num}${teams}`, live: m.status === 'live' })
+        // Clamped rather than passed through: this id is rendered by the console's match list
+        // and posted straight back to /api/link, so whatever occupies RELAY_HTTP_URL gets a say
+        // in what lands there. An id can only ever be word characters, a dot or a dash.
+        matches.push({ source: 'lan', id: safeMatchId(m.id), label: `${num}${teams}`, live: m.status === 'live' })
       }
       clog.debug(`relay listed ${matches.length} match(es)`, { count: matches.length, relayHttpUrl })
     } catch (err) {
@@ -712,6 +789,34 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       errors.push(`lan: ${err.message}`)
     }
     return { matches, errors }
+  }
+
+  // Boot recovery after a crash. The unit is Restart=always, and until this existed a bridge that
+  // died at 22-21 came back on the crest with 0-0 behind it and stayed there until somebody
+  // realised and pressed Continue — so a repeating fault (an OOM, a bad reply from the panel)
+  // meant the scoreboard silently lost the match in front of the hall, while `systemctl is-active`
+  // still said `active`.
+  //
+  // Caller decides WHETHER to call this; see the unclean-shutdown marker in appliance.js. The
+  // deliberate restarts (a deploy, a sport switch) shut down cleanly and do not, because an
+  // operator is standing there and the game menu is the right answer for them. Note we cannot
+  // key this on the slot's age instead: the board has no RTC, and its clock has been 36 h out.
+  //
+  // Same steps as the "continue" branch of POST /api/game, in the same order and for the same
+  // reason — pushState is suppressed while an idle screen is up, so idle must be lifted first or
+  // the crest stays on the panel and the scoreboard goes unpainted until the next point.
+  server.resumeInterruptedGame = async () => {
+    const sport = activeSport()
+    const saved = resume.get(sport)
+    if (!saved) return null
+    const info = resume.summary(sport)
+    if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+    sourceManager.setSource(manualSource, { mode: 'manual' })
+    manualSource.apply({ type: 'set-state', state: saved })
+    clog.warn('restored the interrupted match after an unclean shutdown — press New if this is not the game in the room', {
+      sport, teams: info && info.teams, points: info && info.points, sets: info && info.sets, updatedAt: info && info.updatedAt,
+    })
+    return info
   }
 
   return server
@@ -735,6 +840,70 @@ function pulseForAction(ledbox, action = {}, settings = null, state = null) {
 }
 
 // --- helpers ---
+
+// A same-origin fetch — which is everything the console, the mirror and the log page do — sends
+// no Origin header at all, so "absent" HAS to count as same-origin or the scorer's own tablet
+// stops working. Non-browser clients (curl, the selftests, deploy-board.sh) send none either.
+function isSameOrigin(req) {
+  const origin = req.headers.origin
+  if (!origin) return true
+  const host = req.headers.host || ''
+  return origin === `http://${host}` || origin === `https://${host}`
+}
+
+// Reflect a same-origin Origin; answer a foreign one with no Access-Control-Allow-Origin at all,
+// which is what stops another LAN page reading the board's state and log trail out of it.
+function corsHeaders(req) {
+  const origin = req.headers.origin
+  if (origin && isSameOrigin(req)) return { ...CORS, 'Access-Control-Allow-Origin': origin }
+  return { ...CORS }
+}
+
+// One 60s window per source address. The map is swept of expired windows once it grows past
+// UI_RATE_MAX_IPS, and cleared outright if that isn't enough — the rate limiter for an
+// unauthenticated route must not itself become the unbounded thing it exists to prevent.
+function uiRateOk(ip, now) {
+  let r = uiRate.get(ip)
+  if (!r || now - r.windowStart > 60000) { r = { windowStart: now, count: 0 }; uiRate.set(ip, r) }
+  if (uiRate.size > UI_RATE_MAX_IPS) {
+    for (const [k, v] of uiRate) if (now - v.windowStart > 60000) uiRate.delete(k)
+    if (uiRate.size > UI_RATE_MAX_IPS) { uiRate.clear(); uiRate.set(ip, r) }
+  }
+  return ++r.count <= UI_LOG_PER_MIN
+}
+
+// Strip a team colour that isn't a #rrggbb literal out of an action before it reaches the
+// source. Dropped rather than rejected, and reported through `onDrop` so the trail still shows
+// that something tried. `set-state` is included because that is how a whole board — colours and
+// all — arrives from the resume slot and from the direct-entry editor.
+function scrubColors(action, onDrop) {
+  if (action.type === 'team' && action.color != null && !HEX_COLOR.test(String(action.color))) {
+    onDrop(String(action.color))
+    delete action.color
+  }
+  if (action.type === 'set-state' && action.state && typeof action.state === 'object') {
+    for (const k of ['team_a_color', 'team_b_color']) {
+      const v = action.state[k]
+      if (v != null && !HEX_COLOR.test(String(v))) { onDrop(String(v)); delete action.state[k] }
+    }
+  }
+}
+
+// A relay-supplied match id, clamped to something that can only ever be an id.
+const safeMatchId = (v) => String(v).replace(/[^\w.-]/g, '').slice(0, 64)
+
+// Pipe one log rotation into an already-open response. Resolves on 'close', which fires after
+// end, error or destroy alike — an unreadable rotation is skipped exactly the way the old
+// readFileSync's catch skipped it, because half a trail beats a failed download.
+function pipeFile(filePath, res) {
+  return new Promise((resolve) => {
+    const stream = fs.createReadStream(filePath)
+    stream.on('error', () => { /* skip an unreadable rotation */ })
+    stream.on('close', resolve)
+    res.on('close', () => stream.destroy())
+    stream.pipe(res, { end: false })
+  })
+}
 
 // Who sent this — enough to tell the scorer's tablet from a spectator's phone on the venue LAN.
 function clientIp(req) {
@@ -813,12 +982,14 @@ function serveStatic(res, pathname, webDir) {
 }
 
 // Read + JSON-parse a request body. Empty body -> {}. Invalid JSON throws SyntaxError.
-function readJson(req) {
+// `limit` lets a route ask for a tighter ceiling than the general one — /api/logs is
+// unauthenticated, so 1 MiB there is a remote heap bomb rather than a generous default.
+function readJson(req, limit = MAX_BODY) {
   return new Promise((resolve, reject) => {
     // Reject an oversized Content-Length up front so a well-behaved client still gets
     // a clean 413 (leave the socket alive to carry the response).
     const declared = Number(req.headers['content-length'])
-    if (Number.isFinite(declared) && declared > MAX_BODY) {
+    if (Number.isFinite(declared) && declared > limit) {
       const e = new Error('request body too large'); e.statusCode = 413
       return reject(e)
     }
@@ -830,7 +1001,7 @@ function readJson(req) {
       size += c.length
       // Cap accumulation so a slow-drip / chunked body can't exhaust the heap; a client
       // that lies about its length gets the connection torn down.
-      if (size > MAX_BODY) {
+      if (size > limit) {
         done = true
         const e = new Error('request body too large'); e.statusCode = 413
         req.destroy()
@@ -851,6 +1022,6 @@ function sendJson(res, code, obj) {
 }
 
 function send(res, code, body, headers = {}) {
-  res.writeHead(code, { ...CORS, ...headers })
+  res.writeHead(code, { ...(res._cors || CORS), ...headers })
   res.end(body == null ? undefined : body)
 }

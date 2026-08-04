@@ -27,7 +27,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 
-export const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 }
+// Null-prototype on purpose. Every level check in this file and in controlServer.js is written
+// as `LEVELS[x] ? …`, and with a plain object literal `LEVELS['constructor']` is truthy — so an
+// unauthenticated POST /api/logs {"level":"constructor"} was accepted and stored, after which
+// every numeric comparison (`LEVELS[e.level] < LEVELS[level]`) evaluated NaN → false and the
+// entry passed every filter unconditionally. Closing it here closes all six call sites at once.
+export const LEVELS = Object.assign(Object.create(null), { debug: 10, info: 20, warn: 30, error: 40 })
 export const LEVEL_NAMES = Object.keys(LEVELS)
 
 const DEFAULTS = {
@@ -45,9 +50,21 @@ const DEFAULTS = {
 const SECRET_KEY = /(pin|token|secret|password|authorization|cookie|apikey|api_key)/i
 
 const MAX_STR = 600     // truncate any single string
+const MAX_MSG = 300     // …and the message line itself, whoever the caller is
 const MAX_KEYS = 40     // per object
 const MAX_ITEMS = 50    // per array
 const MAX_DEPTH = 4
+// Total budget for one entry's `data`. Every cap above is PER NODE with no overall ceiling, so
+// a wide-but-shallow tree (40x40x40 empty objects, ~525 KB of JSON) survives all of them intact
+// and retains ~6 MB in the ring. The ring is capped at 2000 ENTRIES, not bytes, and POST
+// /api/logs is deliberately unauthenticated — so the byte ceiling has to live here.
+const MAX_ENTRY_BYTES = 8 * 1024
+
+// Truncate `s` at `max`, saying how much was dropped — the same marker safeData uses for
+// strings, so a clipped line reads as clipped rather than as one that ended mid-word.
+function clip(s, max) {
+  return s.length > max ? `${s.slice(0, max)}…(+${s.length - max})` : s
+}
 
 // Copy `value` into something safe to JSON.stringify and safe to show: bounded depth,
 // bounded width, no cycles, no secrets, Errors unwrapped into readable fields.
@@ -92,6 +109,16 @@ function safeData(value, depth = 0, seen = new WeakSet()) {
     seen.delete(value)
   }
   return String(value)
+}
+
+// Enforce the total budget on what safeData produced. Serialising once is cheap next to what we
+// would otherwise retain for the life of the ring, and keeping the truncated head means an
+// oversized payload still leaves a trace of itself — "something enormous arrived, here is the
+// start of it" is a diagnostic; a silently dropped entry is not.
+function capBytes(safe) {
+  const s = safeStringify(safe)
+  if (s.length <= MAX_ENTRY_BYTES) return safe
+  return { truncated: true, bytes: s.length, head: s.slice(0, MAX_ENTRY_BYTES) }
 }
 
 export class LogStore extends EventEmitter {
@@ -140,11 +167,13 @@ export class LogStore extends EventEmitter {
         ts: new Date().toISOString(),
         level: lv,
         scope: String(scope || 'app'),
-        msg: String(msg ?? ''),
+        // Clipped here as well as at the /api/logs endpoint: this is the choke point every call
+        // site goes through, so no future caller can hand the ring an unbounded string.
+        msg: clip(String(msg ?? ''), MAX_MSG),
       }
       if (data !== undefined) {
         const safe = safeData(data)
-        if (safe !== undefined) entry.data = safe
+        if (safe !== undefined) entry.data = capBytes(safe)
       }
       this.entries.push(entry)
       const over = this.entries.length - this.opts.maxEntries

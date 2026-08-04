@@ -21,13 +21,20 @@ import { log as logStore, installProcessLogging } from './logStore.js'
 
 export async function startAppliance(config = loadConfig()) {
   const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'web')
+  // Everything this process persists — settings.json, data/ (logs, history, the resume slot) and
+  // the two boot markers — hangs off one root. In production that is the checkout, but a test that
+  // pointed at it would read the board's real PIN and scribble on the real match history, which is
+  // exactly why test/appliance-selftest.mjs sat excluded from `npm test` and rotted. Pass
+  // `stateDir` to send it all somewhere disposable.
+  const stateDir = config.stateDir ? path.resolve(config.stateDir) : path.resolve(webDir, '..')
+  const dataDir = path.resolve(stateDir, 'data')
 
   // Logging is configured FIRST, so everything from here on — including a failure to load
   // settings or reach the board — lands in data/logs and on the /logs page. DEBUG=1 opens the
   // firehose (every board write, every HTTP request); the level is also switchable at runtime
   // from /logs, so a match can be turned verbose without a restart.
   logStore.configure({
-    file: path.resolve(webDir, '..', 'data', 'logs', 'appliance.jsonl'),
+    file: path.resolve(dataDir, 'logs', 'appliance.jsonl'),
     level: config.logLevel || (config.debug ? 'debug' : 'info'),
   })
   const log = logStore.child('appliance')
@@ -45,7 +52,7 @@ export async function startAppliance(config = loadConfig()) {
   // Load settings first: the active sport selects the Source, the match layout and the
   // state→sections mapper built below (see src/sports.js). Preferences live beside the code so
   // they survive restarts and reboots.
-  const settings = new Settings(path.resolve(webDir, '..', 'settings.json'))
+  const settings = new Settings(path.resolve(stateDir, 'settings.json'))
   const sport = getSport(settings.values.sport || DEFAULT_SPORT)
   log.info(`sport: ${sport.key} (${sport.label})`, { sport: sport.key, layouts: sport.layouts })
 
@@ -54,7 +61,7 @@ export async function startAppliance(config = loadConfig()) {
   // the sport name on the panel once, so the operator sees the switch land — the idle screens
   // are shared by every sport and would otherwise look identical before and after.
   let bootMessage = null
-  const switchMark = path.resolve(webDir, '..', '.sport-switch')
+  const switchMark = path.resolve(stateDir, '.sport-switch')
   try {
     if (fs.existsSync(switchMark)) {
       const marked = fs.readFileSync(switchMark, 'utf8').trim()
@@ -64,6 +71,20 @@ export async function startAppliance(config = loadConfig()) {
     }
   } catch (err) { log.warn(`sport marker unreadable: ${err.message}`, { file: switchMark, error: err.message }) }
   if (bootMessage) log.info(`announcing sport switch on the panel: ${bootMessage}`, { sport: sport.key })
+
+  // Did the previous run end on purpose? This marker is written once we are up and removed by
+  // close(), so finding it here means the last process died without being asked to — a crash, an
+  // OOM, or the hall losing power. That is the one case where replaying the saved match is right:
+  // the unit is Restart=always, so otherwise a repeating fault brings the board back at 0-0 and
+  // leaves it there, mid-match, while systemd still reports it healthy.
+  //
+  // A deploy or a sport switch stops us with SIGTERM and clears the marker, so those still land on
+  // the game menu — which is correct, because an operator is standing at the tablet. Read before
+  // anything writes it.
+  const runMark = path.resolve(dataDir, '.running')
+  let uncleanShutdown = false
+  try { uncleanShutdown = fs.existsSync(runMark) } catch { /* unreadable -> assume a clean boot */ }
+  if (uncleanShutdown) log.warn('previous run did not shut down cleanly', { marker: runMark })
 
   // Target: the real LedBox, or an in-process mock on an ephemeral port for testing.
   // Accept either the config's host list or a single (possibly comma-separated) host,
@@ -151,20 +172,44 @@ export async function startAppliance(config = loadConfig()) {
     reconnectMs: config.reconnectMs,
     settings,
     webDir,
+    dataDir,
   })
 
   // The default screen on a fresh boot (the KSC Wiedikon crest) is asserted by the client
   // itself after the handshake (see `defaultIdle` above), so it survives the board's own
   // boot-default layout and every reconnect. /api/action, /api/manual and /api/link lift
   // idle when a match starts so the scoreboard paints.
+  // Replay an interrupted match, but only once the panel is actually up: showIdle(false) and the
+  // repaint both talk to the board, and firing them at a socket that has not handshaken yet just
+  // burns two send timeouts. `once` — a later reconnect must not resurrect a match the operator
+  // has since replaced.
+  if (uncleanShutdown) {
+    ledbox.once('ready', () => {
+      Promise.resolve(server.resumeInterruptedGame())
+        .then((info) => { if (!info) log.info('nothing saved to restore for this sport', { sport: sport.key }) })
+        .catch((e) => log.error(`could not restore the interrupted match: ${e.message}`, { error: e.message }))
+    })
+  }
+
   ledbox.connect()
 
   await new Promise((resolve) => server.listen(config.controlPort, '0.0.0.0', resolve))
   const port = server.address().port
-  log.info(`control UI on http://0.0.0.0:${port}  (Tailscale: http://openvolley:${port})`, { port, logs: `http://openvolley:${port}/logs` })
+  // The board is its own Tailscale node, so the console no longer hangs off the `openvolley` Pi.
+  log.info(`control UI on http://0.0.0.0:${port}  (board's own AP, the house LAN, or its tailnet name)`, { port, logs: `/logs` })
+
+  // We are up: from here a disappearance is a crash, so arm the marker. Best-effort — a board with
+  // a full or read-only card must still score.
+  try {
+    fs.mkdirSync(path.dirname(runMark), { recursive: true })
+    fs.writeFileSync(runMark, String(process.pid))
+  } catch (err) { log.warn(`could not arm the crash marker: ${err.message}`, { marker: runMark, error: err.message }) }
 
   const close = async () => {
     log.info('shutting down')
+    // Disarm FIRST: this is what tells the next boot the stop was deliberate, and it must happen
+    // even if a later step of the shutdown hangs.
+    try { fs.rmSync(runMark, { force: true }) } catch { /* best-effort */ }
     logStore.flush()
     livePush.detach()
     sourceManager.stop()
