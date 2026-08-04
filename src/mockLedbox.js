@@ -20,10 +20,17 @@ const KNOWN_SECTIONS = new Set([
   'switch', 'serveplr1', 'serveplr2',
   // basketball_matchscore.xml: centre period, per-side fouls + bonus dot.
   'period', 'foul1', 'foul2', 'bonus1', 'bonus2', 'lbl_foul',
+  // kscw_break.xml: the second, larger clock used when no team name sits above it, and the team
+  // label itself. kscw_result.xml: the end-of-match screen's three lines.
+  'timerbig', 'team', 'winner', 'sets', 'history',
 ])
 const KNOWN_LAYOUTS = new Set([
   'waiting', 'volleyball_matchscore_02',
   'volleyball_matchscore_timeout_02', 'volleyball_matchscore_set_02',
+  // Deliberately NOT the kscw_* idle/crest/clock layouts: several tests rely on those being
+  // ABSENT to exercise the "layout not on this device" fallbacks. The result screen has no such
+  // fallback to test, and needs to be present for the end-of-match path to be exercised at all.
+  'kscw_result',
 ])
 
 export class MockLedbox extends EventEmitter {

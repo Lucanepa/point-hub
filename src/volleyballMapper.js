@@ -257,6 +257,30 @@ export function toClubIdleSections(state, { fullNames = true, maxFontSize = 24, 
 // it runs into the centre column. Beach (78) and basketball (62) have their own narrower boxes.
 const MATCH_NAME_WIDTH = 86
 
+// End-of-match result screen (`kscw_result`): who won, the set score, and every set played.
+// Three centred lines on a 192x64 panel, so this is placement only — the caller decides the
+// wording, because what counts as a "set score" differs by sport (sets won for volleyball and
+// beach, final points for basketball) and the mapper has no business knowing which is running.
+//
+// Every line is auto-fitted. A five-set history is nearly three times the width of a three-set
+// one, and a club that types its full name instead of a code doubles the winner line — a fixed
+// size would clip whichever one the layout was not tuned for.
+const RESULT_WIDTH = 188   // 192 less a 2px margin each side
+
+export function toResultSections({ winner = '', score = '', history = '', color = CLUB_GOLD } = {}) {
+  return [
+    attr('winner', 'text', winner),
+    attr('winner', 'color', color),
+    attr('winner', 'fontsize', fitFontSize(winner, RESULT_WIDTH, { max: 17, min: 8 })),
+    attr('sets', 'text', score),
+    attr('sets', 'fontsize', fitFontSize(score, RESULT_WIDTH, { max: 24, min: 10 })),
+    attr('history', 'text', history),
+    // Allowed smaller than the others: five sets is the longest string the panel ever shows, and
+    // shrinking it beats dropping sets off the end.
+    attr('history', 'fontsize', fitFontSize(history, RESULT_WIDTH, { max: 11, min: 6 })),
+  ]
+}
+
 // Returns the `value` array for a `SetSections` command. Each side is painted uniformly
 // in its team colour — name, score, set count and score-box border all match — so the
 // board never shows one team in three different reds.

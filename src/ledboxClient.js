@@ -7,7 +7,7 @@
 import net from 'node:net'
 import { EventEmitter } from 'node:events'
 import { encode, StreamDecoder } from './ledboxProtocol.js'
-import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toLeftRight } from './volleyballMapper.js'
+import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toLeftRight } from './volleyballMapper.js'
 import { log } from './logStore.js'
 
 const CONTROL_PORT = 8889
@@ -54,6 +54,8 @@ export class LedboxClient extends EventEmitter {
     // which exist purely to GET someone connected — once they are, that space is dead and
     // carries the wall clock instead. Falls back to crestLayout if absent from the device.
     clockLayout = 'kscw_clock',
+    // End-of-match result screen. Optional like the rest: a board without it just never shows one.
+    resultLayout = 'kscw_result',
     // How long after the last control-UI request a viewer still counts as present. The UI polls
     // /api/status every 1.5s, so this is ~13 missed polls: long enough that a brief wifi stall
     // or a tablet blanking its screen doesn't flap the panel back to the QR codes, short enough
@@ -120,8 +122,8 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
-    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toLeftRight }
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
+    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
     // Last time the control UI was seen (epoch ms). 0 = never; the board boots showing the QRs.
@@ -684,6 +686,33 @@ export class LedboxClient extends EventEmitter {
       await this.showIdle(true)
       return true
     } catch { return false }
+  }
+
+  // Put the finished match on the panel: winner, set score, every set played.
+  //
+  // Deliberately NOT flagged as idle. `_idle` is what the once-a-second idle ticker watches, and
+  // it would repaint the clock straight over this. What actually protects the screen is the layout
+  // itself: pushState() refuses to paint while `currentLayout !== this.layout`, and the layout
+  // guard skips for the same reason, so the result stays up until someone chooses what happens
+  // next. `_idle = false` is set for the opposite case — ending a match while the crest was up.
+  //
+  // Nothing here clears it. That is the point: the result is the last thing the hall sees, and it
+  // should outlast the operator putting the tablet down. /api/game lifts it.
+  async showResult({ winner = '', score = '', history = '', color } = {}) {
+    if (!this.ready || !this.resultLayout) return false
+    if (!this._layoutAvailable(this.resultLayout)) return false
+    this._idle = false
+    this.clearPulses()
+    try {
+      await this.setLayoutIfNeeded(this.resultLayout)
+      await this.send('SetSections', this.mapper.toResultSections({ winner, score, history, color }))
+      blog.info(`result screen: ${winner} ${score}`, { winner, score, history })
+      return true
+    } catch (err) {
+      this._noteLayoutMissing(this.resultLayout, err)
+      this.emit('error', new Error(`result layout unavailable (${err.message})`))
+      return false
+    }
   }
 
   // Show (or clear, when secondsLeft == null) a countdown on the board.

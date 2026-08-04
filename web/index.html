@@ -1979,6 +1979,45 @@
     }
     meStatus("");
     $("#matchEnd").hidden = false;
+    pushResultToBoard(state);
+  }
+
+  // The same result, on the panel in the hall — which is where the people who care about it are
+  // looking. Everything is ordered WINNER FIRST, including each set, so the winning number is
+  // always the left-hand one and the three lines agree with each other; the panel has no room to
+  // label which column is which the way the console does.
+  function resultLines(state) {
+    const nameA = (state.team_a_short || state.team_a_name || "TEAM A").toUpperCase();
+    const nameB = (state.team_b_short || state.team_b_name || "TEAM B").toUpperCase();
+    // Basketball has no sets — the result IS the running score.
+    const bball = SPORT === "basketball";
+    const a = bball ? num(state.points_a) : num(state.sets_won_a);
+    const b = bball ? num(state.points_b) : num(state.sets_won_b);
+    if (a === b) return null;                       // a draw has no winner line; skip the screen
+    const aWon = a > b;
+    const color = aWon ? state.team_a_color : state.team_b_color;
+    const history = bball ? "" : (state.set_results || [])
+      .map((r) => (aWon ? num(r.a) + "-" + num(r.b) : num(r.b) + "-" + num(r.a)))
+      .join("  ");
+    return {
+      winner: (aWon ? nameA : nameB) + " WINS",
+      score: (aWon ? a : b) + " - " + (aWon ? b : a),
+      history,
+      color: SAFE_HEX.test(color || "") ? color : undefined,
+    };
+  }
+
+  async function pushResultToBoard(state) {
+    const lines = resultLines(state);
+    if (!lines) return;
+    try {
+      const r = await postJSON("/api/result", lines);
+      // A board without the kscw_result layout answers ok:false rather than failing — the console
+      // summary is still perfectly useful, so this is a note, not an error.
+      if (r && r.ok === false) meStatus("Shown here only — the board has no result screen.", false);
+    } catch (e) {
+      meStatus("Couldn't put the result on the board: " + ((e && e.message) || e), true);
+    }
   }
 
   function meStatus(msg, bad) {

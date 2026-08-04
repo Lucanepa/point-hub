@@ -9,6 +9,7 @@ import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { LanSource } from './lanSource.js'
 import { toLeftRight } from './volleyballMapper.js'
+import { hexToRgb } from './ledboxProtocol.js'
 import { execFile } from 'node:child_process'
 import { HistoryStore } from './historyStore.js'
 import { ResumeStore } from './resumeStore.js'
@@ -586,7 +587,12 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         // Lift idle FIRST: pushState is deliberately suppressed while an idle screen is up, so
         // restoring the state before this would leave the crest on the panel and the scoreboard
         // unpainted until the next point.
-        if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+        // Lift whatever non-match screen is up. This used to test `_idle` alone, which was true of
+        // the only other screen that existed; the result screen is held up by its LAYOUT instead
+        // (pushState refuses to paint while another layout is current), so an `_idle`-only check
+        // left the finished match on the panel and the new game unpainted until the first point.
+        const offMatch = ledbox && (ledbox._idle || (ledbox.currentLayout && ledbox.currentLayout !== ledbox.layout))
+        if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
         sourceManager.setSource(manualSource, { mode: 'manual' })
         manualSource.apply(saved ? { type: 'set-state', state: saved } : { type: 'reset' })
         // Starting fresh discards the old slot; it refills from the first point of the new match.
@@ -594,6 +600,25 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
       }
       return sendJson(res, 400, { error: 'choice must be new, continue, delete or clock' })
+    }
+    // POST /api/result — put the finished match on the panel (winner / set score / every set).
+    // The console works out the wording, because what the "score" line means is sport-specific
+    // (sets won for volleyball and beach, final points for basketball) and the board does not
+    // need to know. Everything is clamped here rather than trusted: these strings are built from
+    // operator-typed team names and land straight on the hall's scoreboard.
+    if (pathname === '/api/result' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req) || {}
+      const line = (v, max) => String(v == null ? '' : v).replace(/[^\x20-\x7E]/g, '').slice(0, max)
+      const color = HEX_COLOR.test(String(body.color || '')) ? hexToRgb(body.color) : undefined
+      const ok = ledbox && typeof ledbox.showResult === 'function'
+        ? await ledbox.showResult({
+          winner: line(body.winner, 24), score: line(body.score, 24), history: line(body.history, 60), color,
+        })
+        : false
+      if (!ok) return sendJson(res, 200, { ok: false, error: 'the board has no result screen', ...status() })
+      clog.info(`result screen shown: ${line(body.winner, 24)} ${line(body.score, 24)}`)
+      return sendJson(res, 200, { ok: true, ...status() })
     }
     // GET /api/history — completed matches (newest first) for the History tab + export
     if (pathname === '/api/history' && req.method === 'GET') {

@@ -42,6 +42,9 @@ const ROUTES = {
   '/api/idle': { guard: 'pin', body: { on: true } },
   '/api/blank': { guard: 'pin', body: {} },
   '/api/game': { guard: 'pin', body: { choice: 'clock' } },
+  // Writes three operator-supplied lines onto the scoreboard in the hall — the most public
+  // surface this appliance has, so it is PIN-gated like any other paint.
+  '/api/result': { guard: 'pin', body: { winner: 'X WINS', score: '3 - 0', history: '25-23' } },
   '/api/history/clear': { guard: 'pin', body: {} },
   '/api/logs/level': { guard: 'pin', body: { level: 'info' } },
   '/api/logs/clear': { guard: 'pin', body: {} },
