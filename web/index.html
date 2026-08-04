@@ -369,6 +369,16 @@
   .spcancel{display:block;margin:18px auto 0;min-height:44px;padding:0 22px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);
     font-size:14px;font-weight:800;cursor:pointer}
   .spcancel:disabled{opacity:.5;cursor:default}
+  /* Utility row on the landing dialogs. Full screen and keep-awake used to live only in the Game
+     tab's centre column, which is behind these two screens — so the one moment you actually want
+     them (setting the tablet down on the table before the match) was the one moment they were
+     unreachable. */
+  .sputil{display:flex;justify-content:center;gap:10px;margin:16px 0 0;flex-wrap:wrap}
+  .sputil button{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;
+    border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--muted);
+    font-size:13px;font-weight:700;cursor:pointer}
+  .sputil button.active{color:var(--gold);border-color:var(--gold)}
+  .sputil button .licon{width:17px;height:17px;flex:0 0 auto}
   /* Game menu — shown once the sport is settled. Sits ABOVE the sport picker (78) and BELOW the
      shared confirm modal (80), which Delete and an overwriting New both call into. */
   #gamePicker{position:fixed;inset:0;z-index:79;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
@@ -455,8 +465,8 @@
         <button class="plrbtn" id="servePlrBtn" title="Serving player — tap to switch" aria-label="Switch the serving player"><span class="plrlbl">PLAYER</span><span class="plrnum" id="servePlrNum">–</span></button>
         <button class="ordbtn" id="serveOrderBtn" title="Set the beach serve order">Serve order</button>
       </div>
-      <button id="awakeBtn" class="iconbtn" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
-      <button id="fsBtn" class="iconbtn" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
+      <button id="awakeBtn" class="iconbtn js-awake" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
+      <button id="fsBtn" class="iconbtn js-fs" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
     </div>
     <div class="side right" data-side="right">
       <div class="teamcard">
@@ -728,6 +738,11 @@
     <p class="spsub">Switching restarts the board with the new rules and layout — about 8 seconds.</p>
     <div class="splist" id="spList"></div>
     <p class="spstatus" id="spStatus" hidden role="status" aria-live="polite"></p>
+    <div class="sputil">
+      <button type="button" class="js-fs" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg><span>Full screen</span></button>
+      <button type="button" class="js-awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg><span>Keep awake</span></button>
+      <button type="button" id="spGameMenu" aria-label="Open the game menu for the current sport"><svg class="licon l-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13" /> <path d="M8 12h13" /> <path d="M8 18h13" /> <path d="M3 6h.01" /> <path d="M3 12h.01" /> <path d="M3 18h.01" /></svg><span>Game menu</span></button>
+    </div>
     <button class="spcancel" id="spCancel">Keep current sport</button>
   </div>
 </div>
@@ -757,6 +772,10 @@
       </button>
     </div>
     <p class="spstatus" id="gpStatus" hidden role="status" aria-live="polite"></p>
+    <div class="sputil">
+      <button type="button" class="js-fs" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg><span>Full screen</span></button>
+      <button type="button" class="js-awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg><span>Keep awake</span></button>
+    </div>
     <!-- The way out. This overlay is opaque and covers everything, so a single failed /api/game
          at boot — the tablet joins the board AP before the unit is up — used to seal the operator
          away from the scoreboard, the offline banner and Settings, with a browser reload as the
@@ -2123,6 +2142,12 @@
   if (sportBadgeBtn) sportBadgeBtn.addEventListener("click", openSportPicker);
   const spCancelBtn = $("#spCancel");
   if (spCancelBtn) spCancelBtn.addEventListener("click", closeSportPicker);
+  // Straight to New / Continue / Delete for the sport already selected. Picking the current sport
+  // from the list does the same thing, but nothing on screen says so — the list reads as "change
+  // the sport", so an operator who only wants to resume a match has no obvious way through, and
+  // "Keep current sport" just dismisses to the scoreboard. This is the one that says what it does.
+  const spGameMenuBtn = $("#spGameMenu");
+  if (spGameMenuBtn) spGameMenuBtn.addEventListener("click", () => { closeSportPicker(); openGamePicker(); });
   const sportPickerEl = $("#sportPicker");
   if (sportPickerEl) sportPickerEl.addEventListener("click", (e) => { if (e.target.id === "sportPicker") closeSportPicker(); });
   const nextPeriodBtn = $("#nextPeriodBtn");
@@ -2393,7 +2418,12 @@
   $("#pinModal").addEventListener("click", (e) => { if (e.target.id === "pinModal") closePinModal(); });
 
   // fullscreen (also locks landscape where the platform allows it)
-  const fsBtn = $("#fsBtn");
+  //
+  // There is more than one of these buttons now: the Game tab's icon-only one, plus a labelled
+  // copy on each landing dialog. They are bound and synced as a SET, because the moment you want
+  // full screen — propping the tablet up before the match — is spent on those dialogs, which sit
+  // in front of the Game tab. Anything holding a single element reference would silently drive
+  // whichever one happened to be first in the document.
   const inFS = () => document.fullscreenElement || document.webkitFullscreenElement;
   async function toggleFS() {
     if (inFS()) {
@@ -2419,10 +2449,25 @@
       screen.orientation.lock("landscape").catch(() => {});
     }
   }
-  if (fsBtn) fsBtn.addEventListener("click", toggleFS);
-  const syncFsBtn = () => { if (fsBtn) fsBtn.innerHTML = inFS() ? IC.min : IC.max; };
+  $$(".js-fs").forEach((b) => b.addEventListener("click", toggleFS));
+  // Icon-only buttons get their whole contents swapped; the labelled ones only have the <svg>
+  // replaced, so the caption survives — writing innerHTML on those would delete the text.
+  const syncFsBtn = () => {
+    const on = !!inFS();
+    $$(".js-fs").forEach((b) => {
+      const label = b.querySelector("span");
+      if (!label) { b.innerHTML = on ? IC.min : IC.max; return; }
+      const svg = b.querySelector("svg");
+      const holder = document.createElement("div");
+      holder.innerHTML = on ? IC.min : IC.max;
+      const next = holder.firstElementChild;
+      if (svg && next) svg.replaceWith(next);
+      label.textContent = on ? "Exit full screen" : "Full screen";
+    });
+  };
   document.addEventListener("fullscreenchange", syncFsBtn);
   document.addEventListener("webkitfullscreenchange", syncFsBtn);
+  syncFsBtn(); // a reload while already full screen must not show "Full screen"
 
   // Keep-awake. Two mechanisms, because the good one is unavailable here.
   //
@@ -2438,7 +2483,8 @@
   // without muted, autoplay is refused; without playsinline, iOS takes it fullscreen.
   const NOSLEEP_MP4 = "data:video/mp4;base64,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";
   const NOSLEEP_WEBM = "data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAALGEU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHWTbuMU6uEElTDZ1OsggEjTbuMU6uEHFO7a1OsggKw7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsCrXsYMPQkBNgIxMYXZmNjIuMy4xMDBXQYxMYXZmNjIuMy4xMDBEiYhAn0AAAAAAABZUrmvIrgEAAAAAAAA/14EBc8WI532DrcyfCT+cgQAitZyDdW5kiIEAhoVWX1ZQOIOBASPjg4QL68IA4JCwgUC6gUCagQJVsIRVuYEBElTDZ/tzc59jwIBnyJlFo4dFTkNPREVSRIeMTGF2ZjYyLjMuMTAwc3PWY8CLY8WI532DrcyfCT9nyKFFo4dFTkNPREVSRIeUTGF2YzYyLjExLjEwMCBsaWJ2cHhnyKFFo4hEVVJBVElPTkSHkzAwOjAwOjAyLjAwMDAwMDAwMAAfQ7Z1QQfngQCjqoEAAIDwAgCdASpAAEAAAEcIhYWIhYSIAgIABnA8QmAKsiD3MAD+/6tQgKOWgQDIANEBAAEQEAAYABhYL/QACI6AAKOWgQGQANEBAAEQEAAYABhYL/QACI6AAKOWgQJYANEBAAEQEAAYABhYL/QACI6AAKOWgQMgANEBAAEQEAAYABhYL/QACI6AAKOWgQPoANEBAAEQEAAYABhYL/QACI6AAKOWgQSwANEBAAEQEAAYABhYL/QACI6AAKOWgQV4ANEBAAEQEBRgAGFgv9AAIjoAAKOWgQZAANEBAAEQEAAYABhYL/QACI6AAKOWgQcIANEBAAEQEAAYABhYL/QACI6AABxTu2uRu4+zgQC3iveBAfGCAaPwgQM=";
-  const awakeBtn = $("#awakeBtn");
+  // Same set-of-buttons treatment as full screen: the Game tab icon plus a labelled copy on
+  // each landing dialog, all reflecting one piece of state.
   let wakeLock = null, keepAwake = false, noSleepVideo = null;
 
   function noSleepEl() {
@@ -2480,7 +2526,9 @@
 
   async function setKeepAwake(on) {
     keepAwake = on;
-    awakeBtn.classList.toggle("active", on); // .nav button.active = accent highlight
+    // Every copy, not just the first: a toggle that lights one button and leaves an identical
+    // one dark on the next screen reads as two independent settings that disagree.
+    $$(".js-awake").forEach((b) => b.classList.toggle("active", on));
     try { localStorage.setItem("keepAwake", on ? "1" : "0"); } catch {} // survive a reload mid-match
     if (!on) { releaseWakeLock(); return; }
     await acquireWakeLock();
@@ -2492,7 +2540,7 @@
     else toast("Couldn't hold the screen on — set the tablet's display timeout to Never");
   }
 
-  if (awakeBtn) awakeBtn.addEventListener("click", () => setKeepAwake(!keepAwake));
+  $$(".js-awake").forEach((b) => b.addEventListener("click", () => setKeepAwake(!keepAwake)));
   // A wake lock is dropped whenever the page is hidden (locked/backgrounded), and the video is
   // paused by some browsers too — re-acquire both when the page comes back while the toggle is on.
   document.addEventListener("visibilitychange", () => {
