@@ -67,7 +67,7 @@ served by the Pi (`CONTROL_PORT`, default 8890) with two modes — **Manual** (d
 board by hand: names, ±points, sets, timeouts, subs, serve, swap) and **Link** (list LAN
 matches from the relay and mirror one live). Cloud/Supabase source is a stub.
 ```bash
-npm run appliance                 # open http://<pi-ip>:8890  (or http://<pi-host>:8890 over Tailscale)
+npm run appliance                 # open http://<pi-ip>:8890  (or http://openvolley:8890 over Tailscale)
 MOCK=1 npm run appliance          # in-process mock LedBox, no hardware
 npm run test:appliance            # API → source → mapper → mock LedBox integration test
 ```
@@ -77,14 +77,14 @@ Architecture and the remaining phases (cloud source, auth, persistence) are in
 ## Logs — `/logs`
 Everything the appliance does is recorded to one structured log: board writes and layout
 switches, every scored action, source and relay lifecycle, settings changes, live-scoring
-publishes, and the browser's own errors. Open **`http://<pi-ip>:8890/logs`** (linked from
+publishes, and the browser's own errors. Open **`http://<board-ip>:8890/logs`** (linked from
 Settings ▸ Diagnostics) for a live tail with level/scope filters, search, download and a
 runtime verbosity switch.
 
 ```bash
 LOG_LEVEL=debug npm run appliance   # boot verbose (DEBUG=1 still works); also switchable at /logs
-curl http://<pi-ip>:8890/api/logs/export > board.jsonl   # the whole trail, for a bug report
-journalctl -u ledbox-bridge -f                            # unchanged — everything still mirrors to stdout
+curl http://<board-ip>:8890/api/logs/export > board.jsonl  # the whole trail, for a bug report
+journalctl -u ledbox-bridge -f                             # unchanged — everything still mirrors to stdout
 ```
 
 Persisted to `data/logs/*.jsonl`, rotated at 5 MB × 3 files (**15 MB ceiling**, SD-card
@@ -93,7 +93,7 @@ Design notes: [`docs/logging-DESIGN.md`](./docs/logging-DESIGN.md).
 
 ## Deploy on the Pi (systemd)
 ```bash
-# on the Pi:
+# on the Pi (reachable as `ssh openvolley`):
 cd ~/ledbox-bridge
 cp .env.example .env && nano .env        # set MATCH_ID, LEDBOX_HOST
 sudo cp systemd/ledbox-bridge.service /etc/systemd/system/

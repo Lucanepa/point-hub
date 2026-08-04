@@ -7,3 +7,17 @@ firmware/*.zip
 .agents/
 data/
 .claude/
+.sport-switch
+
+# SECRET. wifi_qr.png encodes `WIFI:T:WPA;S:<ssid>;P:<passphrase>;;` — the image IS the
+# credential, so committing it publishes the board's AP to anyone who points a phone at the
+# file. Derived, not source: rebuild with firmware/idle-crest-qr/gen_qr.py --wifi-pass ...
+firmware/**/wifi_qr.png
+
+# Tech4Sport's own firmware: decompiled sources, their plugins, their shipped .so binaries,
+# and private correspondence. Not ours to republish.
+firmware/src/
+firmware/plugin/
+firmware/libs/
+firmware/manifest.xml
+firmware/nota-emilio-*.md

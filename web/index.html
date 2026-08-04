@@ -179,6 +179,18 @@
   .settings input[type=checkbox]:checked{background:var(--blue);border-color:var(--blue)}
   .settings input[type=checkbox]:checked::after{transform:translateX(20px);background:#fff}
   .settings .hint{font-size:11px;color:var(--muted);margin:4px 0 0} #setStatus.saved{color:var(--ok)}
+  /* Numeric settings get real −/+ buttons. Mobile Chrome and Safari render NO spinner at all for
+     input[type=number], so on the venue tablet these had no tap affordance whatsoever — the only
+     way to change one was to focus the field and type on the numeric keyboard, mid-match. The
+     native spinner is suppressed on desktop too, so both look and behave the same. */
+  .settings .stepper{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+  .settings .stepper input[type=number]{width:56px;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+  .settings .stepper input[type=number]::-webkit-outer-spin-button,
+  .settings .stepper input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .stbtn{width:38px;height:38px;flex:0 0 auto;font-size:19px;font-weight:700;line-height:1;border:1.5px solid var(--line);
+    border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
+  .stbtn:active{background:var(--fill)}
+  .stbtn:disabled{opacity:.35;cursor:default}
   /* explicit per-section Save: muted "Saved" when clean, filled blue "Save" when there are unsaved edits */
   .setsaverow{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft)}
   .setsavebtn{min-height:38px;padding:0 20px;font-size:13px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--muted);cursor:pointer}
@@ -230,7 +242,9 @@
   .histcard .meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;gap:14px;flex-wrap:wrap}
   .histcard .sets{font-variant-numeric:tabular-nums;font-family:var(--mono)}
   /* confirm modal (T/O + subs) */
-  #confirm{position:fixed;inset:0;z-index:75;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
+  /* Above serveOrder (76) and sportPicker (78): this is the shared yes/no primitive, so it must
+     be able to open ON TOP of any other dialog. Below shutdown (90), which is terminal. */
+  #confirm{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
   #confirm[hidden]{display:none}
   #confirm .editlabel{font-size:16px;text-transform:none;letter-spacing:0;color:var(--fg);margin-bottom:14px}
   #confirmYes{color:var(--blue)}
@@ -338,6 +352,24 @@
   .spcancel{display:block;margin:18px auto 0;min-height:44px;padding:0 22px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);
     font-size:14px;font-weight:800;cursor:pointer}
   .spcancel:disabled{opacity:.5;cursor:default}
+  /* Game menu — shown once the sport is settled. Sits ABOVE the sport picker (78) and BELOW the
+     shared confirm modal (80), which Delete and an overwriting New both call into. */
+  #gamePicker{position:fixed;inset:0;z-index:79;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+  #gamePicker[hidden]{display:none}
+  .gplist{display:grid;gap:12px}
+  /* Full-width rows, not a grid of tiles: these are four different decisions, not four of a kind,
+     and one of them throws work away. Reading them in a column makes that hard to mis-tap. */
+  .gpopt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:60px;padding:14px 16px;text-align:left;
+    border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer;width:100%}
+  .gpopt:disabled{opacity:.5;cursor:default}
+  .gpopt .gplabel{font-size:16px;font-weight:800}
+  .gpopt .gphint{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  /* The one that resumes real work reads as the primary action. */
+  .gpopt.primary{border-color:var(--blue);color:var(--blue);background:var(--fill)}
+  .gpopt.primary .gphint{color:var(--blue)}
+  /* Destructive, so it is styled apart from the three constructive ones and placed last. */
+  .gpopt.danger{border-color:var(--bad);color:var(--bad)}
+  .gpopt.danger .gphint{color:var(--bad)}
 </style>
 
 <div id="app">
@@ -648,6 +680,10 @@
   <div class="t">Shutting down…</div>
   <div class="s">The panel will go dark in a few seconds.</div>
   <div class="press">Now press the power button to switch it off</div>
+  <!-- Only revealed if the board is still answering well after the request — i.e. the shutdown
+       did not take. Without it this screen is a dead end: nothing removes .show and polling has
+       already stopped, so a failed or reconsidered shutdown strands the UI until a reload. -->
+  <button id="shutdownBack" class="spcancel" hidden>Back to the scoreboard</button>
 </div>
 
 <!-- Sport selector: shown on load (current sport pre-highlighted) and re-openable from the header badge. -->
@@ -658,6 +694,34 @@
     <div class="splist" id="spList"></div>
     <p class="spstatus" id="spStatus" hidden role="status" aria-live="polite"></p>
     <button class="spcancel" id="spCancel">Keep current sport</button>
+  </div>
+</div>
+
+<!-- Game menu: what to do with THIS sport, once the sport itself is settled. Continue and Delete
+     only exist when the board actually has a saved game for the active sport. -->
+<div id="gamePicker" hidden role="dialog" aria-label="Start or continue a game">
+  <div class="spbox">
+    <div class="sptitle" id="gpTitle">Game</div>
+    <p class="spsub" id="gpSub">What would you like to do?</p>
+    <div class="gplist">
+      <button class="gpopt" id="gpContinue" hidden>
+        <span class="gplabel">Continue game</span>
+        <span class="gphint" id="gpContinueHint"></span>
+      </button>
+      <button class="gpopt" id="gpNew">
+        <span class="gplabel">New game</span>
+        <span class="gphint">Start from 0–0</span>
+      </button>
+      <button class="gpopt" id="gpClock">
+        <span class="gplabel">Show clock</span>
+        <span class="gphint">Leave the board on the crest and clock</span>
+      </button>
+      <button class="gpopt danger" id="gpDelete" hidden>
+        <span class="gplabel">Delete saved game</span>
+        <span class="gphint">Forget the match in progress</span>
+      </button>
+    </div>
+    <p class="spstatus" id="gpStatus" hidden role="status" aria-live="polite"></p>
   </div>
 </div>
 
@@ -836,7 +900,7 @@
     // the new state so the phone reflects the switched sides immediately.
     publishCountdown(seconds, opts.label || label, opts.content || "full", opts.swapFirst, opts.side).then((r) => {
       if (opts.swapFirst && r && r.state) {
-        renderStatus({ mode: "manual", matchId: null, ledbox: lastLedbox, state: r.state });
+        renderStatus({ ledbox: lastLedbox, state: r.state }); // merged — keeps sport/pin/matchId
       }
     });
     const tick = () => {
@@ -914,7 +978,13 @@
   let lastState = null; // last raw a/b state seen — prefills the beach serve-order modal
   const MODE_LABELS = { manual: "Manual", lan: "Live (LAN)", cloud: "Cloud", idle: "Idle" };
 
+  // Last FULL status seen. Optimistic post-action renders carry only the fields they know
+  // (state + ledbox); merging them over this keeps sport / pinRequired / matchId / mode intact.
+  // Without it every click rendered `pinRequired: undefined` -> the lock dropped and the header
+  // cleared, then the next poll put them back — the top bar visibly flickering on each action.
+  let LAST_STATUS = {};
   function renderStatus(st) {
+    st = LAST_STATUS = { ...LAST_STATUS, ...st };
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
     lastLedbox = st.ledbox || lastLedbox;
@@ -989,7 +1059,7 @@
     });
     const undo = document.createElement("button");
     undo.className = "setundo"; undo.title = "Remove last set"; undo.innerHTML = IC.del;
-    undo.addEventListener("click", () => { if (confirm("Remove the last set result?")) sendAction({ type: "remove-set" }); });
+    undo.addEventListener("click", async () => { if (await askConfirm("Remove the last set result?")) sendAction({ type: "remove-set" }); });
     strip.appendChild(undo);
   }
 
@@ -1196,6 +1266,14 @@
     return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#111318" : "#ffffff";
   };
   function renderBoard(s) {
+    // The serve toggle paints from --left/--right, which are stock blue/red constants. Track the
+    // TEAM colours onto them so the serve indicator matches the panel and the shirts instead of
+    // always reading blue-left / red-right whatever the teams are wearing.
+    if (s) {
+      const docRoot = document.documentElement;
+      if (s.left && s.left.color) docRoot.style.setProperty("--left", s.left.color);
+      if (s.right && s.right.color) docRoot.style.setProperty("--right", s.right.color);
+    }
     for (const side of ["left", "right"]) {
       const root = $(`.side.${side}`);
       const d = s ? s[side] : { short: "", color: "#888", points: 0, sets: 0, to: 0, sub: 0 };
@@ -1345,7 +1423,7 @@
       const r = await postJSON("/api/action", { action });
       const s = r && r.state;
       if (s && (board.mode === "idle" || board.mode === "blank")) board.mode = "match";
-      if (s) renderStatus({ mode: "manual", matchId: null, ledbox: lastLedbox, state: s });
+      if (s) renderStatus({ ledbox: lastLedbox, state: s }); // merged over LAST_STATUS — no field is reset
       handleEvent(r && r.event, s);
       refreshStatus();
     } catch (e) { toast(e.message); }
@@ -1463,7 +1541,23 @@
       "active", t.id === "tab-" + b.dataset.tab));
     if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
     if (b.dataset.tab === "history") refreshHistory();
+    // Opening the scoring page means "I am running a match now" — so take the panel off the
+    // crest and show the scoreboard. Until this, the ONLY thing that lifted the idle screen was
+    // scoring an actual point, so the operator set everything up and the board still sat on the
+    // crest looking like nothing had happened.
+    if (b.dataset.tab === "manual") showBoardLive();
   }));
+
+  // Leave the crest/idle screen so the scoreboard paints. Deliberately /api/idle {on:false} and
+  // NOT /api/manual: this must not switch the source, or opening the Game tab during a linked
+  // LAN match would silently drop the link and strand the match on manual.
+  async function showBoardLive() {
+    try {
+      await postJSON("/api/idle", { on: false });
+      board.mode = "match";
+      paintBoardMode();
+    } catch { /* locked, or the board is down — the PIN gate / offline banner already says so */ }
+  }
 
   // Direct-entry editor: tap a number to type an exact value (a correction), confirmed before
   // it's sent. An absolute value carries no delta, so it never blinks and never triggers set-win.
@@ -1610,11 +1704,11 @@
   $("#warmupBtn").addEventListener("click", () =>
     startCountdown(SETTINGS.warmupSeconds || 600, "WARM UP", null, { major: true, action: "End warm-up", content: "none" }));
   $("#swapBtn").addEventListener("click", () => sendAction({ type: "swap" }));
-  $("#resetBtn").addEventListener("click", () => {
-    if (confirm("Reset the board to neutral?")) { clearCountdown(); board.mode = "match"; sendAction({ type: "reset" }); }
+  $("#resetBtn").addEventListener("click", async () => {
+    if (await askConfirm("Reset the board to neutral?")) { clearCountdown(); board.mode = "match"; sendAction({ type: "reset" }); }
   });
-  $("#blankBtn").addEventListener("click", () => {
-    if (confirm("Blank the LedBox display?")) { clearCountdown(); board.mode = "blank"; paintBoardMode(); blank(); }
+  $("#blankBtn").addEventListener("click", async () => {
+    if (await askConfirm("Blank the LedBox display?")) { clearCountdown(); board.mode = "blank"; paintBoardMode(); blank(); }
   });
   $("#refreshBtn").addEventListener("click", refreshMatches);
 
@@ -1652,18 +1746,29 @@
   }
   async function chooseSport(key) {
     if (!key) return;
-    if (key === curSport()) { closeSportPicker(); return; } // current sport = just continue
+    // Same sport = "yes, this one, get on with it". The picker opens on load, so this is the
+    // operator's FIRST interaction of the evening and it used to do literally nothing — the
+    // board stayed on the crest and there was no way to tell the choice had registered. Now it
+    // moves on to the game menu, which is where the choice actually gets made.
+    if (key === curSport()) { closeSportPicker(); openGamePicker(); return; }
     const st = $("#spStatus");
     if (st) { st.hidden = false; st.classList.remove("err"); st.textContent = "Switching to " + sportLabel(key) + "… the board restarts (about 8 seconds)."; }
     spBusy(true);
     try {
       const r = await postJSON("/api/sport", { sport: key });
-      if (r && r.changed === false) { const now = await api("/api/status"); renderStatus(now); closeSportPicker(); return; }
+      if (r && r.changed === false) { const now = await api("/api/status"); renderStatus(now); closeSportPicker(); openGamePicker(); return; }
       const done = await waitForSwitch(key);
       if (done) {
+        // The new sport carries its OWN timing/allowances, and this page is what supplies the
+        // countdown durations (SETTINGS.timeoutSeconds etc). Without this reload the form and the
+        // cache keep the OUTGOING sport's numbers — beach's 60s TO/interval would drive a
+        // volleyball match — and the next Settings save would persist them onto the new sport.
+        await loadSettings();
         renderStatus(done); closeSportPicker(); toast(sportLabel(key) + " ready");
-        // Fresh beach match → ask the serve order straight away ("the beginning").
-        if (key === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
+        // On to the game menu. The beach serve-order prompt used to fire here; it now waits for
+        // "New game", so continuing an interrupted beach match doesn't re-ask a serve order that
+        // was settled several points ago.
+        openGamePicker();
       }
       else if (st) { st.classList.add("err"); st.textContent = "The board is taking a while to restart — it'll switch on its own once it's back."; spBusy(false); }
     } catch (e) {
@@ -1686,6 +1791,90 @@
     }
     try { return await api("/api/status"); } catch { return null; }
   }
+  // ---- Game menu ---------------------------------------------------------------------------
+  // Shown once the sport is settled. "Continue" is the point of it: the board keeps ONE
+  // in-progress match PER SPORT, so an evening interrupted by a power cut, a bridge restart or a
+  // switch to the other court can be picked up instead of retyped. A finished match is archived
+  // to History and its slot dropped by the server, so this never offers a match that is over.
+  let savedGame = null;
+  function gpBusy(on) { $$("#gamePicker .gpopt").forEach((b) => { b.disabled = on; }); }
+  function gpStatus(msg, err) {
+    const el = $("#gpStatus"); if (!el) return;
+    el.hidden = !msg; el.textContent = msg || ""; el.classList.toggle("err", !!err);
+  }
+  // One line an operator can recognise the match by, without loading the whole state.
+  function describeSaved(s) {
+    if (!s) return "";
+    const sets = (s.sets.a || s.sets.b) ? "  ·  sets " + s.sets.a + "–" + s.sets.b : "";
+    const when = s.updatedAt ? "  ·  " + s.updatedAt : "";
+    return s.teams.a + " " + s.points.a + "–" + s.points.b + " " + s.teams.b + sets + when;
+  }
+  function goToTab(name) {
+    const b = $$('.nav button[data-tab="' + name + '"]')[0];
+    if (b) b.click();
+  }
+  async function openGamePicker() {
+    closeSportPicker();
+    $("#gpTitle").textContent = sportLabel(curSport());
+    gpStatus(""); gpBusy(false);
+    $("#gamePicker").hidden = false;
+    try { const r = await api("/api/game"); savedGame = (r && r.saved) || null; }
+    catch { savedGame = null; }
+    const has = !!savedGame;
+    $("#gpContinue").hidden = !has;
+    $("#gpDelete").hidden = !has;
+    // Whichever option resumes real work is the primary one.
+    $("#gpContinue").classList.toggle("primary", has);
+    $("#gpNew").classList.toggle("primary", !has);
+    if (has) $("#gpContinueHint").textContent = describeSaved(savedGame);
+    $("#gpSub").textContent = has
+      ? "There's a match in progress on this board."
+      : "Nothing saved for this sport yet.";
+  }
+  function closeGamePicker() { $("#gamePicker").hidden = true; }
+  async function gameChoice(choice) {
+    gpBusy(true); gpStatus("");
+    try {
+      const r = await postJSON("/api/game", { choice });
+      if (r) renderStatus(r);
+      return r;
+    } catch (e) {
+      gpStatus(/pin/i.test(e.message || "")
+        ? "Scoring is locked — enter the scorer PIN, then choose again."
+        : "Couldn't do that: " + (e.message || e), true);
+      return null;
+    } finally { gpBusy(false); }
+  }
+  const gpContinueBtn = $("#gpContinue");
+  if (gpContinueBtn) gpContinueBtn.addEventListener("click", async () => {
+    if (!await gameChoice("continue")) return;
+    closeGamePicker(); goToTab("manual");
+  });
+  const gpNewBtn = $("#gpNew");
+  if (gpNewBtn) gpNewBtn.addEventListener("click", async () => {
+    // Starting over discards a real match, so make it deliberate — but only when there is one
+    // to lose. On an empty board this must stay a single tap.
+    if (savedGame && !await askConfirm("Start a new game? The saved match (" + describeSaved(savedGame) + ") will be deleted.")) return;
+    if (!await gameChoice("new")) return;
+    closeGamePicker(); goToTab("manual");
+    // Beach opens with a serve order. Asked HERE rather than on the sport switch, so continuing
+    // an existing beach match doesn't re-ask something already decided mid-match.
+    if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
+  });
+  const gpDeleteBtn = $("#gpDelete");
+  if (gpDeleteBtn) gpDeleteBtn.addEventListener("click", async () => {
+    if (!await askConfirm("Delete the saved game? " + describeSaved(savedGame))) return;
+    if (!await gameChoice("delete")) return;
+    savedGame = null;
+    await openGamePicker(); // stay in the menu, now without Continue/Delete
+    toast("Saved game deleted");
+  });
+  const gpClockBtn = $("#gpClock");
+  if (gpClockBtn) gpClockBtn.addEventListener("click", async () => {
+    if (!await gameChoice("clock")) return;
+    closeGamePicker();
+  });
+
   async function loadSportList() {
     try {
       const r = await api("/api/sport");
@@ -1700,23 +1889,107 @@
   const sportPickerEl = $("#sportPicker");
   if (sportPickerEl) sportPickerEl.addEventListener("click", (e) => { if (e.target.id === "sportPicker") closeSportPicker(); });
   const nextPeriodBtn = $("#nextPeriodBtn");
-  if (nextPeriodBtn) nextPeriodBtn.addEventListener("click", () => {
-    if (SPORT === "basketball" && confirm("End this period?")) sendAction({ type: "next-set" });
+  if (nextPeriodBtn) nextPeriodBtn.addEventListener("click", async () => {
+    if (SPORT === "basketball" && await askConfirm("End this period?")) sendAction({ type: "next-set" });
   });
   // Power: halt the board cleanly, then tell the operator it's safe to cut the power.
   const shutdownBtn = $("#shutdownBtn");
   if (shutdownBtn) shutdownBtn.addEventListener("click", async () => {
-    if (!confirm("Shut down the scoreboard?")) return;
+    if (!await askConfirm("Shut down the scoreboard?")) return;
     try {
       await postJSON("/api/shutdown");
       stopPolling();
+      $("#shutdownBack").hidden = true;
       $("#shutdown").classList.add("show");
+      watchShutdown();
     } catch (e) { toast(e.message || "Shutdown failed"); }
+  });
+  // The overlay is terminal ON PURPOSE — but only if the board actually goes away. Keep one quiet
+  // poll running behind it: if the board is still answering well after the request, the shutdown
+  // did not take (a failed halt, or the operator changed their mind), and stranding them on a
+  // screen with no way out is a bug even though the action itself is irreversible.
+  let shutdownWatch = null;
+  const SHUTDOWN_GRACE_MS = 20000; // a real halt takes the HTTP server down well inside this
+  function watchShutdown() {
+    clearInterval(shutdownWatch);
+    const since = Date.now();
+    shutdownWatch = setInterval(async () => {
+      try {
+        await api("/api/status");
+        // Still up. Only offer the way back once a genuine halt would have finished.
+        if (Date.now() - since > SHUTDOWN_GRACE_MS) $("#shutdownBack").hidden = false;
+      } catch {
+        // Unreachable — the expected path. Stay on the overlay and hide any offer we had made.
+        $("#shutdownBack").hidden = true;
+      }
+    }, 3000);
+  }
+  const shutdownBackBtn = $("#shutdownBack");
+  if (shutdownBackBtn) shutdownBackBtn.addEventListener("click", () => {
+    clearInterval(shutdownWatch); shutdownWatch = null;
+    shutdownBackBtn.hidden = true;
+    $("#shutdown").classList.remove("show");
+    startPolling();
   });
 
   // --- settings -----------------------------------------------------------
   // Persisted on the board, so they follow the scoreboard rather than the phone that set them.
   const setEls = () => $$("[data-set]");
+  // Give every numeric setting a real −/+ stepper. input[type=number] shows no spinner on mobile
+  // Chrome or Safari, so on the tablet these were type-only: the operator had to focus the field
+  // and use the numeric keyboard to nudge a font size or a timeout by one. Built here rather than
+  // written into the markup nine times, so they stay consistent and a new setting gets one free.
+  function numLimits(input) {
+    return {
+      min: input.min === "" ? -Infinity : Number(input.min),
+      max: input.max === "" ? Infinity : Number(input.max),
+      by: Number(input.step) || 1,
+    };
+  }
+  // Grey out the end stops rather than letting a tap do nothing — a dead button reads as broken.
+  function syncStepper(wrap) {
+    if (!wrap) return;
+    const input = wrap.querySelector("input[type=number]");
+    if (!input) return;
+    const { min, max } = numLimits(input);
+    const cur = Number(input.value);
+    const btns = wrap.querySelectorAll(".stbtn");
+    if (btns[0]) btns[0].disabled = Number.isFinite(cur) && cur <= min;
+    if (btns[1]) btns[1].disabled = Number.isFinite(cur) && cur >= max;
+  }
+  function stepNumber(input, dir) {
+    const { min, max, by } = numLimits(input);
+    const cur = Number(input.value);
+    const from = Number.isFinite(cur) ? cur : (Number.isFinite(min) ? min : 0);
+    const next = Math.min(max, Math.max(min, from + dir * by));
+    if (next === cur) return;
+    input.value = String(next);
+    // The per-section Save button watches for edits; fire the same events typing would.
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    syncStepper(input.closest(".stepper"));
+  }
+  function buildSteppers() {
+    $$(".settings input[type=number][data-set]").forEach((input) => {
+      if (input.closest(".stepper")) return; // already wrapped
+      const label = input.parentElement && input.parentElement.querySelector("span");
+      const what = label ? label.textContent.trim().toLowerCase() : "value";
+      const wrap = document.createElement("span");
+      wrap.className = "stepper";
+      const mk = (dir, verb, glyph) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "stbtn"; b.textContent = glyph;
+        b.setAttribute("aria-label", verb + " " + what);
+        b.addEventListener("click", () => stepNumber(input, dir));
+        return b;
+      };
+      input.replaceWith(wrap);
+      wrap.append(mk(-1, "decrease", "−"), input, mk(1, "increase", "+"));
+      input.addEventListener("input", () => syncStepper(wrap));
+      syncStepper(wrap);
+    });
+  }
+
   async function loadSettings() {
     try {
       const s = await api("/api/settings");
@@ -1725,6 +1998,8 @@
         if (v === undefined) continue;
         if (el.type === "checkbox") el.checked = !!v; else el.value = v;
       }
+      // Values just changed under the steppers — re-evaluate which end stops are disabled.
+      $$(".stepper").forEach(syncStepper);
       SETTINGS = s;
       const note = $("#perSportNote");
       if (note && s.sport) note.textContent =
@@ -1842,26 +2117,91 @@
   document.addEventListener("fullscreenchange", syncFsBtn);
   document.addEventListener("webkitfullscreenchange", syncFsBtn);
 
-  // Keep-awake: hold a Screen Wake Lock so the phone/tablet doesn't sleep mid-match. The lock
-  // is dropped whenever the page is hidden (locked/backgrounded), so re-acquire it when the
-  // page becomes visible again while the toggle is on.
+  // Keep-awake. Two mechanisms, because the good one is unavailable here.
+  //
+  // The Screen Wake Lock API is restricted to SECURE contexts. The board is served over plain
+  // HTTP on the venue LAN (http://192.168.5.1:8890), so navigator.wakeLock simply does not exist
+  // — on any browser, however modern. That is not a browser fault and no amount of updating fixes
+  // it. So when it is missing we fall back to the trick NoSleep.js uses: a tiny silent looping
+  // video. Browsers keep the screen lit while a video is playing, which is exactly what we want
+  // and is the only thing that works without HTTPS.
+  //
+  // The video is 64x64, black, silent, 2s, and embedded as a data URI (~3KB) because the board
+  // has no internet and the page must stay self-contained. muted + playsinline are BOTH required:
+  // without muted, autoplay is refused; without playsinline, iOS takes it fullscreen.
+  const NOSLEEP_MP4 = "data:video/mp4;base64,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";
+  const NOSLEEP_WEBM = "data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAALGEU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHWTbuMU6uEElTDZ1OsggEjTbuMU6uEHFO7a1OsggKw7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsCrXsYMPQkBNgIxMYXZmNjIuMy4xMDBXQYxMYXZmNjIuMy4xMDBEiYhAn0AAAAAAABZUrmvIrgEAAAAAAAA/14EBc8WI532DrcyfCT+cgQAitZyDdW5kiIEAhoVWX1ZQOIOBASPjg4QL68IA4JCwgUC6gUCagQJVsIRVuYEBElTDZ/tzc59jwIBnyJlFo4dFTkNPREVSRIeMTGF2ZjYyLjMuMTAwc3PWY8CLY8WI532DrcyfCT9nyKFFo4dFTkNPREVSRIeUTGF2YzYyLjExLjEwMCBsaWJ2cHhnyKFFo4hEVVJBVElPTkSHkzAwOjAwOjAyLjAwMDAwMDAwMAAfQ7Z1QQfngQCjqoEAAIDwAgCdASpAAEAAAEcIhYWIhYSIAgIABnA8QmAKsiD3MAD+/6tQgKOWgQDIANEBAAEQEAAYABhYL/QACI6AAKOWgQGQANEBAAEQEAAYABhYL/QACI6AAKOWgQJYANEBAAEQEAAYABhYL/QACI6AAKOWgQMgANEBAAEQEAAYABhYL/QACI6AAKOWgQPoANEBAAEQEAAYABhYL/QACI6AAKOWgQSwANEBAAEQEAAYABhYL/QACI6AAKOWgQV4ANEBAAEQEBRgAGFgv9AAIjoAAKOWgQZAANEBAAEQEAAYABhYL/QACI6AAKOWgQcIANEBAAEQEAAYABhYL/QACI6AABxTu2uRu4+zgQC3iveBAfGCAaPwgQM=";
   const awakeBtn = $("#awakeBtn");
-  let wakeLock = null, keepAwake = false;
-  async function acquireWakeLock() {
-    if (!keepAwake || !("wakeLock" in navigator)) return;
-    try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); }
-    catch { /* denied (e.g. not fullscreen / low battery) — the toggle stays on and retries on visibility */ }
+  let wakeLock = null, keepAwake = false, noSleepVideo = null;
+
+  function noSleepEl() {
+    if (noSleepVideo) return noSleepVideo;
+    const v = document.createElement("video");
+    v.setAttribute("playsinline", "");
+    v.setAttribute("muted", "");
+    v.setAttribute("title", "keeping the screen awake");
+    v.muted = true; v.loop = true; v.disableRemotePlayback = true;
+    // Off-screen but NOT display:none or visibility:hidden — a hidden video is treated as not
+    // playing and the screen dims anyway, which is the classic way to get this subtly wrong.
+    v.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;bottom:0;left:0";
+    for (const [src, type] of [[NOSLEEP_WEBM, "video/webm"], [NOSLEEP_MP4, "video/mp4"]]) {
+      const s = document.createElement("source");
+      s.src = src; s.type = type; v.appendChild(s);
+    }
+    document.body.appendChild(v);
+    noSleepVideo = v;
+    return v;
   }
+
+  async function acquireWakeLock() {
+    if (!keepAwake) return;
+    if ("wakeLock" in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
+        return;
+      } catch { /* denied (low battery, not visible) — fall through to the video */ }
+    }
+    // Called from the toggle's click handler, so we still have the user gesture autoplay needs.
+    try { await noSleepEl().play(); } catch { /* reported by the caller */ }
+  }
+
+  function releaseWakeLock() {
+    if (wakeLock) { try { wakeLock.release(); } catch {} wakeLock = null; }
+    if (noSleepVideo) { try { noSleepVideo.pause(); } catch {} }
+  }
+
   async function setKeepAwake(on) {
     keepAwake = on;
     awakeBtn.classList.toggle("active", on); // .nav button.active = accent highlight
     try { localStorage.setItem("keepAwake", on ? "1" : "0"); } catch {} // survive a reload mid-match
-    if (on) { await acquireWakeLock(); if (!wakeLock && !("wakeLock" in navigator)) toast("This browser can't keep the screen awake"); }
-    else if (wakeLock) { try { await wakeLock.release(); } catch {} wakeLock = null; }
+    if (!on) { releaseWakeLock(); return; }
+    await acquireWakeLock();
+    const playing = noSleepVideo && !noSleepVideo.paused;
+    if (wakeLock) toast("Screen will stay awake");
+    else if (playing) toast("Screen will stay awake");
+    // Both routes failed: say what the operator can actually do about it, rather than blaming
+    // their browser for a restriction the page's own http:// origin imposes.
+    else toast("Couldn't hold the screen on — set the tablet's display timeout to Never");
   }
+
   if (awakeBtn) awakeBtn.addEventListener("click", () => setKeepAwake(!keepAwake));
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") acquireWakeLock(); });
-  try { if (localStorage.getItem("keepAwake") === "1") setKeepAwake(true); } catch {}
+  // A wake lock is dropped whenever the page is hidden (locked/backgrounded), and the video is
+  // paused by some browsers too — re-acquire both when the page comes back while the toggle is on.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && keepAwake) acquireWakeLock();
+  });
+  // Restore the toggle across a reload. The video needs a user gesture, so this can only light the
+  // button and take the wakeLock path; the first tap anywhere on the page starts the video.
+  try {
+    if (localStorage.getItem("keepAwake") === "1") {
+      setKeepAwake(true);
+      document.addEventListener("pointerdown", function once() {
+        document.removeEventListener("pointerdown", once);
+        if (keepAwake && !wakeLock) acquireWakeLock();
+      }, { once: true });
+    }
+  } catch {}
 
   // --- HISTORY ------------------------------------------------------------
   let HISTORY = [];
@@ -1904,7 +2244,7 @@
   $("#expCsvBtn").addEventListener("click", exportCSV);
   $("#expJsonBtn").addEventListener("click", exportJSON);
   $("#clearHistBtn").addEventListener("click", async () => {
-    if (!confirm("Clear all recorded matches? This can't be undone.")) return;
+    if (!await askConfirm("Clear all recorded matches? This can't be undone.")) return;
     try { await postJSON("/api/history/clear"); } catch {}
     HISTORY = []; refreshHistory(); toast("History cleared");
   });
@@ -1942,7 +2282,9 @@
   // boot
   let pollTimer = null;
   const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
+  const startPolling = () => { if (!pollTimer) { refreshStatus(); pollTimer = setInterval(refreshStatus, 1500); } };
   bootLock();
+  buildSteppers();
   loadSettings();
   // Present the sport picker first (landing), with the current sport pre-highlighted.
   loadSportList().then(openSportPicker);
