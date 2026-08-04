@@ -424,6 +424,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           totalSubs: updated.totalSubs,
           idleFullNames: updated.idleFullNames,
           idleFontMax: updated.idleFontMax,
+          matchFontMax: updated.matchFontMax,
           clubName: updated.clubName,
         })
       }
@@ -751,7 +752,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       connected: ledbox.ready === true,
       mode: sourceManager.status.mode,
       countdown: countdownView(),
-      screen: sectionsToScreen(ledbox.mapper.toSections(state)),
+      // Same options the real paint uses, so /api/board (and the virtual panel it feeds) shows
+      // the same name sizes and counter colours as the panel on the wall.
+      screen: sectionsToScreen(ledbox.mapper.toSections(state, {
+        totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs, matchFontMax: ledbox.matchFontMax,
+      })),
     }
   }
 
@@ -759,6 +764,14 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   async function listMatches() {
     const errors = []
     const matches = []
+    // No relay configured at all (RELAY_HTTP_URL= empty). Without this the template below builds
+    // the bare path "/api/match/list", and Node's fetch — unlike a browser's — has no base URL to
+    // resolve it against, so it throws "Failed to parse URL from /api/match/list". That reads like
+    // a bug in the request rather than a missing setting, which is exactly the wrong hint.
+    if (!relayHttpUrl) {
+      clog.debug('no relay configured — match list is empty by design', { relayHttpUrl })
+      return { matches, errors: ['lan: no relay configured (RELAY_HTTP_URL is empty)'] }
+    }
     try {
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), 2000)

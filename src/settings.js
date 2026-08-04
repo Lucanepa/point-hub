@@ -29,6 +29,8 @@ export const GLOBAL_DEFAULTS = {
   // Panel LED brightness (rpi-rgb-led-matrix --led-brightness, clamped 0-100). 0 = panel OFF.
   brightness: 40,
   // Idle (crest) screen: full club name vs short code, and the largest font it may use.
+  // The IN-MATCH name size is a separate, per-sport key (`matchFontMax`) — the crest has a
+  // 125px name column, the scoreboard only ~86px, so one number cannot serve both.
   idleFullNames: true,
   idleFontMax: 24,
   // Shown on the set-interval and warm-up countdowns. Short — it lands in a narrow label box.
@@ -50,19 +52,19 @@ export const PER_SPORT_DEFAULTS = {
     blinkPoint: true, blinkSub: true, blinkMs: 2000,
     timeoutSeconds: 30, ttoSeconds: 0, setIntervalSeconds: 180, warmupSeconds: 600,
     countdownOnTimeout: true, countdownOnSetInterval: true, hornOnCountdownEnd: true,
-    totalTimeouts: 2, totalSubs: 6, bestOf: 5,
+    totalTimeouts: 2, totalSubs: 6, bestOf: 5, matchFontMax: 18,
   },
   beach: {
     blinkPoint: true, blinkSub: false, blinkMs: 2000,
     timeoutSeconds: 60, ttoSeconds: 60, setIntervalSeconds: 60, warmupSeconds: 600,
     countdownOnTimeout: true, countdownOnSetInterval: true, hornOnCountdownEnd: true,
-    totalTimeouts: 1, totalSubs: 0, bestOf: 3,
+    totalTimeouts: 1, totalSubs: 0, bestOf: 3, matchFontMax: 18,
   },
   basketball: {
     blinkPoint: true, blinkSub: true, blinkMs: 2000,
     timeoutSeconds: 60, ttoSeconds: 0, setIntervalSeconds: 120, warmupSeconds: 600,
     countdownOnTimeout: true, countdownOnSetInterval: true, hornOnCountdownEnd: true,
-    totalTimeouts: 5, totalSubs: 5, bestOf: 3,
+    totalTimeouts: 5, totalSubs: 5, bestOf: 3, matchFontMax: 18,
   },
 }
 
@@ -73,7 +75,7 @@ export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
 
 const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames']
 const NUMS = {
-  idleFontMax: [10, 30], brightness: [0, 100], blinkMs: [200, 10000],
+  idleFontMax: [10, 30], matchFontMax: [10, 30], brightness: [0, 100], blinkMs: [200, 10000],
   timeoutSeconds: [5, 600], ttoSeconds: [0, 600], setIntervalSeconds: [10, 1800], warmupSeconds: [10, 3600],
   totalTimeouts: [1, 9], totalSubs: [0, 15],
 }

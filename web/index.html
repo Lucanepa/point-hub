@@ -123,6 +123,16 @@
   .ordbtn{font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--blue);background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:8px 10px;cursor:pointer}
   .iconbtn{width:48px;height:44px;font-size:18px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:var(--r);cursor:pointer}
   .iconbtn.active{color:var(--gold)}
+  /* Team-name size, in the centre column so it reads as belonging to BOTH sides — it is one
+     setting, not a per-team one. Lives on the Game tab because that is where a scorer notices
+     a name is too small, mid-match, on a tablet they are already holding. */
+  .fontbox{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 9px;
+    border:1.5px solid var(--line);background:var(--card);border-radius:var(--r)}
+  .fontbox .lbl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .fontbox .row{display:flex;align-items:center;gap:6px}
+  .fontbox .num{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);
+    color:var(--fg);min-width:26px;text-align:center;line-height:1}
+  .fontbox .num.bump{animation:numbump .5s ease}
 
   .gfooter{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
   .setstrip{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto}
@@ -434,6 +444,14 @@
         <button class="plrbtn" id="servePlrBtn" title="Serving player — tap to switch" aria-label="Switch the serving player"><span class="plrlbl">PLAYER</span><span class="plrnum" id="servePlrNum">–</span></button>
         <button class="ordbtn" id="serveOrderBtn" title="Set the beach serve order">Serve order</button>
       </div>
+      <div class="fontbox" id="fontBox" title="Team-name size on the LED panel — long names still shrink to fit">
+        <span class="lbl">Name</span>
+        <div class="row">
+          <button class="smbtn" id="fontMinus" type="button" aria-label="Smaller team names on the panel">−</button>
+          <span class="num" id="fontVal">–</span>
+          <button class="smbtn" id="fontPlus" type="button" aria-label="Bigger team names on the panel">+</button>
+        </div>
+      </div>
       <button id="awakeBtn" class="iconbtn" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
       <button id="fsBtn" class="iconbtn" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
     </div>
@@ -533,8 +551,12 @@
             <input type="number" data-set="totalTimeouts" min="1" max="9"></label>
           <label class="row"><span>Total subs / set</span>
             <input type="number" data-set="totalSubs" min="1" max="15"></label>
+          <label class="row"><span>Team name size</span>
+            <input type="number" data-set="matchFontMax" min="10" max="30"><em>px</em></label>
           <p class="hint">Best-of decides how many sets win the match. Timeouts go red at the
-            total; subs go amber one short and red at the total.</p>
+            total; subs go amber one short and red at the total. Team name size is the scoreboard
+            name ceiling — a long name still shrinks to clear the set counter. There is a −/+ for
+            it on the Game tab too, next to the serve arrows.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Crest screen</legend>
@@ -875,7 +897,12 @@
       if (!path.startsWith("/api/logs")) {
         reportUi(`request rejected: ${path} → ${res.status}`, { path, status: res.status, error: body && body.error }, "warn");
       }
-      throw new Error((body && body.error) || (path + " → " + res.status));
+      // Carry the status on the error too. The message is the server's own wording where it has
+      // one, which is right for showing a human — but a caller that needs to tell "gone" from
+      // "refused" apart cannot parse that back out of a sentence.
+      const err = new Error((body && body.error) || (path + " → " + res.status));
+      err.status = res.status;
+      throw err;
     }
     return body;
   }
@@ -2009,13 +2036,16 @@
       : "Nothing saved for this sport yet.";
   }
   function closeGamePicker() { $("#gamePicker").hidden = true; }
+  let lastGameChoiceStatus = 0;   // HTTP status of the last failed choice, for the caller to act on
   async function gameChoice(choice) {
     gpBusy(true); gpStatus("");
+    lastGameChoiceStatus = 0;
     try {
       const r = await postJSON("/api/game", { choice });
       if (r) renderStatus(r);
       return r;
     } catch (e) {
+      lastGameChoiceStatus = (e && e.status) || 0;
       gpStatus(/pin/i.test(e.message || "")
         ? "Scoring is locked — enter the scorer PIN, then choose again."
         : "Couldn't do that: " + (e.message || e), true);
@@ -2024,7 +2054,19 @@
   }
   const gpContinueBtn = $("#gpContinue");
   if (gpContinueBtn) gpContinueBtn.addEventListener("click", async () => {
-    if (!await gameChoice("continue")) return;
+    const r = await gameChoice("continue");
+    if (!r) {
+      // `savedGame` is a snapshot taken when the menu opened. If the slot was cleared in between
+      // — another tablet started a new game, or the board consumed it on boot — the server
+      // answers 404 and the operator gets "Couldn't do that: /api/game → 404", which tells them
+      // nothing. Re-read the menu instead: Continue disappears and the reason is on screen.
+      if (lastGameChoiceStatus === 404) {
+        savedGame = null;
+        await openGamePicker();
+        gpStatus("That saved game is gone — it was cleared from somewhere else. Start a new one.", true);
+      }
+      return;
+    }
     closeGamePicker(); goToTab("manual");
   });
   const gpNewBtn = $("#gpNew");
@@ -2173,6 +2215,66 @@
     });
   }
 
+  // --- team-name size, from the Game tab ------------------------------------
+  // The same `matchFontMax` the Settings tab edits, but applied on tap instead of on Save: this
+  // is the control you reach for BECAUSE the name on the wall is wrong, so making the operator
+  // leave the match, find a fieldset and press Save would defeat the point. The Settings input
+  // stays the source of truth for the bounds (min/max live on it, once).
+  const FONT_FALLBACK = { min: 10, max: 30, value: 18 };
+  const fontInput = () => $('[data-set="matchFontMax"]');
+  function fontBounds() {
+    const el = fontInput();
+    if (!el) return FONT_FALLBACK;
+    return {
+      min: Number(el.min) || FONT_FALLBACK.min,
+      max: Number(el.max) || FONT_FALLBACK.max,
+      value: Number(el.value) || FONT_FALLBACK.value,
+    };
+  }
+  function renderFontBox() {
+    const out = $("#fontVal");
+    if (!out) return;
+    const n = Number(SETTINGS.matchFontMax);
+    const { min, max } = fontBounds();
+    out.textContent = Number.isFinite(n) ? String(n) : "–";
+    // Same end-stop treatment the Settings steppers get — a dead button reads as broken.
+    const dec = $("#fontMinus"), inc = $("#fontPlus");
+    if (dec) dec.disabled = Number.isFinite(n) && n <= min;
+    if (inc) inc.disabled = Number.isFinite(n) && n >= max;
+  }
+  let fontBusy = false;
+  async function nudgeFont(dir) {
+    if (fontBusy) return;                       // a double-tap must not queue two saves
+    const { min, max } = fontBounds();
+    const cur = Number(SETTINGS.matchFontMax);
+    const from = Number.isFinite(cur) ? cur : FONT_FALLBACK.value;
+    const next = Math.min(max, Math.max(min, from + dir));
+    if (next === cur) return;
+    fontBusy = true;
+    // Optimistic: the panel repaint and the round-trip both take a moment, and the number under
+    // the thumb should move NOW. A failed save puts the old value straight back.
+    SETTINGS = { ...SETTINGS, matchFontMax: next };
+    renderFontBox();
+    const out = $("#fontVal");
+    if (out) { out.classList.remove("bump"); void out.offsetWidth; out.classList.add("bump"); }
+    try {
+      // Patch ONLY this key. Posting the whole form from here would write every other field as
+      // the Game tab currently has it, which for a page that never opened Settings is whatever
+      // the markup defaults say — that is how a "make the name bigger" tap silently resets the
+      // timeout length. The server merges a partial patch.
+      const saved = await postJSON("/api/settings", { matchFontMax: next });
+      SETTINGS = saved;
+      const el = fontInput();                   // keep the Settings tab honest
+      if (el) { el.value = String(saved.matchFontMax); syncStepper(el.closest(".stepper")); }
+    } catch (e) {
+      SETTINGS = { ...SETTINGS, matchFontMax: cur };
+      toast(String((e && e.message) || e));
+    } finally {
+      fontBusy = false;
+      renderFontBox();
+    }
+  }
+
   async function loadSettings() {
     try {
       const s = await api("/api/settings");
@@ -2184,6 +2286,7 @@
       // Values just changed under the steppers — re-evaluate which end stops are disabled.
       $$(".stepper").forEach(syncStepper);
       SETTINGS = s;
+      renderFontBox();
       const note = $("#perSportNote");
       if (note && s.sport) note.textContent =
         "Timing, allowances, blink and match format apply to " + sportLabel(s.sport) +
@@ -2212,6 +2315,7 @@
         if (v === undefined) continue;
         if (el.type === "checkbox") el.checked = !!v; else el.value = v;
       }
+      renderFontBox();   // a Settings save can move the same number the Game tab shows
       // One save persists EVERY field, so every section is now clean.
       $$(".setsavebtn").forEach((b) => { b.classList.remove("dirty", "ok"); b.textContent = "Saved"; });
       if (clickedBtn) { clickedBtn.classList.add("ok"); clickedBtn.textContent = "Saved ✓"; setTimeout(() => { clickedBtn.classList.remove("ok"); clickedBtn.textContent = "Saved"; }, 1600); }
@@ -2494,6 +2598,8 @@
   const startPolling = () => { if (pollOn) return; pollOn = true; pollTick(); };
   bootLock();
   buildSteppers();
+  $("#fontMinus")?.addEventListener("click", () => nudgeFont(-1));
+  $("#fontPlus")?.addEventListener("click", () => nudgeFont(1));
   loadSettings();
   // Present the sport picker first (landing), with the current sport pre-highlighted.
   loadSportList().then(openSportPicker);

@@ -249,10 +249,21 @@ export function toClubIdleSections(state, { fullNames = true, maxFontSize = 24, 
   ]
 }
 
+// In-match name column. `team1` sits at x=0 align=left and the set counter starts at x=91;
+// `team2` is the mirror (x=192 align=right, set2 ends at ~105). So each name gets ~86px before
+// it runs into the centre column. Beach (78) and basketball (62) have their own narrower boxes.
+const MATCH_NAME_WIDTH = 86
+
 // Returns the `value` array for a `SetSections` command. Each side is painted uniformly
 // in its team colour — name, score, set count and score-box border all match — so the
 // board never shows one team in three different reds.
-export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX } = {}) {
+//
+// `matchFontMax` is the CEILING for the two team names, not a fixed size: a short code keeps it,
+// a long one steps down until it fits MATCH_NAME_WIDTH. The default of 18 is exactly the value
+// baked into 02_volleyball_matchscore_02.xml, so leaving the setting alone paints what the
+// layout always painted — the only behaviour change is that an over-long name now shrinks
+// instead of running into the set counter.
+export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX, matchFontMax = 18 } = {}) {
   const v = toLeftRight(state)
   // Timeouts: red at the total, no amber (there are only a couple). Subs: amber one short,
   // red at the total.
@@ -260,7 +271,9 @@ export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MA
   const subColor = (n) => limitColor(n, totalSubs - 1, totalSubs)
   return [
     ...text('team1', v.leftName, v.leftColor),
+    attr('team1', 'fontsize', fitFontSize(v.leftName, MATCH_NAME_WIDTH, { max: matchFontMax })),
     ...text('team2', v.rightName, v.rightColor),
+    attr('team2', 'fontsize', fitFontSize(v.rightName, MATCH_NAME_WIDTH, { max: matchFontMax })),
     ...text('score1', v.leftPoints, v.leftColor),
     ...text('score2', v.rightPoints, v.rightColor),
     ...box('bg_score1', v.leftColor),

@@ -48,7 +48,7 @@ const foulColor = (n) => (n >= BONUS_AT ? MAXED_COUNTER : n >= BONUS_AT - 1 ? WA
 // Returns the `value` array for a SetSections command on the basketball_matchscore layout. Each
 // side is painted uniformly in its team colour (name, score, box border), like the indoor mapper,
 // so the board never shows one team in three different reds.
-export function toBasketballSections(state, { off = SERVE_OFF, totalTimeouts = BASKETBALL_TIMEOUTS_TOTAL } = {}) {
+export function toBasketballSections(state, { off = SERVE_OFF, totalTimeouts = BASKETBALL_TIMEOUTS_TOTAL, matchFontMax = 18 } = {}) {
   const v = toLeftRight(state)
   const toColor = (n) => (n >= totalTimeouts ? MAXED_COUNTER : NEUTRAL_COUNTER)
   // subs_a/b carry the per-period team fouls (see the basketball source).
@@ -57,9 +57,9 @@ export function toBasketballSections(state, { off = SERVE_OFF, totalTimeouts = B
   const periodText = state && state.over ? 'FINAL' : periodLabel(state ? state.period : 1)
   return [
     ...text('team1', v.leftName, v.leftColor),
-    attr('team1', 'fontsize', fitFontSize(v.leftName, TEAM_NAME_WIDTH, { max: 18 })),
+    attr('team1', 'fontsize', fitFontSize(v.leftName, TEAM_NAME_WIDTH, { max: matchFontMax })),
     ...text('team2', v.rightName, v.rightColor),
-    attr('team2', 'fontsize', fitFontSize(v.rightName, TEAM_NAME_WIDTH, { max: 18 })),
+    attr('team2', 'fontsize', fitFontSize(v.rightName, TEAM_NAME_WIDTH, { max: matchFontMax })),
     ...text('score1', v.leftPoints, v.leftColor),
     ...text('score2', v.rightPoints, v.rightColor),
     ...box('bg_score1', v.leftColor),

@@ -67,6 +67,12 @@ export class MockLedbox extends EventEmitter {
       const a = s.value || {}
       if (a.attrib === 'text') cur.text = a.value
       if (a.attrib === 'color') cur.color = a.value
+      // `fontsize` is a real, writable attribute on the device (PROTOCOL.md — verified on the
+      // glass, though never reported back by GetSections). The mappers have always sent it for
+      // auto-fitted names; recording it here is what lets a test see a name-size change actually
+      // reach the panel instead of only checking the number the mapper computed.
+      if (a.attrib === 'fontsize') cur.fontsize = a.value
+      if (a.attrib === 'bordercolor') cur.bordercolor = a.value
       this.screen[s.name] = cur
     }
   }
@@ -123,5 +129,6 @@ export class MockLedbox extends EventEmitter {
 
   text(name) { return this.screen[name]?.text }
   color(name) { return this.screen[name]?.color }
+  fontsize(name) { return this.screen[name]?.fontsize }
   close() { return new Promise((r) => this.server.close(r)) }
 }
