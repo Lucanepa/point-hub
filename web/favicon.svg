@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Point Hub">
+  <!-- Point Hub mark: a bright POINT at the centre of a segmented HUB ring.
+       Designed at 16px first, not scaled down to it. An earlier version drew the hub as three
+       separate satellite dots on spokes; that reads well at 64px and turns into an indistinct
+       gold blob in a browser tab, because at 16px each satellite is barely one pixel across and
+       merges with the centre. A ring is a continuous stroke, so it survives the downscale with
+       its dark gap intact — the gap is what makes the mark legible, not the detail.
+       Gold is #FFC832, the same 255,200,50 as the crest screen and the boot splash. -->
+  <rect width="32" height="32" rx="7.5" fill="#111827"/>
+  <circle cx="16" cy="16" r="10" fill="none" stroke="#FFC832" stroke-width="2.6" opacity=".62"
+          stroke-dasharray="14 6.6" stroke-dashoffset="3" stroke-linecap="round"/>
+  <circle cx="16" cy="16" r="5.2" fill="#FFC832"/>
+</svg>

@@ -1,8 +1,9 @@
 <!-- LedBox appliance control UI — self-contained, offline, landscape-first. Talks to the control API on its own origin over relative URLs. -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>KSCW Scoreboard — Controller</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='22' y='72' width='56' height='22' rx='11' fill='%231e3a8a'/%3E%3Crect x='44' y='46' width='12' height='32' rx='6' fill='%232563eb'/%3E%3Ccircle cx='50' cy='34' r='24' fill='%23f8fafc' stroke='%230f172a' stroke-width='4'/%3E%3Cg fill='none' stroke='%230f172a' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M50 11 Q41 34 50 57'/%3E%3Cpath d='M31 18 Q50 32 43 55'/%3E%3Cpath d='M69 18 Q50 32 57 55'/%3E%3C/g%3E%3C/svg%3E">
+<title>Point Hub — KSCW Scoreboard</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
   :root{
     --bg:#ffffff; --card:#ffffff; --fill:#fafafc; --fg:#0A0B0D; --muted:#5a606b;
@@ -374,7 +375,7 @@
 
 <div id="app">
   <header class="topbar">
-    <span class="brand"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> LedBox</span>
+    <span class="brand"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> Point Hub</span>
     <span id="dot" title="LedBox connection"><svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg></span>
     <div id="mode">Mode <b id="modeName">…</b><span id="setNo"></span><span id="matchTag"></span></div>
     <button id="sportBadge" class="sportbadge" title="Change sport" aria-label="Change sport"><span class="sbico" aria-hidden="true"></span><span class="sbtxt"></span></button>
