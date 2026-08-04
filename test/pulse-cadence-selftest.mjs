@@ -17,7 +17,7 @@ const INTERVAL = 20   // requested blink half-period
 const ACK = 60        // board takes 3x that to answer — the queue would build under setInterval
 const TEAM = '37,99,235'
 
-function client() {
+function client(ack = ACK) {
   const c = new LedboxClient({ hosts: ['127.0.0.1'], pulseIntervalMs: INTERVAL })
   c.ready = true
   c.calls = []
@@ -29,12 +29,17 @@ function client() {
     c.inFlight++
     c.maxInFlight = Math.max(c.maxInFlight, c.inFlight)
     c.calls.push(value[0].value.value)
-    await sleep(ACK)
+    await sleep(ack)
     c.inFlight--
     return 'ok'
   }
   return c
 }
+
+// What pulse() promises: a fixed number of toggles, then one settling paint. Derived the same way
+// the implementation derives it, so the intent is stated once — `ms` buys blinks at the nominal
+// interval, and a slow board stretches them rather than losing one.
+const expectedPaints = (ms) => Math.max(2, Math.min(8, Math.round(ms / (2 * INTERVAL)))) + 1
 
 console.log(`blink with acks (${ACK}ms) slower than the interval (${INTERVAL}ms):`)
 const c = client()
@@ -42,23 +47,36 @@ c.pulse('score2', 300, TEAM)
 await sleep(900)
 
 ok(c.maxInFlight === 1, `never more than one paint in flight (saw ${c.maxInFlight})`)
-// 300ms of blinking at an effective ~60ms cadence is ~5 toggles. A backlogged setInterval would
-// have queued ~15. Allow slack for timer jitter but reject a pile-up.
-ok(c.calls.length <= 8, `no backlog — ${c.calls.length} paints, not one per interval tick`)
-ok(c.calls.length >= 3, `still actually blinks (${c.calls.length} paints)`)
+// Exact, not a ceiling. A backlogged setInterval would have queued ~15 here; the point of the
+// self-clocked loop is that the number is now a property of the code rather than of how busy the
+// queue happened to be, so the test asserts the number instead of an upper bound on it.
+ok(c.calls.length === expectedPaints(300),
+  `deterministic paint count — ${c.calls.length} paints (expected ${expectedPaints(300)})`)
 ok(c.calls[0] === '0,0,0', 'starts dark, so the blink is visible immediately')
 ok(c.calls[c.calls.length - 1] === TEAM, 'settles on the team colour, never dark')
 ok(!c._pulses.has('score2'), 'pulse deregisters itself when finished')
 
-// Left and right must behave identically — the reported fault was one side blinking once and
-// slowly while the other managed two.
-console.log('\nboth sides, same conditions:')
-const l = client(); const r = client()
-l.pulse('score1', 300, TEAM)
-r.pulse('score2', 300, TEAM)
-await sleep(900)
-ok(Math.abs(l.calls.length - r.calls.length) <= 1,
-  `left and right get the same cadence (${l.calls.length} vs ${r.calls.length} paints)`)
+// THE REGRESSION. The reported fault is "left 2x, right 3x" — one side blinking a different
+// number of times from the other, with identical settings. The old test compared two clients
+// under IDENTICAL ack latency, which is why it passed while the board misbehaved: equal latency
+// is the one condition under which a time-bounded loop cannot disagree with itself. The real
+// board does not offer that. A point on one side lands behind its own 20-section score repaint
+// and acks slowly; the other finds the queue idle. So the sides are compared here under
+// DIFFERENT latencies, which is what actually happens in the hall.
+console.log('\nboth sides, DIFFERENT ack latency (the reported fault):')
+const fast = client(15)    // queue was idle
+const slow = client(120)   // queued behind a score repaint — 8x slower to ack
+fast.pulse('score1', 300, TEAM)
+slow.pulse('score2', 300, TEAM)
+await sleep(2200)          // long enough for the slow one to finish all its toggles
+ok(fast.calls.length === slow.calls.length,
+  `same number of blinks whatever the latency (${fast.calls.length} vs ${slow.calls.length} paints)`)
+ok(fast.calls.length === expectedPaints(300),
+  `and it is the expected count, not merely equal (${fast.calls.length})`)
+ok(slow.calls[slow.calls.length - 1] === TEAM, 'the slow side still settles on the team colour')
+// The cost of a fixed count is that a slow board takes longer, which is the right trade: the eye
+// counts blinks, it does not measure milliseconds.
+ok(!fast._pulses.has('score1') && !slow._pulses.has('score2'), 'both deregister when finished')
 
 // Re-scoring restarts the blink rather than stacking a second timer on the same section.
 console.log('\nre-scoring the same section:')

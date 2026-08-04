@@ -707,10 +707,18 @@ export class LedboxClient extends EventEmitter {
         // layout would just earn a "section not found" from the board.
         const onBreak = this.currentLayout === this.breakLayout || this.currentLayout === this.countdownLayout
         if (onBreak) {
-          await this.send('SetSections', [
-            { name: this.labelSection, value: { attrib: 'text', value: '' } },
-            { name: this.timerSection, value: { attrib: 'text', value: '' } },
-          ]).catch(() => {}) // cosmetic: never block the return to the match screen
+          // Blank the WHOLE break screen, not just label + timer. The break layout has TWO clock
+          // sections — `timer` when a team name is shown above it (a timeout) and `timerbig` when
+          // there is none (warm-up, set interval) — because the clock sits lower and smaller with
+          // a name above it and a single section cannot be in both places. Clearing only
+          // `this.timerSection` ('timer') left `timerbig` holding the last warm-up clock, so the
+          // next timeout switched to the break layout and showed "10:00" from the warm-up until
+          // its own SetSections landed. That is the "the warm-up countdown flashed, then went to
+          // TO" report. Going through the mapper means the blank covers every section the break
+          // screen can paint, including ones added later.
+          await this.send('SetSections',
+            this.mapper.toBreakSections(null, { timerText: null, label: '', content: 'none' }),
+          ).catch(() => {}) // cosmetic: never block the return to the match screen
         }
         await this.setLayoutIfNeeded(this.layout)
         if (this._lastState) await this.pushState(this._lastState) // repaint the match
@@ -779,7 +787,18 @@ export class LedboxClient extends EventEmitter {
     // which is why the same blinkMs produced two blinks on one side and a single slow one on the
     // other, depending on what was already queued. Chaining each toggle behind its own ack makes
     // the cadence max(pulseIntervalMs, ackLatency): even, backlog-free and identical per side.
-    const deadline = Date.now() + ms
+    // COUNT-bounded, not time-bounded. Self-clocking fixed the queue backlog, but the number of
+    // toggles was still whatever fitted inside `ms` — and since each toggle costs
+    // max(pulseIntervalMs, ackLatency), the count fell out of however busy the send queue happened
+    // to be at that instant. A point on one side landed behind a 20-section score repaint and got
+    // two blinks; the other side found the queue idle and got three. Same code, same settings,
+    // visibly different board — which is exactly what "left 2x, right 3x" is.
+    //
+    // What the eye actually judges is the number of blinks, not the milliseconds, so that is what
+    // is now fixed. `ms` still sets it (via the nominal interval), but a slow ack stretches the
+    // blink instead of eating one. Both sides always toggle the same number of times.
+    const toggles = Math.max(2, Math.min(8, Math.round(ms / (2 * this.pulseIntervalMs))))
+    let done = 0
     let dark = false
     let timer = null
     let stopped = false
@@ -790,15 +809,20 @@ export class LedboxClient extends EventEmitter {
     const step = async () => {
       if (stopped) return
       dark = !dark
+      const t0 = Date.now()
       await paint(dark ? OFF : team)
       if (stopped) return
-      if (Date.now() >= deadline) {
+      done++
+      if (done >= toggles) {
         stopped = true
         this._pulses.delete(section)
         await paint(team) // settle on the team colour
         return
       }
-      timer = setTimeout(step, this.pulseIntervalMs)
+      // Subtract what the ack already cost, so a responsive board still blinks at the configured
+      // rate and a slow one simply runs back-to-back rather than adding delay on top of latency.
+      const spent = Date.now() - t0
+      timer = setTimeout(step, Math.max(0, this.pulseIntervalMs - spent))
       if (timer.unref) timer.unref()
     }
     this._pulses.set(section, entry)

@@ -134,7 +134,10 @@ export function toBreakSections(state, { timerText, label, content = 'full', tea
   const showTeam = content === 'full' && !!team
   const boxes = content !== 'none'
 
-  if (label) out.push(attr('lbl', 'text', String(label).toUpperCase()))
+  // Written even when empty. The board keeps every layout's section values, so skipping the
+  // write on a blank label does not leave the label blank — it leaves whatever the PREVIOUS
+  // break screen put there, and the next countdown inherits it.
+  out.push(attr('lbl', 'text', label ? String(label).toUpperCase() : ''))
   out.push(attr('team', 'text', showTeam ? String(team).toUpperCase() : ''))
 
   // Two clock sections rather than one: with a team name above it the clock sits lower and
