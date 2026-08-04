@@ -60,6 +60,10 @@ export async function startBridge(config = loadConfig()) {
   // The relay's own socket lifecycle (connect/close/retry/bad message) is logged inside
   // RelaySubscriber, so only the match-level facts are added here.
   relay.on('match-gone', () => log.warn('the followed match ended or was deleted', { matchId: config.matchId }))
+  // An 'error' with no listener is thrown by EventEmitter, so without this line every relay hiccup
+  // — including the normal "the scoring laptop isn't up yet" — is an uncaughtException, once per
+  // reconnect cycle. The appliance gets this for free via SourceManager; this entrypoint did not.
+  relay.on('error', () => { /* already logged inside RelaySubscriber, with the url and match id */ })
   relay.on('state', (liveState) => {
     logStore.debug('state', `${liveState.points_a}-${liveState.points_b}`, {
       score: `${liveState.points_a}-${liveState.points_b}`,

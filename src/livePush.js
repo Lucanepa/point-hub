@@ -75,7 +75,11 @@ function isBlank(s) {
  */
 export function toRow(state, event, sport = DEFAULTS.sport) {
   const isBasketball = sport === 'basketball'
-  const setResults = Array.isArray(state.set_results) ? state.set_results : []
+  // Filtered, not just type-checked: a relay-supplied liveState can carry a null in here, and the
+  // map() at the bottom used to throw on it — one level up that throw wedged publishing for the
+  // rest of the process (see flush()).
+  const setResults = (Array.isArray(state.set_results) ? state.set_results : [])
+    .filter((r) => r && typeof r === 'object')
   const over = isBasketball
     ? !!state.over
     : num(state.sets_won_a) >= SETS_TO_WIN[sport] || num(state.sets_won_b) >= SETS_TO_WIN[sport]
@@ -115,6 +119,28 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
   }
 }
 
+// Nothing has been scored yet: no points, no sets, no recorded set results. Names may already be
+// typed in (they usually are before the first whistle), so this is a superset of isBlank() — and
+// unlike isBlank() it is the state EVERY match passes through on its way up, whatever the sport.
+// It is the one signal that separates "a new match began" from "the scorer corrected the last one",
+// which no property of the finished row itself can do (see the counter below).
+function isFresh(s) {
+  // Points and sets alone. `set_results` is deliberately NOT consulted: toRow() filters junk out of
+  // it and this did not, so the two disagreed — a state published as a completely empty 0-0 board
+  // was classified as "not fresh" here because the array held a null or an upstream's {a:0,b:0}
+  // placeholder for the in-progress set, and the next match then never started a new instance and
+  // was dropped from history. A board at 0-0 with no sets IS the start of a match, whatever an
+  // upstream chose to pad that array with.
+  return !num(s.points_a) && !num(s.points_b) && !num(s.sets_won_a) && !num(s.sets_won_b)
+}
+
+// Who is playing. Not a match identity on its own — a club plays the same opponent twice in an
+// evening — but a CHANGE in it is proof the match changed, which is what the counter needs for the
+// flows that never pass through 0-0.
+function whoIsPlaying(s) {
+  return `${String(s.team_a_name || s.team_a_short || '')}|${String(s.team_b_name || s.team_b_short || '')}`
+}
+
 export function createLivePush(opts = {}) {
   const cfg = { ...DEFAULTS, ...opts }
   const base = String(cfg.url || '').replace(/\/$/, '')
@@ -133,7 +159,17 @@ export function createLivePush(opts = {}) {
   let timer = null
   let attached = null // { source, handler } when attach() is active
   let inFlight = false // a flush is running — never overlap writes to one row
-  let lastStatus = null // previous published status, to catch the → 'final' edge
+  // Which match is on the board, as a plain counter bumped on every fresh→scored edge, and which
+  // one has already been archived. Deliberately NOT a key hashed out of the row: nothing in a row
+  // says WHICH match it is, so two different games hash the same (measured: the club's second
+  // basketball game of the evening against the same opponent keyed identically to the first, down
+  // to the quarter line scores, and was never archived), while the ONE match the row does identify
+  // changes its own hash the moment the scorer corrects a set score after the final. Content
+  // identity therefore loses matches AND duplicates them; a counter does neither.
+  let matchInstance = 0
+  let atMatchStart = true // the board is at 0 and the next point starts a NEW match
+  let archivedMatch = null // matchInstance already appended to history
+  let playing = null // who was on the board last time, so a change of teams can start an instance
 
   // Kept for the incidental call sites; the interesting ones log structured data directly.
   function log(...a) { plog.debug(a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')) }
@@ -141,13 +177,36 @@ export function createLivePush(opts = {}) {
   // Coalesce a burst of rapid changes (typed corrections, next-set, a swap) into
   // ONE write carrying the LATEST state — the app only ever wants "now".
   function push(state, event = null) {
+    // Stamped here, ahead of every guard and every drop, because push() is the only place that
+    // sees EVERY state: flush() sees the last one of a burst, so a reset followed inside 150ms by
+    // the next match's team names never shows it a board at 0, and an operator who flips "Connect
+    // to live scoring" off between two games hides the whole first half of the second one.
+    if (state) {
+      // Passing through 0-0 is the signal every match started ON this board gives. It is not the
+      // only way a match can arrive, though: POST /api/link hands the SourceManager a brand-new
+      // LanSource with no neutral state in between, so linking a LAN match the tablet crew already
+      // started puts a mid-match board up with no zero anywhere — and the previous match's
+      // instance would still be current, so the linked one was never archived. A change of teams
+      // cannot happen inside a match, so it is safe proof that this is a different one.
+      //
+      // Known gap, deliberately not guessed at: resuming a saved match of the SAME fixture after
+      // another match of that fixture already finished this session reuses the instance and is not
+      // archived. Distinguishing it from a post-final score correction needs a real match id in
+      // liveState, which no source sets today; inventing a heuristic here would trade a rare lost
+      // row for a common duplicate one, and history is append-only so a duplicate cannot be undone.
+      const who = whoIsPlaying(state)
+      if (isFresh(state)) atMatchStart = true
+      else if (atMatchStart) { matchInstance++; atMatchStart = false }
+      else if (playing !== null && who !== playing) matchInstance++
+      playing = who
+    }
     if (!enabled || !isLive() || !state) {
       // Silently doing nothing is the correct behaviour AND the most confusing one ("why is
       // /live not updating?"), so say which of the two switches is off.
       plog.debug('push skipped', { configured: enabled, publishing: enabled && isLive(), hasState: !!state })
       return
     }
-    pending = { state, event }
+    pending = { state, event, match: matchInstance }
     if (timer || inFlight) return
     timer = arm()
   }
@@ -165,11 +224,14 @@ export function createLivePush(opts = {}) {
     if (!payload) return
 
     inFlight = true
-    const row = toRow(payload.state, payload.event, sport)
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.token}` }
     const ctrl = new AbortController()
     const t = setTimeout(() => ctrl.abort(), cfg.timeoutMs)
     try {
+      // toRow() belongs INSIDE the try: it used to run just above it, so a throw there skipped the
+      // finally that resets inFlight, and every later push() then returned at the overlap guard —
+      // /live froze on the last published score for the rest of the process, with nothing said.
+      const row = toRow(payload.state, payload.event, sport)
       // The row's primary key IS the channel, so PATCH the known item. If it was
       // never seeded, Directus 404s → create it (POST) so the board self-heals.
       // update+create is exactly what the publisher policy grants.
@@ -193,14 +255,20 @@ export function createLivePush(opts = {}) {
       }
 
       // Archive the result the FIRST time a match reads as finished, so /live can
-      // show recent matches once this row is overwritten by the next game. Fires on
-      // the transition only — 'final' is published on every subsequent point-fiddle
-      // too, and history is append-only (the board has create and nothing else, so
-      // it cannot clean up after itself).
-      // ⚠ The transition is tracked in memory: restarting the appliance while a
-      // finished match is still on the board can archive it a second time.
-      if (row.status === 'final' && lastStatus !== 'final') await archive(row)
-      lastStatus = row.status
+      // show recent matches once this row is overwritten by the next game. History is
+      // append-only (the board has create and nothing else, so it cannot clean up
+      // after itself), so this must fire exactly once per match — no more, and no less.
+      // Keyed on the match INSTANCE, not on the live→final edge and not on the row's
+      // contents. The edge fired again whenever a set correction after the final
+      // republished 'live' and then 'final' (a remove-set, or a set −1 and back), and
+      // appended a second row for the same match; the contents change on that same
+      // correction, and cannot tell two back-to-back games apart at all.
+      // ⚠ The counter is in memory: restarting the appliance while a finished match is
+      // still on the board can archive it a second time.
+      if (row.status === 'final' && archivedMatch !== payload.match) {
+        await archive(row)
+        archivedMatch = payload.match
+      }
     } catch (err) {
       // Swallowed — scoring must not care — but no longer invisible.
       plog.warn(`publish failed: ${err && err.message}`, { error: err && err.message, channel: cfg.channel })

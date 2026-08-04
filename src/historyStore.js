@@ -35,7 +35,12 @@ export class HistoryStore {
     if (!this.file) return
     try {
       fs.mkdirSync(path.dirname(this.file), { recursive: true })
-      fs.writeFileSync(this.file, JSON.stringify({ matches: this.matches }))
+      // Write-then-rename, as settings.js does: writeFileSync truncates in place, so a power cut
+      // mid-write leaves a zero-length file and _load() silently starts with no matches at all —
+      // losing every archived match, which is the record that settles a score dispute afterwards.
+      const tmp = `${this.file}.tmp`
+      fs.writeFileSync(tmp, JSON.stringify({ matches: this.matches }))
+      fs.renameSync(tmp, this.file)
     } catch (err) {
       // Best-effort persistence, but a full card losing the match log should be findable.
       hlog.warn(`could not save: ${err.message}`, { file: this.file, error: err.message })

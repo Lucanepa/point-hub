@@ -17,6 +17,9 @@ import { EventEmitter } from 'node:events'
 import { log } from './logStore.js'
 
 const PING_MS = 25000
+// Silence budget before we assume the socket is half-open. The relay answers every ping with a
+// pong, so two ping cycles with nothing arriving at all means the link is gone.
+const SILENT_MS = PING_MS * 2.5
 
 // The relay is the one dependency this appliance cannot see or fix from the venue floor, so
 // its whole lifecycle is on the record: which URL, which match, every open/close/retry, and
@@ -32,6 +35,8 @@ export class RelaySubscriber extends EventEmitter {
     this.ws = null
     this._closing = false
     this._pingTimer = null
+    this._retryTimer = null
+    this._lastRx = 0 // when the socket last carried ANY frame — see _hangUp
   }
 
   start() {
@@ -40,19 +45,36 @@ export class RelaySubscriber extends EventEmitter {
   }
 
   _open() {
+    if (this._closing) return // a retry that was already in flight when stop() ran
     rlog.info('connecting', { url: this.url, matchId: this.matchId })
     const ws = new WebSocket(this.url)
     this.ws = ws
 
+    // Every listener below checks `this.ws !== ws` first: a socket we abandoned in _hangUp is
+    // still physically open (see there) and can still deliver a stale frame or a very late close,
+    // and neither must touch the connection that replaced it.
     ws.addEventListener('open', () => {
+      if (this.ws !== ws) return
       rlog.info('connected', { url: this.url, matchId: this.matchId })
+      this._lastRx = Date.now()
       this.emit('open')
       if (this.matchId) this._send({ type: 'subscribe-match', matchId: this.matchId })
       clearInterval(this._pingTimer)
-      this._pingTimer = setInterval(() => this._send({ type: 'ping' }), PING_MS)
+      this._pingTimer = setInterval(() => {
+        if (Date.now() - this._lastRx > SILENT_MS) {
+          this._hangUp(ws, `nothing from the relay in ${Math.round((Date.now() - this._lastRx) / 1000)}s`)
+          return
+        }
+        this._send({ type: 'ping' })
+      }, PING_MS)
     })
-    ws.addEventListener('message', (ev) => this._onMessage(ev.data))
+    ws.addEventListener('message', (ev) => {
+      if (this.ws !== ws) return
+      this._lastRx = Date.now()
+      this._onMessage(ev.data)
+    })
     ws.addEventListener('error', (ev) => {
+      if (this.ws !== ws) return
       // Node's WebSocket hands us an ErrorEvent whose `error` is a TypeError with an EMPTY
       // message and no cause — "socket error: " told nobody anything. Name the target instead,
       // which is the fact an operator can actually act on ("is the scoring laptop up?").
@@ -62,14 +84,42 @@ export class RelaySubscriber extends EventEmitter {
       this.emit('error', err)
     })
     ws.addEventListener('close', () => {
+      if (this.ws !== ws) return
+      this.ws = null
       clearInterval(this._pingTimer)
-      const retry = !this._closing && this.reconnectMs
+      const retry = !this._closing && this.reconnectMs > 0
       rlog[retry ? 'warn' : 'info'](retry ? `disconnected — retrying in ${this.reconnectMs}ms` : 'disconnected', {
-        url: this.url, matchId: this.matchId, retrying: !!retry,
+        url: this.url, matchId: this.matchId, retrying: retry,
       })
       this.emit('close')
-      if (retry) setTimeout(() => this._open(), this.reconnectMs)
+      this._scheduleRetry()
     })
+  }
+
+  // Abandon a socket that has gone quiet and reconnect. The board's uplink to the scoring laptop
+  // is wifi, and when that dies silently (AP roam, laptop asleep, conntrack entry expired) no FIN
+  // and no RST ever arrive: readyState stays 1, 'close' never fires, the retry never arms, and the
+  // panel sits on a stale score for most of a set while the UI still reports a healthy 'lan' link.
+  //
+  // Note we do NOT rely on close() to get us out of it. close() only STARTS the closing handshake;
+  // on a half-open socket the peer never answers, so readyState sticks at CLOSING and 'close' never
+  // fires either (measured: still CLOSING 5s later; the OS gives up ~10-15 min later). So we drop
+  // the socket here, drive the reconnect ourselves, and let close() + the kernel clean up whenever
+  // they get round to it.
+  _hangUp(ws, reason) {
+    if (this.ws !== ws) return
+    this.ws = null
+    clearInterval(this._pingTimer)
+    rlog.warn(`${reason} — assuming a half-open socket and reconnecting`, { url: this.url, matchId: this.matchId })
+    try { ws.close() } catch { /* ignore */ }
+    this.emit('close')
+    this._scheduleRetry()
+  }
+
+  _scheduleRetry() {
+    if (this._closing || !(this.reconnectMs > 0)) return
+    clearTimeout(this._retryTimer)
+    this._retryTimer = setTimeout(() => { this._retryTimer = null; this._open() }, this.reconnectMs)
   }
 
   _send(obj) {
@@ -130,6 +180,11 @@ export class RelaySubscriber extends EventEmitter {
     rlog.info('unsubscribing', { url: this.url, matchId: this.matchId })
     this._closing = true
     clearInterval(this._pingTimer)
+    // Without this, a stop() landing inside the reconnect window let the subscriber come back from
+    // the dead: 3s later _open() reconnected, re-subscribed to the abandoned match and installed a
+    // 25s interval nothing could ever clear, once per source switch during a relay outage.
+    clearTimeout(this._retryTimer)
+    this._retryTimer = null
     try { this.ws?.close() } catch { /* ignore */ }
   }
 }

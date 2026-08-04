@@ -40,7 +40,13 @@ export class ResumeStore {
     if (!this.file) return
     try {
       fs.mkdirSync(path.dirname(this.file), { recursive: true })
-      fs.writeFileSync(this.file, JSON.stringify({ games: this.games }))
+      // Write-then-rename, as settings.js does. writeFileSync truncates in place, so a hall power
+      // cut inside that window leaves a zero-length resume.json — _load() swallows the parse error,
+      // starts empty, and "Continue" is never offered. That is exactly the interruption this slot
+      // exists to survive, and this file is rewritten on every single scoring action.
+      const tmp = `${this.file}.tmp`
+      fs.writeFileSync(tmp, JSON.stringify({ games: this.games }))
+      fs.renameSync(tmp, this.file)
     } catch { /* best-effort persistence */ }
   }
 

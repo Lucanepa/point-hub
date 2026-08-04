@@ -4,6 +4,15 @@
 
 export function loadConfig(env = process.env) {
   const bool = (v, d = false) => (v == null || v === '' ? d : /^(1|true|yes|on)$/i.test(String(v)))
+  // `Number(env.X || default)` is a trap for every numeric var here: '0' is truthy so it skips the
+  // default and yields 0, and a typo ('3s') yields NaN. Both are falsy, and the reconnect guards
+  // used to read them as plain booleans — so RECONNECT_MS=0 turned reconnection OFF for the whole
+  // evening instead of making it fast. Clamp into a sane range and fall back on anything unusable.
+  const int = (v, d, lo, hi) => {
+    if (v == null || String(v).trim() === '') return d // unset stays unset, not clamped to the floor
+    const n = Number(v)
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : d
+  }
   return {
     // OpenVolley LAN relay (the eScoresheet server) WebSocket endpoint to subscribe to.
     relayUrl: env.RELAY_URL || 'ws://127.0.0.1:8080',
@@ -16,12 +25,13 @@ export function loadConfig(env = process.env) {
     // turn on every connect. LEDBOX_HOST still works for a single address.
     ledboxHosts: (env.LEDBOX_HOST || '172.24.1.1,192.168.5.1')
       .split(',').map((h) => h.trim()).filter(Boolean),
-    ledboxPort: Number(env.LEDBOX_PORT || 8889),
+    ledboxPort: int(env.LEDBOX_PORT, 8889, 1, 65535),
     ledboxLayout: env.LEDBOX_LAYOUT || 'volleyball_matchscore_02',
     ledboxAlias: env.LEDBOX_ALIAS || 'openvolley',
-    ledboxApiVersion: Number(env.LEDBOX_API_VERSION || 2),
-    // Reconnect backoff (ms) for both the relay and the LedBox sockets.
-    reconnectMs: Number(env.RECONNECT_MS || 3000),
+    ledboxApiVersion: int(env.LEDBOX_API_VERSION, 2, 1, 9),
+    // Reconnect backoff (ms) for both the relay and the LedBox sockets. 250 ms floor: whatever an
+    // operator meant by 0, they did not mean "never reconnect to the panel again".
+    reconnectMs: int(env.RECONNECT_MS, 3000, 250, 60000),
     // Run an in-process mock LedBox instead of talking to real hardware (for testing).
     mock: bool(env.MOCK),
     // Verbose per-update logging.
@@ -33,7 +43,7 @@ export function loadConfig(env = process.env) {
       ? String(env.LOG_LEVEL).toLowerCase()
       : (bool(env.DEBUG) ? 'debug' : 'info'),
     // Appliance web control server (manual + LAN link UI) listen port.
-    controlPort: Number(env.CONTROL_PORT || 8890),
+    controlPort: int(env.CONTROL_PORT, 8890, 1, 65535),
     // OpenVolley relay HTTP base (for /api/match/list). Derived from relayUrl if unset:
     // ws->http, wss->https, and the relay's HTTP port is 5173 (Vite dev server / API host).
     relayHttpUrl: env.RELAY_HTTP_URL || httpFromWs(env.RELAY_URL || 'ws://127.0.0.1:8080'),

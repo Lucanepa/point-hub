@@ -40,7 +40,20 @@ export class SourceManager extends EventEmitter {
     this._onError = (e) => { this.emit('error', e) }
     source.on('state', this._onState)
     source.on('error', this._onError)
-    source.start()
+    // start() runs AFTER active/_meta have been overwritten, so a source that throws on the way up
+    // — LanSource reaches `new WebSocket(url)`, which throws synchronously for a RELAY_URL with no
+    // ws:// scheme — would otherwise leave the manager reporting mode 'lan' with a dead source and
+    // nothing driving the panel. Better to fall back to idle and say so.
+    try {
+      source.start()
+    } catch (err) {
+      slog.error(`source failed to start: ${err.message}`, { mode: this._meta.mode, matchId: this._meta.matchId, error: err.message })
+      this.active = null
+      this._meta = { mode: 'idle', matchId: null }
+      source.removeListener('state', this._onState)
+      source.removeListener('error', this._onError)
+      throw err // the caller (POST /api/link) still owes the operator a failure, not a silent no-op
+    }
 
     // Some sources (manual) expose a current state synchronously — surface it now.
     if (typeof source.getState === 'function') {
