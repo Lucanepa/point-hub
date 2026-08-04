@@ -14,6 +14,13 @@ data/
 # file. Derived, not source: rebuild with firmware/idle-crest-qr/gen_qr.py --wifi-pass ...
 firmware/**/wifi_qr.png
 
+# SECRET, and the reason the rule above is not enough. The filled-in hall guide carries the
+# passphrase as text AND as an inline `data:image/png;base64,` wifi QR — which is exactly how it
+# leaked once already, sailing past the rule above because that one matches a *path* and the
+# secret had taken a different one. Only hall-guide.template.html is source; regenerate the
+# printable copy with docs/make-hall-guide.py.
+docs/hall-guide.html
+
 # Tech4Sport's own firmware: decompiled sources, their plugins, their shipped .so binaries,
 # and private correspondence. Not ours to republish.
 firmware/src/
