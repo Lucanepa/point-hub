@@ -12,6 +12,10 @@ import { log } from './logStore.js'
 
 const CONTROL_PORT = 8889
 const HOTSPOT_IP = '172.24.1.1'
+// How long a reply we already gave up on stays "owed" (see `_orphaned`). Long enough to cover a
+// panel that answers seconds late, short enough that a reply the board simply never sent cannot
+// keep eating good ones for the rest of the match.
+const ORPHAN_TTL_MS = 15000
 
 // Board traffic is logged here rather than in the appliance because most of it has no event
 // to listen to: the silent early-returns in pushState, the layout cache, the error-6 self-heal.
@@ -129,9 +133,19 @@ export class LedboxClient extends EventEmitter {
     this._hostIdx = 0
     this.host = this.hosts[0]
     this.socket = null
+    // Replaced per connection in connect(); see the comment there for why sharing one across
+    // sockets is fatal.
     this.decoder = new StreamDecoder()
     this.ready = false
     this._pending = new Map() // sender -> resolver, for request/response
+    // cmd -> expiry epoch ms: a reply we are still owed by a request that already timed out.
+    this._orphaned = new Map()
+    // Commands whose late reply we most recently threw away (see _noteOrphan for why that has to
+    // be self-correcting). Per command, never one global flag: with a single flag, eating a late
+    // SetSections reply cancelled the debt for whichever DIFFERENT command timed out next, and
+    // any unrelated reply landing in _pending cleared it — which let the SetSections debt re-arm
+    // on the next timeout, the runaway loop the self-correction exists to break.
+    this._ateOrphanFor = new Set()
     this._closing = false
     this._lastState = null
     // Outbound commands are serialized — exactly one in flight at a time (see send()).
@@ -196,8 +210,23 @@ export class LedboxClient extends EventEmitter {
         if (!this.ready) socket.destroy(new Error(`connect to ${this.host} timed out`))
       })
     }
+    // A de-framer per SOCKET, the way the mock already does it per accepted connection. A
+    // connection that dies mid-reply leaves a truncated gzip member in the decoder's buffer;
+    // with one decoder for the life of the client the next socket's bytes land behind it, and
+    // because that stale head still starts with a valid `1f 8b` the decoder's own resync never
+    // fires — every reply from then on is invisible. The Init handshake times out, `ready` never
+    // goes true, we reconnect into the same poisoned buffer, and the board sits frozen on the
+    // last score it was given while systemd reports a perfectly healthy PID.
+    const decoder = new StreamDecoder()
+    this.decoder = decoder
+    let resyncsSeen = 0
     socket.on('data', (chunk) => {
-      for (const msg of this.decoder.push(chunk)) this._onMessage(msg)
+      const msgs = decoder.push(chunk)
+      if (decoder.resyncs !== resyncsSeen) {
+        resyncsSeen = decoder.resyncs
+        blog.warn('reply stream resynced — undecodable bytes dropped', { host: this.host, resyncs: resyncsSeen })
+      }
+      for (const msg of msgs) this._onMessage(msg)
     })
     socket.on('error', (err) => this.emit('error', err))
     socket.on('close', () => {
@@ -211,6 +240,14 @@ export class LedboxClient extends EventEmitter {
       // no-op and every following section write lands on a layout that isn't loaded
       // ("section team1 not found"), leaving the board stuck on the waiting screen.
       this.currentLayout = null
+      // Fail everything still waiting on this socket instead of letting it sit out its own 5 s
+      // timeout against a connection that is already gone — and, worse, survive into the NEXT
+      // connection, where a fresh reply could resolve a waiter belonging to the dead one.
+      const stranded = this._pending
+      this._pending = new Map()
+      for (const [cmd, waiter] of stranded) waiter.reject(new Error(`${cmd}: socket closed`))
+      this._orphaned.clear() // whatever the old socket still owed us can never arrive now
+      this._ateOrphanFor.clear()
       // Never got a handshake on this address — try the next one. Once an address has
       // worked we stay on it, so a transient drop doesn't send us wandering.
       if (!reachedReady && this.hosts.length > 1) {
@@ -229,9 +266,20 @@ export class LedboxClient extends EventEmitter {
 
   _onMessage(msg) {
     this.emit('message', msg)
+    // A reply to a request that already gave up. The wire carries no request id — the board
+    // echoes `sender = cmd` — so `_pending` has exactly one slot per command name and a late ack
+    // would resolve the NEXT same-command request. That is not merely untidy: an old `ok`
+    // swallows the new write's real "section not found (6)", so the self-heal in pushState never
+    // runs and the panel keeps showing the wrong screen while every paint looks successful.
+    // So remember what we are owed (_noteOrphan) and drop it when it turns up.
+    if (this._takeOrphan(msg.sender)) {
+      blog.debug(`late ${msg.sender} reply dropped`, { cmd: msg.sender })
+      return
+    }
     const waiter = this._pending.get(msg.sender)
     if (waiter) {
       this._pending.delete(msg.sender)
+      this._ateOrphanFor.delete(msg.sender) // THIS command answered; nothing to make up for
       if (msg.status === 'Error' || msg.status === 'error') {
         // The device names the field `error_message`; `message` is only our own mock's
         // older spelling. Reading the wrong one threw away every diagnostic the board
@@ -248,6 +296,29 @@ export class LedboxClient extends EventEmitter {
         waiter.resolve(msg.value)
       }
     }
+  }
+
+  // Record that a request for `cmd` timed out, so its reply — if it ever shows up — is dropped
+  // rather than handed to whoever asked next. At most ONE reply is ever owed per command.
+  _noteOrphan(cmd) {
+    // If we already dropped a reply for this command and the request STILL timed out, the
+    // assumption that a late reply was in flight was wrong — the board never answered at all,
+    // and what we ate was the next request's perfectly good reply. Forget the debt rather than
+    // renew it: renewing turns one unanswered request into a client that eats every reply it
+    // gets from then on and times out on every single write, which is far worse than the
+    // mismatch this is here to prevent.
+    if (this._ateOrphanFor.has(cmd)) { this._ateOrphanFor.delete(cmd); this._orphaned.delete(cmd); return }
+    this._orphaned.set(cmd, Date.now() + ORPHAN_TTL_MS)
+  }
+
+  // True when this reply belongs to a request that already timed out.
+  _takeOrphan(cmd) {
+    const until = this._orphaned.get(cmd)
+    if (!until) return false
+    this._orphaned.delete(cmd)
+    if (until <= Date.now()) return false // the board never sent it; the debt has lapsed
+    this._ateOrphanFor.add(cmd)
+    return true
   }
 
   // Sends {cmd, ...extra, value} and resolves with the matching response's value.
@@ -275,6 +346,11 @@ export class LedboxClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this._pending.delete(cmd)
+        // Silence is documented protocol behaviour for SetLayout — the device advertises
+        // `noresend` and says nothing at all when asked for the layout it already has — so that
+        // timeout is not evidence of a reply still in flight. Counting it would make the next,
+        // genuinely answered SetLayout wait out its own timeout too.
+        if (cmd !== 'SetLayout') this._noteOrphan(cmd)
         // A write the board never acked. At debug this is expected noise (SetLayout to the
         // layout it already has never answers — see setLayoutIfNeeded); anywhere else it is
         // the first symptom of a wedged panel, so record the wait.
@@ -381,10 +457,20 @@ export class LedboxClient extends EventEmitter {
   }
 
   // True when we have real team names to show (vs a blank/boot "complete" idle).
+  //
+  // Reads the RAW state, never the mapper's view. toLeftRight substitutes the literals 'TEAM A'
+  // and 'TEAM B' for missing names, so asking it degenerated to `!!this._lastState`: after the
+  // operator pressed Blank (which pushes an all-empty state) the crest and clock screens became
+  // unreachable, the panel showed "TEAM A / TEAM B" to the hall, and _idleTick returned early
+  // for the rest of the process's life so the wall clock never ticked again.
   _hasTeams() {
-    if (!this._lastState) return false
-    const v = this.mapper.toLeftRight(this._lastState)
-    return !!(String(v.leftName || '').trim() || String(v.rightName || '').trim())
+    const s = this._lastState
+    if (!s) return false
+    const named = (v) => !!String(v ?? '').trim()
+    // Every sport speaks the same a/b liveState contract; sources keep the resolved left/right
+    // model internally, so accept either shape rather than assuming which one we were handed.
+    return named(s.team_a_short) || named(s.team_a_name) || named(s.team_b_short) || named(s.team_b_name) ||
+      named(s.leftName) || named(s.rightName)
   }
 
   // Pre-match / between-matches screen: team names + "VS", scores blanked, on the match
@@ -394,6 +480,7 @@ export class LedboxClient extends EventEmitter {
       blog.debug('showIdle ignored — board not ready', { on })
       return false
     }
+    const wasIdle = this._idle
     this._idle = !!on
     blog.info(on ? 'idle screen on' : 'idle screen off — back to scoring', { idle: this._idle, hasTeams: this._hasTeams() })
     this.clearPulses()
@@ -450,7 +537,33 @@ export class LedboxClient extends EventEmitter {
       const sections = on ? this.mapper.toIdleSections(this._lastState) : this.mapper.toSections(this._lastState || {})
       await this.send('SetSections', sections)
       return true
-    } catch { return false }
+    } catch (err) {
+      // Put the flag back — but only on the way ON, and only if the panel really never moved.
+      // The two directions are NOT symmetric, because a wrong `_idle` is not symmetric either.
+      //
+      // Way on: committing `_idle = true` before the board work meant one failed paint (a 5 s
+      // timeout on a busy panel is enough) left it stuck true with the MATCH layout still on the
+      // panel — after which pushState skipped every score and the layout guard skipped every
+      // re-assert, so the board held one frozen score for the rest of the match and nothing above
+      // debug level said so. But if the layout DID switch before the failure, the panel is on an
+      // idle screen and `_idle` must stay true: controlServer's recovery is `if (ledbox._idle)
+      // showIdle(false)`, so clearing it here would remove the only automatic way back.
+      //
+      // Way off: never re-arm. showIdle(false) IS the way back to scoring, and in LAN mode
+      // appliance.js pushes straight into pushState and never calls showIdle again — so a `true`
+      // restored here is never lifted by anything and the board freezes for the rest of the
+      // match. The failed SetSections costs one repaint; the next score push or layout-guard
+      // tick does it again.
+      if (on) this._idle = wasIdle || (!!this.currentLayout && this.currentLayout !== this.layout)
+      // Same reasoning for the layout cache on the way off: when the switch back to the match
+      // layout is what failed, a foreign name left in `currentLayout` locks pushState ("another
+      // layout is up") and the layout guard exactly as hard as a stuck `_idle` would, and the
+      // operator has already asked for scoring back. `null` = unknown, which lets the next paint
+      // through so its error-6 self-heal can put the board right.
+      if (!on && this.currentLayout && this.currentLayout !== this.layout) this.currentLayout = null
+      blog.warn(`idle screen failed: ${err.message}`, { on, idle: this._idle, error: err.message })
+      return false
+    }
   }
 
   // --- Idle wall clock -------------------------------------------------------------------
@@ -722,9 +835,29 @@ export class LedboxClient extends EventEmitter {
     this._layoutGuard = setInterval(async () => {
       if (!this.ready || this._suppressPaint || this._idle) return
       if (this.currentLayout && this.currentLayout !== this.layout) return // a break screen is up
-      blog.debug('layout guard — re-asserting the scoreboard', { layout: this.layout })
-      await this.setLayout(this.layout).catch(() => {}) // no-op on the board if already set
-      this.currentLayout = this.layout
+      blog.debug('layout guard — checking the scoreboard is up', { layout: this.layout })
+      // ASK, don't re-assert. A SetLayout for the layout the board already has gets no reply at
+      // all (`noresend`), so the old blind re-assert sat in the serialized send queue for its
+      // full 5 s timeout — every 20 s, with every scored point, countdown tick and blink toggle
+      // of that window queued behind it. A point in that window reached the panel up to five
+      // seconds late. GetLayout does answer, so the normal case now costs one fast round trip.
+      const seen = await this.send('GetLayout', '', {}, { timeoutMs: 1500 }).catch(() => null)
+      if (typeof seen === 'string' && seen) {
+        if (seen !== this.layout) blog.warn(`board is on ${seen} — re-asserting the scoreboard`, { seen, layout: this.layout })
+        this.currentLayout = seen
+        // Put the cache back to "unknown" if the correction fails. A foreign layout name left in
+        // `currentLayout` is not a description, it is a lock: the early return above and
+        // pushState's both key on it, so a SetLayout that throws anything setLayoutIfNeeded does
+        // not swallow (code 5, or a "socket closed" from a dropped connection) would disable the
+        // guard and every paint for the rest of the match. `null` is what makes the next tick try
+        // again — and it lets pushState paint, so its own error-6 self-heal gets a chance too.
+        await this.setLayoutIfNeeded(this.layout).catch(() => { this.currentLayout = null })
+      } else {
+        // No usable answer: fall back to the blind re-assert, but on a short deadline so a board
+        // that has gone quiet can't hold the queue for five seconds a shot.
+        await this.send('SetLayout', this.layout, {}, { timeoutMs: 800 }).catch(() => {})
+        this.currentLayout = this.layout
+      }
       if (this._lastState) await this.pushState(this._lastState).catch(() => {})
     }, this.layoutGuardMs)
   }

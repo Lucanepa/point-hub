@@ -23,46 +23,123 @@ export function decode(buf) {
   return JSON.parse(zlib.gunzipSync(buf).toString('utf-8'))
 }
 
+// How many bytes we will hold while waiting for a member to finish arriving. A board reply is
+// a few hundred bytes gzipped and arrives in one or two TCP segments, so a buffer anywhere near
+// this is not a slow message — it is one that will never decode.
+const MAX_BUFFERED = 64 * 1024
+// How long the buffer may hold bytes that yield no message at all before we treat its head as
+// garbage rather than as a message still in flight. This catches the small poisoned buffer (a
+// ~200 byte truncated member) that the byte cap above never would.
+//
+// Deliberately NOT a count of push() calls. Node emits 'data' per readable chunk, not per TCP
+// segment, so a perfectly good 400-byte reply can arrive in a dozen of them — a chunk-count gate
+// decoded zero messages out of exactly that, and the board hangs off hall wifi where slow drips
+// are the normal case, not the exception. What a valid reply CANNOT do is sit here undecodable
+// past the deadline its own caller waits on, so that is what we measure: 5 s matches send()'s
+// default timeout, i.e. we only give up on the bytes once whoever asked for them already has.
+const STALL_MS = 5000
+
 // Incremental de-framer for a TCP byte stream. push() returns any fully-decoded
 // messages found so far. Uses the gzip footer (ISIZE = uncompressed length mod
 // 2^32) to locate member boundaries when several arrive back-to-back.
+//
+// ONE PER CONNECTION, never one per client: a socket that dies mid-reply leaves a truncated
+// member in `buf`, and the next connection's bytes appended behind it are unreachable forever
+// (see #resync). The resync below is the backstop for that; a fresh decoder per socket is the
+// actual fix, and it lives at the call sites.
 export class StreamDecoder {
+  // 0 = not stuck. Otherwise the epoch ms at which the buffer started holding bytes that decode
+  // to nothing; see STALL_MS.
+  #stalledSince = 0
+
   constructor() {
     this.buf = Buffer.alloc(0)
+    // Bumped every time we throw away undecodable bytes. Callers log on a change — a silent
+    // resync would hide exactly the incident that motivated it.
+    this.resyncs = 0
   }
 
   push(chunk) {
     this.buf = Buffer.concat([this.buf, chunk])
     const out = []
-    // Fast path: whole buffer is exactly one member.
-    while (this.buf.length >= 18 /* min gzip size */) {
-      const member = this.#takeOneMember()
-      if (!member) break
-      try {
-        out.push(JSON.parse(zlib.gunzipSync(member).toString('utf-8')))
-        this.buf = this.buf.subarray(member.length)
-      } catch {
-        // Not yet a complete member — wait for more bytes.
-        break
-      }
+    this.#drain(out)
+    // Decide, then decode AGAIN in the same call. #resync() used to be the last thing push did,
+    // so any reply already complete BEHIND the dropped garbage stayed in the buffer until the
+    // next inbound chunk arrived — and on a board that had just gone quiet, that is the chunk
+    // that never comes. Every time the backstop fired, the panel stayed deaf for another whole
+    // command timeout for no reason: the bytes were sitting right there, decodable.
+    if (this.#headIsGarbage(out.length > 0)) {
+      this.#resync()
+      this.#drain(out)
     }
     return out
   }
 
-  // Returns the shortest prefix that gunzips cleanly, or null if incomplete.
+  // Pull every complete member out of the head of the buffer into `out`.
+  #drain(out) {
+    // Fast path: whole buffer is exactly one member.
+    while (this.buf.length >= 18 /* min gzip size */) {
+      const resyncsBefore = this.resyncs
+      const member = this.#takeOneMember()
+      if (!member) {
+        // #takeOneMember resyncs by itself when the head isn't gzip at all. Keep decoding rather
+        // than returning: the replies behind the junk it just dropped are readable NOW, and
+        // waiting for another inbound chunk to look at them is how the board goes quiet.
+        if (this.resyncs !== resyncsBefore) continue // #resync always shortens buf, so this ends
+        break
+      }
+      // Consume BEFORE parsing. #takeOneMember has already proven these bytes gunzip, so the
+      // only thing that can throw below is a payload that is not JSON — and leaving it at the
+      // head of the buffer made that one bad reply permanent: every later push re-decoded it,
+      // threw again, and returned nothing, so every following board reply was lost while the
+      // process looked perfectly healthy.
+      this.buf = this.buf.subarray(member.length)
+      try {
+        out.push(JSON.parse(member.text))
+      } catch {
+        /* not JSON — drop this message and keep the stream flowing */
+      }
+    }
+  }
+
+  // Bookkeeping and verdict in one: are the bytes at the head garbage, or a message still on its
+  // way in? Only ever true once the buffer has held undecodable bytes for STALL_MS — a slow
+  // arrival, however many chunks it takes, keeps producing messages and so keeps resetting it.
+  #headIsGarbage(decoded) {
+    if (this.buf.length > MAX_BUFFERED) return true // far past any real reply; see MAX_BUFFERED
+    if (decoded || !this.buf.length) { this.#stalledSince = 0; return false }
+    if (!this.#stalledSince) { this.#stalledSince = Date.now(); return false }
+    return Date.now() - this.#stalledSince > STALL_MS
+  }
+
+  // Drop the head of the buffer and restart at the next gzip member.
+  //
+  // The magic check in #takeOneMember only fires when the head ISN'T `1f 8b`, which is the one
+  // case that never happens after a disconnect mid-reply: the stale truncated member starts with
+  // a perfectly good `1f 8b`, so the decoder goes deaf for the rest of its life. That surfaced as
+  // a board frozen on the last score it was given, with systemd reporting a healthy PID.
+  #resync() {
+    let at = -1
+    for (let i = 1; i + 1 < this.buf.length; i++) {
+      if (this.buf[i] === 0x1f && this.buf[i + 1] === 0x8b) { at = i; break }
+    }
+    this.buf = at === -1 ? Buffer.alloc(0) : this.buf.subarray(at)
+    this.#stalledSince = 0
+    this.resyncs++
+  }
+
+  // Returns { length, text } for the shortest prefix that gunzips cleanly, or null if the
+  // member is incomplete. Decompresses once and hands the text back, so push() doesn't gunzip
+  // the same member a second time — that cost is paid per reply, on a Pi.
   #takeOneMember() {
     if (this.buf[0] !== 0x1f || this.buf[1] !== 0x8b) {
-      // Desync: drop a byte and resync on the next magic marker.
-      const next = this.buf.indexOf(0x1f, 1)
-      this.buf = next === -1 ? Buffer.alloc(0) : this.buf.subarray(next)
+      this.#resync()
       return null
     }
     // Try progressively longer slices ending on a plausible footer boundary.
     for (let end = 18; end <= this.buf.length; end++) {
-      const slice = this.buf.subarray(0, end)
       try {
-        zlib.gunzipSync(slice)
-        return slice
+        return { length: end, text: zlib.gunzipSync(this.buf.subarray(0, end)).toString('utf-8') }
       } catch {
         /* keep growing */
       }
