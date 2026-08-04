@@ -15,6 +15,7 @@ import { ResumeStore } from './resumeStore.js'
 import { SPORT_LIST } from './sports.js'
 import { PER_SPORT_KEYS } from './settings.js'
 import { log, LEVELS } from './logStore.js'
+import { PinGate, safeEqual } from './pinGate.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -130,15 +131,42 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   const activeSport = () => (settings ? settings.values.sport : 'volleyball')
   // Scorer lock: with a PIN set, mutating requests must carry it (X-Scorer-Pin header) — a
   // spectator who scanned the QR can watch but not score. GET reads stay open.
-  const pinOk = (req) => {
+  // Brute-force gate — see pinGate.js. Without it, /api/unlock is an oracle that answers
+  // "is this PIN right?" to anyone, unthrottled.
+  const pinGate = new PinGate()
+  // Shared by pinOk and /api/unlock so guesses against either path count towards the same lock.
+  // Returns { ok, locked, retryAfterMs }.
+  const tryPin = (req, supplied) => {
     const need = settings ? settings.values.scorerPin : ''
-    const ok = !need || String(req.headers['x-scorer-pin'] || '') === String(need)
+    if (!need) return { ok: true, locked: false, retryAfterMs: 0 } // no PIN set — gate is off
+    const ip = clientIp(req)
+    const g = pinGate.check(ip)
+    if (!g.allowed) return { ok: false, locked: true, retryAfterMs: g.retryAfterMs }
+    const ok = safeEqual(supplied, need)
+    if (ok) pinGate.succeed(ip)
+    else {
+      const r = pinGate.fail(ip)
+      if (r.lockedMs) clog.warn(`scorer PIN locked out ${ip} for ${Math.round(r.lockedMs / 1000)}s after ${r.fails} failures`, { ip, fails: r.fails, lockedMs: r.lockedMs })
+    }
+    return { ok, locked: false, retryAfterMs: 0 }
+  }
+  const pinOk = (req) => {
+    const r = tryPin(req, req.headers['x-scorer-pin'] || '')
     // A locked board rejecting a phone is normally a spectator poking at it, but it is also
     // what a scorer sees when they mistype — either way it belongs in the record.
-    if (!ok) clog.warn(`rejected ${req.method} ${req.url} — wrong or missing scorer PIN`, { path: req.url, ip: clientIp(req) })
-    return ok
+    if (!r.ok) clog.warn(`rejected ${req.method} ${req.url} — ${r.locked ? 'PIN locked out' : 'wrong or missing scorer PIN'}`, { path: req.url, ip: clientIp(req), locked: r.locked })
+    req._pinDenial = r
+    return r.ok
   }
-  const denyPin = (res) => sendJson(res, 403, { error: 'scorer PIN required' })
+  const denyPin = (res, req) => {
+    const r = (req && req._pinDenial) || {}
+    if (r.locked) {
+      const secs = Math.ceil(r.retryAfterMs / 1000)
+      res.setHeader('Retry-After', String(secs))
+      return sendJson(res, 429, { error: `too many wrong PINs — try again in ${secs}s`, retryAfterMs: r.retryAfterMs })
+    }
+    return sendJson(res, 403, { error: 'scorer PIN required' })
+  }
   // Ephemeral display countdown (timeout 30s / set interval / side switch). Owned here
   // so it reaches every surface from ONE source: the control UI banner, the
   // /mockledbox mirror (via /api/board), AND the physical LedBox (pushed once a second
@@ -245,7 +273,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // POST /api/manual
     if (pathname === '/api/manual' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       await readJson(req) // drain
       // Leave the crest/idle screen so the manual scoreboard paints.
       if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
@@ -254,7 +282,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // POST /api/action { action }
     if (pathname === '/api/action' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const action = body && body.action
       if (!action || !ACTION_TYPES.has(action.type)) {
@@ -304,7 +332,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/settings' && req.method === 'POST') {
       const body = await readJson(req)
       if (!settings) return sendJson(res, 501, { error: 'settings unavailable' })
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const patch = { ...(body || {}) }
       // Empty PIN field = leave the current PIN unchanged (else a normal save wipes the lock).
       if (!patch.scorerPin) delete patch.scorerPin
@@ -350,7 +378,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/sport' && req.method === 'POST') {
       const body = await readJson(req)
       if (!settings) return sendJson(res, 501, { error: 'settings unavailable' })
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const wanted = String((body && body.sport) || '')
       if (!SPORT_LIST.some((s) => s.key === wanted)) {
         clog.warn(`rejected an unknown sport: ${wanted}`, { requested: wanted, known: SPORT_LIST.map((s) => s.key) })
@@ -379,7 +407,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // POST /api/link { source, matchId }
     if (pathname === '/api/link' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const source = body && body.source
       if (source === 'cloud') return sendJson(res, 501, { error: 'cloud not implemented' })
@@ -397,7 +425,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // board paint suppressed, so we go straight from the final score to the interval screen with
     // the swapped sets. One atomic sequence, no match-layout repaint to race the layout switch.
     if (pathname === '/api/countdown' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const seconds = Number(body && body.seconds)
       if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -426,14 +454,14 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // reaches zero before the server tick does, so the client tells us WHY it stopped:
     // expired=true fires the end horn, a manual skip does not.
     if (pathname === '/api/countdown/stop' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       stopCountdown({ expired: !!(body && body.expired) })
       return sendJson(res, 200, { ok: true })
     }
     // POST /api/idle { on } — show the names+VS pre-match screen (on=false returns to scoring)
     if (pathname === '/api/idle' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const on = body ? body.on !== false : true
       clog.info(on ? 'operator switched to the idle screen' : 'operator returned to scoring', { idle: on, ip: clientIp(req) })
@@ -442,7 +470,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // POST /api/blank
     if (pathname === '/api/blank' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       await readJson(req) // drain
       clog.info('board blanked', { ip: clientIp(req) })
       // Seed the idle source with BLANK so SourceManager caches it and pushes it to the
@@ -454,8 +482,15 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // POST /api/unlock { pin } — verify a scorer PIN without performing an action.
     if (pathname === '/api/unlock' && req.method === 'POST') {
       const body = await readJson(req)
-      const need = settings ? settings.values.scorerPin : ''
-      return sendJson(res, 200, { ok: !need || String(body && body.pin) === String(need) })
+      // Goes through the same gate as the header path — this endpoint is the cheapest oracle on
+      // the board, so guesses here must count towards the same lock, not get their own budget.
+      const r = tryPin(req, (body && body.pin) || '')
+      if (r.locked) {
+        const secs = Math.ceil(r.retryAfterMs / 1000)
+        res.setHeader('Retry-After', String(secs))
+        return sendJson(res, 429, { ok: false, error: `too many wrong PINs — try again in ${secs}s`, retryAfterMs: r.retryAfterMs })
+      }
+      return sendJson(res, 200, { ok: r.ok })
     }
     // GET /api/game — what the New / Continue / Delete / Clock menu needs for the active sport.
     if (pathname === '/api/game' && req.method === 'GET') {
@@ -463,7 +498,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // POST /api/game { choice: 'new' | 'continue' | 'delete' | 'clock' }
     if (pathname === '/api/game' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const choice = body && body.choice
       const sport = activeSport()
@@ -499,7 +534,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // POST /api/history/clear — wipe the log
     if (pathname === '/api/history/clear' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       await readJson(req) // drain
       clog.warn('match history cleared', { matches: history.list().matches.length, ip: clientIp(req) })
       history.clear()
@@ -508,7 +543,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // POST /api/shutdown — halt the board cleanly (protects the SD card). Fires after the
     // response flushes; the bridge runs as pi with passwordless sudo for systemctl.
     if (pathname === '/api/shutdown' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       await readJson(req) // drain
       // The last line before the card goes quiet. Flushed immediately so it survives the halt.
       clog.warn('shutdown requested — halting the board', { ip: clientIp(req) })
@@ -586,7 +621,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // POST /api/logs/level { level } — turn the firehose on for a match without a restart.
     if (pathname === '/api/logs/level' && req.method === 'POST') {
       const body = await readJson(req)
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       const wanted = String((body && body.level) || '')
       if (!LEVELS[wanted]) return sendJson(res, 400, { error: 'unknown level' })
       const prev = log.level
@@ -596,7 +631,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // POST /api/logs/clear — wipe memory + the files on disk.
     if (pathname === '/api/logs/clear' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res)
+      if (!pinOk(req)) return denyPin(res, req)
       await readJson(req) // drain
       log.clear()
       clog.warn('logs cleared', { ip: clientIp(req) })
