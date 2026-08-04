@@ -161,13 +161,19 @@ export class Settings {
 
   // Route a flat patch: global keys → top level, per-sport keys → the ACTIVE sport. Returns the
   // fresh flat view.
-  update(patch = {}) {
+  //
+  // `sport` is deliberately NOT reachable from a generic patch. Switching sport has to come with
+  // the .sport-switch marker and the restart that rebuild the source, layout and mapper; a patch
+  // that only moved the key on disk left the console reshaped to the new sport while the engine
+  // kept the old one (basketball +2/+3 buttons driving a volleyball score). Only the caller that
+  // owns those side-effects — POST /api/sport — passes { allowSport: true }.
+  update(patch = {}, { allowSport = false } = {}) {
     // Resolve the target sport BEFORE the patch can change it. A form is always rendered under
     // the sport that was active when it loaded, so its per-sport values belong to THAT sport.
     // Reading raw.sport after applying the patch would route the outgoing sport's numbers into
     // the incoming one and silently overwrite its defaults on disk.
     const active = SPORTS.includes(this.raw.sport) ? this.raw.sport : 'volleyball'
-    sanitizeInto(this.raw, GLOBAL_KEYS, patch)
+    sanitizeInto(this.raw, allowSport ? GLOBAL_KEYS : GLOBAL_KEYS.filter((k) => k !== 'sport'), patch)
     sanitizeInto(this.raw.perSport[active], PER_SPORT_KEYS, patch)
     this.save()
     this.values = flatten(this.raw, this.raw.sport)
@@ -194,9 +200,15 @@ export class Settings {
   }
 }
 
-// Sets needed to win, and whether this is the short deciding set (15 instead of 25).
-export function formatRules(bestOf, setsA, setsB) {
-  const toWin = bestOf === 3 ? 2 : 3
+// Sets needed to win, whether this is the short deciding set, and that set's point target. THE
+// single place the format numbers come from: the scoring sources call this rather than carrying
+// their own constants, because the console header already derives "Final" from `bestOf` and the
+// two used to disagree — a best-of-3 read Final at 2 sets while the engine still wanted 3.
+// `targets` lets a sport with different numbers reuse the same set arithmetic (beach: 21/15).
+export function formatRules(bestOf, setsA, setsB, targets = {}) {
+  const toWin = Number(bestOf) === 3 ? 2 : 3
   const deciding = setsA === toWin - 1 && setsB === toWin - 1
-  return { toWin, deciding, target: deciding ? 15 : 25 }
+  const normalTarget = targets.normal ?? 25
+  const decidingTarget = targets.deciding ?? 15
+  return { toWin, deciding, target: deciding ? decidingTarget : normalTarget }
 }

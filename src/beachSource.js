@@ -22,8 +22,11 @@
 // so the volleyball mapper's toLeftRight() resolves it identically.
 
 import { EventEmitter } from 'node:events'
+import { formatRules } from './settings.js'
 
-// Beach rule constants — the only knobs that differ from the indoor model.
+// Beach rule constants — the only knobs that differ from the indoor model. bestOf/setsToWin are
+// the DEFAULT format only: the operator can pick one in Settings ▸ Match format, so the live
+// numbers come from settings.formatRules() (see _rules()) and these two are what it starts from.
 export const BEACH = {
   bestOf: 3,
   setsToWin: 2,
@@ -55,19 +58,41 @@ const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
 const player = (v) => (Number(v) === 2 ? 2 : 1) // coerce a serve-player field to 1|2 (default 1)
 
 export class BeachSource extends EventEmitter {
-  constructor() {
+  constructor(opts = {}) {
     super()
     this.lastEvent = null // transient: notable event from the last apply() (set-end / match-end / switch-due / tech-timeout)
+    this.bestOf = BEACH.bestOf
+    this.setFormat(opts)
     this._fromLiveState(NEUTRAL)
+  }
+
+  // Set (or change) the match format. Called at construction and again whenever the operator saves
+  // Settings, so a format change mid-event takes effect without a restart. Beach is best-of-3 in
+  // practice; the targets (21/15) stay beach's own, only the set count follows the setting.
+  setFormat(opts) {
+    // `|| {}` rather than a parameter default: a default only covers `undefined`, and the caller
+    // that hands us a settings blob can just as easily hand us a null one — which used to throw
+    // "Cannot destructure property 'bestOf' of null" out of the constructor.
+    const { bestOf } = opts || {}
+    if (bestOf != null) this.bestOf = Number(bestOf) === 3 ? 3 : 5
+    return this.bestOf
+  }
+
+  // The rulebook for the CURRENT set: sets to win, whether this is the deciding set, and its point
+  // target — from the same helper the indoor source uses, with beach's targets handed in.
+  _rules() {
+    return formatRules(this.bestOf, this.m.leftSets, this.m.rightSets, {
+      normal: BEACH.targetNormal, deciding: BEACH.targetDeciding,
+    })
   }
 
   // Is this the deciding (3rd) set — sets level at one apiece?
   get _deciding() {
-    return this.m.leftSets === BEACH.setsToWin - 1 && this.m.rightSets === BEACH.setsToWin - 1
+    return this._rules().deciding
   }
 
   _target() {
-    return this._deciding ? BEACH.targetDeciding : BEACH.targetNormal
+    return this._rules().target
   }
 
   _cadence() {
@@ -105,6 +130,20 @@ export class BeachSource extends EventEmitter {
     this.results = (Array.isArray(s.set_results) ? s.set_results : []).map((r) => ({
       left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)),
     }))
+    this._syncClosed()
+  }
+
+  // Has the set on the board already been awarded? Derived, never assumed: the score now showing
+  // being exactly the last recorded result means that set-end is still standing (a resume, or a
+  // set-state round-trip while the SET ENDED prompt is up), so the minus button must still be able
+  // to take it back — and a second set-end must not fire off the same set. Anything else means the
+  // board has moved on and the set is open again. 0-0 never counts as closed: an upstream that
+  // pushes the in-progress set as a {a:0,b:0} placeholder would otherwise make a fresh set at 0-0
+  // unwinnable, and a set that can never end is the one failure the hall actually sees.
+  _syncClosed() {
+    const lastSet = this.results[this.results.length - 1]
+    this.setClosed = !!lastSet && (lastSet.left > 0 || lastSet.right > 0) &&
+      lastSet.left === this.m.leftPoints && lastSet.right === this.m.rightPoints
   }
 
   // Project the left/right model back to the a/b liveState contract (a=left). subs are
@@ -141,11 +180,32 @@ export class BeachSource extends EventEmitter {
         const other = side === 'left' ? 'right' : 'left'
         const before = m[side + 'Points']
         // An absolute set (an operator correction typed in) just sets the number — no serve
-        // change, no set/switch/tech detection. Only a +delta drives the rally rules below.
-        if (action.value != null) { m[side + 'Points'] = clamp0(Number(action.value) || 0); break }
+        // change, no set/switch/tech detection. Only a +delta drives the rally rules below. It DOES
+        // re-derive setClosed, though: every score on the console is a tap-to-edit field, so
+        // typing one after a set end (zeroing the board by hand instead of tapping NEXT SET is a
+        // one-tap flow) left setClosed stuck true — and the next genuine set win then fired no
+        // set-end at all. No prompt, no interval, no horn, the board playing past 21 forever.
+        if (action.value != null) {
+          m[side + 'Points'] = clamp0(Number(action.value) || 0)
+          // One-directional on purpose: a typed value may REOPEN a set, never close one. The check
+          // is "do the points match the last pill?", which cannot tell "this set just ended" from
+          // "an earlier set had the same score" — and two sets ending 25-23 is routine. Left
+          // bidirectional, typing the current set to an earlier set's score marked it closed, and
+          // the very next "−" tap popped THAT set off the strip and off the set score. The board
+          // went 1-0 → 0-0 mid-match from one correction tap.
+          if (this.setClosed) this._syncClosed()
+          break
+        }
         const d = Number(action.delta) || 0
         const wasServing = m.serving // who served this rally — needed to detect a side-out
         m[side + 'Points'] = clamp0(before + d)
+        const { toWin, target } = this._rules()
+        // Evaluated against the OTHER side's (unchanged) score, so the same predicate answers both
+        // "was the set won before this tap" and "is it won after it" — that symmetry is what makes
+        // the minus button able to undo a set instead of only moving the points.
+        const won = (p) => p >= target && p - m[other + 'Points'] >= 2
+        const wonBefore = won(before)
+        const wonNow = won(m[side + 'Points'])
         if (d > 0) {
           // Serve-player tracking (beach): a pair keeps the same server while it holds serve, and
           // ALTERNATES its server each time it wins the serve BACK. So on a side-out (the receiver
@@ -159,15 +219,17 @@ export class BeachSource extends EventEmitter {
           }
           // Rally scoring: the side that wins the point serves next.
           m.serving = side
-          const target = this._target()
-          const otherPts = m[other + 'Points']
-          const won = (p) => p >= target && p - otherPts >= 2
-          if (won(m[side + 'Points']) && !won(before)) {
-            // Set win: first to 21 (15 in the deciding set) by >=2, uncapped. Best-of-3.
+          if (!wonBefore && wonNow && !this.setClosed) {
+            // Set win: first to 21 (15 in the deciding set) by >=2, uncapped. Fires once, on the
+            // transition — and `setClosed` keeps it to once per set. The SET ENDED prompt is not
+            // modal, so after a 21-19 the operator can still push the LOSING pair up while
+            // correcting; at 21-23 that used to award a second set and the board read 1-1 on a set
+            // only one pair had won.
             m[side + 'Sets'] = clamp0(m[side + 'Sets'] + 1)
             this.results.push({ left: m.leftPoints, right: m.rightPoints })
-            this.lastEvent = m[side + 'Sets'] >= BEACH.setsToWin ? 'match-end' : 'set-end'
-          } else {
+            this.setClosed = true
+            this.lastEvent = m[side + 'Sets'] >= toWin ? 'match-end' : 'set-end'
+          } else if (!wonNow) {
             // No set won: flag a technical timeout (sets 1-2, sum hits 21) or that a change of
             // ends is DUE (sum crosses the cadence). NEITHER swaps here — the source only flags;
             // the UI gates the swap (a confirm for a switch, a countdown for the TTO). The tech
@@ -183,6 +245,14 @@ export class BeachSource extends EventEmitter {
               this.lastEvent = 'switch-due'
             }
           }
+        } else if (d < 0 && this.setClosed && wonBefore && !wonNow) {
+          // Walking the score back below the winning condition IS the undo of the set that score
+          // awarded. Without this the "−" only moved the points: a mis-tapped 21-19 left the set
+          // counted and its pill in the strip, and then the REAL 21-19 a rally later counted it a
+          // second time — two identical pills and 2-0 in front of the hall on a 1-0 match.
+          this.results.pop()
+          m[side + 'Sets'] = clamp0(m[side + 'Sets'] - 1)
+          this.setClosed = false
         }
         break
       }
@@ -235,20 +305,23 @@ export class BeachSource extends EventEmitter {
         if (action.color != null) m[side + 'Color'] = String(action.color)
         break
       }
-      case 'next-set':
+      case 'next-set': {
         // Start the next set: clear points AND the per-set team timeouts, then switch ends.
         // Pairs change ends after every set EXCEPT going into the deciding 3rd set, whose
         // sides come from a fresh coin toss (mirrors the indoor 5th-set rule).
+        const { toWin } = this._rules()
         m.leftPoints = 0
         m.rightPoints = 0
         m.leftTO = 0
         m.rightTO = 0
-        if (m.leftSets + m.rightSets !== BEACH.setsToWin) this._swap()
+        if (m.leftSets + m.rightSets !== (toWin - 1) * 2) this._swap()
         // Fresh set: the pair now on serve (carried over / swapped) is mid its opening turn; the
         // other has yet to serve. The operator can re-declare the whole order via `serve-order`.
         m.leftServed = m.serving === 'left'
         m.rightServed = m.serving === 'right'
+        this.setClosed = false // a fresh set can be won again
         break
+      }
       case 'remove-set': {
         // Undo the last recorded set: drop its result and its set point.
         const last = this.results.pop()
@@ -256,6 +329,7 @@ export class BeachSource extends EventEmitter {
           const w = last.left > last.right ? 'left' : (last.right > last.left ? 'right' : null)
           if (w) m[w + 'Sets'] = clamp0(m[w + 'Sets'] - 1)
         }
+        this.setClosed = false // the set is no longer recorded, so it is no longer closed
         break
       }
       case 'reset':
@@ -295,8 +369,10 @@ export class BeachSource extends EventEmitter {
 // --------------------------------------------------------------------------------------
 // Tiny self-check (mirrors test/*.mjs). Runs only when executed directly:
 //     node src/beachSource.proposal.js
-// Proves set-end / match-end / switch-due / technical-timeout fire on the right scores, and
-// that a switch-due point does NOT auto-swap the sides (the UI does, on operator confirm).
+// Proves set-end / match-end / switch-due / technical-timeout fire on the right scores, that a
+// switch-due point does NOT auto-swap the sides (the UI does, on operator confirm), and that the
+// "−" button takes back a set it just awarded (which the same set can never be awarded twice),
+// and that a typed score correction after a set end still leaves the NEXT set winnable.
 // --------------------------------------------------------------------------------------
 if (import.meta.url === `file://${process.argv[1]}`) {
   let pass = 0, fail = 0
@@ -384,6 +460,32 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ok(s.getState().team_a_short === 'BBB', 'ends do NOT auto-swap going into the deciding set')
   }
 
+  // The mis-tap: 20-19, "+", set awarded — then "−" to correct it. The set must come BACK off the
+  // board, and the real 21-19 a rally later must count exactly once.
+  {
+    const s = mk()
+    for (let i = 0; i < 19; i++) pt(s, 'right') // 0-19
+    for (let i = 0; i < 20; i++) pt(s, 'left') // 20-19
+    ok(pt(s, 'left') === 'set-end', 'the mis-tap closes the set at 21-19')
+    ok(s.getState().sets_won_a === 1 && s.getState().set_results.length === 1, 'set counted once')
+    s.apply({ type: 'point', side: 'left', delta: -1 }) // the correction
+    const c = s.getState()
+    ok(c.points_a === 20 && c.points_b === 19, 'the correction walks the score back to 20-19')
+    ok(c.sets_won_a === 0 && c.set_results.length === 0, 'the set it awarded is taken back off the board')
+    ok(pt(s, 'left') === 'set-end', 'the real set point still ends the set')
+    ok(s.getState().sets_won_a === 1 && s.getState().set_results.length === 1, 'the set is counted ONCE, not twice')
+  }
+
+  // A closed set cannot be won a second time by the other pair (21-19 then pushed to 21-23).
+  {
+    const s = mk()
+    for (let i = 0; i < 21; i++) pt(s, 'left') // 21-0, set to left
+    for (let i = 0; i < 23; i++) pt(s, 'right') // right walks up to 23
+    const st = s.getState()
+    ok(st.sets_won_b === 0, 'the losing pair crossing the target does NOT award a second set')
+    ok(st.set_results.length === 1, 'still exactly one recorded set')
+  }
+
   // Serve-player tracking: a pair keeps its server while holding serve and alternates on regain.
   // Declared order L1 / R2, left serving first -> the serving digit walks L1, R2, L2, R1, L1…
   {
@@ -427,6 +529,71 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const s2 = mk()
     s2.apply({ type: 'set-state', state: s.getState() })
     ok(s2.getState().server_b === 2 && s2.getState().served_b === true, 'server + served survive a set-state round-trip')
+  }
+
+  // A typed score correction after a set end must NOT swallow the next set win. Every score on the
+  // console is a tap-to-edit field, so zeroing the board by hand after a set is a one-tap flow —
+  // and it used to leave the set flagged closed forever: the next genuine 21 fired no set-end, no
+  // prompt, no interval, no horn, and the board just played on past 21.
+  {
+    const s = mk()
+    for (let i = 0; i < 21; i++) pt(s, 'left') // 21-0, set to left
+    ok(s.getState().sets_won_a === 1, 'the first set is awarded')
+    s.apply({ type: 'point', side: 'left', value: 0 }) // the typed correction
+    ok(s.setClosed === false, 'a typed score that no longer matches the recorded set reopens it')
+    let last = null
+    for (let i = 0; i < 21; i++) last = pt(s, 'right') // the right pair legitimately wins 21-0
+    ok(last === 'set-end', 'the next genuine set win still fires set-end')
+    const st = s.getState()
+    ok(st.sets_won_a === 1 && st.sets_won_b === 1, 'and it is awarded (1-1, not stuck at 1-0)')
+    ok(st.set_results.length === 2, 'both sets are in the strip')
+  }
+
+  // Typing the score back ONTO the recorded result re-closes the set, so the double-award the
+  // minus-button fix was about stays fixed: a losing pair pushed up past the target after a
+  // 21-19 must never take a second set off the same set.
+  {
+    const s = mk()
+    for (let i = 0; i < 21; i++) pt(s, 'left') // 21-0, set to left
+    s.apply({ type: 'point', side: 'right', value: 0 }) // a typed no-op correction: still 21-0
+    ok(s.setClosed === true, 'a typed score that still matches the recorded set keeps it closed')
+    for (let i = 0; i < 23; i++) pt(s, 'right')
+    ok(s.getState().sets_won_b === 0, 'the losing pair crossing the target still awards nothing')
+  }
+
+  // A typed value may only REOPEN a set, never close one. "Do the points match the last pill?"
+  // cannot tell "this set just ended" from "an EARLIER set had this score", and two sets ending
+  // 21-19 is routine — so while typing could close a set, nudging the board to a previous set's
+  // score and then tapping "−" once popped THAT set off the strip and off the set score.
+  {
+    const s = mk()
+    s.apply({ type: 'set-state', state: { side_a: 'left', sets_won_a: 1, set_results: [{ a: 21, b: 19 }] } })
+    ok(s.getState().set_results.length === 1, 'set 1 on the strip')
+    s.apply({ type: 'point', side: 'left', value: 21 })
+    s.apply({ type: 'point', side: 'right', value: 19 })
+    ok(s.setClosed === false, 'typing an EARLIER set\'s score does not close the current set')
+    s.apply({ type: 'point', side: 'right', delta: -1 })
+    ok(s.getState().set_results.length === 1, 'and one "−" tap does not delete the earlier set')
+    ok(s.getState().sets_won_a === 1, 'the set score survives it too')
+  }
+
+  // An upstream that pushes the in-progress set as a {a:0,b:0} placeholder must not make the set
+  // on the board unwinnable — a set that can never end is the one failure the hall actually sees.
+  {
+    const s = mk()
+    s.apply({ type: 'set-state', state: { side_a: 'left', sets_won_b: 1, set_results: [{ a: 18, b: 21 }, { a: 0, b: 0 }] } })
+    ok(s.setClosed === false, 'a 0-0 placeholder result does not count as a closed set')
+    let last = null
+    for (let i = 0; i < 21; i++) last = pt(s, 'left')
+    ok(last === 'set-end', 'and the set can still be won')
+  }
+
+  // A null options blob must not take the source down at construction.
+  {
+    let threw = false
+    let s = null
+    try { s = new BeachSource(null) } catch { threw = true }
+    ok(!threw && s !== null && s.bestOf === 3, 'new BeachSource(null) constructs at the beach default (best-of-3)')
   }
 
   console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

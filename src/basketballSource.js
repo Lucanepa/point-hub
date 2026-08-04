@@ -202,8 +202,12 @@ export class BasketballSource extends EventEmitter {
       case 'remove-set': {
         // Undo the last period transition: drop the snapshot, step the period back, clear `over`.
         // (Team fouls are not restored — a rare correction; use set-state to rebuild exactly.)
+        // Clearing `over` IS the undo of a game-end, and that branch pushed the snapshot WITHOUT
+        // advancing the period — so stepping the period back as well took a Q4 FINAL to "Q3" on a
+        // single tap of the trash icon, and every quarter label after it was off by one.
+        const wasOver = m.over
         const last = this.results.pop()
-        if (last) m.period = Math.max(1, m.period - 1)
+        if (last && !wasOver) m.period = Math.max(1, m.period - 1)
         m.over = false
         break
       }
@@ -329,6 +333,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const before = s.getState().period
     s.apply({ type: 'next-set' })
     ok(s.getState().period === before, 'next-set after game-end is a no-op')
+    // Undoing the game-end only clears FINAL — the game-end never advanced the period, so
+    // rewinding it as well used to drop a Q4 game straight to "Q3".
+    s.apply({ type: 'remove-set' })
+    ok(s.getState().over === false, 'undoing the game-end clears the FINAL flag')
+    ok(s.getState().period === 4, 'undoing the game-end stays in Q4 (no phantom rewind to Q3)')
+    ok(s.getState().set_results.length === 0, 'and the line-score snapshot is dropped')
+    // A period-end undo DOES rewind, as before: Q4 -> end -> tied so OT1 -> undo -> Q4.
+    const t = mk()
+    t.apply({ type: 'set', value: 4 })
+    t.apply({ type: 'next-set' }) // 0-0 tie at Q4 -> OT1
+    ok(t.getState().period === 5, 'a tie at Q4 advances to OT1')
+    t.apply({ type: 'remove-set' })
+    ok(t.getState().period === 4, 'undoing a period advance still steps the period back')
   }
 
   // Tie at the end of Q4 -> overtime; team fouls CARRY into OT (FIBA: OT extends Q4).
