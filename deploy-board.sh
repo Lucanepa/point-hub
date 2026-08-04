@@ -35,6 +35,8 @@ J=(-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
 DEST=/home/pi/ledbox-bridge
+# The panel process reads layouts from the VENDOR's folder, not from the bridge install.
+LAYOUT_DIR=/home/pi/ledbox/layout
 STAMP="$(date +%Y%m%d-%H%M%S)"
 KEEP=5 # how many previous deploys to keep under .deploy-backups (see step 2)
 
@@ -53,6 +55,7 @@ ssh "${J[@]}" "$BOARD" "B=$DEST/.deploy-backups/$STAMP
   mkdir -p \"\$B\"
   cp -a $DEST/src \"\$B/src\" 2>/dev/null || true
   cp -a $DEST/web \"\$B/web\" 2>/dev/null || true
+  cp -a $LAYOUT_DIR \"\$B/layout\" 2>/dev/null || true
   echo \"  backed up to \$B\"
   cd $DEST/.deploy-backups 2>/dev/null && ls -1d 20* 2>/dev/null | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
     rm -rf -- \"\$old\" && echo \"  pruned old backup \$old\"
@@ -61,7 +64,21 @@ ssh "${J[@]}" "$BOARD" "B=$DEST/.deploy-backups/$STAMP
 
 echo "== 3) copy bridge sources + control UI =="
 scp "${J[@]}" "$REPO"/src/*.js "$BOARD:$DEST/src/"
-scp "${J[@]}" "$REPO"/web/*.html "$BOARD:$DEST/web/"
+# The WHOLE web dir, not just *.html. It used to be the HTML alone, so every asset the console
+# references — favicon.svg, apple-touch-icon.png — simply never arrived, and the board answered
+# 404 for both while the repo looked correct. Anything the page asks for has to ship with it.
+scp "${J[@]}" -r "$REPO"/web/. "$BOARD:$DEST/web/"
+# Layouts the panel reads off the card. They live in the VENDOR's folder, not under $DEST, and
+# the panel process re-lists that folder on every SetLayout — so a new screen is a file drop and
+# needs no restart. Nothing was copying these at all, which is how 33_kscw_clock.xml came to exist
+# only on the board and the repo's crest layout came to be missing its QR sections for weeks.
+#
+# Only the layouts this repo authors. The vendor's own files stay untouched, and the specular /
+# tennis experiments in layouts/ are deliberately not shipped to the hall.
+scp "${J[@]}" "$REPO"/layouts/*_kscw_*.xml \
+  "$REPO"/layouts/*_beach_matchscore.xml \
+  "$REPO"/layouts/*_basketball_matchscore.xml \
+  "$BOARD:$LAYOUT_DIR/"
 
 echo "== 4) restart bridge =="
 ssh "${J[@]}" "$BOARD" 'sudo systemctl restart ledbox-bridge'

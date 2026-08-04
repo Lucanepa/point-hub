@@ -217,8 +217,13 @@ export class ManualSource extends EventEmitter {
         break
       case 'team': {
         const side = action.side === 'right' ? 'right' : 'left'
-        if (action.name != null) m[side + 'Name'] = String(action.name)
-        if (action.short != null) m[side + 'Short'] = String(action.short)
+        // Stored in capitals, matching what toLeftRight() paints. The mapper is what guarantees
+        // the PANEL never shows "volz"; storing it upper-cased is what keeps everything derived
+        // from state in agreement with the panel — the end-of-match result lines, the saved match
+        // history and the "Add a timeout for X?" prompt are all built in the browser from this
+        // value, and would otherwise be the only place the original case survived.
+        if (action.name != null) m[side + 'Name'] = String(action.name).toUpperCase()
+        if (action.short != null) m[side + 'Short'] = String(action.short).toUpperCase()
         if (action.color != null) m[side + 'Color'] = String(action.color)
         break
       }

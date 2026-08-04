@@ -45,6 +45,9 @@ const ROUTES = {
   // Writes three operator-supplied lines onto the scoreboard in the hall — the most public
   // surface this appliance has, so it is PIN-gated like any other paint.
   '/api/result': { guard: 'pin', body: { winner: 'X WINS', score: '3 - 0', history: '25-23' } },
+  // Writes across the whole panel AND can swap the ends — the most consequential of the paint
+  // routes, so it is gated like the rest.
+  '/api/message': { guard: 'pin', body: { text: 'COURT SWITCH', seconds: 1 } },
   '/api/history/clear': { guard: 'pin', body: {} },
   '/api/logs/level': { guard: 'pin', body: { level: 'info' } },
   '/api/logs/clear': { guard: 'pin', body: {} },

@@ -54,9 +54,11 @@ export class HistoryStore {
     }
   }
 
-  // Feed every applied action + the resulting state + the notable event. `now` is a
-  // preformatted timestamp string (passed in so this module stays deterministic/testable).
-  record(action, state, event, now) {
+  // Feed every applied action + the resulting state + the notable event. `now` is a preformatted
+  // timestamp string and `clock` a preformatted HH:MM:SS (both passed in so this module stays
+  // deterministic/testable). `now` dates the match; `clock` times each event inside it, because a
+  // play-by-play at minute resolution puts a whole rally sequence on one indistinguishable line.
+  record(action, state, event, now, clock = '') {
     if (!action || !state) return
     const t = action.type
     // A new match begins on reset, or on the first scoring action when nothing is buffered.
@@ -72,16 +74,55 @@ export class HistoryStore {
     const nm = this._teams(state)
     this.current.team_a = nm.a
     this.current.team_b = nm.b
-    if (t === 'point' && Number(action.delta) > 0) {
-      this._push({ t: now, type: 'point', side: action.side === 'right' ? 'b' : 'a',
-        score: [num(state.points_a), num(state.points_b)] })
+
+    // The running score and set tally at the moment the action landed, on EVERY event. That is
+    // what makes the log answer the question people actually bring to it afterwards — "what was
+    // the score when that happened" — without replaying the whole list to find out.
+    const at = () => ({
+      t: clock || now,
+      score: [num(state.points_a), num(state.points_b)],
+      sets: [num(state.sets_won_a), num(state.sets_won_b)],
+    })
+    const side = action.side === 'right' ? 'b' : 'a'
+
+    // Everything the operator did, not just the points that went up. A correction, a timeout, a
+    // change of ends and a typed-in score are exactly the entries a disputed sheet turns on, and
+    // they were the ones being dropped: the old log kept `point` with a POSITIVE delta and nothing
+    // else, so a mis-scored rally and its undo both vanished and the log quietly disagreed with
+    // the scoresheet.
+    if (t === 'point' || t === 'timeout' || t === 'sub') {
+      const delta = Number(action.delta)
+      // A typed value (tap the number, enter it) carries no delta — record it as its own kind of
+      // entry, because "set to 24" and "+1" are different acts even when the score ends up equal.
+      if (Number.isFinite(delta) && delta !== 0) this._push({ ...at(), type: t, side, delta })
+      else if (action.value != null) this._push({ ...at(), type: t, side, value: Number(action.value) })
+    } else if (t === 'serve') {
+      this._push({ ...at(), type: 'serve', side })
+    } else if (t === 'swap') {
+      this._push({ ...at(), type: 'swap' })
+    } else if (t === 'set') {
+      this._push({ ...at(), type: 'set', side, value: Number(action.value) })
+    } else if (t === 'remove-set') {
+      this._push({ ...at(), type: 'remove-set' })
+    }
+
+    // The set that just closed, in the orientation the board is in NOW (set_results are stored per
+    // physical side and travel with the change of ends, exactly as the console renders them).
+    const closingSet = () => {
+      const r = (state.set_results || []).slice(-1)[0] || { a: num(state.points_a), b: num(state.points_b) }
+      return { ...at(), type: 'set-end', set: num(state.sets_won_a) + num(state.sets_won_b),
+        score: [num(r.a), num(r.b)] }
     }
     if (event === 'set-end') {
-      const r = (state.set_results || []).slice(-1)[0] || { a: num(state.points_a), b: num(state.points_b) }
-      this._push({ t: now, type: 'set-end', set: num(state.sets_won_a) + num(state.sets_won_b),
-        score: [num(r.a), num(r.b)] })
+      this._push(closingSet())
+    } else if (event === 'switch-due') {
+      this._push({ ...at(), type: 'switch-due' })
     } else if (event === 'match-end') {
-      this._push({ t: now, type: 'match-end', score: [num(state.points_a), num(state.points_b)] })
+      // The last point of a match closes a set AND the match, but `lastEvent` can only be one of
+      // them — so the deciding set used to have no close at all in the log, and the play-by-play
+      // ended mid-set with "Match over". Write both, in the order they happened.
+      this._push(closingSet())
+      this._push({ ...at(), type: 'match-end' })
       this._finish(state, now)
     }
   }

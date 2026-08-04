@@ -77,6 +77,25 @@ const CORS = {
 // Max accepted request body — one bad/slow-drip POST must not exhaust the heap.
 const MAX_BODY = 1 << 20 // 1 MiB
 
+// Captive-portal / connectivity checks, answered the way each vendor expects a working network to
+// answer. Every one of these is a well-known fixed URL, so serving them is not guesswork.
+//   Android/Chrome  -> 204 with an empty body
+//   Apple           -> a page whose body is exactly "Success"
+//   Windows NCSI    -> "Microsoft NCSI" / "Microsoft Connect Test"
+//   Firefox         -> "success\n"
+// Getting these wrong (a 404, or our own HTML) is what tells a device it is behind a portal.
+const PROBE_204 = new Set([
+  '/generate_204', '/gen_204', '/mobile/status.php', '/connectivity-check.html',
+])
+const APPLE_SUCCESS = '<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>\n'
+const PROBE_BODIES = {
+  '/hotspot-detect.html': { type: 'text/html', body: APPLE_SUCCESS },
+  '/library/test/success.html': { type: 'text/html', body: APPLE_SUCCESS },
+  '/ncsi.txt': { type: 'text/plain', body: 'Microsoft NCSI' },
+  '/connecttest.txt': { type: 'text/plain', body: 'Microsoft Connect Test' },
+  '/success.txt': { type: 'text/plain', body: 'success\n' },
+}
+
 // A trivial idle source so /api/blank can put the SourceManager into an idle meta via the
 // uniform Source interface (stops the previous source). It carries the state it was seeded
 // with so the SourceManager caches it — keeping /api/status in sync with the blanked board.
@@ -212,16 +231,19 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (remainingMs <= 0) return null
     return { label: countdown.label, remainingMs }
   }
-  function startCountdown(seconds, label, content = 'full', team = '') {
-    clog.info(`countdown started: ${label || '(no label)'} ${seconds}s`, { seconds, label: String(label || ''), content, team: String(team || '') })
-    countdown = { label: String(label || ''), content, team: String(team || ''), endsAt: Date.now() + seconds * 1000 }
+  // `side` rides along with `team` so the break screen can size the name with the SAME per-side
+  // ceiling the operator set for the scoreboard — a name that is 24px while play is on should not
+  // drop to the layout's hard-coded 15 the moment that team calls a timeout.
+  function startCountdown(seconds, label, content = 'full', team = '', side = null) {
+    clog.info(`countdown started: ${label || '(no label)'} ${seconds}s`, { seconds, label: String(label || ''), content, team: String(team || ''), side })
+    countdown = { label: String(label || ''), content, team: String(team || ''), side, endsAt: Date.now() + seconds * 1000 }
     if (cdTicker) clearInterval(cdTicker)
     const tick = () => {
       const remainingMs = countdown ? countdown.endsAt - Date.now() : -1
       if (remainingMs <= 0) return stopCountdown({ expired: true })
       // Best-effort push to the physical board (no-op when not ready / no method).
       if (ledbox && typeof ledbox.pushCountdown === 'function') {
-        ledbox.pushCountdown(Math.ceil(remainingMs / 1000), countdown.label, { content: countdown.content, team: countdown.team }).catch(() => {})
+        ledbox.pushCountdown(Math.ceil(remainingMs / 1000), countdown.label, { content: countdown.content, team: countdown.team, side: countdown.side }).catch(() => {})
       }
     }
     tick()
@@ -270,6 +292,24 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
 
       if (pathname.startsWith('/api/')) return await handleApi(req, res, pathname)
 
+      // Connectivity checks from devices joined to the board's own Wi-Fi.
+      //
+      // A phone or tablet on an AP asks a fixed URL whether it can reach the internet, and decides
+      // what the network IS from the answer. Our 404 is the answer that means "a captive portal is
+      // intercepting you": the device keeps re-probing (the board's log has one every ~3 s all
+      // evening from the scorer's tablet), shows a "sign in to network" nag, and on Android is
+      // liable to hold the Wi-Fi at arm's length or drift back to mobile data — which for a
+      // scoring console served over that same Wi-Fi is not a cosmetic problem.
+      //
+      // The truthful answer for this appliance is "yes, you are connected, there is nothing to
+      // sign in to", which is what each vendor's expected reply below means. There is no internet
+      // out here, but nothing the tablet needs is out there either.
+      if (PROBE_204.has(pathname)) return send(res, 204, null)
+      if (PROBE_BODIES[pathname]) {
+        const { type, body } = PROBE_BODIES[pathname]
+        return send(res, 200, body, { 'Content-Type': type })
+      }
+
       // Pretty route for the virtual-board mirror (both the correct + user-typed spelling).
       if (pathname === '/mockledbox' || pathname === '/mochledbox') {
         return serveStatic(res, '/mockledbox.html', webDir)
@@ -284,7 +324,18 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Malformed JSON bodies are a client error, not a server crash.
       if (err instanceof SyntaxError) return sendJson(res, 400, { error: 'invalid JSON body' })
       // A tagged client error (e.g. body too large) carries its own status code.
-      if (err && err.statusCode) return sendJson(res, err.statusCode, { error: err.message })
+      if (err && err.statusCode) {
+        // A refused ERROR REPORT is the one refusal worth a line of its own. The console posts its
+        // own faults here, so a 413 means a browser tried to tell us something went wrong and we
+        // threw the message away — which is exactly the state the log was in after the
+        // "tablet went black" report. The report itself is gone; the fact of it should not be.
+        if (err.statusCode === 413 && req.url && req.url.startsWith('/api/logs')) {
+          clog.warn('a console error report was too large to accept — the fault it described is not recorded', {
+            bytes: Number(req.headers['content-length']) || null, limit: UI_LOG_MAX_BODY, ip: clientIp(req),
+          })
+        }
+        return sendJson(res, err.statusCode, { error: err.message })
+      }
       // Don't leak internal error detail to clients; log it server-side instead.
       clog.error(`request error: ${err && err.message}`, { method: req.method, path: req.url, error: err })
       return sendJson(res, 500, { error: 'internal error' })
@@ -370,7 +421,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       })
       pulseForAction(ledbox, action, settings, newState)
       // Log to the match history — wrapped so a fault here can never break scoring.
-      try { history.record(action, newState, manualSource.lastEvent, nowStamp()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+      try { history.record(action, newState, manualSource.lastEvent, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
       // Keep the resume slot in step with the board, so a power cut mid-set loses nothing.
       // A decided match is dropped instead: it is already archived in the history above, and
       // offering to "continue" a match that is over is worse than offering nothing. Same
@@ -515,7 +566,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         const v = toLeftRight(manualSource.getState())
         team = body.side === 'left' ? v.leftName : v.rightName
       }
-      startCountdown(seconds, body && body.label, content, team)
+      startCountdown(seconds, body && body.label, content, team, (body && (body.side === 'left' || body.side === 'right')) ? body.side : null)
       return sendJson(res, 200, { ok: true, state })
     }
     // POST /api/countdown/stop { expired } — clear the display timer. The UI-driven clock
@@ -592,6 +643,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         // (pushState refuses to paint while another layout is current), so an `_idle`-only check
         // left the finished match on the panel and the new game unpainted until the first point.
         const offMatch = ledbox && (ledbox._idle || (ledbox.currentLayout && ledbox.currentLayout !== ledbox.layout))
+        // Wipe the result screen while it is still the layout in front of us. The board keeps
+        // every layout's section values, so leaving it holding this match's winner means the NEXT
+        // match end briefly shows the previous team's name.
+        if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
         if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
         sourceManager.setSource(manualSource, { mode: 'manual' })
         manualSource.apply(saved ? { type: 'set-state', state: saved } : { type: 'reset' })
@@ -601,6 +656,38 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       }
       return sendJson(res, 400, { error: 'choice must be new, continue, delete or clock' })
     }
+    // POST /api/message { text, seconds, swap } — hold a full-panel announcement, then return to
+    // the match. Used for the change of ends, which wants an instruction rather than a countdown.
+    //
+    // `swap` flips the ends BEHIND the announcement (paint suppressed, exactly as
+    // /api/countdown{swapFirst} does), so the board comes back already showing the new
+    // arrangement instead of flashing the old one on the way past.
+    //
+    // Answers immediately rather than holding the socket open for the whole hold — the console
+    // has a match to run, and a request that blocks for three seconds is three seconds in which a
+    // scored point queues behind it.
+    if (pathname === '/api/message' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req) || {}
+      // Same clamp as the result screen: operator-typed text landing on the hall's scoreboard.
+      const text = String(body.text == null ? '' : body.text).replace(/[^\x20-\x7EÀ-ÿ]/g, '').slice(0, 32)
+      if (!text) return sendJson(res, 400, { error: 'text is required' })
+      const seconds = Number(body.seconds)
+      const ms = Math.round(Math.min(15, Math.max(0.5, Number.isFinite(seconds) ? seconds : 3)) * 1000)
+      let state
+      if (body.swap && ledbox) {
+        ledbox._suppressPaint = true
+        manualSource.apply({ type: 'swap' })
+        ledbox._suppressPaint = false
+        state = manualSource.getState()
+      }
+      clog.info(`announcement: ${text}`, { text, ms, swap: !!body.swap, ip: clientIp(req) })
+      const shown = ledbox && typeof ledbox.showMessage === 'function'
+      // Deliberately not awaited (see above). Failures land in the log via the client's own
+      // error path; the console does not need to wait to find out the panel lacks the layout.
+      if (shown) ledbox.showMessage(text, { ms }).catch(() => {})
+      return sendJson(res, 200, { ok: !!shown, state })
+    }
     // POST /api/result — put the finished match on the panel (winner / set score / every set).
     // The console works out the wording, because what the "score" line means is sport-specific
     // (sets won for volleyball and beach, final points for basketball) and the board does not
@@ -609,7 +696,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/result' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req) || {}
-      const line = (v, max) => String(v == null ? '' : v).replace(/[^\x20-\x7E]/g, '').slice(0, max)
+      // Printable ASCII plus the accented Latin-1 letters the panel font actually carries
+      // (ARIAL.TTF: äöüÄÖÜéèàçñÉÈÀ). ASCII-only silently ate them — "ZÜRICH WINS" reached the
+      // hall as "ZRICH WINS", and it only became reachable once team names started being
+      // upper-cased for the board. Anything outside both sets is still dropped.
+      const line = (v, max) => String(v == null ? '' : v).replace(/[^\x20-\x7EÀ-ÿ]/g, '').slice(0, max)
       const color = HEX_COLOR.test(String(body.color || '')) ? hexToRgb(body.color) : undefined
       const ok = ledbox && typeof ledbox.showResult === 'function'
         ? await ledbox.showResult({
@@ -986,6 +1077,15 @@ function nowStamp() {
   const d = new Date()
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+// Time of day for a single entry in the match log. Seconds, not minutes: a rally, its correction
+// and the timeout that followed can all fall inside one minute, and a play-by-play in which they
+// share a timestamp cannot be read back in order.
+function nowClock() {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 // Fold a SetSections `value` array into { sectionName: { text, color } } — mirrors

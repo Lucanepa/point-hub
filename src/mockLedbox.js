@@ -23,6 +23,8 @@ const KNOWN_SECTIONS = new Set([
   // kscw_break.xml: the second, larger clock used when no team name sits above it, and the team
   // label itself. kscw_result.xml: the end-of-match screen's three lines.
   'timerbig', 'team', 'winner', 'sets', 'history',
+  // kscw_message.xml: one big line, or two stacked ones.
+  'msgbig', 'msg1', 'msg2',
 ])
 const KNOWN_LAYOUTS = new Set([
   'waiting', 'volleyball_matchscore_02',
@@ -30,7 +32,8 @@ const KNOWN_LAYOUTS = new Set([
   // Deliberately NOT the kscw_* idle/crest/clock layouts: several tests rely on those being
   // ABSENT to exercise the "layout not on this device" fallbacks. The result screen has no such
   // fallback to test, and needs to be present for the end-of-match path to be exercised at all.
-  'kscw_result',
+  // Same for the announcement screen the change of ends uses.
+  'kscw_result', 'kscw_message',
 ])
 
 export class MockLedbox extends EventEmitter {

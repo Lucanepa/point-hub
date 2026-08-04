@@ -7,7 +7,7 @@
 import net from 'node:net'
 import { EventEmitter } from 'node:events'
 import { encode, StreamDecoder } from './ledboxProtocol.js'
-import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toLeftRight } from './volleyballMapper.js'
+import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toLeftRight } from './volleyballMapper.js'
 import { log } from './logStore.js'
 
 const CONTROL_PORT = 8889
@@ -56,6 +56,8 @@ export class LedboxClient extends EventEmitter {
     clockLayout = 'kscw_clock',
     // End-of-match result screen. Optional like the rest: a board without it just never shows one.
     resultLayout = 'kscw_result',
+    // Full-panel announcement screen (the change of ends). Optional; showMessage no-ops without it.
+    messageLayout = 'kscw_message',
     // How long after the last control-UI request a viewer still counts as present. The UI polls
     // /api/status every 1.5s, so this is ~13 missed polls: long enough that a brief wifi stall
     // or a tablet blanking its screen doesn't flap the panel back to the QR codes, short enough
@@ -122,8 +124,8 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
-    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toLeftRight }
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
+    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
     // Last time the control UI was seen (epoch ms). 0 = never; the board boots showing the QRs.
@@ -418,7 +420,7 @@ export class LedboxClient extends EventEmitter {
     // Idle overrides scoring: while the idle screen is up, a stray state push (e.g. a poll)
     // must not repaint the scoreboard over it. showIdle(false) lifts this.
     if (this._idle) return this._skipPaint('idle screen is up')
-    const paint = () => this.send('SetSections', this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight }))
+    const paint = () => this.sendSections(this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight }))
     // Wrapped: reading the state for a log line must never be what breaks a paint.
     try {
       const v = this.mapper.toLeftRight(state)
@@ -536,7 +538,7 @@ export class LedboxClient extends EventEmitter {
         if (this._layoutAvailable(this.idleLayout)) {
           try {
             await this.setLayoutIfNeeded(this.idleLayout)
-            await this.send('SetSections', this.mapper.toClubIdleSections(this._lastState, { fullNames: this.idleFullNames, maxFontSize: this.idleFontMax, clubName: this.clubName }))
+            await this.sendSections(this.mapper.toClubIdleSections(this._lastState, { fullNames: this.idleFullNames, maxFontSize: this.idleFontMax, clubName: this.clubName }))
             return true
           } catch (err) {
             this._noteLayoutMissing(this.idleLayout, err)
@@ -555,7 +557,7 @@ export class LedboxClient extends EventEmitter {
           totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs,
           matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight,
         })
-      await this.send('SetSections', sections)
+      await this.sendSections(sections)
       return true
     } catch (err) {
       // Put the flag back — but only on the way ON, and only if the panel really never moved.
@@ -635,7 +637,7 @@ export class LedboxClient extends EventEmitter {
     const { time, date } = this.formatClock()
     const stamp = `${time}|${date}`
     if (!force && stamp === this._clockText) return false
-    await this.send('SetSections', [
+    await this.sendSections([
       { name: this.clockTimeSection, value: { attrib: 'text', value: time } },
       { name: this.clockDateSection, value: { attrib: 'text', value: date } },
     ])
@@ -678,11 +680,11 @@ export class LedboxClient extends EventEmitter {
     try {
       await this.setLayoutIfNeeded(this.breakLayout)
       // content 'none' blanks the score boxes, so the panel is just the sport name.
-      await this.send('SetSections', this.mapper.toBreakSections(null, { timerText: null, label: text, content: 'none' }))
+      await this.sendSections(this.mapper.toBreakSections(null, { timerText: null, label: text, content: 'none' }))
       await new Promise((r) => setTimeout(r, ms))
       // Blank on the way out for the same reason pushCountdown does: the board keeps each
       // layout's section values, so the next countdown would otherwise flash this text.
-      await this.send('SetSections', [{ name: this.labelSection, value: { attrib: 'text', value: '' } }]).catch(() => {})
+      await this.sendSections([{ name: this.labelSection, value: { attrib: 'text', value: '' } }]).catch(() => {})
       await this.showIdle(true)
       return true
     } catch { return false }
@@ -705,7 +707,7 @@ export class LedboxClient extends EventEmitter {
     this.clearPulses()
     try {
       await this.setLayoutIfNeeded(this.resultLayout)
-      await this.send('SetSections', this.mapper.toResultSections({ winner, score, history, color }))
+      await this.sendSections(this.mapper.toResultSections({ winner, score, history, color }))
       blog.info(`result screen: ${winner} ${score}`, { winner, score, history })
       return true
     } catch (err) {
@@ -715,13 +717,62 @@ export class LedboxClient extends EventEmitter {
     }
   }
 
+  // Blank the result screen on the way out — the same discipline pushCountdown applies to the
+  // break screen, and for the same reason. The board retains each layout's section values, so a
+  // result left in place is what the panel shows the moment the NEXT match ends, for as long as
+  // the new text takes to arrive. An empty screen for a few milliseconds is a non-event; the
+  // losing side of the previous match being announced as this match's winner is not.
+  // Hold a full-panel announcement for `ms`, then go back to the match.
+  //
+  // This is what a change of ends gets instead of a countdown. A court switch is not a break — it
+  // is an instruction, and it takes as long as the teams take to walk. Counting 3, 2, 1 at them
+  // spends the whole panel on a number nobody is waiting for, so the panel says COURT SWITCH in
+  // letters that read from the back row and then gets out of the way.
+  //
+  // Blanked before returning, like the break and result screens: the board retains section values
+  // per layout, so the text left here is what the NEXT announcement flashes before its own lands.
+  async showMessage(text, { ms = 3000, color } = {}) {
+    if (!this.ready || !this.messageLayout || !text) return false
+    if (!this._layoutAvailable(this.messageLayout)) return false
+    this._idle = false
+    this.clearPulses()
+    const back = this.layout
+    try {
+      await this.setLayoutIfNeeded(this.messageLayout)
+      await this.sendSections(this.mapper.toMessageSections(text, { color }))
+      blog.info(`message screen: ${text}`, { text, ms })
+      await new Promise((r) => setTimeout(r, ms))
+      await this.sendSections(this.mapper.toMessageSections('', { color })).catch(() => {})
+      await this.setLayoutIfNeeded(back)
+      // Repaint from whatever the state is NOW, not from what it was when the message went up —
+      // the caller swaps ends behind this screen, and the point of the announcement is that the
+      // board comes back already showing the new arrangement.
+      if (this._lastState) await this.pushState(this._lastState)
+      return true
+    } catch (err) {
+      this._noteLayoutMissing(this.messageLayout, err)
+      this.emit('error', new Error(`message layout unavailable (${err.message})`))
+      // Never strand the panel on a half-painted announcement.
+      await this.setLayoutIfNeeded(back).catch(() => {})
+      if (this._lastState) await this.pushState(this._lastState).catch(() => {})
+      return false
+    }
+  }
+
+  async clearResult() {
+    if (!this.ready || !this.resultLayout || this.currentLayout !== this.resultLayout) return false
+    await this.sendSections(this.mapper.toResultSections({ winner: '', score: '', history: '' }))
+      .catch(() => {}) // cosmetic: must never block starting the next game
+    return true
+  }
+
   // Show (or clear, when secondsLeft == null) a countdown on the board.
   //
   // The device ships `volleyball_matchscore_timeout_02` for exactly this — GetSections on a
   // real C0270 reports it holding `lbl` ("TIMEOUT"), `timer` ("30"), both scores and both set
   // counts. So a timeout, a set interval and the warm-up clock are all the same screen with a
   // different label and number; we switch to it for the duration and switch back after.
-  async pushCountdown(secondsLeft, label = '', { content = 'full', team } = {}) {
+  async pushCountdown(secondsLeft, label = '', { content = 'full', team, side = null } = {}) {
     if (!this.ready) return false
     this._idle = false // a countdown means the match is live; leave any idle screen
     // The ticker calls this once a second, so only the edges are worth `info`: entering the
@@ -750,7 +801,7 @@ export class LedboxClient extends EventEmitter {
           // its own SetSections landed. That is the "the warm-up countdown flashed, then went to
           // TO" report. Going through the mapper means the blank covers every section the break
           // screen can paint, including ones added later.
-          await this.send('SetSections',
+          await this.sendSections(
             this.mapper.toBreakSections(null, { timerText: null, label: '', content: 'none' }),
           ).catch(() => {}) // cosmetic: never block the return to the match screen
         }
@@ -758,10 +809,6 @@ export class LedboxClient extends EventEmitter {
         if (this._lastState) await this.pushState(this._lastState) // repaint the match
         return true
       }
-      // Switching layout costs the device real time; the vendor app inserts settle delays
-      // of 200ms+ around every layout change. Without one, the first seconds of a countdown
-      // are written into a screen that is not on yet and are simply lost — a 10s countdown
-      // was observed starting from 5.
       // Prefer our own break screen; fall back to the vendor's if it isn't on the device.
       let useBreak = !!this.breakLayout
       const want = useBreak ? this.breakLayout : this.countdownLayout
@@ -774,11 +821,15 @@ export class LedboxClient extends EventEmitter {
           useBreak = false
           await this.setLayoutIfNeeded(this.countdownLayout)
         }
-        await new Promise((r) => setTimeout(r, this.layoutSettleMs))
+        // Nothing is slept here. This call site used to wait out layoutSettleMs on TOP of the
+        // one setLayoutIfNeeded did internally — the settle was moved in there and this copy was
+        // never removed — so entering a timeout showed the bare break screen for the better part
+        // of a second before the clock and score arrived. sendSections below pays a settle only
+        // if the board actually refuses the write.
         if (!useBreak) {
           // The vendor layout ships a Tech4Sport logo in `media` covering most of the panel.
           // Blank it once on entry so the clock owns the screen.
-          await this.send('SetSections', [{ name: 'media', value: { attrib: 'src', value: '' } }]).catch(() => {})
+          await this.sendSections([{ name: 'media', value: { attrib: 'src', value: '' } }]).catch(() => {})
         }
       } else {
         useBreak = this.currentLayout === this.breakLayout
@@ -788,9 +839,13 @@ export class LedboxClient extends EventEmitter {
       // M:SS once there are minutes to show (set interval, warm-up).
       const timerText = s < 60 ? String(s) : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
       const sections = useBreak
-        ? this.mapper.toBreakSections(this._lastState, { timerText, label, content, team })
+        ? this.mapper.toBreakSections(this._lastState, {
+          timerText, label, content, team, side,
+          // Same name ceilings as the scoreboard — see toBreakSections.
+          matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight,
+        })
         : this.mapper.toCountdownSections(this._lastState, { timerText, label, content })
-      await this.send('SetSections', sections)
+      await this.sendSections(sections)
       return true
     } catch { return false }
   }
@@ -889,12 +944,41 @@ export class LedboxClient extends EventEmitter {
       if (!/timed out/.test(err.message)) throw err // silence here just means "already there"
     })
     this.currentLayout = name
-    // The board acks SetLayout before the new layout's sections actually exist, so a
-    // section write sent right after can land on the *old* layout and be rejected
-    // ("section team1 not found"). That is what ate the first repaint after every
-    // reconnect. Every caller paints immediately after switching, so settle here
-    // rather than repeating the delay at each call site.
-    if (this.layoutSettleMs) await new Promise((r) => setTimeout(r, this.layoutSettleMs))
+    // No settle here any more — see sendSections(), which pays the delay only if the board
+    // actually says it wasn't ready. Sleeping unconditionally at this point is what put the
+    // bare layout on the panel before its data every single time it changed.
+  }
+
+  // Paint immediately after a layout switch, rather than waiting out a fixed delay first.
+  //
+  // The board acks SetLayout before the new layout's sections exist, so a write sent right
+  // afterwards can be refused with "section not found (6)". The old answer was to sleep
+  // `layoutSettleMs` after EVERY switch and paint into the gap. What the hall saw during that gap
+  // was the new layout holding whatever was last written to it, which is:
+  //   * entering a timeout — the bare break screen, then the score dropping in (reported as
+  //     "first it shows the layout, then it loads the score"), and doubly so because
+  //     pushCountdown slept a second time on top of this one;
+  //   * at match end — the PREVIOUS match's winner, for 449 ms. The board's own log has it:
+  //     19:52:11.613 layout → kscw_result, 19:52:12.062 result screen written. That is the
+  //     "split second the wrong team is shown".
+  //
+  // So the delay becomes the exception instead of the toll: write at once, and settle only if the
+  // board says the sections aren't there yet. Best case the panel is right a full settle sooner;
+  // worst case one wasted round trip on a screen that was blank anyway. The condition being waited
+  // on is now the board's own answer rather than a number we guessed.
+  async sendSections(sections, opts) {
+    try {
+      return await this.send('SetSections', sections, {}, opts)
+    } catch (err) {
+      if (!/not found \(6\)/.test(err.message) || !this.layoutSettleMs) throw err
+      // `info`, not `debug`: this is the evidence for whether painting straight after a switch was
+      // the right call. It should be rare — a handful of layout changes a match — and if the log
+      // shows it firing on every single one, the optimistic write is not buying anything on this
+      // firmware and a measured settle should come back.
+      blog.info('board refused the paint — settling once, then repainting', { settleMs: this.layoutSettleMs })
+      await new Promise((r) => setTimeout(r, this.layoutSettleMs))
+      return this.send('SetSections', sections, {}, opts)
+    }
   }
 
   // Periodically re-assert the scoreboard layout and repaint, so a desync self-corrects.

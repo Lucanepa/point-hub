@@ -26,14 +26,19 @@ const volleyMapper = {
   toClubIdleSections: volley.toClubIdleSections,
   toBreakSections: volley.toBreakSections,
   toResultSections: volley.toResultSections,
+  toMessageSections: volley.toMessageSections,
   toLeftRight: volley.toLeftRight,
 }
 
 // Idle + crest are sport-neutral (crest + team names), so every sport uses the hardware-proven
 // volleyball idle screens. Only the match layout is sport-specific.
-// The result screen is sport-neutral too — a winner, a score and a list of periods reads the
-// same whatever produced them — so it rides along with the idle layouts.
-const IDLE_LAYOUTS = { idleLayout: 'kscw_idle', crestLayout: 'kscw_crest', clockLayout: 'kscw_clock', resultLayout: 'kscw_result' }
+// The result and announcement screens are sport-neutral too — a winner, a score and a list of
+// periods reads the same whatever produced them, and a change of ends is a change of ends — so
+// they ride along with the idle layouts.
+const IDLE_LAYOUTS = {
+  idleLayout: 'kscw_idle', crestLayout: 'kscw_crest', clockLayout: 'kscw_clock',
+  resultLayout: 'kscw_result', messageLayout: 'kscw_message',
+}
 
 export const SPORTS = {
   volleyball: {

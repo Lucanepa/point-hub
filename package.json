@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/bridge.js",
     "appliance": "node src/appliance.js",
-    "test": "npm run test:rules && node test/mapper-selftest.mjs && node test/relay-selftest.mjs && node test/livepush-selftest.mjs && node test/settings-migration-selftest.mjs && node test/beach-serve-selftest.mjs && node test/pulse-cadence-selftest.mjs && node test/sport-confirm-selftest.mjs && node test/idle-clock-selftest.mjs && node test/resume-game-selftest.mjs && node test/logstore-selftest.mjs && node test/pin-throttle-selftest.mjs && node test/appliance-selftest.mjs && node test/control-auth-selftest.mjs && node test/reconnect-selftest.mjs && node test/crash-resume-selftest.mjs && node test/name-size-selftest.mjs && node test/break-screen-selftest.mjs && node test/result-screen-selftest.mjs",
+    "test": "npm run test:rules && node test/mapper-selftest.mjs && node test/relay-selftest.mjs && node test/livepush-selftest.mjs && node test/settings-migration-selftest.mjs && node test/beach-serve-selftest.mjs && node test/pulse-cadence-selftest.mjs && node test/sport-confirm-selftest.mjs && node test/idle-clock-selftest.mjs && node test/resume-game-selftest.mjs && node test/logstore-selftest.mjs && node test/pin-throttle-selftest.mjs && node test/appliance-selftest.mjs && node test/control-auth-selftest.mjs && node test/reconnect-selftest.mjs && node test/crash-resume-selftest.mjs && node test/name-size-selftest.mjs && node test/break-screen-selftest.mjs && node test/result-screen-selftest.mjs && node test/name-case-selftest.mjs && node test/paint-latency-selftest.mjs && node test/message-screen-selftest.mjs && node test/match-log-selftest.mjs",
     "test:rules": "node src/manualSource.js && node src/beachSource.js && node src/basketballSource.js && node src/beachMapper.js && node src/basketballMapper.js",
     "test:pulse": "node test/pulse-cadence-selftest.mjs",
     "test:sport": "node test/sport-confirm-selftest.mjs",
@@ -24,7 +24,11 @@
     "test:e2e": "node test/e2e-live.mjs",
     "test:auth": "node test/control-auth-selftest.mjs",
     "test:reconnect": "node test/reconnect-selftest.mjs",
-    "test:crash": "node test/crash-resume-selftest.mjs"
+    "test:crash": "node test/crash-resume-selftest.mjs",
+    "test:case": "node test/name-case-selftest.mjs",
+    "test:latency": "node test/paint-latency-selftest.mjs",
+    "test:message": "node test/message-screen-selftest.mjs",
+    "test:matchlog": "node test/match-log-selftest.mjs"
   },
   "engines": {
     "node": ">=22"

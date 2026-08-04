@@ -259,6 +259,20 @@
   .histcard .final .win{color:var(--ok)}
   .histcard .meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;gap:14px;flex-wrap:wrap}
   .histcard .sets{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  /* Play-by-play, folded away: a five-setter is ~300 rows and must not push every other match
+     off the screen. Capped and scrolled inside its own box for the same reason. */
+  .histlog{margin-top:9px;border-top:1px solid var(--line);padding-top:7px}
+  .histlog summary{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--blue);cursor:pointer;user-select:none}
+  .histlog .logrows{margin-top:7px;max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+  .logrow{display:flex;gap:10px;align-items:baseline;font-size:12.5px;padding:3px 4px;border-radius:5px}
+  .logrow:nth-child(odd){background:color-mix(in srgb,var(--line) 30%,transparent)}
+  .logrow .lt{font-family:var(--mono);color:var(--muted);font-size:11.5px;flex:none}
+  .logrow .lw{flex:1;min-width:0;overflow-wrap:anywhere}
+  .logrow .ls{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;flex:none}
+  /* The turning points read differently from the rallies between them. */
+  .logrow.set-end,.logrow.match-end{color:var(--gold);font-weight:800}
+  .logrow.swap,.logrow.switch-due{color:var(--blue)}
   /* confirm modal (T/O + subs) */
   /* Above serveOrder (76) and sportPicker (78): this is the shared yes/no primitive, so it must
      be able to open ON TOP of any other dialog. Below shutdown (90), which is terminal. */
@@ -925,19 +939,46 @@
   // console on it. Fire-and-forget, throttled per message so a stuck loop can't flood the
   // card, and never fired for the logging endpoint itself.
   const uiReported = new Map();
+  // The endpoint caps the body at 8 KB and REFUSES anything bigger — it is the one mutating route
+  // with no PIN, and at 1 MiB it was a remote heap bomb. So a report has to arrive under that cap
+  // or it does not arrive at all: the board's log for 2026-08-04 has two `POST /api/logs → 413`
+  // and nothing whatever about what went wrong, which is precisely when you want the report.
+  // Clamped here, at the only place that knows what is worth keeping.
+  const UI_REPORT_MAX = 6000;
   function reportUi(msg, data, level = "error") {
     const now = Date.now();
     if (now - (uiReported.get(msg) || 0) < 5000) return;
     uiReported.set(msg, now);
     try {
+      let payload = JSON.stringify({ level, msg: String(msg).slice(0, 300), data });
+      if (payload.length > UI_REPORT_MAX) {
+        // Keep the message — it is the part that identifies the fault — and say what was dropped
+        // rather than silently posting a lie about the size of the evidence.
+        payload = JSON.stringify({
+          level, msg: String(msg).slice(0, 300),
+          data: { truncated: true, originalBytes: payload.length },
+        });
+      }
       fetch("/api/logs", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ level, msg, data }),
+        body: payload,
         signal: deadline(API_TIMEOUT_MS),
       }).catch(() => {});
     } catch { /* nothing left to try */ }
   }
+  // Screen-off and backgrounding, on the record.
+  //
+  // "The whole tablet went black" is unanswerable from the board's log today: the console is
+  // client-side, the screen is the tablet's business, and nothing about either reaches the card.
+  // These two lines are what make the next report diagnosable — a `page hidden` immediately
+  // before it means the display slept (or the operator switched app), and its absence rules that
+  // out. Level `info`, not `error`: this is normal life, it just needs to be visible in sequence
+  // with everything else. The 5s throttle in reportUi keeps a flapping tablet from flooding.
+  document.addEventListener("visibilitychange", () => {
+    reportUi(`page ${document.visibilityState}`,
+      { keepAwake, wakeLock: !!wakeLock, video: !!(noSleepVideo && !noSleepVideo.paused) }, "info");
+  });
   window.addEventListener("error", (ev) =>
     reportUi(`controller error: ${ev.message}`, { file: ev.filename, line: ev.lineno, col: ev.colno }));
   window.addEventListener("unhandledrejection", (ev) =>
@@ -1730,14 +1771,27 @@
   }
 
   // Operator-confirmed court switch. When the boundary point is scored the backend flags
-  // 'switch-due'; we ASK first ("Switch sides?"). YES -> blink "COURT SWITCH" full-panel for
-  // ~3 s on the break screen (content 'none' = no scores, just the label + a 3·2·1 clock), then
-  // send `swap` — which returns to the match layout and repaints the swapped score. NO -> nothing:
-  // the point stands and the manual "Switch sides" button is always available.
+  // 'switch-due'; we ASK first ("Switch sides?"). YES -> the whole panel says COURT SWITCH in
+  // club gold for ~3 s while the ends are swapped behind it, then the board comes back on the
+  // scoreboard already the right way round. NO -> nothing: the point stands and the manual
+  // "Switch sides" button is always available.
+  //
+  // This used to run a 3-2-1 countdown on the break screen. A change of ends is not a break — it
+  // is an instruction to two teams, and it lasts as long as they take to walk, so a clock counting
+  // at them was both wrong and small: the label lived in the break screen's 12px `lbl` box while
+  // the panel's whole middle went to a number nobody was waiting for.
   async function requestCourtSwitch() {
     if (!(await askConfirm("Switch sides?"))) return;
-    startCountdown(3, "COURT SWITCH", () => sendAction({ type: "swap" }),
-      { major: true, content: "none", blink: true });
+    try {
+      const r = await postJSON("/api/message", { text: "COURT SWITCH", seconds: 3, swap: true });
+      // The server swapped ends under the announcement and handed back the new state; show it
+      // immediately rather than waiting for the next poll, so the tablet and the board agree.
+      if (r && r.state) renderStatus({ ledbox: lastLedbox, state: r.state });
+      if (r && r.ok === false) toast("Sides switched — the board has no announcement screen.");
+    } catch (e) {
+      // The swap is the part that matters; if the announcement could not be posted, still offer it.
+      toast("Couldn't announce it: " + ((e && e.message) || e));
+    }
   }
 
   async function blank() {
@@ -1995,15 +2049,18 @@
     const b = bball ? num(state.points_b) : num(state.sets_won_b);
     if (a === b) return null;                       // a draw has no winner line; skip the screen
     const aWon = a > b;
-    const color = aWon ? state.team_a_color : state.team_b_color;
     const history = bball ? "" : (state.set_results || [])
       .map((r) => (aWon ? num(r.a) + "-" + num(r.b) : num(r.b) + "-" + num(r.a)))
       .join("  ");
+    // No `color`: the winner line is club gold, which is what the mapper defaults to. It used to
+    // be sent in the winning team's own colour, which sounds right and reads wrong — half the
+    // teams that visit wear a dark blue or red that barely lifts off a black panel, and the line
+    // stops looking like the thing being celebrated. Gold is the trophy colour and is legible
+    // from the back of the hall whoever won. /api/result still accepts a colour for other callers.
     return {
       winner: (aWon ? nameA : nameB) + " WINS",
       score: (aWon ? a : b) + " - " + (aWon ? b : a),
       history,
-      color: SAFE_HEX.test(color || "") ? color : undefined,
     };
   }
 
@@ -2780,6 +2837,26 @@
 
   // --- HISTORY ------------------------------------------------------------
   let HISTORY = [];
+  // One line of the play-by-play, in the words the operator would use. The stored event is
+  // deliberately terse ({type, side, delta}) so the file stays small and the shape stays stable;
+  // the phrasing belongs here, where it can change without rewriting anyone's saved history.
+  function eventText(e, m) {
+    const who = e.side === "b" ? (m.team_b || "B") : (m.team_a || "A");
+    const n = Number(e.delta);
+    switch (e.type) {
+      case "point": return n < 0 ? "Point removed · " + who : (e.value != null ? who + " set to " + e.value : "Point · " + who);
+      case "timeout": return (n < 0 ? "Timeout taken back · " : "Timeout · ") + who;
+      case "sub": return (n < 0 ? "Substitution taken back · " : "Substitution · ") + who;
+      case "set": return who + " sets set to " + e.value;
+      case "serve": return "Serve · " + who;
+      case "swap": return "Ends changed";
+      case "switch-due": return "Court switch due";
+      case "remove-set": return "Set removed";
+      case "set-end": return "End of set " + (e.set || "") + (e.score ? " (" + e.score[0] + "–" + e.score[1] + ")" : "");
+      case "match-end": return "Match over";
+      default: return e.type || "";
+    }
+  }
   async function refreshHistory() {
     const list = $("#histList"), note = $("#histNote");
     try { const r = await api("/api/history"); HISTORY = (r && r.matches) || []; }
@@ -2807,6 +2884,29 @@
       const evs = document.createElement("span"); evs.textContent = (m.events || []).length + " events";
       meta.append(date, setsEl, evs);
       li.append(top, meta);
+      // The play-by-play, folded away. A finished five-setter is ~300 lines, so it cannot be open
+      // by default — but it is the record that settles "the score was wrong after the timeout",
+      // and until now it was written to disk, counted in the card, and shown to nobody.
+      if ((m.events || []).length) {
+        const det = document.createElement("details"); det.className = "histlog";
+        const sum = document.createElement("summary");
+        sum.textContent = "Match log";
+        const tbl = document.createElement("div"); tbl.className = "logrows";
+        for (const e of m.events) {
+          const row = document.createElement("div"); row.className = "logrow " + (e.type || "");
+          const tm = document.createElement("span"); tm.className = "lt"; tm.textContent = e.t || "";
+          const what = document.createElement("span"); what.className = "lw";
+          what.textContent = eventText(e, m);
+          const sc = document.createElement("span"); sc.className = "ls";
+          sc.textContent = e.score ? e.score[0] + "–" + e.score[1] : "";
+          // Everything here came off the wire, so it is all textContent — a team name reaches this
+          // list exactly as it was typed on some tablet.
+          row.append(tm, what, sc);
+          tbl.appendChild(row);
+        }
+        det.append(sum, tbl);
+        li.append(det);
+      }
       list.appendChild(li);
     }
   }

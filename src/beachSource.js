@@ -300,8 +300,9 @@ export class BeachSource extends EventEmitter {
         break
       case 'team': {
         const side = action.side === 'right' ? 'right' : 'left'
-        if (action.name != null) m[side + 'Name'] = String(action.name)
-        if (action.short != null) m[side + 'Short'] = String(action.short)
+        // Upper-cased on the way in, as in manualSource — see the note there and in toLeftRight().
+        if (action.name != null) m[side + 'Name'] = String(action.name).toUpperCase()
+        if (action.short != null) m[side + 'Short'] = String(action.short).toUpperCase()
         if (action.color != null) m[side + 'Color'] = String(action.color)
         break
       }

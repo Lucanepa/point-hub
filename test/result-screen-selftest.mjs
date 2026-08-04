@@ -87,9 +87,11 @@ console.log('\n[2] end to end: the finished match lands on the panel, winner fir
     } } })
     await sleep(200)
 
-    // Exactly what the console posts once "End match?" is confirmed.
+    // Exactly what the console posts once "End match?" is confirmed — note NO colour. The winner
+    // line is club gold whoever wins; sending the winning team's own colour meant half the
+    // visiting sides got a dark blue or red that barely lifts off a black LED panel.
     const r = await post('/api/result', {
-      winner: 'VOLZ WINS', score: '3 - 1', history: '23-25  25-19  25-21  25-22', color: '#2563eb',
+      winner: 'VOLZ WINS', score: '3 - 1', history: '23-25  25-19  25-21  25-22',
     })
     eq(r.status, 200, 'POST /api/result -> 200')
     ok(r.json && r.json.ok === true, 'and the board accepted it')
@@ -99,7 +101,7 @@ console.log('\n[2] end to end: the finished match lands on the panel, winner fir
     eq(mock.text('winner'), 'VOLZ WINS', 'winner named on the panel')
     eq(mock.text('sets'), '3 - 1', "set score is the WINNER's first — not 1 - 3")
     eq(mock.text('history'), '23-25  25-19  25-21  25-22', 'every set, winner-first in each')
-    eq(mock.color('winner'), '37,99,235', 'winner line in the winning team colour (hex converted)')
+    eq(mock.color('winner'), '255,200,50', 'winner line in club gold, not the winning team colour')
 
     console.log('\n[3] it survives the appliance still running')
     // A point arriving from anywhere (a poll, another tablet, a source) must not drop the

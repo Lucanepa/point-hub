@@ -19,16 +19,32 @@ function count(t) {
   return 0
 }
 
+// The panel speaks in capitals, and that is enforced here rather than asked for at each call site.
+//
+// This is the one chokepoint every name passes through: all three sports' mappers, every screen
+// (match, break, countdown, both idle screens) and the relay path all read left/rightName from
+// here. Doing it anywhere else leaves a hole — the console can normalise what the SCORER types,
+// but nothing in this repo controls the names an eScoresheet pushes over the LAN relay.
+//
+// Why coerce at all: the console's name box is styled `text-transform: uppercase`, so a name
+// typed in lower case looks CORRECT to the scorer and is wrong only on the panel, twenty metres
+// away, where nobody can fix it mid-match. A phone keyboard produces lower case by default, so
+// this is the likely input, not the exotic one.
+//
+// It must also happen BEFORE fitFontSize: capitals run ~15-20% wider than lower case, so sizing
+// the typed string and painting a different one is precisely how a name ends up clipped.
+const upper = (s) => String(s).toUpperCase()
+
 // Resolve the A/B model to physical left/right using side_a, exactly like getLeftRight.
 export function toLeftRight(state) {
   const isALeft = (state.side_a || 'left') === 'left'
   const pick = (a, b) => (isALeft ? a : b)
   return {
-    leftName: pick(state.team_a_short || state.team_a_name, state.team_b_short || state.team_b_name) || 'TEAM A',
+    leftName: upper(pick(state.team_a_short || state.team_a_name, state.team_b_short || state.team_b_name) || 'TEAM A'),
     // Full names, for screens with room for them (the crest idle screen auto-fits).
-    leftFull: pick(state.team_a_name || state.team_a_short, state.team_b_name || state.team_b_short) || 'TEAM A',
-    rightFull: pick(state.team_b_name || state.team_b_short, state.team_a_name || state.team_a_short) || 'TEAM B',
-    rightName: pick(state.team_b_short || state.team_b_name, state.team_a_short || state.team_a_name) || 'TEAM B',
+    leftFull: upper(pick(state.team_a_name || state.team_a_short, state.team_b_name || state.team_b_short) || 'TEAM A'),
+    rightFull: upper(pick(state.team_b_name || state.team_b_short, state.team_a_name || state.team_a_short) || 'TEAM B'),
+    rightName: upper(pick(state.team_b_short || state.team_b_name, state.team_a_short || state.team_a_name) || 'TEAM B'),
     leftColor: hexToRgb(pick(state.team_a_color, state.team_b_color)),
     rightColor: hexToRgb(pick(state.team_b_color, state.team_a_color)),
     leftPoints: pick(state.points_a, state.points_b) || 0,
@@ -127,8 +143,14 @@ export function toCountdownSections(state, { timerText, label, content = 'full' 
 // The clock's size is fitted to the gap BETWEEN the boxes (x 64..127). At a fixed size a
 // long clock ("10:00") runs into them, which is exactly what the vendor screen does.
 const BREAK_CLOCK_WIDTH = 58 // the 64px gap between the boxes, less a margin each side
+// The team name sits in that same centre column, so it has the same room — a quarter of what the
+// scoreboard's 86px name column gives it.
+const BREAK_NAME_WIDTH = BREAK_CLOCK_WIDTH
 
-export function toBreakSections(state, { timerText, label, content = 'full', team } = {}) {
+export function toBreakSections(state, {
+  timerText, label, content = 'full', team, side = null,
+  matchFontMaxLeft = 18, matchFontMaxRight = 18,
+} = {}) {
   const v = state ? toLeftRight(state) : null
   const out = []
   const showTeam = content === 'full' && !!team
@@ -138,7 +160,17 @@ export function toBreakSections(state, { timerText, label, content = 'full', tea
   // write on a blank label does not leave the label blank — it leaves whatever the PREVIOUS
   // break screen put there, and the next countdown inherits it.
   out.push(attr('lbl', 'text', label ? String(label).toUpperCase() : ''))
-  out.push(attr('team', 'text', showTeam ? String(team).toUpperCase() : ''))
+  const teamText = showTeam ? String(team).toUpperCase() : ''
+  out.push(attr('team', 'text', teamText))
+  // Sized with the SAME per-side ceiling the operator set for the scoreboard, so a name they made
+  // bigger stays bigger when that team calls a timeout instead of snapping back to the 15 baked
+  // into the layout XML. Fitted to this screen's own column, though: the ceiling is a ceiling, and
+  // the centre column here is 58px against the scoreboard's 86px, so a name that fits at 24 out
+  // there can still have to step down in here rather than run into the two score boxes.
+  if (teamText) {
+    const ceiling = side === 'right' ? matchFontMaxRight : matchFontMaxLeft
+    out.push(attr('team', 'fontsize', fitFontSize(teamText, BREAK_NAME_WIDTH, { max: ceiling, min: 8 })))
+  }
 
   // Two clock sections rather than one: with a team name above it the clock sits lower and
   // smaller, without one it moves up and grows. A single section can't be in both places.
@@ -279,6 +311,59 @@ export function toResultSections({ winner = '', score = '', history = '', color 
     // shrinking it beats dropping sets off the end.
     attr('history', 'fontsize', fitFontSize(history, RESULT_WIDTH, { max: 11, min: 6 })),
   ]
+}
+
+// Full-panel announcement screen (`kscw_message`): one short phrase, as large as it will go,
+// in club gold. Built for the change of ends, which needs no clock and no score — it is a single
+// instruction to two teams and a hall, and it should read from the back row.
+//
+// Two text slots rather than one, the same trick the break screen uses for its clock: a phrase
+// that splits over two lines gets far more height per line than the same phrase squeezed onto
+// one. "COURT SWITCH" is 28px over two lines and 23px on one, and the two-line version is more
+// than twice the ink. `msgbig` carries a single unsplittable word; `msg1`/`msg2` carry the pair.
+// Whichever is unused is blanked, because the board retains section values between visits.
+const MESSAGE_WIDTH = 186   // 192 less a 3px margin each side
+const MESSAGE_ONE_MAX = 40  // a lone word can be enormous
+const MESSAGE_TWO_MAX = 28  // two lines have to share 64px of panel
+
+// Where to break a phrase so the two lines come out closest in width — a 2-word phrase has one
+// candidate, a 3-word phrase two. Returns null when there is nothing to split.
+function splitLines(text) {
+  const words = String(text).trim().split(/\s+/).filter(Boolean)
+  if (words.length < 2) return null
+  let best = null
+  for (let i = 1; i < words.length; i++) {
+    const a = words.slice(0, i).join(' ')
+    const b = words.slice(i).join(' ')
+    // Compare at a fixed nominal size; only the RATIO between the halves matters here.
+    const diff = Math.abs(textWidth(a, 10) - textWidth(b, 10))
+    if (!best || diff < best.diff) best = { a, b, diff }
+  }
+  return best
+}
+
+export function toMessageSections(text, { color = CLUB_GOLD } = {}) {
+  const phrase = String(text || '').toUpperCase().trim()
+  const split = splitLines(phrase)
+  // Only split if two lines actually buy size. A short word pair like "TIME OUT" fits one line at
+  // 40px and would LOSE height by being stacked at 28.
+  const oneSize = fitFontSize(phrase, MESSAGE_WIDTH, { max: MESSAGE_ONE_MAX, min: 8 })
+  const twoSize = split
+    ? Math.min(
+      fitFontSize(split.a, MESSAGE_WIDTH, { max: MESSAGE_TWO_MAX, min: 8 }),
+      fitFontSize(split.b, MESSAGE_WIDTH, { max: MESSAGE_TWO_MAX, min: 8 }),
+    )
+    : 0
+  const stacked = !!split && twoSize > oneSize
+  const out = []
+  const put = (name, value, size) => {
+    out.push(attr(name, 'text', value), attr(name, 'color', color))
+    if (value) out.push(attr(name, 'fontsize', size))
+  }
+  put('msgbig', stacked ? '' : phrase, oneSize)
+  put('msg1', stacked ? split.a : '', twoSize)
+  put('msg2', stacked ? split.b : '', twoSize)
+  return out
 }
 
 // Returns the `value` array for a `SetSections` command. Each side is painted uniformly
