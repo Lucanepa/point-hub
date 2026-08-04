@@ -72,16 +72,28 @@ ok(s2.values.timeoutSeconds === 45 && s2.values.brightness === 55 && s2.values.s
 // the INCOMING sport. A settings form is always rendered under the sport that was active when it
 // loaded, so its numbers belong to THAT sport. Routing them by the post-patch sport let beach's
 // 60s timeout/interval overwrite volleyball's 30/180 on disk — permanently, and invisibly.
+// `allowSport: true` is what POST /api/sport passes; the generic settings form cannot change sport
+// (see settings.js update()). These call sites stand in for that route, not for the form.
 console.log('\nsport change + per-sport values in one patch:')
-s.update({ sport: 'beach' })
+s.update({ sport: 'beach' }, { allowSport: true })
 ok(s.values.sport === 'beach', 'switched active sport to beach')
 const volleyBefore = s.forSport('volleyball').timeoutSeconds
-s.update({ sport: 'volleyball', timeoutSeconds: 60, setIntervalSeconds: 60 })
+s.update({ sport: 'volleyball', timeoutSeconds: 60, setIntervalSeconds: 60 }, { allowSport: true })
 ok(s.values.sport === 'volleyball', 'switched active sport back to volleyball')
 ok(s.forSport('volleyball').timeoutSeconds === volleyBefore,
   `volleyball timeout NOT clobbered by the outgoing sport (${volleyBefore}s kept)`)
 ok(s.forSport('volleyball').setIntervalSeconds === 180, 'volleyball set interval still 180s')
 ok(s.forSport('beach').timeoutSeconds === 60, 'the values landed on beach, the sport the form was rendered under')
+
+// The guard itself. Without allowSport, a generic settings POST must not be able to switch sport:
+// it would persist the new sport and reshape the console while the running engine kept the old one,
+// with no .sport-switch marker and no restart — the board would never apply or announce it.
+console.log('\nthe generic settings form cannot change sport:')
+const sportBefore = s.values.sport
+const back = s.update({ sport: 'beach', brightness: 42 })
+ok(back.sport === sportBefore, `sport ignored without allowSport (still ${sportBefore})`)
+ok(s.values.sport === sportBefore, 'and it did not land in memory either')
+ok(s.values.brightness === 42, 'the rest of the same patch still applies')
 
 fs.rmSync(dir, { recursive: true, force: true })
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

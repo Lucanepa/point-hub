@@ -142,6 +142,75 @@ console.log('\nhistory archive')
     'further pushes on a finished board do not append duplicates')
 }
 
+// ── 5c. TWO matches in one evening ──────────────────────────────────────────
+// The suite only ever drove a single match through one createLivePush, which is how two separate
+// "the second game was never archived" bugs both shipped green. History is append-only — the board
+// holds create and nothing else — so each of these must archive EXACTLY once, no more and no less.
+console.log('\ntwo matches in one session')
+{
+  const hist = () => calls.filter((c) => c.url.includes('live_history')).length
+  const teams = (a, b) => ({ team_a_name: a, team_b_name: b, team_a_short: a, team_b_short: b })
+  const settle = () => wait(40)
+
+  // The club's second basketball game of the evening against the SAME opponent. Basketball never
+  // fills set_results, so a content hash of the row keyed both games identically and dropped the
+  // second one outright.
+  {
+    stubFetch()
+    const lp = createLivePush({ ...CFG, sport: 'basketball' })
+    lp.push({ ...teams('KSCW', 'GAST'), points_a: 61, points_b: 58 }); await settle()
+    lp.push({ ...teams('KSCW', 'GAST'), points_a: 61, points_b: 58, over: true }); await settle()
+    assert(hist() === 1, `game 1 archived (got ${hist()})`)
+    lp.push({ ...teams('KSCW', 'GAST'), points_a: 0, points_b: 0 }); await settle()   // tip-off
+    lp.push({ ...teams('KSCW', 'GAST'), points_a: 70, points_b: 66 }); await settle()
+    lp.push({ ...teams('KSCW', 'GAST'), points_a: 70, points_b: 66, over: true }); await settle()
+    assert(hist() === 2, `the SECOND game against the same opponent is archived too (got ${hist()})`)
+  }
+
+  // POST /api/link hands the SourceManager a brand-new LanSource with no neutral state between the
+  // two matches, so a LAN match the tablet crew already started arrives mid-score. There is no 0-0
+  // anywhere for the instance counter to notice.
+  {
+    stubFetch()
+    const lp = createLivePush(CFG)
+    lp.push({ ...teams('KSCW', 'VZH'), points_a: 25, points_b: 20, sets_won_a: 3, set_results: [{ a: 25, b: 20 }] })
+    await settle()
+    lp.push({ ...teams('KSCW', 'VZH'), points_a: 25, points_b: 20, sets_won_a: 3, set_results: [{ a: 25, b: 20 }], over: true })
+    await settle()
+    assert(hist() === 1, `the first LAN match archived (got ${hist()})`)
+    // Linked straight into a different fixture already at 8-5 — never passes through zero.
+    lp.push({ ...teams('KSCW', 'AMRI'), points_a: 8, points_b: 5 }); await settle()
+    lp.push({ ...teams('KSCW', 'AMRI'), points_a: 25, points_b: 18, sets_won_a: 3, over: true }); await settle()
+    assert(hist() === 2, `a match linked mid-score is archived, not lost (got ${hist()})`)
+  }
+
+  // The other direction: correcting a set score AFTER the final is the same match, and history
+  // cannot be un-appended, so a duplicate is the worse failure of the two.
+  {
+    stubFetch()
+    const lp = createLivePush(CFG)
+    const final = { ...teams('KSCW', 'VZH'), points_a: 25, points_b: 22, sets_won_a: 3,
+      set_results: [{ a: 25, b: 20 }, { a: 25, b: 18 }, { a: 25, b: 22 }], over: true }
+    lp.push({ ...teams('KSCW', 'VZH'), points_a: 24, points_b: 22 }); await settle()
+    lp.push(final); await settle()
+    assert(hist() === 1, `the match archived once (got ${hist()})`)
+    lp.push({ ...final, set_results: [{ a: 25, b: 20 }, { a: 25, b: 18 }, { a: 25, b: 23 }] }); await settle()
+    assert(hist() === 1, `a set-score correction after the final does NOT append a second row (got ${hist()})`)
+  }
+
+  // An upstream padding set_results must not hide the start of a match from the counter — toRow
+  // filters that array and this used to disagree with it.
+  {
+    stubFetch()
+    const lp = createLivePush(CFG)
+    lp.push({ ...teams('KSCW', 'VZH'), points_a: 25, sets_won_a: 3, over: true }); await settle()
+    assert(hist() === 1, `first match archived (got ${hist()})`)
+    lp.push({ ...teams('KSCW', 'VZH'), points_a: 0, points_b: 0, set_results: [{ a: 0, b: 0 }] }); await settle()
+    lp.push({ ...teams('KSCW', 'VZH'), points_a: 25, sets_won_a: 3, over: true }); await settle()
+    assert(hist() === 2, `a 0-0 board padded with a placeholder still starts a new match (got ${hist()})`)
+  }
+}
+
 // ── 6. A broken Directus must never reach the scoring path ───────────────────
 console.log('\nisolation')
 {

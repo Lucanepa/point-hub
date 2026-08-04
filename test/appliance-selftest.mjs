@@ -5,6 +5,9 @@
 // (b) the mock LedBox panel (proving API -> source -> mapper -> ledboxClient -> LedBox).
 
 import { setTimeout as sleep } from 'node:timers/promises'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { startAppliance } from '../src/appliance.js'
 import { MockLedbox } from '../src/mockLedbox.js'
 
@@ -17,7 +20,14 @@ const mock = new MockLedbox()
 const addr = await mock.listen(0, '127.0.0.1')
 console.log(`▶ standalone mock LedBox on 127.0.0.1:${addr.port}`)
 
+// Its own disposable state root. Without this the appliance reads the repo's real settings.json —
+// so on any machine where a scorer PIN is set, every mutating call here 403s, six of them trip the
+// PIN lockout, and the suite fails for a reason that has nothing to do with the code under test.
+// That is why this file sat outside `npm test` and quietly rotted.
+const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-appliance-'))
+
 const app = await startAppliance({
+  stateDir,
   relayUrl: 'ws://127.0.0.1:1',
   relayHttpUrl: 'http://127.0.0.1:1',
   matchId: '',
@@ -120,6 +130,7 @@ try {
 } finally {
   await app.close()
   await mock.close()
+  fs.rmSync(stateDir, { recursive: true, force: true })
 }
 
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)
