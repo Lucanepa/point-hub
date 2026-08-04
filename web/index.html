@@ -722,6 +722,11 @@
       </button>
     </div>
     <p class="spstatus" id="gpStatus" hidden role="status" aria-live="polite"></p>
+    <!-- The way out. This overlay is opaque and covers everything, so a single failed /api/game
+         at boot — the tablet joins the board AP before the unit is up — used to seal the operator
+         away from the scoreboard, the offline banner and Settings, with a browser reload as the
+         only escape. Not obvious on a kiosk tablet in a hall. -->
+    <button class="spcancel" id="gpCancel">Not now</button>
   </div>
 </div>
 
@@ -804,6 +809,25 @@
   let SCORER_PIN = ""; try { SCORER_PIN = localStorage.getItem("kscwScorerPin") || ""; } catch {}
   let pinRequired = false;
 
+  // Every request to the board gets a deadline. Against a link that blackholes rather than resets
+  // — a wifi roam in the hall, a wedged board socket — fetch never settles, the browser's six
+  // connections per origin fill up with hung polls, and the scorer's next +1 never leaves the
+  // tablet; then the whole queue lands at once and the score jumps four points. This surfaced as
+  // "I tapped it five times and then it added five".
+  // AbortSignal.timeout is Chrome 103 / Safari 16; on anything older run unbounded as before
+  // rather than throwing on every single request and blanking the console.
+  const API_TIMEOUT_MS = 4000, API_POST_TIMEOUT_MS = 8000;
+  // Except for the writes that change the panel LAYOUT. Those await ledbox.showIdle() on the
+  // server, which on a degraded panel walks clock → crest → club idle: three sends at the client's
+  // 5 s send deadline plus a 400 ms settle each, comfortably past 8 s. The work still completes —
+  // giving up at 8 s only toasted "The board didn't answer in time" and had the operator re-tap
+  // something that had already worked. /api/action is not in here: the server answers it without
+  // waiting for the panel.
+  const API_LAYOUT_TIMEOUT_MS = 25000;
+  const LAYOUT_PATHS = ["/api/idle", "/api/game", "/api/link"];
+  const HAS_TIMEOUT_SIGNAL = typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function";
+  const deadline = (ms) => HAS_TIMEOUT_SIGNAL ? AbortSignal.timeout(ms) : undefined;
+
   // Report a browser-side fault to the appliance log (visible at /logs). A phone that
   // misbehaves in the hall otherwise leaves no trace at all — nobody is going to open a
   // console on it. Fire-and-forget, throttled per message so a stuck loop can't flood the
@@ -818,6 +842,7 @@
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ level, msg, data }),
+        signal: deadline(API_TIMEOUT_MS),
       }).catch(() => {});
     } catch { /* nothing left to try */ }
   }
@@ -827,7 +852,18 @@
     reportUi("controller promise rejection", { reason: String(ev.reason).slice(0, 300) }));
 
   async function api(path, opts) {
-    const res = await fetch(path, opts);
+    // A write gets longer than a read: the board serialises its panel sends, so a POST can sit
+    // behind one of them, while /api/status is answered off the top of the loop.
+    const write = !!(opts && opts.method && opts.method !== "GET");
+    const ms = write ? (LAYOUT_PATHS.includes(path) ? API_LAYOUT_TIMEOUT_MS : API_POST_TIMEOUT_MS) : API_TIMEOUT_MS;
+    let res;
+    try {
+      res = await fetch(path, { ...opts, signal: (opts && opts.signal) || deadline(ms) });
+    } catch (e) {
+      // Say what happened in the operator's terms; "signal timed out" means nothing on a tablet.
+      if (e && e.name === "TimeoutError") throw new Error("The board didn't answer in time — try again.");
+      throw e;
+    }
     let body = null;
     try { body = await res.json(); } catch { /* non-JSON */ }
     if (res.status === 403) onPinRejected();
@@ -983,7 +1019,20 @@
   // Without it every click rendered `pinRequired: undefined` -> the lock dropped and the header
   // cleared, then the next poll put them back — the top bar visibly flickering on each action.
   let LAST_STATUS = {};
-  function renderStatus(st) {
+  // Replies are applied in the order they were REQUESTED, not the order they arrive. The poll's
+  // GET and the POST sendAction makes are in the air at the same time and do not come back in
+  // send order — so a /api/status issued BEFORE the operator's +1 could land after it and paint
+  // the pre-tap score back over the new one until the next poll corrected it. That is "I tapped
+  // +1 and it went back". Every reply carries the ticket its request took on the way out; an
+  // older ticket can never overwrite a newer one.
+  let statusSeq = 0, renderedSeq = 0;
+  const nextSeq = () => ++statusSeq;
+  function renderStatus(st, seq) {
+    // No ticket = a render decided locally (a completed sport switch, a countdown swap), which is
+    // current by definition; give it a fresh one so it wins and moves the watermark up.
+    if (seq == null) seq = nextSeq();
+    if (seq < renderedSeq) return;
+    renderedSeq = seq;
     st = LAST_STATUS = { ...LAST_STATUS, ...st };
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
@@ -999,6 +1048,10 @@
     const off = $("#offline");
     if (off) {
       off.classList.toggle("show", !connected);
+      // We only get here on a SUCCESSFUL poll, so whatever showFrozen() wrote about this screen
+      // being stale is now out of date — put the banner's own wording back before reusing it.
+      const big = off.querySelector(".big");
+      if (big) big.textContent = "Board not connected";
       if (!connected) {
         const hint = $("#offlineHint");
         // The bridge retries on its own, so this is information, not a to-do list.
@@ -1045,9 +1098,16 @@
   function renderSetStrip(state) {
     const strip = $("#setStrip");
     const results = (state && state.set_results) || [];
-    if (!results.length) { strip.hidden = true; strip.innerHTML = ""; return; }
+    if (!results.length) { strip.hidden = true; strip.innerHTML = ""; strip._sig = ""; return; }
     const aIsLeft = !state || state.side_a !== "right";
     strip.hidden = false;
+    // Rebuilding this on every 1.5 s poll detached the undo button between pointerdown and click,
+    // so roughly one "remove last set" in ten did nothing at all — and that is the control the
+    // operator reaches for under pressure, right after a set closes. Rebuild only when what it
+    // shows has actually changed, so the nodes and their listeners survive between polls.
+    const sig = JSON.stringify(results) + "|" + aIsLeft;
+    if (strip._sig === sig) return;
+    strip._sig = sig;
     strip.innerHTML = "";
     results.forEach((r, i) => {
       const l = num(aIsLeft ? r.a : r.b), rt = num(aIsLeft ? r.b : r.a);
@@ -1249,11 +1309,18 @@
       const sub = p.querySelector('[data-n="cdsub"]');
       if (sub) {
         const pick = board.cd.content === "sets" ? "sets" : board.cd.content === "full" ? "points" : null;
-        if (pick && s) sub.innerHTML =
-          '<b style="color:' + s.left.color + '">' + s.left[pick] + '</b>' +
-          '<em style="color:#8892b0;font-style:normal">\u2013</em>' +
-          '<b style="color:' + s.right.color + '">' + s.right[pick] + '</b>';
-        else sub.innerHTML = "";
+        sub.textContent = "";
+        // Team colours arrive from the relay (or a manual `team` action) with no validation, so
+        // they are ASSIGNED to style.color, never concatenated into markup: the DOM drops a bad
+        // colour harmlessly, where the old string build let `red"><img src=x onerror=...>` break
+        // out of the attribute and run in the origin that holds the scorer PIN. Two lines up the
+        // same values are already used the safe way; this sink was the odd one out.
+        if (pick && s) {
+          const bl = document.createElement("b"); bl.style.color = s.left.color; bl.textContent = s.left[pick];
+          const dash = document.createElement("em"); dash.style.color = "#8892b0"; dash.style.fontStyle = "normal"; dash.textContent = "\u2013";
+          const br = document.createElement("b"); br.style.color = s.right.color; br.textContent = s.right[pick];
+          sub.append(bl, dash, br);
+        }
       }
     }
   }
@@ -1406,27 +1473,105 @@
   }
 
   // --- actions ------------------------------------------------------------
+  // Consecutive failed polls, and when the numbers on screen were last true. The offline banner is
+  // written by renderStatus, which only runs when a poll SUCCEEDS — so a dead bridge used to leave
+  // a complete, live-looking scoreboard up, with the header dot's tooltip still reading "LedBox
+  // connected". It surfaced as "the tablet said 22-21 and the board said 24-21".
+  let pollFails = 0, lastGoodAt = 0;
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const clockAt = (t) => { const d = new Date(t); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds()); };
+  function showFrozen() {
+    const off = $("#offline");
+    if (!off) return;
+    const big = off.querySelector(".big");
+    if (big) big.textContent = "Not connected to the scoreboard controller";
+    const hint = $("#offlineHint");
+    if (hint) hint.textContent = lastGoodAt
+      ? "This screen is frozen at " + clockAt(lastGoodAt) + " — nothing below it is live."
+      : "This screen is not live — the controller has not answered yet.";
+    off.classList.add("show");
+  }
+
+  let statusInFlight = false, statusAgain = false;
   async function refreshStatus() {
     // Some browser extensions (mobile simulators, readers) replace the document body and
     // re-load the page in their own frame. Our interval survives that, so bail out and
     // stop polling instead of throwing on every tick against a DOM that no longer exists.
     if (!document.getElementById("app")) { stopPolling(); return; }
-    try { renderStatus(await api("/api/status")); }
+    // Single-flight, but COALESCING — never simply dropped. sendAction calls this right after its
+    // POST precisely to correct the screen; dropping that call because the poll's GET is still out
+    // leaves the older reply as the last word, and nothing re-checks until the next tick, which is
+    // only armed once that stale reply lands. Remember the ask and re-fire it below instead.
+    if (statusInFlight) { statusAgain = true; return; }
+    statusInFlight = true;
+    const seq = nextSeq();
+    let st = null;
+    // Only the REQUEST is guarded here. renderStatus used to sit inside this try, so a state shape
+    // it didn't expect was counted as a failed poll and after two ticks the console announced
+    // "Not connected to the scoreboard controller" — sending the scorer off to check cables on a
+    // board that was answering perfectly.
+    try { st = await api("/api/status"); pollFails = 0; lastGoodAt = Date.now(); }
     catch (e) {
       const dot = $("#dot");
-      if (dot && dot._conn !== false) { dot.innerHTML = IC.wifiOff; dot._conn = false; } // keep quiet on poll errors
+      // The title used to keep its last successful text, so the icon said "offline" while the
+      // tooltip said "LedBox connected (host:port)" — the one place a scorer looks to check.
+      if (dot && dot._conn !== false) { dot.innerHTML = IC.wifiOff; dot._conn = false; dot.title = "Not connected to the scoreboard controller"; }
+      // Quiet about a single miss (a poll lost to a wifi roam is normal); after two, say it.
+      if (++pollFails >= 2) showFrozen();
     }
+    finally {
+      statusInFlight = false;
+      // Whoever asked while we were out still needs an answer. In the finally so a render fault
+      // below can't strand it.
+      if (statusAgain) { statusAgain = false; refreshStatus(); }
+    }
+    if (st) renderStatus(st, seq);
   }
 
-  async function sendAction(action) {
+  // `btn` is the control that was tapped, if any: it is disabled for the round trip.
+  let actionBusy = false, actionSince = 0, actionBtn = null, actionGen = 0;
+  async function sendAction(action, btn) {
+    // One action at a time. On a lagged link the board doesn't move for a second or two, the
+    // operator taps again, and BOTH taps land — which is how one rally becomes two points.
+    if (actionBusy) {
+      // The gate is released in `finally` and api() bounds the request — except on a browser too
+      // old for AbortSignal.timeout, where nothing does. One hung POST must not leave the console
+      // dead for the rest of the match, so fall back to a wall-clock release.
+      if (Date.now() - actionSince < API_POST_TIMEOUT_MS + 2000) {
+        // Say so. Several callers here are timers, not taps — the technical-timeout and court-
+        // switch countdowns both end by sending `swap` with nobody's finger anywhere near the
+        // tablet. Dropping one of those silently is the board simply not switching ends, with
+        // nothing on screen to explain it; the manual "Switch sides" button is still there once
+        // the operator knows. Stated, not instructed: "try again" over a +1 that IS on its way
+        // is how the drop becomes the second point this gate exists to prevent.
+        toast("Still sending the last action — that one didn't go through.");
+        return;
+      }
+      if (actionBtn) actionBtn.disabled = false;
+    }
+    // Which attempt this is. The backstop above can hand the gate to a NEWER action while this one
+    // is still outstanding; from that moment this call owns nothing and must not release the gate,
+    // paint, or prompt on its way out — a stale `finally` opening the gate is a third tap going
+    // straight to the board on top of a point that is still in flight.
+    const gen = ++actionGen;
+    actionBusy = true; actionSince = Date.now(); actionBtn = btn || null;
+    if (btn) btn.disabled = true;
+    const seq = nextSeq();
     try {
       const r = await postJSON("/api/action", { action });
+      if (gen !== actionGen) return; // superseded — its state and its set-end prompt are both stale
       const s = r && r.state;
       if (s && (board.mode === "idle" || board.mode === "blank")) board.mode = "match";
-      if (s) renderStatus({ ledbox: lastLedbox, state: s }); // merged over LAST_STATUS — no field is reset
+      if (s) renderStatus({ ledbox: lastLedbox, state: s }, seq); // merged over LAST_STATUS — no field is reset
       handleEvent(r && r.event, s);
       refreshStatus();
-    } catch (e) { toast(e.message); }
+    } catch (e) { if (gen === actionGen) toast(e.message); }
+    finally {
+      if (gen === actionGen) { actionBusy = false; actionBtn = null; if (btn) btn.disabled = false; }
+      // Superseded: give the operator its button back only if the current action isn't the one
+      // holding it down.
+      else if (btn && btn !== actionBtn) btn.disabled = false;
+    }
   }
 
   // Game-flow reactions signalled by the backend on a point.
@@ -1502,13 +1647,22 @@
       for (const m of matches) {
         const li = document.createElement("li");
         li.dataset.id = String(m.id); li.dataset.source = m.source || "lan";
-        li.innerHTML =
-          `<div class="info"><div class="label"></div>` +
-          `<div class="sub">${(m.source || "lan").toUpperCase()} · id ${m.id}</div></div>` +
-          (m.live ? `<span class="live">LIVE</span>` : "") +
-          `<button class="linkbtn">Link</button>`;
-        li.querySelector(".label").textContent = m.label || String(m.id);
-        li.querySelector(".linkbtn").addEventListener("click", () => linkMatch(m));
+        // Every field here is whatever answered at RELAY_HTTP_URL, so none of it goes near
+        // innerHTML. `label` was already built with textContent; `id` was not, and it is the same
+        // kind of string — one crafted `id` in a match list ran script on this origin, where the
+        // scorer PIN sits in localStorage, the moment the operator tapped "Refresh matches".
+        const info = document.createElement("div"); info.className = "info";
+        const label = document.createElement("div"); label.className = "label";
+        label.textContent = m.label || String(m.id);
+        const sub = document.createElement("div"); sub.className = "sub";
+        sub.textContent = (m.source || "lan").toUpperCase() + " · id " + m.id;
+        info.append(label, sub);
+        li.appendChild(info);
+        if (m.live) { const lv = document.createElement("span"); lv.className = "live"; lv.textContent = "LIVE"; li.appendChild(lv); }
+        const linkBtn = document.createElement("button");
+        linkBtn.className = "linkbtn"; linkBtn.textContent = "Link";
+        linkBtn.addEventListener("click", () => linkMatch(m));
+        li.appendChild(linkBtn);
         list.appendChild(li);
       }
       markLinked();
@@ -1573,7 +1727,15 @@
   function closeEdit() { $("#edit").hidden = true; editConfirm = null; }
   $("#editCancel").addEventListener("click", closeEdit);
   $("#editOk").addEventListener("click", () => {
-    const v = Math.max(0, Math.floor(Number($("#editInput").value) || 0));
+    // Reject, never coerce. `Number(x) || 0` turned a cleared field — or anything the numeric
+    // keypad offers but input[type=number] refuses ("-", "e", ".") — into a hard 0, and the value
+    // is applied absolutely, so a correction attempt at 18-17 wiped that team's score on the
+    // panel. An empty box means "I haven't typed it yet", not "zero".
+    const input = $("#editInput");
+    const raw = (input.value || "").trim();
+    const n = Number(raw);
+    if (raw === "" || !Number.isFinite(n)) { toast("Enter a number"); input.focus(); input.select(); return; }
+    const v = Math.max(0, Math.floor(n));
     if (editConfirm) editConfirm(v);
     closeEdit();
   });
@@ -1586,6 +1748,13 @@
   // Styled yes/no confirm (used for the consequential T/O + substitution taps).
   let confirmResolve = null;
   function askConfirm(msg) {
+    // One modal, one resolver, and exactly one slot to hold it in. The overlay covers the scoring
+    // controls, but the countdowns do not go through it: a technical timeout running out on its own
+    // sends `swap`, and that reply can come back flagged switch-due and ask "Switch sides?" while
+    // the operator is still reading a confirm they opened by hand. Taking the slot used to drop the
+    // first promise on the floor — it never settles at all, so whatever was awaiting it hangs
+    // forever and its action is silently never sent. Settle the outgoing one as "no" first.
+    if (confirmResolve) { const stale = confirmResolve; confirmResolve = null; stale(false); }
     $("#confirmMsg").textContent = msg;
     $("#confirm").hidden = false;
     return new Promise((res) => { confirmResolve = res; });
@@ -1654,7 +1823,9 @@
     // on the side, so they keep working after the +1/+2/+3 cluster replaces the +/− pair.
     root.addEventListener("click", (e) => {
       const pt = e.target.closest("[data-pt]");
-      if (pt && root.contains(pt)) { sendAction({ type: "point", side, delta: Number(pt.dataset.pt) }); return; }
+      // The button goes with the action: sendAction disables it for the round trip, so a second
+      // tap on a link that hasn't answered yet has nowhere to land.
+      if (pt && root.contains(pt)) { sendAction({ type: "point", side, delta: Number(pt.dataset.pt) }, pt); return; }
       const val = e.target.closest("[data-val]");
       if (val && root.contains(val)) {
         const type = VAL_TYPE[val.dataset.val]; if (!type) return;
@@ -1672,7 +1843,7 @@
         const what = stat === "timeout" ? "timeout" : (SPORT === "basketball" ? "team foul" : "substitution");
         if (!(await askConfirm((d > 0 ? "Add a " : "Remove a ") + what + " for " + nm + "?"))) return;
       }
-      sendAction({ type: stat, side, delta: d });
+      sendAction({ type: stat, side, delta: d }, b);
       if (stat === "timeout" && d > 0) {
         const nm = ($(".short", root).value || side).toUpperCase();
         if (SETTINGS.countdownOnTimeout !== false) {
@@ -1727,8 +1898,13 @@
       const b = document.createElement("button");
       b.className = "spopt" + (sp.key === cur ? " on" : "");
       b.dataset.key = sp.key;
-      b.innerHTML = '<span class="spico" aria-hidden="true">' + sportIcon(sp.key) + '</span>' +
-        '<span class="splabel">' + sp.label + '</span>' + (sp.key === cur ? '<span class="spcur">current</span>' : "");
+      // sportIcon is one of three constants here, so it stays innerHTML; the label comes off the
+      // wire from GET /api/sport, so it does not.
+      const ico = document.createElement("span");
+      ico.className = "spico"; ico.setAttribute("aria-hidden", "true"); ico.innerHTML = sportIcon(sp.key);
+      const lbl = document.createElement("span"); lbl.className = "splabel"; lbl.textContent = sp.label;
+      b.append(ico, lbl);
+      if (sp.key === cur) { const c = document.createElement("span"); c.className = "spcur"; c.textContent = "current"; b.appendChild(c); }
       b.addEventListener("click", () => chooseSport(sp.key));
       list.appendChild(b);
     });
@@ -1874,6 +2050,12 @@
     if (!await gameChoice("clock")) return;
     closeGamePicker();
   });
+  // Deliberately NOT part of gpBusy: when a choice is hanging on a board that isn't answering,
+  // this is the one control that has to stay live. Backdrop tap dismisses too, same as #sportPicker.
+  const gpCancelBtn = $("#gpCancel");
+  if (gpCancelBtn) gpCancelBtn.addEventListener("click", closeGamePicker);
+  const gamePickerEl = $("#gamePicker");
+  if (gamePickerEl) gamePickerEl.addEventListener("click", (e) => { if (e.target.id === "gamePicker") closeGamePicker(); });
 
   async function loadSportList() {
     try {
@@ -2216,12 +2398,22 @@
       const li = document.createElement("li"); li.className = "histcard";
       const aw = m.sets_a > m.sets_b, bw = m.sets_b > m.sets_a;
       const sets = (m.sets || []).map((s) => s.a + "–" + s.b).join("   ");
-      li.innerHTML =
-        `<div class="top"><div class="teams"></div>` +
-        `<div class="final"><span class="${aw?"win":""}">${m.sets_a}</span>–<span class="${bw?"win":""}">${m.sets_b}</span></div></div>` +
-        `<div class="meta"><span class="date"></span><span class="sets">${sets}</span><span>${(m.events||[]).length} events</span></div>`;
-      li.querySelector(".teams").textContent = (m.team_a || "A") + "  vs  " + (m.team_b || "B");
-      li.querySelector(".date").textContent = m.date || "";
+      // Same rule as the Link tab: a history row is a recording of relay/manual state, so every
+      // field is written as text. Team names and dates already were; the set scores were not.
+      const top = document.createElement("div"); top.className = "top";
+      const teams = document.createElement("div"); teams.className = "teams";
+      teams.textContent = (m.team_a || "A") + "  vs  " + (m.team_b || "B");
+      const final = document.createElement("div"); final.className = "final";
+      const fa = document.createElement("span"); if (aw) fa.className = "win"; fa.textContent = m.sets_a;
+      const fb = document.createElement("span"); if (bw) fb.className = "win"; fb.textContent = m.sets_b;
+      final.append(fa, document.createTextNode("–"), fb);
+      top.append(teams, final);
+      const meta = document.createElement("div"); meta.className = "meta";
+      const date = document.createElement("span"); date.className = "date"; date.textContent = m.date || "";
+      const setsEl = document.createElement("span"); setsEl.className = "sets"; setsEl.textContent = sets;
+      const evs = document.createElement("span"); evs.textContent = (m.events || []).length + " events";
+      meta.append(date, setsEl, evs);
+      li.append(top, meta);
       list.appendChild(li);
     }
   }
@@ -2274,21 +2466,36 @@
         pinRequired = true; updateLock();
         $("#lgErr").textContent = ""; hideGate();
       } else { $("#lgErr").textContent = "Wrong PIN — try again."; el.value = ""; el.focus(); }
-    } catch { $("#lgErr").textContent = "Couldn't reach the board — try again."; }
+    } catch (e) {
+      // A lockout comes back as 429 with a real explanation ("too many wrong PINs — try again in
+      // 30s"). Reporting that as a network fault sent the scorer off to check cables and power-cycle
+      // a board that was working perfectly and just wanted thirty seconds. tryUnlock already shows
+      // the server's own words; the boot gate was the only place that swallowed them.
+      const m = (e && e.message) || "";
+      $("#lgErr").textContent = /pin/i.test(m) ? m : "Couldn't reach the board — try again.";
+    }
   }
   { const u = $("#lgUnlock"); if (u) u.addEventListener("click", gateUnlock);
     const p = $("#lgPin"); if (p) p.addEventListener("keydown", (e) => { if (e.key === "Enter") gateUnlock(); }); }
 
   // boot
-  let pollTimer = null;
-  const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
-  const startPolling = () => { if (!pollTimer) { refreshStatus(); pollTimer = setInterval(refreshStatus, 1500); } };
+  // Self-scheduling rather than setInterval: a fixed 1.5 s tick against a board that has stopped
+  // answering stacked one unfinished GET on top of the next until the browser's six connections
+  // per origin were all hung polls — and then the scorer's POST couldn't get out at all. The next
+  // tick is armed only once the previous one has come back (or timed out; see api()).
+  let pollTimer = null, pollOn = false;
+  const stopPolling = () => { pollOn = false; if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } };
+  async function pollTick() {
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    try { await refreshStatus(); }
+    finally { if (pollOn) pollTimer = setTimeout(pollTick, 1500); }
+  }
+  const startPolling = () => { if (pollOn) return; pollOn = true; pollTick(); };
   bootLock();
   buildSteppers();
   loadSettings();
   // Present the sport picker first (landing), with the current sport pre-highlighted.
   loadSportList().then(openSportPicker);
-  refreshStatus();
-  pollTimer = setInterval(refreshStatus, 1500);
+  startPolling();
 })();
 </script>
