@@ -30,13 +30,25 @@ import argparse
 import base64
 import io
 import os
+import re
 import shutil
 import subprocess
+import struct
 import sys
 import tempfile
+import zlib
 
 SSID = "ledbox_C0270"
 VAULT_ITEM = "LedBox - ledbox_C0270 WiFi (Tech4Sport)"
+
+# The "SCAN 2" target. Generated here rather than pasted into the templates as a base64 blob,
+# because it WAS pasted in and both copies were corrupt: valid-looking base64 whose IDAT failed
+# its CRC, so browsers drew the top quarter of the QR and left the rest blank. It renders as an
+# image, so nothing looked broken until someone tried to scan a printed one — and this is the code
+# the entire cold start depends on. Generating it means the QR cannot disagree with the URL
+# printed under it, and cannot rot in transit through an editor. Not a secret; it is only an
+# address on the board's own AP.
+CONTROLLER_URL = "http://172.24.1.1:8890"
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "hall-guide.template.html")
 DEFAULT_OUT = os.path.join(HERE, "hall-guide.html")
@@ -64,22 +76,67 @@ PX = 240
 BORDER = 3
 
 
-def wifi_qr_data_uri(ssid, passphrase):
+def qr_data_uri(payload):
     try:
         import qrcode
         from qrcode.constants import ERROR_CORRECT_M
     except ImportError:
         sys.exit("missing deps: pip install qrcode pillow")
-    # Escape the WIFI: URI metacharacters, or a passphrase containing ; , : or \ silently encodes
-    # a different network than the one printed underneath it.
-    esc = lambda s: "".join("\\" + c if c in "\\;,:\"" else c for c in s)
     qr = qrcode.QRCode(error_correction=ERROR_CORRECT_M, border=BORDER)
-    qr.add_data(f"WIFI:T:WPA;S:{esc(ssid)};P:{esc(passphrase)};;")
+    qr.add_data(payload)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white").resize((PX, PX))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def wifi_qr_data_uri(ssid, passphrase):
+    # Escape the WIFI: URI metacharacters, or a passphrase containing ; , : or \ silently encodes
+    # a different network than the one printed underneath it.
+    esc = lambda s: "".join("\\" + c if c in "\\;,:\"" else c for c in s)
+    return qr_data_uri(f"WIFI:T:WPA;S:{esc(ssid)};P:{esc(passphrase)};;")
+
+
+def check_inline_pngs(html, label):
+    """Every inline PNG must actually decode. A corrupt one still *renders* — the browser draws
+    whatever rows it managed to decompress and leaves the rest blank — so it survives every visual
+    check right up to the moment someone in a hall points a camera at a printed QR and nothing
+    happens. That is exactly how the controller QR shipped broken in both templates. Cheap to
+    verify, so it is verified rather than assumed."""
+    for i, b64 in enumerate(re.findall(r'data:image/png;base64,([A-Za-z0-9+/=]+)', html)):
+        try:
+            raw = base64.b64decode(b64, validate=True)
+        except Exception as e:
+            sys.exit(f"{label}: inline PNG #{i} is not valid base64 ({e})")
+        if raw[:8] != b"\x89PNG\r\n\x1a\n":
+            sys.exit(f"{label}: inline PNG #{i} has no PNG signature — it is not a PNG")
+        # Bounds are checked BEFORE unpacking: a file cut short is the very damage being looked
+        # for here, so hitting it must produce the diagnosis, not a struct.error traceback.
+        off, idat, saw_end = 8, b"", False
+        while off + 8 <= len(raw):
+            ln = struct.unpack(">I", raw[off:off + 4])[0]
+            typ = raw[off + 4:off + 8]
+            if off + 12 + ln > len(raw):
+                sys.exit(f"{label}: inline PNG #{i} is cut short inside its "
+                         f"{typ.decode(errors='replace')} chunk — a QR in it will not scan")
+            data = raw[off + 8:off + 8 + ln]
+            crc = struct.unpack(">I", raw[off + 8 + ln:off + 12 + ln])[0]
+            if zlib.crc32(typ + data) & 0xffffffff != crc:
+                sys.exit(f"{label}: inline PNG #{i} chunk {typ.decode(errors='replace')} fails its "
+                         f"CRC — the image is damaged and any QR in it will not scan")
+            if typ == b"IDAT":
+                idat += data
+            if typ == b"IEND":
+                saw_end = True
+            off += 12 + ln
+        if not saw_end:
+            sys.exit(f"{label}: inline PNG #{i} has no IEND chunk — the file ends early")
+        try:
+            zlib.decompress(idat)
+        except Exception as e:
+            sys.exit(f"{label}: inline PNG #{i} pixel data is truncated ({e}) — it will draw as a "
+                     f"partial image and a QR in it will not scan")
 
 
 def from_vault():
@@ -92,13 +149,20 @@ def from_vault():
     return out.stdout.strip()
 
 
-def render(template_path, out_path, qr_uri, passphrase):
+def render(template_path, out_path, qr_uri, passphrase, ctrl_uri):
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
     html = html.replace("{{WIFI_QR}}", qr_uri)
+    html = html.replace("{{CONTROLLER_QR}}", ctrl_uri)
     html = html.replace("{{WIFI_PASS}}", passphrase)
     if "{{" in html:
         sys.exit(f"unfilled placeholder left in {out_path} — template and script are out of step")
+    # The QR is useless if it points somewhere the page does not claim, so the address printed
+    # under it has to be the one that was encoded.
+    if CONTROLLER_URL not in html:
+        sys.exit(f"{out_path} shows a QR for {CONTROLLER_URL} but never prints that address — "
+                 f"fix the template, or a volunteer has no way to check what they scanned")
+    check_inline_pngs(html, out_path)
 
     # 0600: this file is a credential from the moment it is written.
     fd = os.open(out_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -179,6 +243,7 @@ def main():
     # One QR render shared by both — same SSID, same passphrase, so two renders could only differ
     # by being out of step with each other.
     qr_uri = wifi_qr_data_uri(SSID, passphrase)
+    ctrl_uri = qr_data_uri(CONTROLLER_URL)
 
     for name in wanted:
         template, default_out, default_pdf = ARTEFACTS[name]
@@ -192,7 +257,7 @@ def main():
                 sys.exit(f"REFUSING to write {p}: git would track it, and it carries the "
                          f"passphrase.\nAdd it to .gitignore first — see the hall-guide.html "
                          f"entry for why.")
-        render(os.path.join(HERE, template), out, qr_uri, passphrase)
+        render(os.path.join(HERE, template), out, qr_uri, passphrase, ctrl_uri)
         if a.pdf:
             to_pdf(chrome, out, os.path.join(HERE, default_pdf))
 
