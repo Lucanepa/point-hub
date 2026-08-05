@@ -28,3 +28,7 @@ firmware/plugin/
 firmware/libs/
 firmware/manifest.xml
 firmware/nota-emilio-*.md
+
+# Playwright MCP scratch output (page snapshots + console logs from UI verification runs).
+# Not source, and the snapshots carry whatever the console was showing at the time.
+.playwright-mcp/

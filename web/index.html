@@ -434,6 +434,54 @@
   /* Destructive, so it is styled apart from the three constructive ones and placed last. */
   .gpopt.danger{border-color:var(--bad);color:var(--bad)}
   .gpopt.danger .gphint{color:var(--bad)}
+
+  /* --- Diagnostics ------------------------------------------------------------------------
+     Read at arm's length, on a tablet propped by the scorer's table, usually because something
+     is already wrong. So: one number per card large enough to read standing up, and the state
+     that means "act now" carried by colour AND by words — never colour alone, since the whole
+     point of the card is to be legible in a hall with bad light. */
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:14px}
+  .dcard{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 14px}
+  .dcard.wide{grid-column:1/-1}
+  .dcard h4{margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);display:flex;align-items:center;gap:6px}
+  .dcard h4 .licon{width:14px;height:14px}
+  .dbig{font-size:26px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .dsub{font-size:12px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .dsub.dmono{font-family:var(--mono);font-size:11px}
+  .dcard .hint{margin:8px 0 0;font-size:11px}
+  .dcard.warn{border-color:var(--gold)} .dcard.warn .dbig{color:var(--gold)}
+  .dcard.bad{border-color:var(--bad)}   .dcard.bad .dbig{color:var(--bad)}
+  .dnet{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+  .dnet li{display:flex;align-items:baseline;gap:8px;font-size:12px;font-family:var(--mono)}
+  .dnet .nname{font-weight:800;min-width:82px}
+  .dnet .nstate{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    padding:1px 6px;border-radius:2px;border:1.5px solid var(--line-soft);color:var(--muted)}
+  .dnet .nstate.up{border-color:var(--ok);color:var(--ok)}
+  .dnet .nstate.down{border-color:var(--bad);color:var(--bad)}
+  .dnet .naddr{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .logbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+  .logbar strong{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .logbar select,.logbar input{font-size:12px;padding:5px 7px;border:1.5px solid var(--line);
+    border-radius:var(--r);background:var(--card);color:var(--fg)}
+  .logbar input{flex:1;min-width:110px}
+  .logbar button{font-size:12px;padding:5px 10px}
+  .logbar button.paused{border-color:var(--gold);color:var(--gold)}
+  /* Fixed height with its own scroll: the tail must not push the health cards off the screen,
+     and on a phone an unbounded list would make the whole tab unusable within a minute. */
+  .loglist{list-style:none;margin:0;padding:6px;max-height:46vh;overflow-y:auto;
+    background:var(--fill);border:1.5px solid var(--line);border-radius:var(--r);
+    font-family:var(--mono);font-size:11px;line-height:1.45}
+  .loglist li{display:flex;gap:7px;padding:1px 0;border-bottom:1px solid var(--line-soft)}
+  .loglist li:last-child{border-bottom:0}
+  .loglist .lgt{color:var(--muted);flex:0 0 auto}
+  .loglist .lgl{flex:0 0 auto;font-weight:800;text-transform:uppercase;font-size:10px;min-width:34px}
+  .loglist .lgs{flex:0 0 auto;color:var(--muted)}
+  .loglist .lgm{flex:1;min-width:0;overflow-wrap:anywhere}
+  .loglist li.warn .lgl{color:var(--gold)}
+  .loglist li.error .lgl{color:var(--bad)}
+  .loglist li.debug{opacity:.65}
 </style>
 
 <div id="app">
@@ -446,6 +494,7 @@
       <button id="tabManualBtn" class="active" data-tab="manual">Game</button>
       <button id="tabLinkBtn" data-tab="link">Link</button>
       <button id="tabHistoryBtn" data-tab="history">History</button>
+      <button id="tabDiagBtn" data-tab="diag" title="Diagnostics" aria-label="Diagnostics"><svg class="licon l-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg></button>
       <button id="lockBtn" hidden title="Scorer lock" aria-label="Scorer lock"><svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></button>
       <button id="tabSettingsBtn" data-tab="settings" title="Settings" aria-label="Settings"><svg class="licon l-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /></svg></button>
                 </nav>
@@ -676,6 +725,70 @@
       </div>
       <ul id="histList"></ul>
       <p class="note" id="histNote">No matches recorded yet.</p>
+    </section>
+
+    <!-- DIAGNOSTICS — the board's substitute for a screen and keyboard.
+         The C0270 enclosure exposes a jack, one USB-A and one micro-USB; there is no micro-HDMI
+         cutout, so the Pi's HDMI ports cannot be reached without opening the box. This tab is
+         where the things a console login would have told you live instead. -->
+    <section id="tab-diag" class="tab diag">
+      <div class="dgrid" id="dgrid">
+        <div class="dcard" id="dcClock">
+          <h4><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Clock</h4>
+          <div class="dbig" id="dClockNow">—</div>
+          <div class="dsub" id="dClockSync">—</div>
+          <p class="hint">This board has no battery clock. If it cannot reach a time server, every
+            match in History is stamped with whatever it believes — this has been ~36 h out before,
+            with the scoreboard working perfectly the whole time.</p>
+        </div>
+
+        <div class="dcard" id="dcPower">
+          <h4><svg class="licon l-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> Power &amp; heat</h4>
+          <div class="dbig" id="dTemp">—</div>
+          <div class="dsub" id="dThrottle">—</div>
+          <p class="hint">Under-voltage is the commonest cause of a Pi misbehaving, and here the
+            panel PSU and the Pi share a supply. The “since boot” flags are sticky, so a brown-out
+            mid-match is still visible afterwards.</p>
+        </div>
+
+        <div class="dcard" id="dcSd">
+          <h4><svg class="licon l-hard-drive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg> SD card</h4>
+          <div class="dbig" id="dDisk">—</div>
+          <div class="dsub" id="dWrite">—</div>
+          <p class="hint">The write rate is what wears the card out, not how full it is. The panel
+            renderer rewrites two PNGs onto it several times a second.</p>
+        </div>
+
+        <div class="dcard" id="dcHost">
+          <h4><svg class="licon l-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg> Host</h4>
+          <div class="dbig" id="dUptime">—</div>
+          <div class="dsub" id="dLoad">—</div>
+          <div class="dsub" id="dMem">—</div>
+          <div class="dsub dmono" id="dHostInfo">—</div>
+        </div>
+
+        <div class="dcard wide" id="dcNet">
+          <h4><svg class="licon l-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg> Network</h4>
+          <ul class="dnet" id="dNet"></ul>
+          <p class="hint">The AP the tablet is on and the board's own uplink are separate radios.
+            Names and state only — the network's name and passphrase are deliberately not served here.</p>
+        </div>
+      </div>
+
+      <div class="logbar">
+        <strong>Live log</strong>
+        <select id="logLevel" title="Minimum level">
+          <option value="debug">debug</option>
+          <option value="info" selected>info</option>
+          <option value="warn">warn</option>
+          <option value="error">error</option>
+        </select>
+        <input id="logFilter" type="search" placeholder="filter…" autocomplete="off">
+        <button id="logPauseBtn" title="Pause the tail">Pause</button>
+        <button id="logExportBtn" title="Download the whole trail as JSONL">Export</button>
+        <span class="dsub" id="logState">connecting…</span>
+      </div>
+      <ol id="logList" class="loglist" aria-live="off"></ol>
     </section>
 
     <!-- Countdown overlay: TIME + label (e.g. "TO WIEDIKON") -->
@@ -1863,6 +1976,202 @@
     } catch (e) { toast(e.message); }
   }
 
+  // --- diagnostics --------------------------------------------------------
+  // The board's enclosure has no micro-HDMI cutout, so the Pi's HDMI ports cannot be reached
+  // without opening the box. This tab is the only screen the board gets, and the serial console
+  // (header pins 8/10, enabled and waiting) is the only other way in — which needs the lid off.
+  //
+  // Polled ONLY while the tab is open and the page is visible. The console runs all evening on a
+  // tablet that is usually on battery, and a 5 s poll left running behind the Game tab would be
+  // pure drain for a page nobody is looking at.
+  const DIAG_POLL_MS = 5000;
+  const LOG_MAX_ROWS = 400;       // the tail is a tail, not an archive — Export is the archive
+  const LOG_DATA_MAX = 220;       // …and one stack trace must not fill the screen
+  let diagTimer = null, diagPrev = null, logES = null, logPaused = false;
+
+  const fmtBytes = (n) => {
+    if (!Number.isFinite(n)) return "—";
+    const u = ["B", "KB", "MB", "GB", "TB"];
+    let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? n : n.toFixed(n < 10 ? 1 : 0)) + " " + u[i];
+  };
+  const fmtDur = (s) => {
+    if (!Number.isFinite(s)) return "—";
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+  };
+  const setCard = (el, level) => {           // level: "" | "warn" | "bad"
+    if (!el) return;
+    el.classList.toggle("warn", level === "warn");
+    el.classList.toggle("bad", level === "bad");
+  };
+
+  function renderSystem(s) {
+    // Clock. A board that never synced is the failure that silently corrupts History, so an
+    // unsynced clock is styled as loudly as a hardware fault — it IS one, for the record.
+    const c = s.clock || {};
+    $("#dClockNow").textContent = c.now ? new Date(c.now).toLocaleString() : "—";
+    // Tri-state: true / false / null. null means "nothing here keeps time with timesyncd", which
+    // is not a fault and must not be painted like one — see src/systemInfo.js.
+    if (c.synced === true) {
+      $("#dClockSync").textContent = "synced" + (c.lastSyncAt ? ` · last ${new Date(c.lastSyncAt).toLocaleTimeString()}` : "");
+      setCard($("#dcClock"), "");
+    } else if (c.synced === false) {
+      $("#dClockSync").textContent = "NOT SYNCED — match timestamps may be wrong";
+      setCard($("#dcClock"), "bad");
+    } else {
+      $("#dClockSync").textContent = "sync state unknown (no systemd-timesyncd here)";
+      setCard($("#dcClock"), "");
+    }
+
+    // Temperature and the firmware's throttle bitfield.
+    const cpu = s.cpu || {}, th = cpu.throttle;
+    $("#dTemp").textContent = Number.isFinite(cpu.tempC) ? cpu.tempC.toFixed(1) + " °C" : "—";
+    if (!th) {
+      $("#dThrottle").textContent = "throttle flags unavailable (not a Pi?)";
+      setCard($("#dcPower"), "");
+    } else if (th.underVoltage || th.throttled || th.freqCapped) {
+      $("#dThrottle").textContent = "NOW: " + [
+        th.underVoltage && "under-voltage", th.throttled && "throttled", th.freqCapped && "frequency capped",
+      ].filter(Boolean).join(", ");
+      setCard($("#dcPower"), "bad");
+    } else if (th.everUnderVoltage || th.everThrottled || th.everFreqCapped) {
+      $("#dThrottle").textContent = "since boot: " + [
+        th.everUnderVoltage && "under-voltage", th.everThrottled && "throttled", th.everFreqCapped && "capped",
+      ].filter(Boolean).join(", ");
+      setCard($("#dcPower"), "warn");
+    } else {
+      $("#dThrottle").textContent = "no under-voltage or throttling";
+      setCard($("#dcPower"), "");
+    }
+    // Above the Pi's 80 °C soft limit it starts capping itself; 70 is the "look at the airflow"
+    // mark for a board sealed in a box with a panel PSU.
+    if (Number.isFinite(cpu.tempC) && cpu.tempC >= 80) setCard($("#dcPower"), "bad");
+    else if (Number.isFinite(cpu.tempC) && cpu.tempC >= 70 && !$("#dcPower").classList.contains("bad")) setCard($("#dcPower"), "warn");
+
+    // Disk, plus the write RATE derived from the previous sample. The rate is the number that
+    // matters: this card is worn out by constant small rewrites, not by filling up.
+    const d = s.disk || {}, st = s.storage;
+    $("#dDisk").textContent = d.freeBytes != null ? fmtBytes(d.freeBytes) + " free" : "—";
+    let rate = "";
+    if (st && diagPrev && diagPrev.storage && diagPrev.at) {
+      const dBytes = st.bytesWritten - diagPrev.storage.bytesWritten;
+      const dMs = new Date(s.at) - new Date(diagPrev.at);
+      if (dMs > 0 && dBytes >= 0) {
+        const perDay = (dBytes / dMs) * 86400000;
+        rate = ` · writing ${fmtBytes((dBytes / dMs) * 60000)}/min (~${fmtBytes(perDay)}/day)`;
+      }
+    }
+    $("#dWrite").textContent = (d.usedPct != null ? `${d.usedPct}% used` : "") + rate;
+    setCard($("#dcSd"), d.usedPct >= 90 ? "bad" : d.usedPct >= 75 ? "warn" : "");
+
+    // Host.
+    const h = s.host || {}, m = s.mem || {};
+    $("#dUptime").textContent = "up " + fmtDur(h.uptimeSec);
+    $("#dLoad").textContent = "load " + (cpu.load || []).join("  ") + (cpu.cores ? ` · ${cpu.cores} cores` : "");
+    $("#dMem").textContent = m.availableBytes != null
+      ? `${fmtBytes(m.availableBytes)} of ${fmtBytes(m.totalBytes)} available` : "—";
+    $("#dHostInfo").textContent = [h.hostname, h.kernel, h.arch, "node " + h.node].filter(Boolean).join(" · ");
+
+    // Interfaces.
+    const ul = $("#dNet");
+    ul.textContent = "";
+    for (const n of s.net || []) {
+      const li = document.createElement("li");
+      const a = document.createElement("span"); a.className = "nname"; a.textContent = n.name;
+      const b = document.createElement("span");
+      b.className = "nstate " + (n.state === "up" ? "up" : n.state === "down" ? "down" : "");
+      b.textContent = n.state;
+      const c2 = document.createElement("span"); c2.className = "naddr";
+      c2.textContent = (n.addresses || []).filter((x) => !x.startsWith("fe80")).join("  ") || "no address";
+      li.append(a, b, c2);
+      ul.appendChild(li);
+    }
+    diagPrev = s;
+  }
+
+  async function pollSystem() {
+    if (document.hidden) return;
+    try { renderSystem(await api("/api/system")); }
+    catch { /* the offline banner already says the board is unreachable */ }
+  }
+
+  // The tail is Server-Sent Events, which the board already serves and which reconnects on its
+  // own — the console has no WebSocket client in production and this is not the place to add one.
+  function openLogStream() {
+    closeLogStream();
+    const level = $("#logLevel").value;
+    try {
+      logES = new EventSource(`/api/logs/stream?level=${encodeURIComponent(level)}`);
+    } catch { $("#logState").textContent = "log stream unavailable"; return; }
+    logES.onopen = () => { $("#logState").textContent = "live"; };
+    logES.onerror = () => { $("#logState").textContent = "reconnecting…"; };
+    logES.onmessage = (ev) => {
+      if (logPaused) return;
+      let e; try { e = JSON.parse(ev.data); } catch { return; }
+      appendLogRow(e);
+    };
+  }
+  function closeLogStream() {
+    if (logES) { try { logES.close(); } catch { /* already gone */ } logES = null; }
+  }
+  function appendLogRow(e) {
+    const q = $("#logFilter").value.trim().toLowerCase();
+    if (q && !((e.msg || "") + " " + (e.scope || "")).toLowerCase().includes(q)) return;
+    const list = $("#logList");
+    const li = document.createElement("li");
+    li.className = e.level || "info";
+    const t = document.createElement("span"); t.className = "lgt";
+    t.textContent = (e.ts || "").slice(11, 19);
+    const l = document.createElement("span"); l.className = "lgl"; l.textContent = e.level || "";
+    const s = document.createElement("span"); s.className = "lgs"; s.textContent = e.scope || "";
+    const m = document.createElement("span"); m.className = "lgm";
+    // The attached object is capped here, not at the source. A single `error` entry carries a
+    // whole stack trace, and three of those fill a tablet screen — the tail stops being scannable
+    // at exactly the moment something is going wrong and you most need to scan it. Export still
+    // downloads every byte, and the full object is on the row's title for a long-press.
+    let extra = e.data === undefined ? "" : "  " + JSON.stringify(e.data);
+    if (extra.length > LOG_DATA_MAX) {
+      li.title = (e.msg || "") + extra;   // long-press / hover gets the whole thing
+      extra = extra.slice(0, LOG_DATA_MAX) + "…";
+    }
+    // textContent, not innerHTML: these strings come off the wire and include operator-typed team
+    // names, so this is the one place in the tab where markup injection would be reachable.
+    m.textContent = (e.msg || "") + extra;
+    li.append(t, l, s, m);
+    // Stick to the bottom only if the operator is already there — otherwise scrolling back to
+    // read something gets yanked away by the next line to arrive.
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
+    list.appendChild(li);
+    while (list.children.length > LOG_MAX_ROWS) list.removeChild(list.firstChild);
+    if (atBottom) list.scrollTop = list.scrollHeight;
+  }
+
+  function startDiag() {
+    pollSystem();
+    if (!diagTimer) diagTimer = setInterval(pollSystem, DIAG_POLL_MS);
+    if (!logES) openLogStream();
+  }
+  function stopDiag() {
+    if (diagTimer) { clearInterval(diagTimer); diagTimer = null; }
+    closeLogStream();
+  }
+  const diagOpen = () => !!$("#tab-diag") && $("#tab-diag").classList.contains("active");
+
+  $("#logLevel").addEventListener("change", () => { $("#logList").textContent = ""; openLogStream(); });
+  $("#logPauseBtn").addEventListener("click", () => {
+    logPaused = !logPaused;
+    $("#logPauseBtn").textContent = logPaused ? "Resume" : "Pause";
+    $("#logPauseBtn").classList.toggle("paused", logPaused);
+    $("#logState").textContent = logPaused ? "paused" : "live";
+  });
+  $("#logExportBtn").addEventListener("click", () => { window.location.href = "/api/logs/export"; });
+  // A tab left open while the tablet sleeps must not hold an SSE socket and a 5 s timer awake.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopDiag();
+    else if (diagOpen()) startDiag();
+  });
+
   // --- wiring -------------------------------------------------------------
   // tabs / nav — [data-tab] only: the nav also holds the fullscreen button, and letting
   // that through would match no tab and blank the whole page.
@@ -1872,6 +2181,9 @@
       "active", t.id === "tab-" + b.dataset.tab));
     if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
     if (b.dataset.tab === "history") refreshHistory();
+    // Diagnostics polls and holds an SSE socket, so it starts on open and stops on leave rather
+    // than running for the whole evening behind whatever tab the scorer is actually using.
+    if (b.dataset.tab === "diag") startDiag(); else stopDiag();
     // Opening the scoring page means "I am running a match now" — so take the panel off the
     // crest and show the scoreboard. Until this, the ONLY thing that lifted the idle screen was
     // scoring an actual point, so the operator set everything up and the board still sat on the

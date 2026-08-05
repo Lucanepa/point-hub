@@ -16,6 +16,7 @@ import { ResumeStore } from './resumeStore.js'
 import { SPORT_LIST } from './sports.js'
 import { PER_SPORT_KEYS } from './settings.js'
 import { log, LEVELS } from './logStore.js'
+import { systemInfo } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
 
 const clog = log.child('control')
@@ -376,6 +377,16 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // GET /api/matches
     if (pathname === '/api/matches' && req.method === 'GET') {
       return sendJson(res, 200, await listMatches())
+    }
+    // GET /api/system — host diagnostics: temperature, throttling, disk, memory, interfaces, and
+    // whether the clock is actually synced. This is the substitute for a screen and keyboard: the
+    // C0270's enclosure has no micro-HDMI cutout, so the Pi's HDMI ports cannot be reached without
+    // opening the box, and the tablet running this console is the only display the board will get.
+    //
+    // Open, like every other read (docs/logging-DESIGN.md). See src/systemInfo.js for what is
+    // deliberately excluded — the AP's SSID above all, which appears nowhere else in the API.
+    if (pathname === '/api/system' && req.method === 'GET') {
+      return sendJson(res, 200, await systemInfo())
     }
     // POST /api/manual
     if (pathname === '/api/manual' && req.method === 'POST') {

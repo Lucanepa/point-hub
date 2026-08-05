@@ -204,6 +204,44 @@ Installed as a **systemd unit, not a hand-added rule** — `ledbox-lan-guard.ser
 in this directory and is installed by `install-firewall.sh`. A hand-added `iptables` rule is
 precisely what silently disappeared on a reboot once and took the board's clock with it.
 
+## 4. Frame buffers in RAM — `ledbox-buffer-tmpfs.sh` + `ledbox-buffer-tmpfs.service`
+
+The vendor's renderer writes every frame to the SD card, twice — `buffer.save('www/buffer.png')`
+and `buffer_compressed.save(...)` in `LEDMatrix2.py:44-46` — and `flushBuffer2` reads the first
+back at ~62 fps. Measured at idle on this board that is **~4.6 MB/min from `ledbox.py` alone,
+about 6.4 GB/day** if it is left powered, which it is.
+
+The card is an `SD16G` with a Phison controller **dated 10/2019**. Small rewrite-in-place files
+are the worst possible workload for SD flash: a 7 KB overwrite can cost a whole erase block, so
+the wear is much larger than the byte count. Neither file is worth persisting — both are
+regenerated on the next frame.
+
+```bash
+scp provisioning/ledbox-buffer-tmpfs.sh provisioning/ledbox-buffer-tmpfs.service <board>:/tmp/
+ssh <board> 'sudo install -m 0755 /tmp/ledbox-buffer-tmpfs.sh /usr/local/sbin/ledbox-buffer-tmpfs'
+ssh <board> 'sudo install -m 0644 /tmp/ledbox-buffer-tmpfs.service /etc/systemd/system/'
+ssh <board> 'sudo systemctl daemon-reload && sudo systemctl enable --now ledbox-buffer-tmpfs'
+ssh <board> 'ledbox-buffer-tmpfs status'
+```
+
+A **bind mount** of a file in `/run`, deliberately not a symlink: it changes nothing on the card,
+so `stop` restores the original state exactly, and a vendor firmware update cannot leave a
+dangling link behind.
+
+Three things were checked before trusting it, each of which would have broken something:
+
+- **Nothing unlinks these files.** A bind-mounted file cannot be removed (`EBUSY`), so an
+  `os.remove()` on either path would have broken the vendor app rather than the mount. Their only
+  `os.remove()` calls are for layouts, uploads and their own logs.
+- **`bin/startled`, `bin/startledbox` and `bin/stopledbox` all `cp` onto `buffer.png`.** `cp`
+  opens the destination `O_WRONLY|O_TRUNC` — it does not unlink — so the mount survives a restart.
+- **`bin/watchdog` treats `buffer.png`'s mtime as the "is the app still painting?" signal** and
+  restarts the app when it goes stale. Writes to a tmpfs file update mtime exactly as on disk.
+
+Ordered `Before=rc-local.service` so the mounts exist before the first frame, but nothing
+`Requires` it: if the unit fails, the vendor app writes to the card exactly as before and the
+scoreboard still comes up.
+
 ## Gotchas on the board
 
 - **`iw` and `modinfo` are not installed.** Both return "command not found", which looks exactly

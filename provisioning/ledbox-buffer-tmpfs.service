@@ -1,0 +1,21 @@
+[Unit]
+Description=LED panel frame buffers in RAM (spares the SD card ~6 GB of writes a day)
+Documentation=file:/usr/local/sbin/ledbox-buffer-tmpfs
+
+# rc-local.service is where the vendor's bin/start runs. The mounts have to be in place before it
+# paints its first frame, or that window is spent writing to the card.
+#
+# Ordering only — nothing Requires this unit. If it fails, the vendor app writes to the card
+# exactly as it always did and the scoreboard comes up regardless. A diagnostics improvement must
+# never be able to stop the board from working.
+Before=rc-local.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/ledbox-buffer-tmpfs start
+ExecStop=/usr/local/sbin/ledbox-buffer-tmpfs stop
+
+[Install]
+WantedBy=multi-user.target
