@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>LedBox — Hall Guide</title>
+<title>Point Hub — Hall Guide</title>
 <style>
   @page { size: A4; margin: 12mm 12mm 10mm; }
   * { box-sizing: border-box; }
@@ -55,16 +55,17 @@
   .facts b { display: block; font-size: 8.5pt; color: #666; text-transform: uppercase; letter-spacing: .3pt; font-weight: 700; }
   .facts span { font: 10.5pt "SF Mono", Menlo, Consolas, monospace; }
   .foot { margin-top: 5mm; padding-top: 1.5mm; border-top: .75pt solid #ccc; font-size: 8.5pt; color: #777; }
+  .sportkey { font-size: 9.5pt; color: #555; margin: 1mm 0 0; }
 </style>
 
-<h1>LedBox — Hall Guide</h1>
+<h1>Point Hub — Hall Guide</h1>
 <p class="sub">Set up the LED scoreboard and run a match. Follow the steps in order; don't skip the green checks.</p>
 
 <div class="callout">
   <h3>The one rule</h3>
   <p style="margin-bottom:0">The <b>scoreboard is self-contained</b> — it makes its own wifi and runs everything itself.
      There's <b>no separate box and no cable to plug in</b>. Turn it on, join its wifi with your phone
-     (scan the codes below — they're also shown <b>on the board's own screen</b> when it's idle), and score.
+     (scan the codes below — they're also on the board's own screen <i>until someone connects</i>), and score.
      Your phone must be on <b>that</b> wifi, not on mobile data.</p>
 </div>
 
@@ -78,7 +79,7 @@
   </div>
   <div class="qrcard">
     <span class="step">SCAN 2</span>
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOgAAADoCAIAAABqyz8vAAAD6ElEQVR42u3dQXLjMAwEQP//09wfbFWyxM6A7jmrZAlo5gCk7M8RWZiPEgi4IuCKgCvgioArAq6AKwKuCLgi4Aq4IuCKgCvgiiyF+1mS1Hvduv+1Br/aL4UAF1xwwQUXXHDBBRdccMEFF1xwwQUX3B8XIjaIXvI8Keiv9gtccMEFF1xwwQUXXHDBBRdccMEFF1xwwb33wanBfmogX9fg5f0CF1xwwQUXXHDBBRdccMEFF1xwwQUXXHDB/W+FXrKAABdccMEFF1xwwQUXXHDBBRdccMEFF1xwwd22gGj7XAsIcMEFF1xwwQUXXHDBBRdccMEFF1xwwQX3diGm82xjyu6T6he44IILLrjgggsuuOCCCy644IILLrjggvt9P9Dn+l39AhdccMEFF1xwwQUXXHDBBRdccMEFF1xwT2wQ3TYAnwbRNsBf30dwwQUXXHDBBRdccMEFF1xwwQUXXHDBBfda4bYMtFPv23ZQ2+oPLrjgggsuuOCCCy644IILLrjgggsuuOCeWOFSA/YtgLYvJsb7CC644IILLrjgggsuuOCCCy644IILLrjgjjdm+wB8umG33jdV5/GDCi644IILLrjgggsuuOCCCy644IILLrjgrlkobH9OixhwwQUXXHDBBRdccMEFF1xwwQUXXHDBBbcVbtuge3xgvuS92u4PLrjgggsuuOCCCy644IILLrjgggsuuOCe2D84v7oISDXy2xY64IILLrjgggsuuOCCCy644IILLrjgggvuPKxXFw1boKSuX7M5AxdccMEFF1xwwQUXXHDBBRdccMEFF1xwASod7Lf9wQIXXHDBBRdccMEFF1xwwQUXXHDBBRdccM/XfbHF+GC87P7TdYgdJHDBBRdccMEFF1xwwQUXXHDBBRdccMEF99m0LT5SB2zL84ALLrjgggsuuOCCCy644IILLrjgggsuuGfNAFwj//4809fXLXrABRdccMEFF1xwwQUXXHDBBRdccMEFF9xrhUsN8FON2b4oaVs0gAsuuOCCCy644IILLrjgggsuuOCCCy64fV8Isn3A3rb4eHVhBC644IILLrjgggsuuOCCCy644IILLrjggvvrgobeq63+4IILLrjgggsuuOCCCy644IILLrjgggsuuK3P03ZgznBiBxJccMEFF1xwwQUXXHDBBRdccMEFF1xwwa0rUOp5tiw4pg9q2wEDF1xwwQUXXHDBBRdccMEFF1xwwQUXXHDvDdJTeXUhMn0g2/oFLrjgggsuuOCCCy644IILLrjgggsuuOCe2OJA5J8OnhIIuCLgioAr4IqAKwKugCsCrgi4IuAKuCLgioAr4Ip05A99QlLfY1knvAAAAABJRU5ErkJggg==" alt="Control UI QR">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOgAAADoCAIAAABqyz8vAAAD6ElEQVR42u3dQXLjMAwEQP//09wfbFWyxM6A7jmrZAlo5gCk7M8RWZiPEgi4IuCKgCvgioArAq6AKwKuCLgi4Aq4IuCKgCvgiiyF+1mS1Hvduv+1Br/aL4UAF1xwwQUXXHDBBRdccMEFF1xwwQUX3B8XIjaIXvI8Keiv9gtccMEFF1xwwQUXXHDBBRdccMEFF1xwwb33wanBfmogX9fg5f0CF1xwwQUXXHDBBRdccMEFF1xwwQUXXHDB/W+FXrKAABdccMEFF1xwwQUXXHDBBRdccMEFF1xwwd22gGj7XAsIcMEFF1xwwQUXXHDBBRdccMEFF1xwwQX3diGm82xjyu6T6he44IILLrjgggsuuOCCCy644IILLrjggvt9P9Dn+l39AhdccMEFF1xwwQUXXHDBBRdccMEFF1xwT2wQ3TYAnwbRNsBf30dwwQUXXHDBBRdccMEFF1xwwQUXXHDBBRdca4XbMtBOvW/bQW2rP7jgggsuuOCCCy644IILLrjgggsuuOCCe2KFSw3YtwDavpgY7yO44IILLrjgggsuuOCCCy644IILLrjggjvemO0D8OmG3XrfVJ3HDyq44IILLrjgggsuuOCCCy644IILLrjgrlkobH9OixhwwQUXXHDBBRdccMEFF1xwwQUXXHDBBbcVbtuge3xgvuS92u4PLrjgggsuuOCCCy644IILLrjgggsuuOCe2D84v7oISDXy2xY64IILLrjgggsuuOCCCy644IILLrjgggvuPKxXFw1boKSuX7M5AxdccMEFF1xwwQUXXHDBBRdccMEFF1xwASod7Lf9wQIXXHDBBRdccMEFF1xwwQUXXHDBBRdccM/XfbHF+GC87P7TdYgdJHDBBRdccMEFF1xwwQUXXHDBBRdccMEF99m0LT5SB2zL84ALLrjgggsuuOCCCy644IILLrjgggsuuGfNAFwj//4809fXLXrABRdccMEFF1xwwQUXXHDBBRdccMEFF9xrhUsN8FON2b4oaVs0gAsuuOCCCy644IILLrjgggsuuOCCCy64fV8Isn3A3rb4eHVhBC644IILLrjgggsuuOCCCy644IILLrjggvvrgobeq63+4IILLrjgggsuuOCCCy644IILLrjgggsuuK3P03ZgznBiBxJccMEFF1xwwQUXXHDBBRdccMEFF1xwwa0rUOp5tiw4pg9q2wEDF1xwwQUXXHDBBRdccMEFF1xwwQUXXHDvDdJTeXUhMn0g2/oFLrjgggsuuOCCCy644IILLrjgggsuuOCe2OJA5J8OnhIIuCLgioAr4IqAKwKugCsCrgi4IuAKuCLgioAr4Ip05A99QlLfY1knvAAAAABJRU5ErkJggg==" alt="Control UI QR">
     <div class="lbl">Open the controller</div>
     <div class="val">http://172.24.1.1:8890</div>
     <div class="note">Scan after you've joined the wifi. Bookmark the page when it opens.</div>
@@ -101,28 +102,46 @@
   <li>
     <div class="what">Stand or hang the board where players can see it. Plug it into mains.</div>
     <div class="why">It boots itself — nothing to switch on separately.</div>
-    <div class="check"><b>✓ You should see:</b> after ~45s it settles on the <b>KSC Wiedikon crest</b>, with a
-      <b>"Join WiFi"</b> QR on the left and an <b>"Open UI"</b> QR on the right.</div>
+    <div class="check"><b>✓ You should see:</b> a gold <b>POINT HUB</b> splash, then after ~45s the
+      <b>KSC Wiedikon crest</b> with a <b>"Join WiFi"</b> QR on the left and an <b>"Open UI"</b> QR on the right.</div>
   </li>
   <li>
     <div class="what">Scan <b>SCAN 1</b> (or the left code on the board) to join the wifi. Turn mobile data OFF.</div>
     <div class="why">The wifi has no internet — that's normal. Phones jump back to mobile data unless you stop them.</div>
   </li>
   <li>
-    <div class="what">Scan <b>SCAN 2</b> (or the right code on the board) to open the controller. Bookmark it.</div>
-    <div class="check"><b>✓ You should see:</b> the control page — team panels, big + / − buttons, and (on a tablet) a live board mirror.</div>
+    <div class="what">Scan <b>SCAN 2</b> (or the right code on the board) to open <b>Point Hub</b>. Bookmark it.</div>
+    <div class="warn">The QR codes <b>disappear from the board</b> once anyone opens the controller — they're
+      replaced by a big clock. That's normal, not a fault. Scan them <i>before</i> you open the page, or use this sheet.</div>
   </li>
   <li>
-    <div class="what">Check the dot at the top-left.</div>
-    <div class="why"><b>🟢 green</b> = talking to the board, ready. <b>🔴 red</b> = see <b>Trouble 1</b>.</div>
+    <div class="what">If it asks for the <b>scorer PIN</b>, type it.</div>
+    <div class="why">With a PIN set, the PIN screen is the <b>whole page</b> — nobody can even watch until it's entered.
+      Get it wrong 5 times and it locks you out for 30s, doubling up to 5 minutes. That's the board protecting itself, not a fault — wait it out.</div>
+    <div class="warn"><b>The PIN cannot be looked up.</b> It's write-only in Settings. If it's lost, someone with laptop access has to set a new one.</div>
   </li>
   <li>
-    <div class="what">If a lock icon 🔒 shows top-right, tap it and enter the <b>scorer PIN</b>.</div>
-    <div class="why">Only the scorer needs it. Anyone else can open the page and <b>watch</b>, but can't change the score. No PIN set → no lock.</div>
+    <div class="what">Pick the <b>sport</b>.</div>
+    <div class="why">This screen opens <b>every time</b>. Tapping the sport that's already current just moves on —
+      nothing restarts. Tapping a <i>different</i> one <b>restarts the board (~8 seconds)</b> and the panel holds
+      the sport name for 3 seconds to confirm.</div>
+    <div class="check"><b>✓ You should see:</b> "Choose the sport", with the current one tagged <b>current</b>.</div>
   </li>
   <li>
-    <div class="what">Type both team names, pick colours. Turn the phone sideways; press ⛶ for full screen.</div>
-    <div class="why">Use SHORT names — <code>WIE</code>, <code>VOL</code>. Long names overflow on the board for now.</div>
+    <div class="what">Pick what to do: <b>Continue game</b>, <b>New game</b>, <b>Show clock</b>, or <b>Delete saved game</b>.</div>
+    <div class="why"><b>Continue</b> only appears if the board is holding a match — it survives a power cut or a
+      restart, so if the plug got kicked, this is how you get the score back. <b>Show clock</b> leaves the board on the crest and clock.</div>
+    <div class="check"><b>✓ You should see:</b> the scoreboard — team panels, big <b>+</b> / <b>−</b>, and the tabs
+      <b>Game · Link · History</b> across the top.</div>
+  </li>
+  <li>
+    <div class="what">Check the wifi symbol at the top-left.</div>
+    <div class="why"><b>Green</b> = talking to the board, ready. <b>Red</b> = see <b>Trouble 1</b>.</div>
+  </li>
+  <li>
+    <div class="what">Type both team names, pick colours. Turn the phone sideways; press the full-screen button.</div>
+    <div class="why">Long names <b>shrink to fit</b> automatically — you don't need to abbreviate. If one looks too
+      small, the <b>− / +</b> beside that name raises its ceiling on the panel, immediately.</div>
   </li>
 </ol>
 
@@ -133,58 +152,71 @@
   <tr><td>Tap + on a team</td><td>The point appears and <b>blinks in that team's colour</b>; the serve indicator moves to that side.</td></tr>
   <tr><td>Tap − (a correction)</td><td>The point drops. It does <b>not</b> blink — only real points blink.</td></tr>
   <tr><td>Tap a number (score, sets, T/O, sub)</td><td>A little editor opens — type the exact value, press <b>Set</b>. For fixing a miscount fast. Typed values don't blink.</td></tr>
-  <tr><td>T/O + for a team</td><td>Board switches to a <b>timeout screen</b>: "TO &lt;team&gt;", the score, and a 30s clock. At zero, the <b>horn sounds</b>. Press ✕ to end early — no horn. (Asks you to confirm first.)</td></tr>
-  <tr><td>T/O + again (to the limit)</td><td>That timeout counter turns <b>dark red</b> — none left.</td></tr>
-  <tr><td>Sub +</td><td>The sub counter <b>blinks</b>. One short of the limit it goes amber, at the limit dark red. (Confirms first.)</td></tr>
-  <tr><td>Reach 25 (2-point lead)</td><td>The winning point blinks, board <b>holds the final score</b>, and the phone shows <b>"SET ENDED · Start interval →"</b>. Tap it → the board shows the <b>INTERVAL</b> countdown. Tap <b>Start next set →</b>: score resets, ends swap, timeouts &amp; subs reset.</td></tr>
-  <tr><td>⏱ Warm-up</td><td>Full-screen <b>WARM UP</b> clock. Horn at zero.</td></tr>
-  <tr><td>🏐 VS / idle</td><td>The crest + team names — the pre-match / idle screen (with the QR codes).</td></tr>
-  <tr><td>⇄ Swap</td><td>Teams change ends — names, colours, scores swap together.</td></tr>
-  <tr><td>History tab</td><td>Finished matches, with per-set scores. Export <b>CSV</b> or <b>JSON</b> from there.</td></tr>
-  <tr><td>☀ Keep awake</td><td>Highlights when on; stops the phone/tablet sleeping. Stays on across a reload.</td></tr>
-  <tr><td>⚙ Settings</td><td>Blink, countdown lengths, horn, best-of, totals, club name, and <b>Access → Scorer PIN</b>. Saved on the board.</td></tr>
+  <tr><td>T/O + for a team</td><td>The panel shows <b>TIME OUT</b> with that team underneath, plus a clock — <b>30s</b> for indoor volleyball, <b>60s</b> for beach and basketball. At zero the <b>horn sounds</b>. End it early with ✕ — no horn, deliberately. (Asks you to confirm first.)</td></tr>
+  <tr><td>T/O + again (to the limit)</td><td>That counter turns <b>dark red</b> — none left. Indoor gets 2, beach 1, basketball 5.</td></tr>
+  <tr><td>Sub +</td><td>The counter <b>blinks</b>; amber one short of the limit, dark red at it. <i>Indoor volleyball only</i> — beach has no subs, basketball shows fouls here instead. (Confirms first.)</td></tr>
+  <tr><td>Win the set</td><td>The winning point blinks, the board <b>holds the final score</b>, and the phone shows a full-screen <b>SET ENDED · Start interval →</b>. <b>There is no cancel</b> — tapping through resets the score, swaps ends, and resets timeouts &amp; subs.</td></tr>
+  <tr><td>Change of ends</td><td>The phone asks <b>"Switch sides?"</b>. On yes, the whole panel says <b>COURT SWITCH</b> in gold for ~3s and the ends swap behind it.</td></tr>
+  <tr><td>Win the match</td><td>The phone offers to end it; the board then shows the <b>result screen</b> — winner in gold, the score, every set. It <b>stays up indefinitely</b> so it outlasts you putting the tablet down. Clear it by starting the next game.</td></tr>
+  <tr><td>Warm-up / clock</td><td>Full-screen <b>WARM UP</b> clock (10 min). Horn at zero.</td></tr>
+  <tr><td>Switch sides (manual)</td><td>Teams change ends — names, colours, scores all move together.</td></tr>
+  <tr><td>History tab</td><td>Finished matches with per-set scores. Export <b>CSV</b> or <b>JSON</b>.</td></tr>
+  <tr><td>Keep awake</td><td>Stops the phone sleeping. On the <code>172.24.1.1</code> address it needs <b>one tap anywhere on the page</b> to take hold. See the note below.</td></tr>
+  <tr><td>Settings (gear)</td><td>Ten sections, each with its <b>own Save button</b> — <b>nothing saves by itself</b>. Includes <b>brightness</b> (0 turns the panel dark while the controller stays up), countdowns, horn, match format, club name, PIN, and links to Diagnostics.</td></tr>
 </table>
 
+<p class="sportkey"><b>Beach:</b> sets to 21 (15 decider), no substitutions, one timeout each, an amber <b>SWITCH</b> cue on the
+  panel every 7 points (5 in the decider), and an automatic 1-minute technical timeout at 21 total points that swaps ends.
+  <b>Basketball:</b> <b>+1 / +2 / +3</b> buttons instead of one +, a <b>PERIOD</b> box (Q1–Q4, OT, FINAL) instead of the set
+  line, team <b>fouls</b> (amber at 4, dark red at the 5th = bonus), and the serve arrow becomes possession.</p>
+
 <h3>Keep in mind</h3>
-<p>Turn on <b>☀ Keep awake</b> at the start so the phone doesn't sleep mid-match. Keep it on the
-   <code>ledbox_C0270</code> wifi — wander out of range and the page pauses; walk back and it reconnects.
-   <b>The score is safe:</b> it lives on the board, not the phone, so you can lock the phone, swap phones,
-   or hand over — nothing is lost. More than one phone can be connected at once; they all show the same
-   score. Keep <b>one</b> person scoring (a second scorer double-counts).</p>
+<p>Turn <b>Keep awake</b> on at the start — but on the <code>172.24.1.1</code> address the browser can't hold the screen
+   on by itself, so it uses a silent video that needs <b>one tap on the page</b> to start. If the screen still sleeps,
+   set the tablet's display timeout to <b>Never</b> in Android settings — that always works.
+   Keep the phone on the <code>ledbox_C0270</code> wifi; wander out of range and the page pauses, walk back and it reconnects.
+   <b>The score is safe:</b> it lives on the board, not the phone, so you can lock the phone, swap phones, or hand over —
+   nothing is lost. More than one phone can be connected; they all show the same score. Keep <b>one</b> person scoring
+   (a second scorer double-counts).</p>
 
 <h2>4 · Packing up</h2>
 <ol class="steps">
-  <li><div class="what">Settings → <b>Power → ⏻ Shut down</b> (confirm).</div>
+  <li><div class="what">Settings → <b>Power → Shut down</b> (confirm).</div>
     <div class="why">Halts the board cleanly — this protects the memory card. Never just pull the plug while it's running.</div>
-    <div class="check"><b>✓ You should see:</b> the phone shows <b>"Now press the power button"</b> and the panel goes dark within a few seconds.</div>
+    <div class="check"><b>✓ You should see:</b> "Now press the power button to switch it off", and the panel goes dark within a few seconds.</div>
   </li>
   <li><div class="what">Unplug the board from mains.</div>
     <div class="why">Only after the panel has gone dark. It starts itself next time — nothing to launch by hand.</div>
   </li>
   <li><div class="what">Put the phone back on its normal wifi / mobile data. Coil the cable.</div></li>
 </ol>
+<p class="warn"><b>Just need the board off for a while?</b> Don't shut down — set <b>brightness to 0</b> in Settings.
+  The panel goes dark and the controller stays up, so you're one tap from being live again.</p>
 
-<h2>5 · Troubleshooting</h2>
-<p>Work down the list. Nine times out of ten it's the first row.</p>
+<h2 class="page-break">5 · Troubleshooting</h2>
+<p>Work down the list. Nine times out of ten it's the first two rows.</p>
 <table>
   <tr><th style="width:24%">Problem</th><th style="width:30%">What it means</th><th>What to do</th></tr>
-  <tr><td>Trouble 1 — Red dot 🔴</td><td>The controller can't reach the board's display just yet.</td>
-    <td>Right after power-on the display takes a few extra seconds — wait ~30s and it goes green on its own. Still red after a minute → power-cycle the board (off at the mains, wait 10s, on) and wait ~45s.</td></tr>
-  <tr><td>Trouble 2 — Page won't open</td><td>Phone isn't on the board's wifi, or slipped to mobile data.</td>
+  <tr><td>Trouble 1 — "Board not connected"</td><td>The controller is fine; it can't reach the <b>panel</b>. Your scores are still being recorded.</td>
+    <td>Right after power-on the display takes a few extra seconds — wait ~30s and it clears on its own. Still red after a minute → power-cycle the board (off at the mains, wait 10s, on) and wait ~45s.</td></tr>
+  <tr><td>Trouble 2 — "…frozen at HH:MM:SS"</td><td>The opposite problem: your <b>phone</b> has lost the controller. Nothing on screen is live.</td>
+    <td><b>Don't touch the board</b> — it's probably fine. Check the wifi still says <code>ledbox_C0270</code> and mobile data is OFF. Walk closer. The page recovers by itself when the wifi comes back.</td></tr>
+  <tr><td>Trouble 3 — Page won't open at all</td><td>Phone isn't on the board's wifi, or slipped to mobile data.</td>
     <td>Check the wifi says <code>ledbox_C0270</code>. Turn <b>mobile data OFF</b>. Reload <code>172.24.1.1:8890</code>. Wifi not listed at all → the board isn't powered / still booting (wait for the crest).</td></tr>
-  <tr><td>Trouble 3 — Can't change the score</td><td>The scorer lock (PIN) is on.</td>
-    <td>Tap the 🔒 top-right and enter the PIN. Watching works without it. Forgot the PIN → see Trouble 8.</td></tr>
-  <tr><td>Trouble 4 — Board stuck on an old score</td><td>The link dropped and came back.</td>
-    <td>Tap any + then − — that forces a full repaint.</td></tr>
-  <tr><td>Trouble 5 — Name cut off</td><td>Known limit — long names overflow.</td>
-    <td>Use a short name: <code>WIE</code>, <code>VOL</code>, <code>GEN</code>. Three or four letters always fit.</td></tr>
+  <tr><td>Trouble 4 — Stuck on the PIN screen</td><td>Wrong PIN, or you've tripped the lockout.</td>
+    <td>"Too many wrong PINs — try again in Ns" is the lockout: 5 tries, then 30s, doubling to 5 minutes. Wait it out. The PIN <b>cannot be recovered</b> from Settings — it's write-only. See Trouble 8.</td></tr>
+  <tr><td>Trouble 5 — Board stuck on an old score</td><td>The link dropped and came back.</td>
+    <td><b>Wait ~20 seconds</b> — the board checks itself and repaints. Don't tap + then −: at set point that + genuinely <b>wins the set</b> and opens a prompt with no cancel.</td></tr>
   <tr><td>Trouble 6 — Blank page / missing buttons</td><td>Stale page in the phone browser.</td>
     <td>Pull to refresh, or close the tab and scan SCAN 2 again.</td></tr>
   <tr><td>Trouble 7 — Nothing works</td><td>Start from zero.</td>
-    <td>Off at the mains, count to ten, on again. Wait ~45s for the crest, rejoin the wifi, reopen the page.</td></tr>
-  <tr><td>Trouble 8 — Dig deeper</td><td>For whoever has a laptop + access.</td>
-    <td>Reach the board over the club network / Tailscale, then <code>systemctl status ledbox-bridge</code>, <code>journalctl -u ledbox-bridge -n 50</code>, restart <code>sudo systemctl restart ledbox-bridge</code>. The scorer PIN is at Settings → Access.</td></tr>
+    <td>Off at the mains, count to ten, on again. Wait ~45s for the crest, rejoin the wifi, reopen the page. Your match is <b>not</b> lost — pick <b>Continue game</b>.</td></tr>
+  <tr><td>Trouble 8 — Dig deeper</td><td>You already have the tools, on the phone in your hand.</td>
+    <td>Open the <b>Diagnostics</b> tab (also on the sport picker): temperature, power, disk, memory, network, clock. It carries a <b>live log</b> with search and export — that's what to send. Only then reach for a laptop: <code>systemctl status ledbox-bridge</code>, <code>journalctl -u ledbox-bridge -n 50</code>.</td></tr>
 </table>
+
+<p class="warn"><b>If the board's clock looks wrong,</b> it is. There's no battery clock in it — with no internet it can
+  boot hours or days out, and match history is stamped from it. Diagnostics tells you whether the time is synced.</p>
 
 <h2>6 · Numbers, if you need them</h2>
 <ul class="facts">
@@ -193,7 +225,9 @@
   <li><b>Board's wifi</b><span>ledbox_C0270 / {{WIFI_PASS}}</span></li>
   <li><b>Scoreboard itself</b><span>172.24.1.1</span></li>
   <li><b>Service on the board</b><span>ledbox-bridge</span></li>
+  <li><b>Live log page</b><span>http://172.24.1.1:8890/logs</span></li>
   <li><b>Debug: board on the cable</b><span>192.168.5.1 — plug a laptop into the board's ethernet</span></li>
+  <li><b>Club tablet only</b><span>https://…:8891 — the bookmarked secure address; keeps the screen awake by itself. Ask if you need it.</span></li>
 </ul>
 
-<p class="foot">The scoreboard runs its own software and boots to the KSC Wiedikon crest by itself — nothing to launch by hand, no separate box. Tech4Sport C0270, firmware 0.552 (KSCW build).</p>
+<p class="foot">The scoreboard runs its own software and boots to the KSC Wiedikon crest by itself — nothing to launch by hand, no separate box. Tech4Sport C0270, firmware 0.552 (KSCW build). Console: Point Hub.</p>

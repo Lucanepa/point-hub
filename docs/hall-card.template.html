@@ -1,0 +1,151 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Point Hub — Card</title>
+<!--
+  The laminated card. A5, double-sided, for a volunteer who has never done this and has nobody
+  to ask. Everything on it must be true without a second source.
+
+  Deliberately NOT on this card:
+    - the https://…:8891 address. It needs DNS, and dies silently if the phone has Private DNS
+      set. The IP always works on the AP with no DNS at all, and a card is the wrong place to
+      make someone choose. It is on the hall guide instead, labelled "club tablet only".
+    - sport rules for beach and basketball. The card gets someone scoring; the guide teaches.
+    - anything requiring a laptop.
+
+  Print: A5, double-sided, flip on the SHORT edge. Or print A4 at 2 pages per sheet and cut.
+-->
+<style>
+  @page { size: A5; margin: 8mm 8mm 6mm; }
+  * { box-sizing: border-box; }
+  body { font: 9.5pt/1.32 "Helvetica Neue", Arial, sans-serif; color: #111; margin: 0; }
+  .side { page-break-after: always; }
+  .side:last-child { page-break-after: auto; }
+
+  h1 { font-size: 15pt; margin: 0; letter-spacing: -.3pt; }
+  h1 span { font-weight: 400; color: #666; font-size: 10pt; }
+  h2 { font-size: 10.5pt; margin: 3.5mm 0 1.5mm; padding-bottom: .8mm;
+       border-bottom: 1.8pt solid #111; }
+  .rule { border: 1.6pt solid #4A55A2; border-radius: 1.5mm; padding: 2mm 2.5mm; margin: 2mm 0 3mm;
+          font-size: 9pt; }
+  .rule b { color: #4A55A2; }
+
+  .qrs { display: flex; gap: 4mm; margin: 0 0 3mm; }
+  .qrcard { flex: 1; border: 1.2pt solid #111; border-radius: 1.5mm; padding: 2mm; text-align: center; }
+  .qrcard img { width: 30mm; height: 30mm; image-rendering: pixelated; display: block; margin: 0 auto; }
+  .qrcard .n { font-size: 8pt; font-weight: 800; color: #fff; background: #111;
+               border-radius: 8mm; padding: .3mm 2mm; display: inline-block; margin-bottom: 1mm; }
+  .qrcard .lbl { font-weight: 700; font-size: 9pt; margin: 1mm 0 .3mm; }
+  .qrcard .val { font: 8.5pt "SF Mono", Menlo, Consolas, monospace; color: #333; word-break: break-all; }
+
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 0 0 2.2mm 8mm; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: -.2mm;
+    width: 6mm; height: 6mm; border-radius: 50%; background: #111; color: #fff;
+    font-weight: 700; font-size: 9pt; text-align: center; line-height: 6mm; }
+  ol.steps b { font-size: 9.5pt; }
+  ol.steps i { font-style: normal; color: #555; font-size: 8.5pt; display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  th { text-align: left; background: #111; color: #fff; padding: 1.2mm 1.8mm; font-size: 8pt; }
+  td { padding: 1.4mm 1.8mm; border-bottom: .6pt solid #ccc; vertical-align: top; }
+  td:first-child { font-weight: 700; width: 34%; }
+  code { font: 8.5pt "SF Mono", Menlo, Consolas, monospace; background: #f0f0f0;
+         padding: .2mm .8mm; border-radius: .6mm; }
+
+  .warn { padding: 1.4mm 2mm; background: #fdf1e7; border-left: 2.4pt solid #d2691e; font-size: 8.5pt; margin: 2mm 0 0; }
+  .foot { margin-top: 3mm; padding-top: 1mm; border-top: .6pt solid #ccc; font-size: 7.5pt; color: #888; }
+</style>
+
+<!-- ─────────────────────────── FRONT ─────────────────────────── -->
+<div class="side">
+  <h1>Point Hub <span>· KSC Wiedikon scoreboard</span></h1>
+
+  <div class="rule">
+    <b>One rule.</b> The board makes its own wifi and runs everything itself. No other box, no cable.
+    Your phone must be on <b>that</b> wifi — <b>mobile data OFF</b>.
+  </div>
+
+  <div class="qrs">
+    <div class="qrcard">
+      <span class="n">SCAN 1</span>
+      <img src="{{WIFI_QR}}" alt="Wi-Fi QR">
+      <div class="lbl">Join the wifi</div>
+      <div class="val">ledbox_C0270<br>{{WIFI_PASS}}</div>
+    </div>
+    <div class="qrcard">
+      <span class="n">SCAN 2</span>
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOgAAADoCAIAAABqyz8vAAAD6ElEQVR42u3dQXLjMAwEQP//09wfbFWyxM6A7jmrZAlo5gCk7M8RWZiPEgi4IuCKgCvgioArAq6AKwKuCLgi4Aq4IuCKgCvgiiyF+1mS1Hvduv+1Br/aL4UAF1xwwQUXXHDBBRdccMEFF1xwwQUX3B8XIjaIXvI8Keiv9gtccMEFF1xwwQUXXHDBBRdccMEFF1xwwb33wanBfmogX9fg5f0CF1xwwQUXXHDBBRdccMEFF1xwwQUXXHDB/W+FXrKAABdccMEFF1xwwQUXXHDBBRdccMEFF1xwwd22gGj7XAsIcMEFF1xwwQUXXHDBBRdccMEFF1xwwQX3diGm82xjyu6T6he44IILLrjgggsuuOCCCy644IILLrjggvt9P9Dn+l39AhdccMEFF1xwwQUXXHDBBRdccMEFF1xwT2wQ3TYAnwbRNsBf30dwwQUXXHDBBRdccMEFF1xwwQUXXHDBBRdca4XbMtBOvW/bQW2rP7jgggsuuOCCCy644IILLrjgggsuuOCCe2KFSw3YtwDavpgY7yO44IILLrjgggsuuOCCCy644IILLrjggjvemO0D8OmG3XrfVJ3HDyq44IILLrjgggsuuOCCCy644IILLrjgrlkobH9OixhwwQUXXHDBBRdccMEFF1xwwQUXXHDBBbcVbtuge3xgvuS92u4PLrjgggsuuOCCCy644IILLrjgggsuuOCe2D84v7oISDXy2xY64IILLrjgggsuuOCCCy644IILLrjgggvuPKxXFw1boKSuX7M5AxdccMEFF1xwwQUXXHDBBRdccMEFF1xwASod7Lf9wQIXXHDBBRdccMEFF1xwwQUXXHDBBRdccM/XfbHF+GC87P7TdYgdJHDBBRdccMEFF1xwwQUXXHDBBRdccMEF99m0LT5SB2zL84ALLrjgggsuuOCCCy644IILLrjgggsuuGfNAFwj//4809fXLXrABRdccMEFF1xwwQUXXHDBBRdccMEFF9xrhUsN8FON2b4oaVs0gAsuuOCCCy644IILLrjgggsuuOCCCy64fV8Isn3A3rb4eHVhBC644IILLrjgggsuuOCCCy644IILLrjggvvrgobeq63+4IILLrjgggsuuOCCCy644IILLrjgggsuuK3P03ZgznBiBxJccMEFF1xwwQUXXHDBBRdccMEFF1xwwa0rUOp5tiw4pg9q2wEDF1xwwQUXXHDBBRdccMEFF1xwwQUXXHDvDdJTeXUhMn0g2/oFLrjgggsuuOCCCy644IILLrjgggsuuOCe2OJA5J8OnhIIuCLgioAr4IqAKwKugCsCrgi4IuAKuCLgioAr4Ip05A99QlLfY1knvAAAAABJRU5ErkJggg==" alt="Controller QR">
+      <div class="lbl">Open the controller</div>
+      <div class="val">http://172.24.1.1:8890</div>
+    </div>
+  </div>
+
+  <h2>Cold start → scoring</h2>
+  <ol class="steps">
+    <li><b>Plug the board into mains.</b>
+      <i>Gold POINT HUB splash, then ~45s to the crest with two QR codes.</i></li>
+    <li><b>SCAN 1</b> → join the wifi. <b>Turn mobile data OFF.</b>
+      <i>The wifi has no internet. That's normal.</i></li>
+    <li><b>SCAN 2</b> → the controller opens. Bookmark it.
+      <i>Scan it BEFORE you open the page — the QRs vanish from the board once anyone connects.</i></li>
+    <li><b>Enter the PIN</b> if asked.
+      <i>With a PIN set, this covers the whole page. It cannot be looked up.</i></li>
+    <li><b>Choose the sport.</b> Tapping the one already marked <i>current</i> changes nothing.
+      <i>A different one restarts the board — about 8 seconds.</i></li>
+    <li><b>Continue game</b> or <b>New game</b>.
+      <i>"Continue" appears only if the board is holding a match — after a power cut, this gets it back.</i></li>
+    <li><b>Type the team names, pick colours.</b> Phone sideways, then full screen.
+      <i>Long names shrink automatically. No need to abbreviate.</i></li>
+    <li><b>Tap +</b> to score. The point blinks in that team's colour.</li>
+  </ol>
+
+  <div class="warn"><b>Screen keeps sleeping?</b> Tap <b>Keep awake</b>, then tap once anywhere on the page —
+    it needs that tap to take hold. Still sleeping → set the tablet's display timeout to <b>Never</b> in Android settings.</div>
+</div>
+
+<!-- ─────────────────────────── BACK ─────────────────────────── -->
+<div class="side">
+  <h1>When it goes wrong <span>· work down the list</span></h1>
+
+  <table>
+    <tr><th style="width:34%">On screen</th><th>What to do</th></tr>
+    <tr><td>"Board not connected"</td>
+      <td>The <b>panel</b> is unreachable — your scores are still being saved. Wait 30s. Still there after a minute → power-cycle the board, wait 45s.</td></tr>
+    <tr><td>"…frozen at HH:MM:SS"</td>
+      <td>Opposite problem: <b>your phone</b> lost the board. <b>Don't touch the board.</b> Check wifi is <code>ledbox_C0270</code>, mobile data OFF, walk closer.</td></tr>
+    <tr><td>Page won't open</td>
+      <td>Wrong wifi, or it slipped to mobile data. Rejoin <code>ledbox_C0270</code>, data OFF, reload <code>172.24.1.1:8890</code>.</td></tr>
+    <tr><td>"Too many wrong PINs"</td>
+      <td>Lockout: 5 tries, then 30s, doubling to 5 min. <b>Wait it out</b> — nothing is broken.</td></tr>
+    <tr><td>Board stuck on an old score</td>
+      <td><b>Wait ~20s</b> — it repairs itself. Do <b>not</b> tap + then −: at set point that + really wins the set.</td></tr>
+    <tr><td>Blank page / no buttons</td>
+      <td>Pull to refresh, or close the tab and scan SCAN 2 again.</td></tr>
+    <tr><td>Nothing works</td>
+      <td>Mains off, count to ten, on. Wait 45s, rejoin wifi, reopen. <b>Your match is not lost</b> — pick <b>Continue game</b>.</td></tr>
+    <tr><td>Need to send a report</td>
+      <td><b>Diagnostics</b> tab (also on the sport picker) → live log → <b>Export</b>.</td></tr>
+  </table>
+
+  <h2>Packing up</h2>
+  <ol class="steps">
+    <li><b>Settings → Power → Shut down</b>, confirm.
+      <i>Never just pull the plug — it protects the memory card.</i></li>
+    <li><b>Wait for the panel to go dark</b>, then unplug.
+      <i>The phone says "Now press the power button to switch it off".</i></li>
+    <li><b>Put your phone back</b> on normal wifi / mobile data.</li>
+  </ol>
+
+  <div class="warn"><b>Only need it off for a while?</b> Don't shut down — Settings → <b>brightness 0</b>.
+    Panel goes dark, controller stays up, one tap to come back.</div>
+
+  <h2>Good to know</h2>
+  <table>
+    <tr><td>The score is safe</td><td>It lives on the board, not your phone. Lock the phone, swap phones, hand over — nothing is lost.</td></tr>
+    <tr><td>Only one scorer</td><td>Several phones can watch the same match, but two people tapping + double-counts.</td></tr>
+    <tr><td>Settings don't auto-save</td><td>Each section has its own <b>Save</b> button. Leave without pressing it and the change is gone.</td></tr>
+    <tr><td>The board's clock</td><td>No battery clock — with no internet it can be badly wrong. Diagnostics says whether it's synced.</td></tr>
+  </table>
+
+  <p class="foot">Board: Tech4Sport C0270, firmware 0.552 (KSCW build) · Console: Point Hub · wifi <code>ledbox_C0270</code> · {{WIFI_PASS}}</p>
+</div>

@@ -11,9 +11,15 @@ this very guide, which sailed straight past the `firmware/**/wifi_qr.png` gitign
 that rule matches a *path* and the secret had taken a different one. Hence: template in, artefact
 out, and the artefact never gets a filename git is willing to track.
 
-    python3 docs/make-hall-guide.py                      # passphrase from Vaultwarden
+Renders TWO artefacts from the same passphrase, because they leak the same way and would
+otherwise drift apart:
+  hall-guide.html  A4, the full guide.
+  hall-card.html   A5 double-sided, the laminated card that lives with the board.
+
+    python3 docs/make-hall-guide.py                      # both, passphrase from Vaultwarden
     python3 docs/make-hall-guide.py --wifi-pass 'secret'  # or pass it explicitly
-    python3 docs/make-hall-guide.py -o /tmp/guide.html    # preview somewhere else
+    python3 docs/make-hall-guide.py --only card           # just one of them
+    python3 docs/make-hall-guide.py -o /tmp/guide.html    # preview the guide somewhere else
 
 Then print it to A4 from a browser. Deps: qrcode + Pillow, same as
 firmware/idle-crest-qr/gen_qr.py (which renders the much smaller 48px panel version).
@@ -30,6 +36,14 @@ VAULT_ITEM = "LedBox - ledbox_C0270 WiFi (Tech4Sport)"
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "hall-guide.template.html")
 DEFAULT_OUT = os.path.join(HERE, "hall-guide.html")
+
+# name -> (template, default output). Both carry the passphrase as text AND as an inline wifi QR,
+# so both are credentials and both are gitignored. Adding a third artefact means adding a
+# gitignore line in the same commit — the check at the bottom of main() enforces that.
+ARTEFACTS = {
+    "guide": ("hall-guide.template.html", "hall-guide.html"),
+    "card": ("hall-card.template.html", "hall-card.html"),
+}
 
 # Print, not LED panel: this one is read by a phone camera off paper, so it wants a real quiet zone
 # and enough modules to survive a mediocre print. Nothing here is shared with gen_qr.py's 48px
@@ -66,28 +80,60 @@ def from_vault():
     return out.stdout.strip()
 
 
+def render(template_path, out_path, qr_uri, passphrase):
+    with open(template_path, encoding="utf-8") as fh:
+        html = fh.read()
+    html = html.replace("{{WIFI_QR}}", qr_uri)
+    html = html.replace("{{WIFI_PASS}}", passphrase)
+    if "{{" in html:
+        sys.exit(f"unfilled placeholder left in {out_path} — template and script are out of step")
+
+    # 0600: this file is a credential from the moment it is written.
+    fd = os.open(out_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print(f"wrote {out_path} (mode 0600) — printable, and NOT to be committed")
+
+
+def gitignored(path):
+    """True if git will refuse to track `path`. A rendered artefact that git WOULD track is the
+    exact failure this whole template/artefact split exists to prevent, and it has happened twice
+    — so it is checked rather than trusted."""
+    try:
+        r = subprocess.run(["git", "check-ignore", "-q", path], cwd=HERE, timeout=10)
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return True  # no git here: not our problem to diagnose, and not a reason to refuse
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--wifi-pass", help="AP passphrase; read from Vaultwarden when omitted")
-    ap.add_argument("-o", "--out", default=DEFAULT_OUT)
+    ap.add_argument("--only", choices=sorted(ARTEFACTS), help="render just one artefact")
+    ap.add_argument("-o", "--out", help="output path; only valid with --only (or for the guide)")
     a = ap.parse_args()
 
     passphrase = a.wifi_pass or from_vault()
     if not passphrase:
         sys.exit("empty passphrase — refusing to render a guide that cannot work")
 
-    with open(TEMPLATE, encoding="utf-8") as fh:
-        html = fh.read()
-    html = html.replace("{{WIFI_QR}}", wifi_qr_data_uri(SSID, passphrase))
-    html = html.replace("{{WIFI_PASS}}", passphrase)
-    if "{{" in html:
-        sys.exit(f"unfilled placeholder left in {a.out} — template and script are out of step")
+    wanted = [a.only] if a.only else sorted(ARTEFACTS)
+    if a.out and len(wanted) > 1:
+        sys.exit("-o needs --only: two artefacts cannot share one output path")
 
-    # 0600: this file is a credential from the moment it is written.
-    fd = os.open(a.out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        fh.write(html)
-    print(f"wrote {a.out} (mode 0600) — printable, and NOT to be committed")
+    # One QR render shared by both — same SSID, same passphrase, so two renders could only differ
+    # by being out of step with each other.
+    qr_uri = wifi_qr_data_uri(SSID, passphrase)
+
+    for name in wanted:
+        template, default_out = ARTEFACTS[name]
+        out = a.out or os.path.join(HERE, default_out)
+        if not os.path.exists(os.path.join(HERE, template)):
+            sys.exit(f"missing template {template} — cannot render {name}")
+        if not gitignored(out):
+            sys.exit(f"REFUSING to write {out}: git would track it, and it carries the passphrase.\n"
+                     f"Add it to .gitignore first — see the hall-guide.html entry for why.")
+        render(os.path.join(HERE, template), out, qr_uri, passphrase)
 
 
 if __name__ == "__main__":
