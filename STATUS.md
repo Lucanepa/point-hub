@@ -14,6 +14,12 @@ The appliance runs **on the board itself** under systemd — see Key addresses b
 **`openscore-1.0.0`** (`openscore.py:671`). It is **not deployed** — swapping it in is a separate,
 deliberate change, and this line is what should be updated on the day it happens.
 
+**Cold boot: ~45 s** from mains to the crest+QR idle screen — measured on the real board,
+2026-08-05. It is the number the printed hall guide and card tell a volunteer to wait against
+before deciding the board is broken, so it lives here rather than only in a print template. The
+order is: panel driver splash (`POINT HUB`, gold) → the firmware's `waiting` crest+QR screen →
+`kscw_crest` once the bridge handshakes. Anything under a minute is normal.
+
 ---
 
 ## Working on the board today
