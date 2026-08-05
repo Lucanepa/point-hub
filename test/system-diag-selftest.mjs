@@ -163,6 +163,13 @@ console.log('\n[5] the console only works when it is being looked at')
 
   ok(/id="tab-diag"/.test(html), 'the Diagnostics tab exists')
   ok(/data-tab="diag"/.test(html), 'and is reachable from the nav')
+  // Every tab carries its own padding — there is no shared wrapper to inherit it from, so a new
+  // tab silently renders flush against both edges. Shipped exactly that way once.
+  const diagRule = (html.match(/^\s*\.diag\{([^}]*)\}/m) || [])[1] || ''
+  ok(/padding:/.test(diagRule), 'the Diagnostics tab sets its own padding, like every other tab')
+  // main is overflow:hidden, so without this the cards simply get cut off on a short screen and
+  // the log controls below them are unreachable — a silent loss of function, not a cosmetic one.
+  ok(/overflow-y:\s*auto/.test(diagRule), 'and can scroll when it is taller than the screen')
   ok(/new EventSource\(`\/api\/logs\/stream/.test(js),
     'the log tail uses SSE — the board serves it and it reconnects itself; there is no ws client in production')
   // The failure this prevents: a 5 s poll and an open SSE socket running all evening behind the

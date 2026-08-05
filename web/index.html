@@ -440,6 +440,11 @@
      is already wrong. So: one number per card large enough to read standing up, and the state
      that means "act now" carried by colour AND by words — never colour alone, since the whole
      point of the card is to be legible in a hall with bad light. */
+  /* Same padding as the other read-mostly tabs (.link/.settings/.history). Without this the cards
+     sit flush against the viewport while the offline banner above them keeps its own 10px margin,
+     and — worse — the tab cannot scroll: main is overflow:hidden, so on a short screen the log
+     controls end up below the fold with no way to reach them. */
+  .diag{padding:14px;overflow-y:auto}
   .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:14px}
   .dcard{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 14px}
   .dcard.wide{grid-column:1/-1}
@@ -1986,9 +1991,15 @@
   // (header pins 8/10, enabled and waiting) is the only other way in — which needs the lid off.
   //
   // Polled ONLY while the tab is open and the page is visible. The console runs all evening on a
-  // tablet that is usually on battery, and a 5 s poll left running behind the Game tab would be
+  // tablet that is usually on battery, and a poll left running behind the Game tab would be
   // pure drain for a page nobody is looking at.
-  const DIAG_POLL_MS = 5000;
+  //
+  // 1 s, not 5 s, because the clock card is the one number that must be seen MOVING. A stopped
+  // clock is exactly what a board with no RTC and no time server looks like, so a card that only
+  // repaints every 5 s reads as "frozen" — the alarming state — while everything is fine. The
+  // reading itself is cheap (a handful of /proc and /sys files plus one statfs, no subprocess),
+  // and the visibility guards above mean it stops the moment you look away.
+  const DIAG_POLL_MS = 1000;
   const LOG_MAX_ROWS = 400;       // the tail is a tail, not an archive — Export is the archive
   const LOG_DATA_MAX = 220;       // …and one stack trace must not fill the screen
   let diagTimer = null, diagPrev = null, logES = null, logPaused = false;
