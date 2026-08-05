@@ -3,8 +3,16 @@
 Snapshot of what works, what's parked, and how to finish the parked items. Companion to
 [`PROTOCOL.md`](./PROTOCOL.md) (the device protocol) and [`DESIGN-appliance.md`](./DESIGN-appliance.md).
 
-Hardware: Tech4Sport **C0270**, firmware **0.551**, 192×64 panel. Driven by a Raspberry Pi 5
-(`openvolley` on Tailscale) running the appliance under systemd.
+Hardware: Tech4Sport **C0270**, 192×64 panel, running the **0.552 KSCW build** — the board's own
+`manifest.xml` declares `0.552`, and `/home/pi/ledbox/ledbox.py` is the decompiled-and-ported
+vendor firmware, not `openscore`. (`0.551` elsewhere in this repo is the *genuine vendor source*
+we reconciled against; it is provenance for the protocol findings and deliberately not renamed.)
+The appliance runs **on the board itself** under systemd — see Key addresses below; the
+`openvolley` Pi is no longer in the path and must not run it.
+
+`firmware/openscore/` is the clean-room replacement renderer, already versioned
+**`openscore-1.0.0`** (`openscore.py:671`). It is **not deployed** — swapping it in is a separate,
+deliberate change, and this line is what should be updated on the day it happens.
 
 ---
 

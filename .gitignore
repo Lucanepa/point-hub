@@ -20,6 +20,10 @@ firmware/**/wifi_qr.png
 # secret had taken a different one. Only hall-guide.template.html is source; regenerate the
 # printable copy with docs/make-hall-guide.py.
 docs/hall-guide.html
+# Same reasoning, same script, smaller artefact: the laminated card carries the passphrase and
+# its wifi QR too. A card is MORE likely to leak than the guide — it gets photographed, propped
+# on a table and left in a hall — so it is source-free by exactly the same rule.
+docs/hall-card.html
 
 # Tech4Sport's own firmware: decompiled sources, their plugins, their shipped .so binaries,
 # and private correspondence. Not ours to republish.
