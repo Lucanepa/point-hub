@@ -5,6 +5,23 @@
   @page { size: A4; margin: 12mm 12mm 10mm; }
   * { box-sizing: border-box; }
   body { font: 11pt/1.42 "Helvetica Neue", Arial, sans-serif; color: #111; margin: 0; }
+
+  /* SCREEN ONLY — deliberately not applied to print. The page margins above exist only inside a
+     print context, so on screen the body had none and every line ran into the window edge. This
+     mirrors the paper instead: same 186mm content width and same 12/10mm margins as @page, on a
+     grey desk, so what you proof-read on screen is laid out like what leaves the printer. Keep it
+     inside @media screen — moving it out would stack this padding ON TOP of the @page margin and
+     silently narrow the printed guide. */
+  @media screen {
+    html { background: #d9dade; }
+    body { max-width: 186mm; margin: 8mm auto; padding: 12mm 12mm 10mm;
+           background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.25); }
+  }
+  /* Narrower than a sheet (phone, or a half-width window): drop the paper illusion and just use
+     the whole viewport with breathing room, rather than scrolling sideways to read a line. */
+  @media screen and (max-width: 200mm) {
+    body { margin: 0; padding: 6mm; box-shadow: none; }
+  }
   h1 { font-size: 24pt; margin: 0 0 1mm; letter-spacing: -.4pt; }
   h1 + .sub { font-size: 10.5pt; color: #555; margin: 0 0 5mm; }
   h2 { font-size: 14pt; margin: 7mm 0 2.5mm; padding-bottom: 1.2mm;

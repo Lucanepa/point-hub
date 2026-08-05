@@ -21,6 +21,22 @@
   .side { page-break-after: always; }
   .side:last-child { page-break-after: auto; }
 
+  /* SCREEN ONLY — see the same block in hall-guide.template.html. The @page margin exists only
+     when printing, so on screen this had no margin at all. Each .side becomes its own A5 sheet
+     (132mm content + 2×8mm = 148mm) with a gap between them, which also makes the front/back
+     split visible on screen — on paper the page break does that, on screen nothing did. Must stay
+     inside @media screen: outside it this padding would add to the @page margin. */
+  @media screen {
+    html { background: #d9dade; }
+    body { padding: 8mm 0; }
+    .side { max-width: 132mm; margin: 0 auto 8mm; padding: 8mm 8mm 6mm;
+            background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.25); }
+  }
+  @media screen and (max-width: 160mm) {
+    body { padding: 0; }
+    .side { margin: 0 0 4mm; padding: 5mm; box-shadow: none; }
+  }
+
   h1 { font-size: 15pt; margin: 0; letter-spacing: -.3pt; }
   h1 span { font-weight: 400; color: #666; font-size: 10pt; }
   h2 { font-size: 10.5pt; margin: 3.5mm 0 1.5mm; padding-bottom: .8mm;
