@@ -1,0 +1,17 @@
+# Daily check, deliberately not weekly: the certificate lasts ~90 days and Tailscale renews it
+# inside the last 30, so a daily no-op gives ~30 chances to catch a board that is only
+# intermittently online. Weekly would give four.
+#
+# Persistent=true is the point of the whole unit — a board that was powered off at the scheduled
+# time runs the check on the next boot instead of silently skipping to the following day.
+[Unit]
+Description=LedBox: daily TLS certificate renewal check
+
+[Timer]
+OnCalendar=daily
+# Spread the load and avoid every board on a tailnet asking at midnight.
+RandomizedDelaySec=4h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

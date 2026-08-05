@@ -268,7 +268,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
   }
 
-  const server = http.createServer(async (req, res) => {
+  // Named rather than inline so the appliance can hand the SAME handler to an https.Server and
+  // serve both listeners from one implementation. Everything per-request (res._cors, the timing
+  // log) is resolved inside here, so a second transport needs no special-casing at all.
+  const handler = async (req, res) => {
     // Every request is timed and recorded once it completes. GETs are polled about once a
     // second by every open tab, so they sit at `debug`; anything that mutates the board, and
     // anything that failed, is `info` or louder.
@@ -341,7 +344,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       clog.error(`request error: ${err && err.message}`, { method: req.method, path: req.url, error: err })
       return sendJson(res, 500, { error: 'internal error' })
     }
-  })
+  }
+
+  const server = http.createServer(handler)
+  // Handed to the appliance so an optional https.Server can serve the identical implementation.
+  server.handler = handler
 
   async function handleApi(req, res, pathname) {
     // Any API traffic means an operator has the control UI open (it polls /api/status every

@@ -1,0 +1,31 @@
+# Renew the board's TLS certificate.
+#
+# `tailscale cert` is a no-op until the certificate is inside its renewal window, so running this
+# daily costs nothing and cannot trip Let's Encrypt rate limits. What it buys is that a board which
+# spent six weeks in a cupboard renews on the first day it is back on the internet, rather than the
+# operator discovering an expired certificate at the start of a tournament.
+#
+# The appliance watches the cert files and swaps its secure context in place, so a renewal never
+# needs a service restart — deliberately, because restarting to pick up a certificate would blink
+# the scoreboard out mid-match.
+#
+# The domain is DERIVED, never hardcoded: this repo is public and the tailnet name does not belong
+# in it. Same reasoning as the SSH alias in deploy-board.sh.
+[Unit]
+Description=LedBox: renew the console's TLS certificate
+After=tailscaled.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c '\
+  set -e; \
+  D=$(tailscale status --json | python3 -c "import json,sys; print(json.load(sys.stdin)[\\"Self\\"][\\"DNSName\\"].rstrip(\\".\\"))"); \
+  [ -n "$D" ] || { echo "no tailnet DNS name — is tailscaled up?"; exit 1; }; \
+  tailscale cert --cert-file /etc/ledbox-tls/board.crt --key-file /etc/ledbox-tls/board.key "$D"; \
+  chown pi:pi /etc/ledbox-tls/board.crt /etc/ledbox-tls/board.key; \
+  chmod 644 /etc/ledbox-tls/board.crt; \
+  chmod 600 /etc/ledbox-tls/board.key'
+
+[Install]
+WantedBy=multi-user.target

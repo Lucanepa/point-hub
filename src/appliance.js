@@ -9,6 +9,7 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
+import https from 'node:https'
 import { loadConfig } from './config.js'
 import { LedboxClient } from './ledboxClient.js'
 import { MockLedbox } from './mockLedbox.js'
@@ -200,6 +201,56 @@ export async function startAppliance(config = loadConfig()) {
   // The board is its own Tailscale node, so the console no longer hangs off the `openvolley` Pi.
   log.info(`control UI on http://0.0.0.0:${port}  (board's own AP, the house LAN, or its tailnet name)`, { port, logs: `/logs` })
 
+  // Optional TLS listener on the SAME handler. Everything here is best-effort by construction:
+  // a missing, unreadable or malformed cert logs a warning and leaves the board running exactly
+  // as it does without any of this. HTTP on :8890 is the contract — the QR on the panel and the
+  // printed hall guide both point at it — and nothing in this block may endanger it.
+  let tlsServer = null
+  if (config.tlsCert && config.tlsKey) {
+    const readCert = () => ({ cert: fs.readFileSync(config.tlsCert), key: fs.readFileSync(config.tlsKey) })
+    try {
+      tlsServer = https.createServer(readCert(), server.handler)
+      // A listen failure (port taken, permission) must not be fatal either — hence the explicit
+      // error handler rather than letting it reject the boot.
+      await new Promise((resolve) => {
+        tlsServer.once('error', (err) => {
+          log.warn(`HTTPS listener did not start: ${err.message}`, { port: config.httpsPort, error: err.message })
+          tlsServer = null
+          resolve()
+        })
+        tlsServer.listen(config.httpsPort, '0.0.0.0', resolve)
+      })
+      if (tlsServer) {
+        log.info(`control UI also on https://0.0.0.0:${config.httpsPort}  (secure context: wake lock, service worker, installable)`, { port: config.httpsPort })
+        // Certs are Let's Encrypt via `tailscale cert`, so they roll every ~90 days. Swapping the
+        // secure context in place is what keeps a renewal from needing a restart — restarting the
+        // appliance to pick up a cert would mean the scoreboard blinking out mid-match, which is a
+        // far worse outcome than the expired cert it was fixing.
+        let swapping = null
+        for (const f of [config.tlsCert, config.tlsKey]) {
+          try {
+            fs.watch(f, { persistent: false }, () => {
+              clearTimeout(swapping) // both files land together; debounce into one swap
+              swapping = setTimeout(() => {
+                try {
+                  tlsServer.setSecureContext(readCert())
+                  log.info('TLS certificate reloaded without a restart', { cert: config.tlsCert })
+                } catch (err) {
+                  log.warn(`TLS certificate reload failed, keeping the old one: ${err.message}`, { error: err.message })
+                }
+              }, 2000)
+            })
+          } catch (err) {
+            log.warn(`not watching ${f} for renewal: ${err.message}`, { file: f, error: err.message })
+          }
+        }
+      }
+    } catch (err) {
+      log.warn(`HTTPS disabled — could not load the certificate: ${err.message}`, { cert: config.tlsCert, key: config.tlsKey, error: err.message })
+      tlsServer = null
+    }
+  }
+
   // We are up: from here a disappearance is a crash, so arm the marker. Best-effort — a board with
   // a full or read-only card must still score.
   try {
@@ -215,6 +266,7 @@ export async function startAppliance(config = loadConfig()) {
     logStore.flush()
     livePush.detach()
     sourceManager.stop()
+    if (tlsServer) await new Promise((r) => tlsServer.close(r))
     await new Promise((r) => server.close(r))
     ledbox.disconnect()
     if (mock) await mock.close()
