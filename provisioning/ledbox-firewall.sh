@@ -110,6 +110,11 @@ build() { # $1 = iptables or ip6tables
   #    throttled mid-match is a worse outcome than anything this would prevent. Brute-force
   #    protection for the PIN belongs in the app, where it can be precise.
   a $B -A $CHAIN -i wlan0 -p tcp --dport 8890 -j ACCEPT     # console (:80 REDIRECTs to here)
+  # The same console over TLS, for the secure context the tablet needs (wake lock, service
+  # worker, installable PWA). Same handler, same board, different transport — reached by the
+  # board's tailnet name, which dnsmasq resolves to 172.24.1.1 right here on the AP so it works
+  # with no internet. Plain 8890 above stays the contract; this is strictly additive.
+  a $B -A $CHAIN -i wlan0 -p tcp --dport 8891 -j ACCEPT     # console over https
   a $B -A $CHAIN -i wlan0 -p tcp --dport 22   -j ACCEPT     # key-only since hardening
   a $B -A $CHAIN -i wlan0 -p udp --dport 53   -j ACCEPT
   a $B -A $CHAIN -i wlan0 -p tcp --dport 53   -j ACCEPT

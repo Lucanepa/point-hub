@@ -44,6 +44,21 @@ export function loadConfig(env = process.env) {
       : (bool(env.DEBUG) ? 'debug' : 'info'),
     // Appliance web control server (manual + LAN link UI) listen port.
     controlPort: int(env.CONTROL_PORT, 8890, 1, 65535),
+    // Optional HTTPS listener ALONGSIDE the plain-HTTP one, never instead of it. Plain HTTP on
+    // 172.24.1.1:8890 is what the QR on the panel, the hall guide and every operator's memory
+    // point at, and it keeps working untouched.
+    //
+    // What the second listener buys: plain HTTP is not a secure context, so the tablet gets no
+    // Screen Wake Lock (see the comment in web/index.html), no service worker and no installable
+    // PWA — on any browser, however modern. A Tailscale-issued Let's Encrypt cert for the board's
+    // own tailnet name fixes that with no public DNS and no port forwarding, and a dnsmasq
+    // `address=` line resolves that name to 172.24.1.1 on the AP so it works with no internet in
+    // the hall.
+    //
+    // Both paths empty (the default) = HTTPS off, and the appliance behaves exactly as before.
+    httpsPort: int(env.HTTPS_PORT, 8891, 1, 65535),
+    tlsCert: env.TLS_CERT || '',
+    tlsKey: env.TLS_KEY || '',
     // OpenVolley relay HTTP base (for /api/match/list). Derived from relayUrl if unset:
     // ws->http, wss->https, and the relay's HTTP port is 5173 (Vite dev server / API host).
     relayHttpUrl: env.RELAY_HTTP_URL || httpFromWs(env.RELAY_URL || 'ws://127.0.0.1:8080'),
