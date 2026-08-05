@@ -124,6 +124,13 @@ build() { # $1 = iptables or ip6tables
   # ── eth0: the Pi link. Management path and the fallback default route.
   a $B -A $CHAIN -i eth0 -p tcp --dport 22   -j ACCEPT
   a $B -A $CHAIN -i eth0 -p tcp --dport 8890 -j ACCEPT
+  # Parity with 8890 so the cable is not the one path where the https URL mysteriously hangs.
+  # Note the port being open is necessary but NOT sufficient over here: dnsmasq is deliberately
+  # bound to wlan0 (see harden-board.sh), so the board does not answer DNS on the cable and the
+  # certificate's name will not resolve. Reach it by name with a hosts entry on the laptop:
+  #   192.168.5.1  ledbox-c0270.<tailnet>.ts.net
+  # Using the bare IP instead gets a certificate warning, because the cert is for the name.
+  a $B -A $CHAIN -i eth0 -p tcp --dport 8891 -j ACCEPT
   [ "$v6" = 0 ] && a $B -A $CHAIN -i eth0 -p icmp --icmp-type echo-request -j ACCEPT
 
   # ── wlan1: the house LAN. Least trusted.
