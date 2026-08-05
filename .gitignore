@@ -24,6 +24,10 @@ docs/hall-guide.html
 # its wifi QR too. A card is MORE likely to leak than the guide — it gets photographed, propped
 # on a table and left in a hall — so it is source-free by exactly the same rule.
 docs/hall-card.html
+# The print-ready PDFs of the two files above. Same secret, and the format people actually mail
+# to each other or drop in a shared drive — so if anything here is going to escape, it is these.
+docs/hall-guide.pdf
+docs/hall-card.pdf
 
 # Tech4Sport's own firmware: decompiled sources, their plugins, their shipped .so binaries,
 # and private correspondence. Not ours to republish.

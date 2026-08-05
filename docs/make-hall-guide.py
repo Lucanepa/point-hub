@@ -17,19 +17,23 @@ otherwise drift apart:
   hall-card.html   A5 double-sided, the laminated card that lives with the board.
 
     python3 docs/make-hall-guide.py                      # both, passphrase from Vaultwarden
-    python3 docs/make-hall-guide.py --wifi-pass 'secret'  # or pass it explicitly
-    python3 docs/make-hall-guide.py --only card           # just one of them
+    python3 docs/make-hall-guide.py --pdf                 # ...and print-ready PDFs beside them
+    python3 docs/make-hall-guide.py --wifi-pass 'secret'  # or pass the passphrase explicitly
+    python3 docs/make-hall-guide.py --only card --pdf     # just one of them
     python3 docs/make-hall-guide.py -o /tmp/guide.html    # preview the guide somewhere else
 
-Then print it to A4 from a browser. Deps: qrcode + Pillow, same as
-firmware/idle-crest-qr/gen_qr.py (which renders the much smaller 48px panel version).
+Then print the PDF (or the HTML from a browser): guide A4, card A5 double-sided flipped on the
+SHORT edge. Deps: qrcode + Pillow, same as firmware/idle-crest-qr/gen_qr.py (which renders the
+much smaller 48px panel version); --pdf additionally needs Chrome or Chromium.
 """
 import argparse
 import base64
 import io
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 SSID = "ledbox_C0270"
 VAULT_ITEM = "LedBox - ledbox_C0270 WiFi (Tech4Sport)"
@@ -37,13 +41,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "hall-guide.template.html")
 DEFAULT_OUT = os.path.join(HERE, "hall-guide.html")
 
-# name -> (template, default output). Both carry the passphrase as text AND as an inline wifi QR,
-# so both are credentials and both are gitignored. Adding a third artefact means adding a
-# gitignore line in the same commit — the check at the bottom of main() enforces that.
+# name -> (template, html output, pdf output). All of these carry the passphrase as text AND as an
+# inline wifi QR, so all of them are credentials and all of them are gitignored. Adding a fourth
+# artefact means adding a gitignore line in the same commit — the check in render_all() enforces
+# that for every path it is about to write, PDFs included.
 ARTEFACTS = {
-    "guide": ("hall-guide.template.html", "hall-guide.html"),
-    "card": ("hall-card.template.html", "hall-card.html"),
+    "guide": ("hall-guide.template.html", "hall-guide.html", "hall-guide.pdf"),
+    "card": ("hall-card.template.html", "hall-card.html", "hall-card.pdf"),
 }
+
+# Chrome is the renderer because it is the browser these were designed and proof-read in, so the
+# PDF matches the on-screen proof exactly — @page size/margins, the flex QR rows and the
+# page-break-inside rules all behave the way they already did. It prints in the PRINT media type,
+# so the @media screen framing in the templates is correctly absent from the PDF.
+CHROMES = ["google-chrome-stable", "google-chrome", "chromium", "chromium-browser",
+           "/opt/google/chrome/chrome", "/snap/bin/chromium"]
 
 # Print, not LED panel: this one is read by a phone camera off paper, so it wants a real quiet zone
 # and enough modules to survive a mediocre print. Nothing here is shared with gen_qr.py's 48px
@@ -95,6 +107,42 @@ def render(template_path, out_path, qr_uri, passphrase):
     print(f"wrote {out_path} (mode 0600) — printable, and NOT to be committed")
 
 
+def find_chrome():
+    for c in CHROMES:
+        p = c if os.path.isabs(c) else shutil.which(c)
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
+def to_pdf(chrome, html_path, pdf_path):
+    """Print an already-rendered HTML file to PDF.
+
+    Chrome writes the output file itself, and it writes it 0644 — on a credential that is the
+    wrong mode and there is no flag to change it. So it renders into a 0700 temp dir and the
+    result is moved into place with the mode set BEFORE it lands anywhere world-readable.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        os.chmod(tmp, 0o700)
+        staged = os.path.join(tmp, "out.pdf")
+        r = subprocess.run([
+            chrome, "--headless", "--disable-gpu",
+            # Its own profile: without this it refuses to start when the user's Chrome is running,
+            # which on a desktop machine is nearly always.
+            "--user-data-dir=" + os.path.join(tmp, "profile"),
+            # Chrome's own date/URL header and page-number footer would otherwise be stamped over
+            # the templates' carefully-set @page margins.
+            "--no-pdf-header-footer",
+            "--print-to-pdf=" + staged,
+            "file://" + os.path.abspath(html_path),
+        ], capture_output=True, text=True, timeout=120)
+        if r.returncode != 0 or not os.path.exists(staged):
+            sys.exit(f"chrome failed to render {pdf_path}:\n{r.stderr.strip()[:500]}")
+        os.chmod(staged, 0o600)
+        shutil.move(staged, pdf_path)
+    print(f"wrote {pdf_path} (mode 0600) — printable, and NOT to be committed")
+
+
 def gitignored(path):
     """True if git will refuse to track `path`. A rendered artefact that git WOULD track is the
     exact failure this whole template/artefact split exists to prevent, and it has happened twice
@@ -111,6 +159,7 @@ def main():
     ap.add_argument("--wifi-pass", help="AP passphrase; read from Vaultwarden when omitted")
     ap.add_argument("--only", choices=sorted(ARTEFACTS), help="render just one artefact")
     ap.add_argument("-o", "--out", help="output path; only valid with --only (or for the guide)")
+    ap.add_argument("--pdf", action="store_true", help="also print each artefact to PDF via Chrome")
     a = ap.parse_args()
 
     passphrase = a.wifi_pass or from_vault()
@@ -121,19 +170,31 @@ def main():
     if a.out and len(wanted) > 1:
         sys.exit("-o needs --only: two artefacts cannot share one output path")
 
+    chrome = None
+    if a.pdf:
+        chrome = find_chrome()
+        if not chrome:
+            sys.exit("--pdf needs Chrome or Chromium on PATH; tried: " + ", ".join(CHROMES))
+
     # One QR render shared by both — same SSID, same passphrase, so two renders could only differ
     # by being out of step with each other.
     qr_uri = wifi_qr_data_uri(SSID, passphrase)
 
     for name in wanted:
-        template, default_out = ARTEFACTS[name]
+        template, default_out, default_pdf = ARTEFACTS[name]
         out = a.out or os.path.join(HERE, default_out)
         if not os.path.exists(os.path.join(HERE, template)):
             sys.exit(f"missing template {template} — cannot render {name}")
-        if not gitignored(out):
-            sys.exit(f"REFUSING to write {out}: git would track it, and it carries the passphrase.\n"
-                     f"Add it to .gitignore first — see the hall-guide.html entry for why.")
+        # Checked for every path about to be written, and checked BEFORE writing any of them.
+        outs = [out] + ([os.path.join(HERE, default_pdf)] if a.pdf else [])
+        for p in outs:
+            if not gitignored(p):
+                sys.exit(f"REFUSING to write {p}: git would track it, and it carries the "
+                         f"passphrase.\nAdd it to .gitignore first — see the hall-guide.html "
+                         f"entry for why.")
         render(os.path.join(HERE, template), out, qr_uri, passphrase)
+        if a.pdf:
+            to_pdf(chrome, out, os.path.join(HERE, default_pdf))
 
 
 if __name__ == "__main__":

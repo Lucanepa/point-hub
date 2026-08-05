@@ -17,9 +17,17 @@
 <style>
   @page { size: A5; margin: 8mm 8mm 6mm; }
   * { box-sizing: border-box; }
-  body { font: 9.5pt/1.32 "Helvetica Neue", Arial, sans-serif; color: #111; margin: 0; }
+  body { font: 9.5pt/1.26 "Helvetica Neue", Arial, sans-serif; color: #111; margin: 0; }
   .side { page-break-after: always; }
   .side:last-child { page-break-after: auto; }
+
+  /* DENSITY — this card MUST be exactly two A5 pages: it is printed double-sided and laminated,
+     so a third page does not become a third side, it becomes a second card nobody laminates. The
+     content is ~15mm over on each side at comfortable spacing, so what is tightened below is
+     whitespace and leading ONLY. No font-size here has been reduced to buy room: the card is read
+     at arm's length in a hall by someone who is already flustered, which is the one thing it
+     exists for. If content is ADDED later and it spills to 3 pages, cut content — do not shrink
+     the type. Check with: python3 docs/make-hall-guide.py --only card --pdf && pdfinfo docs/hall-card.pdf */
 
   /* SCREEN ONLY — see the same block in hall-guide.template.html. The @page margin exists only
      when printing, so on screen this had no margin at all. Each .side becomes its own A5 sheet
@@ -39,22 +47,22 @@
 
   h1 { font-size: 15pt; margin: 0; letter-spacing: -.3pt; }
   h1 span { font-weight: 400; color: #666; font-size: 10pt; }
-  h2 { font-size: 10.5pt; margin: 3.5mm 0 1.5mm; padding-bottom: .8mm;
+  h2 { font-size: 10.5pt; margin: 2mm 0 1mm; padding-bottom: .6mm;
        border-bottom: 1.8pt solid #111; }
-  .rule { border: 1.6pt solid #4A55A2; border-radius: 1.5mm; padding: 2mm 2.5mm; margin: 2mm 0 3mm;
+  .rule { border: 1.6pt solid #4A55A2; border-radius: 1.5mm; padding: 1.6mm 2.2mm; margin: 1.6mm 0 2.2mm;
           font-size: 9pt; }
   .rule b { color: #4A55A2; }
 
-  .qrs { display: flex; gap: 4mm; margin: 0 0 3mm; }
+  .qrs { display: flex; gap: 4mm; margin: 0 0 2.2mm; }
   .qrcard { flex: 1; border: 1.2pt solid #111; border-radius: 1.5mm; padding: 2mm; text-align: center; }
-  .qrcard img { width: 30mm; height: 30mm; image-rendering: pixelated; display: block; margin: 0 auto; }
+  .qrcard img { width: 27mm; height: 27mm; image-rendering: pixelated; display: block; margin: 0 auto; }
   .qrcard .n { font-size: 8pt; font-weight: 800; color: #fff; background: #111;
                border-radius: 8mm; padding: .3mm 2mm; display: inline-block; margin-bottom: 1mm; }
   .qrcard .lbl { font-weight: 700; font-size: 9pt; margin: 1mm 0 .3mm; }
   .qrcard .val { font: 8.5pt "SF Mono", Menlo, Consolas, monospace; color: #333; word-break: break-all; }
 
   ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
-  ol.steps > li { counter-increment: s; position: relative; padding: 0 0 2.2mm 8mm; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 0 0 1.2mm 8mm; }
   ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: -.2mm;
     width: 6mm; height: 6mm; border-radius: 50%; background: #111; color: #fff;
     font-weight: 700; font-size: 9pt; text-align: center; line-height: 6mm; }
@@ -62,14 +70,14 @@
   ol.steps i { font-style: normal; color: #555; font-size: 8.5pt; display: block; }
 
   table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
-  th { text-align: left; background: #111; color: #fff; padding: 1.2mm 1.8mm; font-size: 8pt; }
-  td { padding: 1.4mm 1.8mm; border-bottom: .6pt solid #ccc; vertical-align: top; }
+  th { text-align: left; background: #111; color: #fff; padding: 1mm 1.8mm; font-size: 8pt; }
+  td { padding: .8mm 1.8mm; border-bottom: .6pt solid #ccc; vertical-align: top; }
   td:first-child { font-weight: 700; width: 34%; }
   code { font: 8.5pt "SF Mono", Menlo, Consolas, monospace; background: #f0f0f0;
          padding: .2mm .8mm; border-radius: .6mm; }
 
-  .warn { padding: 1.4mm 2mm; background: #fdf1e7; border-left: 2.4pt solid #d2691e; font-size: 8.5pt; margin: 2mm 0 0; }
-  .foot { margin-top: 3mm; padding-top: 1mm; border-top: .6pt solid #ccc; font-size: 7.5pt; color: #888; }
+  .warn { padding: 1.1mm 2mm; background: #fdf1e7; border-left: 2.4pt solid #d2691e; font-size: 8.5pt; margin: 1.5mm 0 0; }
+  .foot { margin-top: 1.5mm; padding-top: .7mm; border-top: .6pt solid #ccc; font-size: 7.5pt; color: #888; }
 </style>
 
 <!-- ─────────────────────────── FRONT ─────────────────────────── -->
