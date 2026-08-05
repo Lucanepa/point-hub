@@ -185,6 +185,15 @@ console.log('\n[5] the console only works when it is being looked at')
   // a one-character edit that re-introduces the false alarm.
   ok(/c\.synced === true/.test(js) && /c\.synced === false/.test(js),
     'the clock card distinguishes not-synced from sync-state-unknown')
+
+  // The sport picker opens on load and covers the whole page. If the board is misbehaving, that
+  // is the moment you find out — so getting to the log must not require dismissing the dialog
+  // and then knowing which tab to hunt for.
+  ok(/id="spDiag"/.test(html), 'the sport picker offers a way straight to Diagnostics')
+  // Via goToTab, which clicks the real nav button, so startDiag() runs. Toggling .active by hand
+  // would show the tab with every card reading "—" and no log, forever.
+  ok(/spDiagBtn\.addEventListener\("click", \(\) => \{ closeSportPicker\(\); goToTab\("diag"\); \}\)/.test(js),
+    'and it goes through goToTab so the tab actually starts polling')
 }
 
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

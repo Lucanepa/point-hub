@@ -892,6 +892,10 @@
       <button type="button" class="js-fs" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg><span>Full screen</span></button>
       <button type="button" class="js-awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg><span>Keep awake</span></button>
       <button type="button" id="spGameMenu" aria-label="Open the game menu for the current sport"><svg class="licon l-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13" /> <path d="M8 12h13" /> <path d="M8 18h13" /> <path d="M3 6h.01" /> <path d="M3 12h.01" /> <path d="M3 18h.01" /></svg><span>Game menu</span></button>
+      <!-- The picker is the FIRST thing on screen every evening, and it covers the whole page.
+           If the board is misbehaving, this is the moment you find out — so the way to look at
+           why must not require dismissing this dialog and knowing which tab to hunt for. -->
+      <button type="button" id="spDiag" aria-label="Open diagnostics and the live log"><svg class="licon l-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg><span>Diagnostics</span></button>
     </div>
     <button class="spcancel" id="spCancel">Keep current sport</button>
   </div>
@@ -2776,6 +2780,11 @@
   // "Keep current sport" just dismisses to the scoreboard. This is the one that says what it does.
   const spGameMenuBtn = $("#spGameMenu");
   if (spGameMenuBtn) spGameMenuBtn.addEventListener("click", () => { closeSportPicker(); openGamePicker(); });
+  // goToTab clicks the real nav button rather than toggling classes directly, so the Diagnostics
+  // tab's own wiring runs — startDiag() opens the log stream and begins polling. Setting
+  // .active by hand here would show the tab with every card reading "—" forever.
+  const spDiagBtn = $("#spDiag");
+  if (spDiagBtn) spDiagBtn.addEventListener("click", () => { closeSportPicker(); goToTab("diag"); });
   const sportPickerEl = $("#sportPicker");
   if (sportPickerEl) sportPickerEl.addEventListener("click", (e) => { if (e.target.id === "sportPicker") closeSportPicker(); });
   const nextPeriodBtn = $("#nextPeriodBtn");
