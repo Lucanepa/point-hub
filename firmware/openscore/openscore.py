@@ -563,8 +563,13 @@ class Device:
             ]})
         return out
 
+    # The openscore protocol is unauthenticated, so `times` arrives straight off
+    # the wire and each iteration spawns a process. Clamp it.
+    MAX_HORN_TIMES = 10
+
     def _horn(self, value):
         times = _to_int(value.get("times"), 1) if isinstance(value, dict) else 1
+        times = min(max(1, times), self.MAX_HORN_TIMES)
         gap = value.get("sleep", 0.5) if isinstance(value, dict) else 0.5
         cmd = self.cfg.get("horn_cmd")
         if not cmd:
