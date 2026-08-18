@@ -226,7 +226,7 @@
   #rotate{display:none}
   @media (orientation:portrait) and (max-width:600px){
     #rotate{display:flex;position:fixed;inset:0;z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);color:var(--fg);text-align:center;padding:28px}
-    #rotate .ic{font-size:56px;animation:rothint 2.4s ease-in-out infinite} #rotate .t{font-size:17px;font-weight:800} #rotate .s{font-size:13px;color:var(--muted);max-width:280px}
+    #rotate .ic{display:flex;animation:rothint 2.4s ease-in-out infinite} #rotate .ic .licon{width:56px;height:56px} #rotate .t{font-size:17px;font-weight:800} #rotate .s{font-size:13px;color:var(--muted);max-width:280px}
     @keyframes rothint{0%,55%{transform:rotate(0)}78%,100%{transform:rotate(-90deg)}}
   }
   #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--card);color:var(--fg);padding:12px 18px;border-radius:var(--r);font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:60;text-align:center;border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
@@ -806,7 +806,7 @@
 
   <!-- Portrait nudge -->
   <div id="rotate">
-    <div class="ic">📱</div>
+    <div class="ic"><svg class="licon l-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" /></svg></div>
     <div class="t">Rotate to landscape</div>
     <div class="s">The scoreboard controller is built for a landscape screen.</div>
   </div>
