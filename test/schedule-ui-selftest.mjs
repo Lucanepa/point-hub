@@ -54,8 +54,12 @@ console.log('\n[1] Today at the hall: rows, empty and offline')
   let reply = null, asked = ''
   const api = async (p) => { asked = p; if (reply instanceof Error) throw reply; return reply }
   const started = []
+  // The season list (renderUpcoming) finds no #upcomingWrap in this DOM and steps aside; its own
+  // selftest is season-schedule-ui-selftest.mjs.
   const make = new Function('$', 'api', 'document', 'startScheduled',
-    'let schedLoading = false;\n' + lift(js, 'fmtSchedDate') + '\n' + 'const schedShort = ' + lift(js, 'schedShort').replace(/^const schedShort = /, '') + ';\n' +
+    'let schedLoading = false, schedShowAll = false, schedDays = [], schedToday = "";\nconst SCHED_OPEN_DAYS = 14, SCHED_TZ = "Europe/Zurich";\n' +
+    ['fmtSchedDate', 'schedAddDays', 'schedLocal', 'schedOff', 'schedStatusText', 'schedRow', 'schedDay', 'renderUpcoming'].map((n) => lift(js, n)).join('\n') + '\n' +
+    'const schedShort = ' + lift(js, 'schedShort').replace(/^const schedShort = /, '') + ';\n' +
     lift(js, 'refreshSchedule') + '\nreturn refreshSchedule;')
   const refreshSchedule = make((s) => nodes[s], api, document, (g) => started.push(g))
 
@@ -65,7 +69,7 @@ console.log('\n[1] Today at the hall: rows, empty and offline')
   ] }
   await refreshSchedule(false)
   const rows = nodes['#schedule'].children
-  ok(asked === '/api/schedule', 'opens with the cached read')
+  ok(asked === '/api/schedule?range=season', 'opens with the cached season read (an older board answering today-only still fills Today)')
   ok(rows.length === 2, 'one row per game')
   const b0 = rows[0].children[0]
   ok(b0.tag === 'button' && b0.className === 'schedrow', 'each row is one big button')
@@ -77,7 +81,7 @@ console.log('\n[1] Today at the hall: rows, empty and offline')
 
   reply = { ok: true, date: '2026-09-23', games: [] }
   await refreshSchedule(true)
-  ok(asked === '/api/schedule?refresh=1', 'Refresh bypasses the cache')
+  ok(asked === '/api/schedule?range=season&refresh=1', 'Refresh bypasses the cache')
   ok(nodes['#schedNote'].textContent === 'No home games today.' && !nodes['#schedNote'].hidden, 'empty: "No home games today."')
 
   reply = { ok: false, error: "The board could not reach the club's schedule. It may have no internet here — type the team names instead.", games: [] }

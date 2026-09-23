@@ -49,6 +49,9 @@ export const GLOBAL_DEFAULTS = {
   // console reads it, to put each team card on the scorer's own side; the server, the sources and
   // the mappers keep PANEL sides whatever it says. Shared like branding: it is about the hall.
   orientation: 'behind',
+  // Set up the pre-match on its own an hour before a home game in the season schedule (see
+  // autoPrepare.js). Shared: it is about the hall's evening, not about one sport's rules.
+  autoPrepare: true,
 }
 
 // Per-sport. Volleyball = the historical flat values (so a migrated board is identical). Beach =
@@ -99,7 +102,7 @@ export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
 // about what a valid PIN is.
 export const PIN_RE = /^\d{1,8}$/
 
-const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames']
+const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare']
 const NUMS = {
   idleFontMax: [10, 30], matchFontMaxLeft: [10, 30], matchFontMaxRight: [10, 30],
   brightness: [0, 100], blinkMs: [200, 10000],

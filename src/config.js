@@ -59,6 +59,11 @@ export function loadConfig(env = process.env) {
     httpsPort: int(env.HTTPS_PORT, 8891, 1, 65535),
     tlsCert: env.TLS_CERT || '',
     tlsKey: env.TLS_KEY || '',
+    // Download the season's home games in the background and set up each one's pre-match an hour
+    // before it (seasonSchedule.js, autoPrepare.js). On by default; SCHEDULE_SYNC=0 leaves the
+    // schedule to on-demand reads from the console. (The auto pre-match also has its own switch
+    // in Settings.)
+    scheduleSync: bool(env.SCHEDULE_SYNC, true),
     // OpenVolley relay HTTP base (for /api/match/list). Derived from relayUrl if unset:
     // ws->http, wss->https, and the relay's HTTP port is 5173 (Vite dev server / API host).
     relayHttpUrl: env.RELAY_HTTP_URL || httpFromWs(env.RELAY_URL || 'ws://127.0.0.1:8080'),

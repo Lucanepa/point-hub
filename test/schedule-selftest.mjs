@@ -99,7 +99,9 @@ const fake = http.createServer((req, res) => {
   if (mode === '500') { res.writeHead(500); return res.end('{"errors":[]}') }
   if (mode === 'junk') { res.writeHead(200, { 'content-type': 'text/html' }); return res.end('<html>') }
   res.writeHead(200, { 'content-type': 'application/json' })
-  res.end(JSON.stringify({ data: REAL }))
+  // The route reads the season copy (seasonSchedule.js), whose query asks for `date` as well.
+  const season = /_gte/.test(decodeURIComponent(req.url))
+  res.end(JSON.stringify({ data: season ? REAL.map((g) => ({ ...g, date: zurichDate() })) : REAL }))
 })
 await new Promise((r) => fake.listen(0, '127.0.0.1', r))
 const fakeUrl = `http://127.0.0.1:${fake.address().port}`

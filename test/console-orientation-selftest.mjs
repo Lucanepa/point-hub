@@ -91,7 +91,7 @@ console.log('\n[3] preview label and the Settings toggle')
 console.log('\n[4] pre-match')
 {
   const ss = body('startScheduled')
-  ok(/choice: "new", teams: \{[\s\S]*\}, prematch: true \}/.test(ss), 'a schedule start always asks for the pre-match')
+  ok(/choice: "new", teams: \{[\s\S]*\}, prematch: true\b/.test(ss), 'a schedule start always asks for the pre-match')
   ok(/board\.mode = r && r\.prematch === true \? "clock" : "match"/.test(ss), 'and the mirror follows the board onto the clock')
   ok(/if \(prematchOn\) return;/.test(body('showBoardLive')), 'opening the Game tab does not lift the pre-match clock')
   const srvSet = (server.match(/PREMATCH_ACTIONS = new Set\(\[([^\]]*)\]\)/) || [])[1] || ''

@@ -70,8 +70,9 @@ export class ResumeStore {
   //
   // `prematch` marks a schedule start still waiting on the clock (controlServer's `prematch`), so a
   // restart comes back to the pre-match rather than to a 0-0 scoreboard. Such a game is kept even
-  // with only short names typed: it is a game the scorer has deliberately set up.
-  save(sport, state, now, { prematch = false } = {}) {
+  // with only short names typed: it is a game the scorer has deliberately set up. `gameId` is the
+  // schedule's id for that pre-match, when there is one, so a restart knows which game it was.
+  save(sport, state, now, { prematch = false, gameId = null } = {}) {
     if (!sport) return false
     if (!ResumeStore.worthKeeping(state) && !prematch) return false
     const prev = this.games[sport]
@@ -80,6 +81,7 @@ export class ResumeStore {
       savedAt: (prev && prev.savedAt) || now, // when this game STARTED being tracked
       updatedAt: now,
       ...(prematch ? { prematch: true } : {}),
+      ...(prematch && gameId != null && gameId !== '' ? { gameId: String(gameId) } : {}),
     }
     this._save()
     return true
@@ -93,6 +95,12 @@ export class ResumeStore {
   isPrematch(sport) {
     const g = this.games[sport]
     return !!(g && g.state && g.prematch === true)
+  }
+
+  // The schedule id of a saved pre-match, or null (not a pre-match, or typed by hand).
+  prematchGameId(sport) {
+    const g = this.games[sport]
+    return g && g.state && g.prematch === true && g.gameId != null ? String(g.gameId) : null
   }
 
   has(sport) {

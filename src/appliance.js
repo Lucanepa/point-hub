@@ -183,6 +183,12 @@ export async function startAppliance(config = loadConfig()) {
     settings,
     webDir,
     dataDir,
+    // The season schedule's downloads and the automatic pre-match run on their own only on a real
+    // boot (loadConfig sets this). A test's hand-built config leaves them off, so no selftest
+    // reaches the club's Directus — or has a real 20:00 game set itself up mid-run.
+    background: config.scheduleSync === true,
+    // Test hook only: { now, trusted } for the automatic pre-match (test/auto-prepare-selftest.mjs).
+    autoPrepare: config.autoPrepare || null,
   })
 
   // The default screen on a fresh boot (the KSC Wiedikon crest) is asserted by the client
@@ -287,6 +293,7 @@ export async function startAppliance(config = loadConfig()) {
     try { fs.rmSync(runMark, { force: true }) } catch { /* best-effort */ }
     logStore.flush()
     livePush.detach()
+    server.stopBackground()
     sourceManager.stop()
     stopCertWatch()
     // Let go of the panel before waiting on anything HTTP-shaped, so nothing below can keep the

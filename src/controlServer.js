@@ -18,7 +18,9 @@ import { log, LEVELS } from './logStore.js'
 import { systemInfo } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
 import { ClockSync } from './clockSync.js'
-import { Schedule } from './schedule.js'
+import { SeasonSchedule } from './seasonSchedule.js'
+import { AutoPrepare, inWindow } from './autoPrepare.js'
+import { zurichDate } from './schedule.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -184,7 +186,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -220,7 +222,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (keepsHistory()) try { history.record(action, state, event, nowStamp(), nowClock(), { undoable, label }) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
     try {
       if (event === 'match-end' || event === 'game-end') resume.clear(activeSport())
-      else resume.save(activeSport(), state, nowStamp(), { prematch })
+      else resume.save(activeSport(), state, nowStamp(), { prematch, gameId: prematch ? prematchGameId : null })
     } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
   }
   // PRE-MATCH: a game started from the schedule is set up (names, 0-0) but not yet on the panel —
@@ -352,6 +354,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   async function beginMatch(reason) {
     if (!prematch) return false
     prematch = false
+    prematchGameId = null
     clearUndo()
     try {
       const state = manualSource ? manualSource.getState() : null
@@ -366,6 +369,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   const dropPrematch = (why) => {
     if (!prematch) return
     prematch = false
+    prematchGameId = null
     clog.info(`pre-match dropped (${why})`, { why })
   }
   // Adopting the console's wall clock when we have no uplink — see clockSync.js for why this
@@ -375,9 +379,39 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   const clockSync = clockSyncIn || new ClockSync({
     isBusy: () => countdown !== null || history.current !== null,
   })
-  // Today's home games from the club's Directus (see schedule.js). Injectable so a test can point
-  // it at a local fake instead of the network.
-  const schedule = scheduleIn || new Schedule()
+  // The season's home games, downloaded whenever there is an uplink and kept in data/schedule.json
+  // (see seasonSchedule.js) — GET /api/schedule is served from that copy. Injectable so a test can
+  // point it at a local fake instead of the network. The clock hook refreshes it the moment NTP
+  // syncs, which is also the moment an uplink has appeared.
+  const clockTrusted = () => (typeof clockSync.trusted === 'function' ? clockSync.trusted() : false)
+  const schedule = scheduleIn || new SeasonSchedule({ file: path.resolve(stateHome, 'schedule.json'), trusted: clockTrusted })
+  const offTrusted = typeof clockSync.onTrusted === 'function' && typeof schedule.onClockTrusted === 'function'
+    ? clockSync.onTrusted(() => schedule.onClockTrusted())
+    : () => {}
+  // Which of today's games the pre-match on the board belongs to (the console sends its id with the
+  // schedule tap; the automatic pre-match sets it). null = unknown — then the names decide.
+  let prematchGameId = null
+  // The automatic pre-match (see autoPrepare.js). Its clock probe awaits a fresh NTP answer, since
+  // nothing else polls it on a board with no console open. `autoIn` lets a test replace the clock,
+  // the probe and the tick with its own.
+  const autoOpts = autoIn || {}
+  const autoPrepare = new AutoPrepare({
+    file: path.resolve(stateHome, 'autoprepare.json'),
+    now: autoOpts.now || (() => Date.now()),
+    trusted: autoOpts.trusted || (async () => {
+      if (typeof clockSync.synchronized === 'function') await clockSync.synchronized().catch(() => null)
+      return clockTrusted()
+    }),
+    enabled: () => opt('autoPrepare') !== false,
+    games: (date) => (typeof schedule.gamesFor === 'function' ? schedule.gamesFor(activeSport()) : []).filter((g) => g.date === date),
+    boardFree: (game) => autoBoardFree(game, autoOpts.now ? autoOpts.now() : Date.now()),
+    prepare: (game) => setupScheduledGame(activeSport(), teamsOf(game), { prematch: true, gameId: game.id, why: 'automatic' }),
+    tickMs: autoOpts.tickMs,
+  })
+  if (background) {
+    if (typeof schedule.start === 'function') schedule.start()
+    autoPrepare.start()
+  }
 
   // Put the wall clock on the panel and keep it there (see LedboxClient.showIdle's `screen`). A
   // running countdown is ended first (quietly, see stopCountdown's `repaint`): left running, its
@@ -515,11 +549,22 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // "start from the schedule" list. Open like every other read; the data is public anyway. Always
     // 200: a board with no uplink is the normal case, so failure is `{ ok:false, error }` in words
     // the console can show as they are, never a 5xx.
+    //
+    // Served from the season copy on disk (seasonSchedule.js), so it answers in a hall with no
+    // uplink; ?refresh=1 goes to Directus first. `?range=season` is the whole rest of the season:
+    //   { ok, date, fetchedAt, stale, clockSynced, today:[…], upcoming:[{ date, games:[…] }] }
+    // ok:true whenever a copy exists (stale:true when it is over 12 h old or this boot has not
+    // fetched yet); ok:false with a plain `error` only when there is no copy at all.
     if (pathname === '/api/schedule' && req.method === 'GET') {
-      const refresh = new URL(req.url, 'http://localhost').searchParams.get('refresh') === '1'
+      const q = new URL(req.url, 'http://localhost').searchParams
+      const refresh = q.get('refresh') === '1'
+      if (q.get('range') === 'season' && typeof schedule.season === 'function') {
+        return sendJson(res, 200, { ...(await schedule.season({ sport: activeSport(), refresh })), sport: activeSport() })
+      }
       const r = await schedule.today({ sport: activeSport(), refresh })
+      const age = 'fetchedAt' in r ? { fetchedAt: r.fetchedAt, stale: r.stale } : {}
       return sendJson(res, 200, r.ok
-        ? { ok: true, date: r.date, sport: activeSport(), games: r.games }
+        ? { ok: true, date: r.date, sport: activeSport(), games: r.games, ...age }
         : { ok: false, error: r.error, games: [] })
     }
     if (pathname === '/api/system' && req.method === 'GET') {
@@ -881,7 +926,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         const saved = choice === 'continue' ? resume.get(sport) : null
         if (choice === 'continue' && !saved) return sendJson(res, 404, { error: 'no saved game for this sport' })
         const teams = choice === 'new' ? cleanTeams(body && body.teams) : null
-        if (teams) return startScheduledGame(res, req, sport, teams, { prematch: !!(body && body.prematch === true) })
+        if (teams) return startScheduledGame(res, req, sport, teams, { prematch: !!(body && body.prematch === true), gameId: cleanGameId(body && body.gameId) })
         // Continuing a game saved during its pre-match goes back to the pre-match: names set,
         // 0-0, the clock on the panel.
         if (saved && resume.isPrematch(sport)) return restorePrematch(res, sport, saved)
@@ -1139,7 +1184,13 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // `prematch` (the console always sends it from the schedule) sets the game up but keeps the hall
   // on the clock: the clock goes up FIRST — pushState is held while idle is up, so nothing of the
   // new match reaches the panel — and the match itself is painted later by beginMatch().
-  async function startScheduledGame(res, req, sport, teams, { prematch: pre = false } = {}) {
+  async function startScheduledGame(res, req, sport, teams, { prematch: pre = false, gameId = null } = {}) {
+    await setupScheduledGame(sport, teams, { prematch: pre, gameId, why: 'schedule', ip: clientIp(req) })
+    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+  }
+  // The part of the schedule start that the automatic pre-match shares (see autoPrepare.js):
+  // exactly the same board, with no HTTP request behind it.
+  async function setupScheduledGame(sport, teams, { prematch: pre = false, gameId = null, why = 'schedule', ip = null } = {}) {
     const offMatch = ledbox && (ledbox._idle || (ledbox.currentLayout && ledbox.currentLayout !== ledbox.layout))
     if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
     if (pre) await holdClock()
@@ -1161,18 +1212,70 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     clearUndo()
     resume.clear(sport)
     prematch = pre
+    prematchGameId = pre ? gameId : null
+    // A game started by hand is filed as prepared too, so the automatic pre-match never puts it
+    // back after the scorer has moved on from it.
+    if (gameId != null) autoPrepare.markPrepared(gameId)
     if (keepsHistory()) try { history.record({ type: 'reset' }, state, null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
-    try { resume.save(sport, state, nowStamp(), { prematch: pre }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
+    try { resume.save(sport, state, nowStamp(), { prematch: pre, gameId: pre ? gameId : null }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
     touchedSinceStart = false
     // One paint, of the new state. Lifting idle repaints from the state the client now holds;
     // already on the scoreboard, push it. A pre-match paints nothing: the clock stays up.
     if (pre) { /* held on the clock until beginMatch() */ }
     else if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
     else if (ledbox && typeof ledbox.pushState === 'function') await Promise.resolve(ledbox.pushState(state)).catch(() => {})
-    clog.info(`new game from the schedule${pre ? ' (pre-match: the board keeps the clock)' : ''}: ${teams.left.short || teams.left.name} v ${teams.right.short || teams.right.name}`, {
-      sport, left: teams.left, right: teams.right, prematch: pre, ip: clientIp(req),
+    clog.info(`new game from the ${why === 'automatic' ? 'schedule, automatically' : 'schedule'}${pre ? ' (pre-match: the board keeps the clock)' : ''}: ${teams.left.short || teams.left.name} v ${teams.right.short || teams.right.name}`, {
+      sport, left: teams.left, right: teams.right, prematch: pre, gameId, ...(ip ? { ip } : {}),
     })
-    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+  }
+
+  // Home on the left, as the schedule tap sends it.
+  const teamsOf = (game) => ({
+    left: { name: String(game.home || ''), short: String(game.homeShort || '') },
+    right: { name: String(game.away || ''), short: String(game.awayShort || '') },
+  })
+
+  // May the automatic pre-match take the board for `game` right now? { free, reason }. The rule is
+  // "never interrupt a match": no countdown, no linked LAN match, and no match in the resume slot.
+  //
+  // The slot is the test, not the score. A match that has begun sits at 0-0 until the first rally
+  // (the warm-up ran out, "Start match now", names typed and New pressed), and after a clean
+  // restart the live board is blank while the real match waits in the slot for "Continue". Judging
+  // by the live score took both for a free board and set another game up over them, which clears
+  // the slot. So any saved game that is not a pre-match keeps the board busy; the slot empties on
+  // its own when a match ends (archived), on Delete and on New, which is when the board is free.
+  //
+  // A pending pre-match is left alone while its own game is still current — 'already' when it IS
+  // this game; one for an earlier slot the hall never started makes way.
+  function autoBoardFree(game, nowMs) {
+    if (countdown) return { free: false, reason: 'countdown' }
+    if (sourceManager.status.mode === 'lan') return { free: false, reason: 'linked' }
+    if (!manualSource) return { free: false, reason: 'no-source' }
+    const sport = activeSport()
+    const live = manualSource.getState() || {}
+    const saved = resume.get(sport)
+    const savedPre = !!saved && resume.isPrematch(sport)
+    if (saved && !savedPre && !prematch) {
+      return { free: false, reason: sameBoard(saved, live) ? 'match-in-progress' : 'saved-match' }
+    }
+    if (prematch || savedPre) {
+      // Live pre-match first; a saved one not (yet) restored is judged by the slot.
+      const s = prematch ? live : saved
+      const preId = prematch ? prematchGameId : resume.prematchGameId(sport)
+      const names = [s.team_a_name || s.team_a_short, s.team_b_name || s.team_b_short].map((n) => String(n || '').toLowerCase())
+      const isGame = (g) => g && [g.home, g.away].every((n) => names.includes(String(n || '').toLowerCase()))
+      if ((preId != null && String(preId) === String(game.id)) || (preId == null && isGame(game))) {
+        return { free: false, reason: 'already' }
+      }
+      // Some other game's pre-match: keep it while that game is still due; a leftover from an
+      // earlier slot the hall never started makes way. Unknown (typed by hand) always stays.
+      const today = typeof schedule.gamesFor === 'function' ? schedule.gamesFor(sport).filter((g) => g.date === zurichDate(new Date(nowMs))) : []
+      const other = preId != null ? today.find((g) => String(g.id) === String(preId)) : today.find(isGame)
+      if (!other || inWindow(other, nowMs)) return { free: false, reason: 'prematch' }
+      return { free: true, reason: 'stale-prematch' }
+    }
+    const fresh = !(Number(live.points_a) || Number(live.points_b) || Number(live.sets_won_a) || Number(live.sets_won_b))
+    return { free: true, reason: fresh ? 'fresh' : 'match-over' }
   }
 
   // Bring back a game saved during its pre-match (Continue, or a restart — see
@@ -1185,6 +1288,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     manualSource.apply({ type: 'set-state', state: saved })
     clearUndo()
     prematch = true
+    // The schedule's id for it, saved with the slot: without it a restored pre-match is known only
+    // by its names, and one left over from an earlier slot could never give way (autoBoardFree).
+    prematchGameId = resume.prematchGameId(sport)
     touchedSinceStart = false
     clog.info('pre-match restored — the board keeps the clock until the match starts', { sport })
   }
@@ -1200,6 +1306,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       sport: settings ? settings.values.sport : 'volleyball',
       // A schedule start waiting on the clock for its warm-up / "Start match now" (see `prematch`).
       prematch,
+      // Which of today's games that pre-match is (a Directus id), when the board knows; else null.
+      prematchGameId: prematch ? prematchGameId : null,
       // Where the scorer sits (settings.js). The console mirrors its team cards by it; nothing on
       // the server side changes with it.
       orientation: settings ? settings.values.orientation : 'behind',
@@ -1358,6 +1466,16 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // only puts the console's "Ready" banner (and the names) back where the scorer left them.
   server.savedPrematch = () => resume.isPrematch(activeSport())
 
+  // One automatic pre-match decision, now (the selftest drives it; the board runs it every 30 s).
+  server.autoPrepareTick = () => autoPrepare.tick()
+  // Stop the schedule's timers and the auto-prepare ticker, and abort a fetch in flight. The
+  // appliance calls it on shutdown.
+  server.stopBackground = () => {
+    autoPrepare.stop()
+    if (typeof schedule.stop === 'function') schedule.stop()
+    offTrusted()
+  }
+
   server.closeStreams = () => {
     for (const res of streams) { try { res.end() } catch { /* already gone */ } }
     streams.clear()
@@ -1460,6 +1578,8 @@ function sameBoard(a, b) {
 
 // A relay-supplied match id, clamped to something that can only ever be an id.
 const safeMatchId = (v) => String(v).replace(/[^\w.-]/g, '').slice(0, 64)
+// A Directus game id from the console (a number today), clamped the same way; null when absent.
+const cleanGameId = (v) => (v == null || v === '' ? null : String(v).replace(/[^\w.-]/g, '').slice(0, 64) || null)
 
 // Pipe one log rotation into an already-open response. Resolves on 'close', which fires after
 // end, error or destroy alike — an unreadable rotation is skipped exactly the way the old

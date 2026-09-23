@@ -275,6 +275,27 @@
   .schedrow .smeta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .schedrow .sgo{flex:0 0 auto;padding:8px 14px;border:1.5px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:14px;font-weight:800}
   @media (max-width:420px){ .schedrow{gap:10px;padding:10px} .schedrow .stime{font-size:17px} .schedrow .steams{font-size:15px} .schedrow .sgo{display:none} }
+  /* Cancelled / postponed: kept in the list so nobody wonders where the game went, but greyed,
+     struck through and not tappable — the board must not be set up for a game that is not on. */
+  .schedrow.off{cursor:default;color:var(--muted);background:var(--fill);border-color:var(--line-soft)}
+  .schedrow.off .steams{text-decoration:line-through;font-weight:700}
+  .schedrow .sflag{flex:0 0 auto;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:1.5px solid var(--line-soft);border-radius:var(--r);padding:4px 8px}
+  .schedstat{margin:-4px 0 10px;font-size:12px;font-weight:700;color:var(--muted)}
+  .schedstat.stale{color:var(--warn)}
+  /* Upcoming: one <details> per day. The summary is a full-width tap target like every other row. */
+  .upcoming{display:flex;flex-direction:column;gap:8px}
+  .upday{border:1.5px solid var(--line-soft);border-radius:var(--r);background:var(--card)}
+  .upday > summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:var(--tap);padding:6px 12px;cursor:pointer;font-size:14px;font-weight:800}
+  .upday > summary::-webkit-details-marker{display:none}
+  .upday > summary::before{content:"";flex:0 0 auto;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;margin-right:2px}
+  .upday[open] > summary::before{transform:rotate(45deg)}
+  .upday .upcount{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .upday .schedlist{padding:0 8px 8px;margin:0}
+  .upday .schedrow{min-height:56px}
+  .upday .schedrow .stime{font-size:17px}
+  .upday .schedrow .steams{font-size:15px}
+  .seasonmore{margin-top:10px;width:100%;min-height:var(--tap);padding:10px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
+  #upcomingWrap{margin-top:14px} #upcomingWrap + .linkhead{margin-top:14px}
   .note{color:var(--muted);font-size:13px;padding:8px 2px} .err{color:var(--bad);font-size:13px;padding:6px 2px}
 
   /* ---- SETTINGS ---- */
@@ -957,8 +978,21 @@
         <h2 class="linkh">Today at the hall <span class="linkdate" id="schedDate"></span></h2>
         <button id="schedRefreshBtn" type="button">↻ Refresh</button>
       </div>
+      <!-- Where the list came from: the board keeps the whole season on disk, so offline it still
+           has one — this line says how old it is, so nobody trusts a stale list without knowing. -->
+      <p class="schedstat" id="schedStatus" hidden></p>
       <ul id="schedule" class="schedlist"></ul>
       <p class="note" id="schedNote">Loading today's games…</p>
+      <!-- The rest of the season's home games, a day per group. Tap one to set it up in advance
+           (same pre-match as tonight's). Built lazily: a season is a few hundred rows, and a
+           collapsed day costs nothing until someone opens it. -->
+      <div id="upcomingWrap" hidden>
+        <div class="linkhead">
+          <h2 class="linkh">Upcoming home games</h2>
+        </div>
+        <div id="upcoming" class="upcoming"></div>
+        <button id="seasonMoreBtn" class="seasonmore" type="button" hidden>Show whole season</button>
+      </div>
       <div class="linkhead">
         <h2 class="linkh">Live matches on this network</h2>
         <button id="refreshBtn" type="button">↻ Refresh matches</button>
@@ -1048,6 +1082,15 @@
             public /live page. With the scorer behind the board, the Game tab's team cards are
             swapped to match what the scorer sees — the team on your left is the one on the panel's
             right. The preview under them always shows the panel as the court sees it.</p>
+        </fieldset>
+        <fieldset>
+          <legend><svg class="licon l-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /></svg> Schedule</legend>
+          <label class="row"><span>Prepare home games automatically (60 min before)</span>
+            <input type="checkbox" data-set="autoPrepare" checked></label>
+          <p class="hint">An hour before a home game on the club's schedule, the board puts both
+            names up at 0–0 and keeps showing the clock — the same as tapping the game on the Link
+            tab. It never touches a match that is being scored, and a game you dismissed stays
+            dismissed. Needs the board's clock, so it waits until the board has been online once.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-landmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 18v-7" /> <path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z" /> <path d="M14 18v-7" /> <path d="M18 18v-7" /> <path d="M3 22h18" /> <path d="M6 18v-7" /></svg> Club</legend>
@@ -1970,6 +2013,13 @@
       { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
     ],
   };
+  let mirrorFitObs = null;
+  function observeMirrorFit(inner) {
+    try {
+      if (!mirrorFitObs && typeof ResizeObserver === "function") mirrorFitObs = new ResizeObserver(() => fitMirrorNames());
+      if (mirrorFitObs) mirrorFitObs.observe(inner);
+    } catch { /* no observer: the next status repaint fits them */ }
+  }
   const cq = (v, ax) => (v / (ax === "x" ? BW : BH) * 100) + (ax === "x" ? "cqw" : "cqh");
   function buildBoard() {
     const p = $("#bvPanel"); if (!p || p.dataset.built) return; p.dataset.built = "1";
@@ -1990,6 +2040,9 @@
       inner.appendChild(el);
     }
     p.appendChild(inner);
+    // The match face is display:none on the clock / crest / countdown screens (and on any tab but
+    // Game), so it only gets a size when it appears — which is when the names can be fitted.
+    observeMirrorFit(inner);
     // overlay layers shown for non-match board states (idle crest, break countdown)
     const idle = document.createElement("div"); idle.className = "bvidle";
     idle.innerHTML =
@@ -2034,6 +2087,39 @@
     const board = fs ? Number(fs[side]) : NaN;
     if (Number.isFinite(board) && board > 0) return Math.min(board, max);
     return fitNameLocally(text, max);
+  }
+  // Board px kept clear between a team name and its set digit on the mirror (see renderPreview).
+  const NAME_GAP = 4, NAME_MIN_PX = 9;
+  // Shrink one mirror name until it fits `room` CSS px, never below NAME_MIN_PX board px (past that
+  // it is clipped at the edge instead). Stays in cqh, so a resize still scales it with the panel.
+  function fitMirrorName(el, room, px) {
+    if (!el || !(px > 0)) return;
+    room = Math.max(0, Math.floor(room));
+    el.style.maxWidth = room + "px"; el.style.overflow = "hidden"; el.style.textOverflow = "clip";
+    const cur = parseFloat(el.style.fontSize) / 100 * BH;           // board px, from the cqh we set
+    const wide = el.scrollWidth;
+    if (!(cur > 0) || !(wide > room)) return;
+    const next = Math.max(NAME_MIN_PX, Math.floor(cur * room / wide * 10) / 10);
+    if (next < cur) el.style.fontSize = cq(next, "y");
+  }
+  // …and never up against the set digits as drawn here. Capping the name AT the digit's edge was
+  // not enough: the last letter then sat flush on the "2", which on a phone reads as one blob
+  // ("KSCW H12"). So each name gets the room up to its set digit MINUS a gap of NAME_GAP board
+  // px, and a name wider than that is SHRUNK to fit (text width scales with the font size); only
+  // below the smallest size is it clipped. offset* are unscaled layout px, so this holds at any
+  // mirror size. set1 is right-anchored (translateX(-100%)), team2 right-anchored at the edge.
+  // It needs a laid-out panel: painted while another tab is showing, the mirror has no width, so
+  // the observer below runs it again the moment the panel appears or changes size.
+  function fitMirrorNames() {
+    const p = $("#bvPanel"); if (!p) return;
+    const g = (n) => p.querySelector('[data-n="' + n + '"]');
+    const n1 = g("team1"), n2 = g("team2"), set1 = g("set1"), set2 = g("set2"), inner = p.querySelector(".bvinner");
+    if (!inner || !inner.clientWidth) return;
+    const px = inner.clientWidth / BW, colPx = (NAME_WIDTH[SPORT] || NAME_WIDTH.volleyball) * px;
+    const room1 = n1 && set1 && set1.textContent ? set1.offsetLeft - set1.offsetWidth - n1.offsetLeft - NAME_GAP * px : colPx;
+    const room2 = n2 && set2 && set2.textContent ? n2.offsetLeft - (set2.offsetLeft + set2.offsetWidth) - NAME_GAP * px : colPx;
+    fitMirrorName(n1, Math.min(colPx, room1), px);
+    fitMirrorName(n2, Math.min(colPx, room2), px);
   }
   function renderPreview(s, serving) {
     buildBoard();
@@ -2089,13 +2175,7 @@
       put("timeout1", d.left.to, toCol(d.left.to));    put("timeout2", d.right.to, toCol(d.right.to));
       put("sub1", d.left.sub, subCol(d.left.sub));     put("sub2", d.right.sub, subCol(d.right.sub));
     }
-    const set1 = g("set1"), set2 = g("set2"), inner = p.querySelector(".bvinner");
-    // …and never past the set digits as drawn here (offset* are unscaled layout px, so this holds at
-    // any mirror size). set1 is right-anchored (translateX(-100%)), team2 right-anchored at the edge.
-    if (inner && inner.clientWidth) {
-      if (n1 && set1 && set1.textContent) n1.style.maxWidth = "min(" + col + "," + Math.max(0, set1.offsetLeft - set1.offsetWidth) + "px)";
-      if (n2 && set2 && set2.textContent) n2.style.maxWidth = "min(" + col + "," + Math.max(0, inner.clientWidth - set2.offsetLeft - set2.offsetWidth) + "px)";
-    }
+    fitMirrorNames();
     const blink = (el, v, key) => { if (!el) return; if (bvSeen[key] !== null && bvSeen[key] !== v) { el.classList.remove("bvblink"); void el.offsetWidth; el.classList.add("bvblink"); } bvSeen[key] = v; };
     blink(g("score1"), d.left.points, "s1");
     blink(g("score2"), d.right.points, "s2");
@@ -2720,33 +2800,166 @@
     } catch (e) { note.textContent = ""; toast(e.message); }
   }
 
-  // --- today's games (GET /api/schedule) ------------------------------------
-  // The server reads the club's public schedule, keeps tonight's home games for this board's sport
-  // and caches it; ?refresh=1 skips the cache. A board with no uplink is normal, so a failure is a
-  // plain sentence plus the way round it, never a red error.
+  // --- the season's home games (GET /api/schedule?range=season) -------------
+  // The board keeps every KSCW home game from today to the end of the season on disk and refreshes
+  // it whenever it has internet, so the list is still here in a hall with no uplink — the status
+  // line says how old it is. Tonight's games come first (they are what most evenings need), then
+  // the rest of the season a day at a time. A board too old to know ?range=season answers the plain
+  // today-only shape, and that still fills "Today". A board with no copy at all is normal on a new
+  // install, so a failure is a plain sentence plus the way round it, never a red error.
   let schedLoading = false;
+  let schedShowAll = false;       // "Show whole season" pressed — stays until the page reloads
+  let schedDays = [], schedToday = "";
+  const SCHED_OPEN_DAYS = 14;     // the days within this many of today are listed (and open)
+  const SCHED_TZ = "Europe/Zurich";
   function fmtSchedDate(iso) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
     if (!m) return "";
     const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
     return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + " " + m[3] + "." + m[2] + ".";
   }
+  // 'YYYY-MM-DD' + n days, on the calendar (UTC arithmetic, so a DST night is still one day).
+  function schedAddDays(iso, n) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    if (!m) return "";
+    const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + n));
+    return d.toISOString().slice(0, 10);
+  }
+  // A moment in the HALL's time zone: { day:'YYYY-MM-DD', dm:'23.09', hm:'17:52' }. The phone is
+  // almost always in Zurich too, but a visiting laptop on UTC must not say the list is from 15:52.
+  function schedLocal(when) {
+    const d = when instanceof Date ? when : new Date(String(when || ""));
+    if (!when || isNaN(d.getTime())) return null;
+    const z = (n) => String(n).padStart(2, "0");
+    let y = d.getFullYear(), mo = z(d.getMonth() + 1), da = z(d.getDate()), h = z(d.getHours()), mi = z(d.getMinutes());
+    try {
+      const p = new Intl.DateTimeFormat("en-GB", { timeZone: SCHED_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d);
+      const get = (t) => (p.find((x) => x.type === t) || {}).value;
+      y = get("year"); mo = get("month"); da = get("day"); h = get("hour"); mi = get("minute");
+    } catch { /* no time-zone data: the device's own clock is the best guess left */ }
+    return { day: y + "-" + mo + "-" + da, dm: da + "." + mo, hm: h + ":" + mi };
+  }
   // Short names come from the server already shortened ("KSCW H1"), but it is a courtesy, not a
   // promise: fall back to the full name, and cap it at what the board's name field takes.
   const schedShort = (short, name) => String(short || name || "").trim().toUpperCase().slice(0, 12);
+  // Cancelled / postponed games stay in the list, flagged, so the scorer sees WHY a game is missing.
+  function schedOff(g) {
+    if (!g) return "";
+    const st = String(g.status || "").toLowerCase();
+    if (st === "postponed" || g.postponed === true) return "Postponed";
+    if (st === "cancelled" || st === "canceled" || g.cancelled === true) return "Cancelled";
+    return "";
+  }
+  // The line under the heading: where the list came from and how old it is.
+  function schedStatusText(r, today) {
+    if (!r || r.ok === false) return { text: "No schedule yet — the board downloads it as soon as it has internet", stale: true };
+    if (!("fetchedAt" in r) && !("stale" in r)) return { text: "", stale: false }; // an older board: today only, no cache to describe
+    const at = schedLocal(r.fetchedAt);
+    if (r.stale === true) {
+      return { text: at ? "offline — last update " + at.dm + " " + at.hm : "offline — showing the schedule saved on the board", stale: true };
+    }
+    if (!at) return { text: "Season schedule", stale: false };
+    return { text: "Season schedule · updated " + (at.day === today ? at.hm : at.dm + " " + at.hm), stale: false };
+  }
+  // One game → one big button. Everything here came off the club's API via the board: textContent only.
+  function schedRow(g) {
+    const home = schedShort(g.homeShort, g.home), away = schedShort(g.awayShort, g.away);
+    const off = schedOff(g);
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button"; b.className = off ? "schedrow off" : "schedrow";
+    const t = document.createElement("span"); t.className = "stime"; t.textContent = String(g.time || "").slice(0, 5);
+    const info = document.createElement("span"); info.className = "sinfo";
+    const teams = document.createElement("span"); teams.className = "steams";
+    const vs = document.createElement("span"); vs.className = "vs"; vs.textContent = "vs";
+    teams.append(document.createTextNode(home), vs, document.createTextNode(away));
+    const meta = document.createElement("span"); meta.className = "smeta";
+    meta.textContent = [g.league, g.hall].filter(Boolean).join(" · ");
+    info.append(teams, meta);
+    const go = document.createElement("span"); go.setAttribute("aria-hidden", "true");
+    if (off) { go.className = "sflag"; go.textContent = off; }
+    else { go.className = "sgo"; go.textContent = g.date && g.date !== schedToday ? "Prepare" : "Start"; }
+    b.append(t, info, go);
+    b.title = String(g.home || home) + " vs " + String(g.away || away);
+    if (off) {
+      b.disabled = true;
+      b.setAttribute("aria-label", home + " vs " + away + (g.time ? " at " + g.time : "") + " — " + off.toLowerCase());
+    } else {
+      b.setAttribute("aria-label", "Start " + home + " vs " + away + (g.time ? " at " + g.time : ""));
+      b.addEventListener("click", () => startScheduled(g, b));
+    }
+    li.appendChild(b);
+    return li;
+  }
+  // One day of the season. Its rows are built the first time it is opened, not before: a whole
+  // season is a few hundred buttons, and nobody opens more than one or two of them.
+  function schedDay(day, open) {
+    const det = document.createElement("details"); det.className = "upday";
+    const sum = document.createElement("summary");
+    const label = document.createElement("span"); label.textContent = fmtSchedDate(day.date) || String(day.date || "");
+    const live = day.games.filter((g) => !schedOff(g)).length;
+    const count = document.createElement("span"); count.className = "upcount";
+    count.textContent = live === 1 ? "1 game" : live + " games";
+    if (live < day.games.length) count.textContent += " · " + (day.games.length - live) + " off";
+    sum.append(label, count);
+    det.appendChild(sum);
+    let built = false;
+    const build = () => {
+      if (built) return; built = true;
+      const ul = document.createElement("ul"); ul.className = "schedlist";
+      for (const g of day.games) ul.appendChild(schedRow({ ...g, date: g.date || day.date }));
+      det.appendChild(ul);
+    };
+    det.addEventListener("toggle", () => { if (det.open) build(); });
+    if (open) { build(); det.open = true; }
+    return det;
+  }
+  function renderUpcoming() {
+    const wrap = $("#upcomingWrap"), box = $("#upcoming"), more = $("#seasonMoreBtn");
+    if (!wrap || !box) return;
+    box.innerHTML = "";
+    const days = schedDays;
+    wrap.hidden = !days.length;
+    if (!days.length) { if (more) more.hidden = true; return; }
+    const horizon = schedAddDays(schedToday, SCHED_OPEN_DAYS);
+    const near = days.filter((d) => !horizon || d.date < horizon);
+    for (const d of (schedShowAll ? days : near)) box.appendChild(schedDay(d, near.includes(d)));
+    if (!near.length && !schedShowAll) {
+      const p = document.createElement("p"); p.className = "note";
+      p.textContent = "No home games in the next " + SCHED_OPEN_DAYS + " days. The next is " + fmtSchedDate(days[0].date);
+      box.appendChild(p);
+    }
+    const rest = days.length - near.length;
+    if (more) {
+      more.hidden = schedShowAll || rest <= 0;
+      more.textContent = "Show whole season (" + (rest === 1 ? "1 more day" : rest + " more days") + ")";
+    }
+  }
   async function refreshSchedule(force) {
     if (schedLoading) return;
     schedLoading = true;
-    const list = $("#schedule"), note = $("#schedNote"), btn = $("#schedRefreshBtn");
+    const list = $("#schedule"), note = $("#schedNote"), btn = $("#schedRefreshBtn"), stat = $("#schedStatus");
     if (btn) btn.disabled = true;
     note.hidden = false; note.textContent = "Loading today's games…";
     let r = null, failed = "";
-    try { r = await api("/api/schedule" + (force ? "?refresh=1" : "")); }
+    try {
+      r = await api("/api/schedule?range=season" + (force ? "&refresh=1" : ""));
+      // An older board ignores ?range and answers today's shape — that is still today's list.
+      if (r && r.ok !== false && !Array.isArray(r.today) && Array.isArray(r.games)) r = { ...r, today: r.games };
+    }
     catch (e) { failed = "Couldn't load today's games from the board."; }
     finally { schedLoading = false; if (btn) btn.disabled = false; }
     list.innerHTML = "";
-    $("#schedDate").textContent = r && r.date ? fmtSchedDate(r.date) : "";
-    const games = (r && r.ok !== false && Array.isArray(r.games)) ? r.games : [];
+    const today = (r && r.date) || (schedLocal(new Date()) || {}).day || "";
+    schedToday = today;
+    $("#schedDate").textContent = fmtSchedDate(today);
+    const st = failed ? { text: "", stale: false } : schedStatusText(r, today);
+    if (stat) { stat.textContent = st.text; stat.hidden = !st.text; stat.classList.toggle("stale", st.stale); }
+    const games = (r && r.ok !== false && Array.isArray(r.today)) ? r.today : [];
+    schedDays = (r && r.ok !== false && Array.isArray(r.upcoming) ? r.upcoming : [])
+      .filter((d) => d && d.date && d.date !== today && Array.isArray(d.games) && d.games.length)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    renderUpcoming();
     if (failed || (r && r.ok === false)) {
       // The server's own reason is already written for a volunteer ("The board has no internet
       // connection"), so it goes on screen as is — as text, never markup.
@@ -2755,44 +2968,34 @@
       note.textContent = why.replace(/\.?$/, ".") + " You can still type the names on the Game tab.";
       return;
     }
-    if (!games.length) { note.textContent = "No home games today."; return; }
-    note.hidden = true; note.textContent = "";
-    for (const g of games) {
-      const home = schedShort(g.homeShort, g.home), away = schedShort(g.awayShort, g.away);
-      const li = document.createElement("li");
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "schedrow";
-      // Everything here came off the club's API via the board: textContent only.
-      const t = document.createElement("span"); t.className = "stime"; t.textContent = String(g.time || "").slice(0, 5);
-      const info = document.createElement("span"); info.className = "sinfo";
-      const teams = document.createElement("span"); teams.className = "steams";
-      const vs = document.createElement("span"); vs.className = "vs"; vs.textContent = "vs";
-      teams.append(document.createTextNode(home), vs, document.createTextNode(away));
-      const meta = document.createElement("span"); meta.className = "smeta";
-      meta.textContent = [g.league, g.hall].filter(Boolean).join(" · ");
-      info.append(teams, meta);
-      const go = document.createElement("span"); go.className = "sgo"; go.setAttribute("aria-hidden", "true"); go.textContent = "Start";
-      b.append(t, info, go);
-      b.setAttribute("aria-label", "Start " + home + " vs " + away + (g.time ? " at " + g.time : ""));
-      b.title = String(g.home || home) + " vs " + String(g.away || away);
-      b.addEventListener("click", () => startScheduled(g, b));
-      li.appendChild(b); list.appendChild(li);
+    if (!games.length) {
+      note.textContent = "No home games today." + (schedDays.length ? " The next is " + fmtSchedDate(schedDays[0].date) : "");
+      return;
     }
+    note.hidden = true; note.textContent = "";
+    for (const g of games) list.appendChild(schedRow(g));
   }
+  $("#seasonMoreBtn").addEventListener("click", () => { schedShowAll = true; renderUpcoming(); });
   // One tap → a new game with both names on the board, home on the left. Only red when there is
-  // a real score to lose; on an empty board it is just "yes, this game".
+  // a real score to lose; on an empty board it is just "yes, this game". A game on another day is
+  // "prepared" the same way — the names go up now and the board keeps the clock until warm-up.
   async function startScheduled(g, btn) {
     const home = schedShort(g.homeShort, g.home), away = schedShort(g.awayShort, g.away);
     const live = hasScore(lastState);
-    if (!await askConfirm("Start " + home + " vs " + away + "? The current score is cleared.", { yes: "Start game", danger: live })) return;
+    const later = !!(g.date && schedToday && g.date !== schedToday);
+    const ask = later
+      ? "Prepare " + home + " vs " + away + " (" + fmtSchedDate(g.date) + (g.time ? " " + g.time : "") + ")? The current score is cleared."
+      : "Start " + home + " vs " + away + "? The current score is cleared.";
+    if (!await askConfirm(ask, { yes: later ? "Prepare game" : "Start game", danger: live })) return;
     if (btn) btn.disabled = true;
     try {
       // prematch: the names go in now, but the hall keeps the clock until the warm-up or "Start
-      // match now" (see renderPrematch) — the teams are only just walking in.
+      // match now" (see renderPrematch) — the teams are only just walking in. The game's id tells
+      // the board which game this pre-match is, so its automatic one does not set it up again.
       const r = await postJSON("/api/game", { choice: "new", teams: {
         left: { name: String(g.home || home), short: home },
         right: { name: String(g.away || away), short: away },
-      }, prematch: true });
+      }, prematch: true, ...(g.id != null ? { gameId: g.id } : {}) });
       clearCountdown(); board.mode = r && r.prematch === true ? "clock" : "match";
       if (r) renderStatus(r);
       savedGame = null;
@@ -4182,7 +4385,7 @@
       const note = $("#perSportNote");
       if (note && s.sport) note.textContent =
         "Timing, allowances, blink and match format apply to " + sportLabel(s.sport) +
-        ". Brightness, club name, PIN, branding and live-scoring are shared across all sports.";
+        ". Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.";
     } catch { /* leave the form at its defaults */ }
   }
   async function saveSettings(clickedBtn) {

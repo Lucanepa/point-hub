@@ -53,8 +53,9 @@ boots a working board on the defaults below (`src/config.js` is the source of tr
 | `RELAY_URL` / `RELAY_HTTP_URL` | `ws://127.0.0.1:8080` / derived (`:5173`) | OpenVolley LAN relay for **Link** mode. |
 | `TLS_CERT`, `TLS_KEY`, `HTTPS_PORT` | empty, empty, `8891` | Both paths set = an HTTPS listener alongside HTTP (wake lock, installable app). Written by `provisioning/setup-console-tls.sh`. |
 | `DIRECTUS_URL`, `LIVE_PUBLISH_TOKEN` | empty | Live publishing to wiedisync, below. |
-| `DIRECTUS_URL` (schedule) | `https://directus.kscw.ch` when unset | Where **today's games** come from (`GET /api/schedule`, the console's "start from the schedule" list). A public, token-free read of `/items/games`, so it works without `LIVE_PUBLISH_TOKEN`. No uplink in the hall = a plain "type the names instead" message, never an error. |
-| `SCHEDULE_HALLS` | empty (every hall) | Comma list of hall names, e.g. `KWI A,KWI B`: only games in those halls are offered. Case-insensitive. |
+| `DIRECTUS_URL` (schedule) | `https://directus.kscw.ch` when unset | Where the **season's home games** come from (`GET /api/schedule`, the console's "start from the schedule" list). A public, token-free read of `/items/games`, so it works without `LIVE_PUBLISH_TOKEN`. The board downloads every remaining home game whenever it has an uplink (at boot, every 30 min, retrying 1→5 min after a failure, and as soon as NTP syncs) and keeps them in `data/schedule.json`, so a hall with no uplink still gets the list — marked stale. No copy at all = a plain "type the names instead" message, never an error. |
+| `SCHEDULE_HALLS` | empty (every hall) | Comma list of hall names, e.g. `KWI A,KWI B`: only games in those halls are offered (and prepared automatically). Case-insensitive. |
+| `SCHEDULE_SYNC` | on | `0` = no background download and no automatic pre-match; the schedule is then only fetched when a console asks for it. |
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error`; `DEBUG=1` is shorthand for `debug`. |
 | `MOCK` | off | `1` = in-process mock LedBox, no hardware. |
 | `MATCH_ID` | — | Only the headless `src/bridge.js` needs it; the appliance picks matches in the UI. |
@@ -120,6 +121,13 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   (point, timeout, sub, swap, next set, reset), up to 30 steps; it reads what it will undo
   (`Undo · Point KSCW`) and the history log follows it. A second `+` for a team that has
   already won the set is refused instead of scoring (`set-closed`).
+- **Schedule and pre-match** — the Link tab lists today's home games and the rest of the season
+  (`GET /api/schedule?range=season`: `{ ok, fetchedAt, stale, today, upcoming:[{ date, games }] }`,
+  served from the copy on the board's card). Tapping one sets it up behind the wall clock until
+  the warm-up ends. With **Settings ▸ Prepare home games automatically** (on by default) the
+  board does that tap itself 60 minutes before a game of its sport — once the clock is synced,
+  never over a match in progress or a running countdown, the earliest game when two overlap, and
+  never again for a game the scorer dismissed that day (`src/autoPrepare.js`).
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
 ```bash

@@ -97,23 +97,57 @@ export function zurichDate(now = new Date()) {
   return `${get('year')}-${get('month')}-${get('day')}`
 }
 
+// 'YYYY-MM-DD' plus `days`, as calendar arithmetic (no time zone involved: a date has none).
+export function addDays(date, days) {
+  const [y, m, d] = String(date).split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
+}
+
+// How far Zurich's wall clock is ahead of UTC at `epochMs` (+1 h in winter, +2 h in summer).
+function zurichOffsetMs(epochMs) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(epochMs))
+  const get = (t) => Number((parts.find((p) => p.type === t) || {}).value)
+  const wall = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'))
+  return wall - Math.floor(epochMs / 1000) * 1000
+}
+
+// The instant a game starts: its Directus date + time are Zurich wall time. Two passes, so a game
+// on the Sunday the clocks change still lands on the right hour.
+export function zurichEpoch(date, time = '00:00') {
+  const [y, m, d] = String(date).split('-').map(Number)
+  const [hh, mm] = String(time || '00:00').split(':').map(Number)
+  const wall = Date.UTC(y, m - 1, d, hh || 0, mm || 0)
+  const first = wall - zurichOffsetMs(wall)
+  return wall - zurichOffsetMs(first)
+}
+
 // Parse SCHEDULE_HALLS into a lower-cased set, or null for "every hall".
 export function parseHalls(raw) {
   const list = String(raw || '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean)
   return list.length ? new Set(list) : null
 }
 
+const directusSport = (g) => String((g && g.kscw_team && g.kscw_team.sport) || '').toLowerCase()
+
+// The predicate that keeps this board's games out of `list`, given how to read a row's sport.
+// Beach is decided over the WHOLE list, not row by row: once any beach game exists, the board
+// wants only those; until then it takes the volleyball games (see sportFamily).
+export function familyFilter(list, sport, sportOf) {
+  const family = sportFamily(sport)
+  if (family === 'beach') {
+    const beachy = list.some((g) => sportOf(g).includes('beach'))
+    return beachy ? (g) => sportOf(g).includes('beach') : (g) => sportOf(g) === 'volleyball'
+  }
+  return (g) => sportOf(g) === family
+}
+
 // Directus rows → the console's list. Pure, so the selftest can feed it the exact shape the
 // real endpoint returns.
 export function toGames(rows, { sport = 'volleyball', halls = null } = {}) {
-  const family = sportFamily(sport)
   const list = Array.isArray(rows) ? rows : []
-  const sportOf = (g) => String((g && g.kscw_team && g.kscw_team.sport) || '').toLowerCase()
-  let wanted
-  if (family === 'beach') {
-    const beachy = list.some((g) => sportOf(g).includes('beach'))
-    wanted = beachy ? (g) => sportOf(g).includes('beach') : (g) => sportOf(g) === 'volleyball'
-  } else wanted = (g) => sportOf(g) === family
+  const wanted = familyFilter(list, sport, directusSport)
   const seen = new Set()
   const games = []
   for (const g of list) {

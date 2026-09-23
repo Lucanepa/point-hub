@@ -77,6 +77,36 @@ export class ClockSync {
     // that is now right.
     this._persist = persist || (() => run('sudo', ['fake-hwclock', 'save']))
     this._syncCache = { at: 0, value: null }
+    // Set once the console's clock has been adopted or found to agree with ours — see trusted().
+    this._confirmedAt = null
+    this._trustedListeners = new Set()
+    this._wasTrusted = false
+  }
+
+  // Whether the wall clock can be believed for "what day is it, and is a game about to start":
+  // NTP has it, or the console's battery-backed clock has been adopted (or already agreed within
+  // MIN_CORRECTION_MS). SYNCHRONOUS and cache-only, like viewSync — a caller that needs a fresh
+  // answer awaits synchronized() first. Until either happens the clock is fake-hwclock's replay
+  // and may be a day and a half behind, so the season schedule and the automatic pre-match treat
+  // it as unknown rather than as today.
+  trusted() {
+    return this._syncCache.value === true || this._confirmedAt !== null
+  }
+
+  // Called (with no arguments) each time the clock goes from untrusted to trusted. NTP only syncs
+  // with an uplink, so this doubles as "the internet is probably back" for the schedule's refresh.
+  // Returns an unsubscribe function. A listener that throws is ignored.
+  onTrusted(fn) {
+    this._trustedListeners.add(fn)
+    return () => this._trustedListeners.delete(fn)
+  }
+
+  _noteTrust() {
+    const now = this.trusted()
+    if (now && !this._wasTrusted) {
+      for (const fn of this._trustedListeners) { try { fn() } catch { /* a listener's problem, not the clock's */ } }
+    }
+    this._wasTrusted = now
   }
 
   // true = NTP has the clock, false = it does not, null = we could not tell.
@@ -95,6 +125,7 @@ export class ClockSync {
     }
 
     this._syncCache = { at: this.now(), value }
+    this._noteTrust()
     return value
   }
 
@@ -152,6 +183,8 @@ export class ClockSync {
 
     // 3. Close enough. Leave it alone rather than churn.
     if (Math.abs(offsetMs) < MIN_CORRECTION_MS) {
+      this._confirmedAt = this.now()
+      this._noteTrust()
       return { ok: true, applied: false, reason: 'close-enough', offsetMs }
     }
 
@@ -177,6 +210,8 @@ export class ClockSync {
     this._setAt = this.now()
     this._lastOffsetMs = offsetMs
     this._syncCache = { at: 0, value: null } // the world changed; re-probe rather than serve a stale answer
+    this._confirmedAt = this._setAt
+    this._noteTrust()
     const after = new Date(this.now()).toISOString()
     cklog.warn(`clock set from the console: ${before} -> ${after} (${Math.round(offsetMs / 1000)}s)`, { before, after, offsetMs })
     return { ok: true, applied: true, reason: 'applied', offsetMs, before, after }
