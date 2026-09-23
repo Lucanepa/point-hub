@@ -343,6 +343,15 @@
      whole console with "Rotate to landscape" and no way past it — a volunteer with rotation lock on
      could not score at all, and the offline banner and a running countdown were hidden behind it.
      What is left is a one-line tip that goes away for good when dismissed. */
+  /* Full-screen gate: a touch device opens on one big "Tap to start". The tap is the user
+     gesture the browser demands before it will go full screen — and only in full screen will
+     Android lock the orientation, which is what keeps a tablet out of portrait. */
+  #fsGate{position:fixed;inset:0;z-index:120;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg);color:var(--fg);text-align:center;padding:24px}
+  body.fs-gate #fsGate{display:flex}
+  #fsGate .t{font-size:26px;font-weight:800}
+  #fsGate .s{font-size:15px;color:var(--muted);max-width:420px}
+  #fsGate #fsGo{font-size:22px;font-weight:800;min-height:72px;padding:0 40px;border-radius:var(--r);border:0;background:var(--blue);color:#fff;cursor:pointer}
+  #fsGate #fsSkip{font-size:14px;min-height:44px;padding:0 16px;border:0;background:transparent;color:var(--muted);text-decoration:underline;cursor:pointer}
   #rotate{display:none}
   @media (orientation:portrait) and (max-width:600px){
     #rotate{display:flex;flex:0 0 auto;align-items:center;gap:8px;margin:0 8px 4px;padding:4px 4px 4px 10px;font-size:12px;color:var(--muted);
@@ -1210,6 +1219,12 @@
     </div>
   </main>
 
+  <div id="fsGate" role="dialog" aria-modal="true" aria-labelledby="fsGateT">
+    <div class="t" id="fsGateT">Point Hub</div>
+    <div class="s">Opens full screen, in landscape, and keeps the screen awake for the match.</div>
+    <button type="button" id="fsGo">Tap to start</button>
+    <button type="button" id="fsSkip">Continue without full screen</button>
+  </div>
   <!-- Portrait tip: one line, dismissible, remembered. Not a wall — see the #rotate CSS. -->
   <div id="rotate" role="note">
     <svg class="licon l-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" /></svg>
@@ -4567,6 +4582,8 @@
   // in front of the Game tab. Anything holding a single element reference would silently drive
   // whichever one happened to be first in the document.
   const inFS = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const isTouch = () => window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  const isTablet = () => isTouch() && Math.min(screen.width, screen.height) >= 600;
   async function toggleFS() {
     if (inFS()) {
       const exit = document.exitFullscreen || document.webkitExitFullscreen;
@@ -4591,7 +4608,8 @@
     // upright onto its side the moment it goes full screen would take that away again.
     if (screen.orientation && screen.orientation.lock) {
       const portrait = window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
-      screen.orientation.lock(portrait ? "portrait" : "landscape").catch(() => {});
+      // A tablet always goes landscape: its portrait layout is a stretched phone and reads badly.
+      screen.orientation.lock(portrait && !isTablet() ? "portrait" : "landscape").catch(() => {});
     }
   }
   // The portrait tip goes away for good once dismissed (per device).
@@ -4619,6 +4637,24 @@
   document.addEventListener("fullscreenchange", syncFsBtn);
   document.addEventListener("webkitfullscreenchange", syncFsBtn);
   syncFsBtn(); // a reload while already full screen must not show "Full screen"
+  // The gate: shown on touch devices whenever the page is not full screen — on load, and again
+  // if full screen is left (swiping the bars away on Android drops it). "Continue without" is
+  // remembered for this page load only, so the next evening starts with the gate again.
+  let fsSkipped = false;
+  const canFS = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+  const syncGate = () => {
+    document.body.classList.toggle("fs-gate", canFS && isTouch() && !inFS() && !fsSkipped);
+  };
+  $("#fsGo").addEventListener("click", async () => {
+    await toggleFS();
+    // Same tap is the gesture the wake lock / no-sleep video need; the gate promised it.
+    if (!keepAwake) { try { await setKeepAwake(true); } catch {} }
+    syncGate();
+  });
+  $("#fsSkip").addEventListener("click", () => { fsSkipped = true; syncGate(); });
+  document.addEventListener("fullscreenchange", syncGate);
+  document.addEventListener("webkitfullscreenchange", syncGate);
+  syncGate();
 
   // Keep-awake. Two mechanisms, because the good one is unavailable here.
   //

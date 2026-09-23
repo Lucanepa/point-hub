@@ -65,7 +65,9 @@ console.log('[1] portrait is a layout, not a wall')
   ok(/\.game\{[^}]*overflow-y:auto/.test(layout), 'a shorter phone scrolls rather than cutting controls off')
   ok(/\.topbar \.hdricon\{display:inline-flex\}/.test(layout) && /class="iconbtn hdricon js-awake"/.test(index) && /class="iconbtn hdricon js-fs"/.test(index),
     'keep-awake and full screen stay reachable (header copies, synced as a set)')
-  ok(/lock\(portrait \? "portrait" : "landscape"\)/.test(js), 'full screen locks the orientation in use instead of forcing landscape')
+  ok(/lock\(portrait && !isTablet\(\) \? "portrait" : "landscape"\)/.test(js), 'full screen keeps a phone in the orientation in use, and puts a tablet in landscape')
+  ok(/id="fsGate"/.test(index) && /body\.fs-gate #fsGate\{display:flex\}/.test(css) && /id="fsSkip"/.test(index),
+    'a touch device opens on the full-screen gate, with a way to continue without it')
 }
 
 console.log('\n[2] offline shows at once, over the header, and greys the scoring controls')
