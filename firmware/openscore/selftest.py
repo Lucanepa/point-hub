@@ -145,6 +145,55 @@ def main():
             ok_png = im.size == (cfg["width"], cfg["height"])
     check("buffer.png rendered at %dx%d" % (cfg["width"], cfg["height"]), ok_png, dims)
 
+    # --- frame writes on the board's filesystem layout ---
+    # On the board buffer.png is a tmpfs bind mount, where the atomic rename is EBUSY. Simulate
+    # that (no mount needed) and check openscore writes in place instead of dying at startup.
+    import errno
+    import tempfile
+    tmpd = tempfile.mkdtemp(prefix="openscore-selftest-")
+    bpath = os.path.join(tmpd, "www", "buffer.png")
+    real_replace = olb.os.replace
+
+    def busy_replace(a, b):
+        raise OSError(errno.EBUSY, "Device or resource busy", b)
+
+    olb.os.replace = busy_replace
+    try:
+        r2 = olb.Renderer(cfg["width"], cfg["height"], bpath, HERE)
+        try:
+            dev2 = olb.Device(dict(cfg, buffer_path=bpath), r2)  # renders idle in __init__
+            booted = True
+        except OSError as e:
+            booted, dev2 = e, None
+        check("EBUSY on rename -> Device still boots", booted is True, booted)
+        check("EBUSY on rename -> frame written in place", os.path.getsize(bpath) > 0
+              and not os.path.exists(bpath + ".tmp"), os.listdir(os.path.dirname(bpath)))
+        if dev2 is not None:
+            # Heartbeat: an unchanged screen is still re-saved, so the watchdog never sees a stale
+            # buffer.png and a splash copied over it (startled) gets painted over.
+            with open(bpath, "wb") as f:
+                f.write(b"splash")
+            dev2.start_heartbeat(every=0.2)
+            deadline = time.time() + 3
+            while time.time() < deadline and open(bpath, "rb").read(6) == b"splash":
+                time.sleep(0.05)
+            check("heartbeat repaints an unchanged screen", open(bpath, "rb").read(4) == b"\x89PNG")
+
+        # Any other write failure is logged, not raised into Device/_handle_client.
+        def eio_replace(a, b):
+            raise OSError(errno.EIO, "I/O error", b)
+
+        olb.os.replace = eio_replace
+        r3 = olb.Renderer(cfg["width"], cfg["height"], os.path.join(tmpd, "x", "buffer.png"), HERE)
+        try:
+            r3.render(olb.Layout(name="__blank__"))
+            survived = True
+        except OSError as e:
+            survived = e
+        check("unwritable frame -> render() logs, does not raise", survived is True, survived)
+    finally:
+        olb.os.replace = real_replace
+
     passed = sum(1 for _, ok in checks if ok)
     total = len(checks)
     print("\n%d/%d checks passed" % (passed, total))

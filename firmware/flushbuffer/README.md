@@ -43,8 +43,8 @@ identical thing:
 ## Build
 
 ```bash
-./build.sh          # fetches hzeller + stb_image, patches applicon, builds
-                    # produces rpi-rgb-led-matrix-master/flushBuffer2
+./build.sh          # fetches PINNED hzeller + stb_image (sha256-checked), patches applicon,
+                    # builds $WORK/rpi-rgb-led-matrix-<sha>/flushBuffer2
 ```
 
 Native armhf build (board has `g++`/`make`). No cross-compiler, no cmake, no

@@ -127,7 +127,11 @@ export async function startAppliance(config = loadConfig()) {
   ledbox.on('close', () => boardLog.warn('disconnected', { host: ledbox.host, reconnectMs: ledbox.reconnectMs }))
   ledbox.on('error', (e) => boardLog.error(`error: ${e.message}`, e))
 
-  const manualSource = new sport.Source()
+  // Built at the SAVED match format, not the engine's default. Without it a board set to best-of-3
+  // booted best-of-5 whatever Settings said: the console header called set 3 the deciding set while
+  // the engine played it to 25 and never ended the match at two sets. POST /api/settings re-applies
+  // it live through setFormat, so a change mid-event needs no restart either.
+  const manualSource = new sport.Source({ bestOf: settings.values.bestOf })
   const sourceManager = new SourceManager()
   // Whatever the active source emits gets painted onto the board. Fire-and-forget:
   // swallow push rejections (e.g. a timeout while the board is down) so they don't
@@ -145,10 +149,13 @@ export async function startAppliance(config = loadConfig()) {
   // board. The sport is fixed at boot (switching it restarts the appliance).
   // env sets the CAPABILITY (DIRECTUS_URL + token); the "Connect to live scoring" setting is the
   // runtime on/off — so a configured board still publishes NOTHING until the operator flips it.
-  const livePush = livePushFromEnv(process.env, sport.key, () => settings.values.liveScoring === 'kscw')
+  // A sport can opt out altogether (sports.js `livePush: false` — the simple scoreboard is not a
+  // match the /live page could show), and then the toggle is moot: it stays OFF whatever it says.
+  const publishes = sport.livePush !== false
+  const livePush = livePushFromEnv(process.env, sport.key, () => publishes && settings.values.liveScoring === 'kscw')
   livePush.attach(sourceManager)
   logStore.info('livePush', livePush.enabled
-    ? `configured → ${process.env.DIRECTUS_URL} (${sport.key}); publishing ${livePush.isLive() ? 'ON' : 'OFF — flip Settings ▸ Connect to live scoring'}`
+    ? `configured → ${process.env.DIRECTUS_URL} (${sport.key}); publishing ${livePush.isLive() ? 'ON' : publishes ? 'OFF — flip Settings ▸ Connect to live scoring' : `OFF — ${sport.label} is never published`}`
     : 'disabled (no DIRECTUS_URL / LIVE_PUBLISH_TOKEN)',
   { enabled: livePush.enabled, publishing: livePush.isLive(), url: process.env.DIRECTUS_URL || null, sport: sport.key })
 
@@ -196,7 +203,23 @@ export async function startAppliance(config = loadConfig()) {
 
   ledbox.connect()
 
-  await new Promise((resolve) => server.listen(config.controlPort, '0.0.0.0', resolve))
+  // A listen failure (port already taken — a second instance started by hand while debugging) must
+  // FAIL the boot. With no 'error' listener it went to the uncaughtException logger, which swallows
+  // it: the process stayed up with no UI, never armed the crash marker or the SIGTERM handler, and
+  // systemd kept reporting it healthy. Rejecting reaches the fatal handler below, which exits 1 so
+  // Restart=always tries again.
+  try {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(config.controlPort, '0.0.0.0', () => { server.off('error', reject); resolve() })
+    })
+  } catch (err) {
+    // Let go of the board (and the mock) first, so a caller that catches this is not left holding
+    // a live socket and its reconnect timer.
+    ledbox.disconnect()
+    if (mock) await mock.close()
+    throw err
+  }
   const port = server.address().port
   // The board is its own Tailscale node, so the console no longer hangs off the `openvolley` Pi.
   log.info(`control UI on http://0.0.0.0:${port}  (board's own AP, the house LAN, or its tailnet name)`, { port, logs: `/logs` })
@@ -206,6 +229,7 @@ export async function startAppliance(config = loadConfig()) {
   // as it does without any of this. HTTP on :8890 is the contract — the QR on the panel and the
   // printed hall guide both point at it — and nothing in this block may endanger it.
   let tlsServer = null
+  let stopCertWatch = () => {}
   if (config.tlsCert && config.tlsKey) {
     const readCert = () => ({ cert: fs.readFileSync(config.tlsCert), key: fs.readFileSync(config.tlsKey) })
     try {
@@ -226,24 +250,12 @@ export async function startAppliance(config = loadConfig()) {
         // secure context in place is what keeps a renewal from needing a restart — restarting the
         // appliance to pick up a cert would mean the scoreboard blinking out mid-match, which is a
         // far worse outcome than the expired cert it was fixing.
-        let swapping = null
-        for (const f of [config.tlsCert, config.tlsKey]) {
-          try {
-            fs.watch(f, { persistent: false }, () => {
-              clearTimeout(swapping) // both files land together; debounce into one swap
-              swapping = setTimeout(() => {
-                try {
-                  tlsServer.setSecureContext(readCert())
-                  log.info('TLS certificate reloaded without a restart', { cert: config.tlsCert })
-                } catch (err) {
-                  log.warn(`TLS certificate reload failed, keeping the old one: ${err.message}`, { error: err.message })
-                }
-              }, 2000)
-            })
-          } catch (err) {
-            log.warn(`not watching ${f} for renewal: ${err.message}`, { file: f, error: err.message })
-          }
-        }
+        stopCertWatch = watchCertificate({
+          files: [config.tlsCert, config.tlsKey],
+          read: readCert,
+          apply: (ctx) => tlsServer.setSecureContext(ctx),
+          log,
+        })
       }
     } catch (err) {
       log.warn(`HTTPS disabled — could not load the certificate: ${err.message}`, { cert: config.tlsCert, key: config.tlsKey, error: err.message })
@@ -258,7 +270,10 @@ export async function startAppliance(config = loadConfig()) {
     fs.writeFileSync(runMark, String(process.pid))
   } catch (err) { log.warn(`could not arm the crash marker: ${err.message}`, { marker: runMark, error: err.message }) }
 
-  const close = async () => {
+  // Idempotent: SIGINT and SIGTERM can both arrive (a Ctrl-C during a systemctl stop), and a second
+  // run would only wait on listeners the first is already closing.
+  let closing = null
+  const close = () => closing || (closing = (async () => {
     log.info('shutting down')
     // Disarm FIRST: this is what tells the next boot the stop was deliberate, and it must happen
     // even if a later step of the shutdown hangs.
@@ -266,13 +281,77 @@ export async function startAppliance(config = loadConfig()) {
     logStore.flush()
     livePush.detach()
     sourceManager.stop()
-    if (tlsServer) await new Promise((r) => tlsServer.close(r))
-    await new Promise((r) => server.close(r))
+    stopCertWatch()
+    // Let go of the panel before waiting on anything HTTP-shaped, so nothing below can keep the
+    // board's socket (and its reconnect timer) alive.
     ledbox.disconnect()
+    // server.close() only stops accepting; its callback waits for every open connection. Idle
+    // keep-alives are closed for us, but an active response is not — and a /logs tab's event
+    // stream never finishes by itself, so one left open anywhere held this for systemd's full stop
+    // timeout, freezing a sport switch, a deploy or a poweroff for ~90s. End the streams, then drop
+    // whatever is still attached: we are exiting, and nothing in flight here is worth waiting for.
+    server.closeStreams()
+    const listeners = [server, tlsServer].filter(Boolean)
+    const closed = listeners.map((s) => new Promise((r) => s.close(r)))
+    for (const s of listeners) s.closeAllConnections()
+    await Promise.all(closed)
     if (mock) await mock.close()
-  }
+  })())
 
   return { server, sourceManager, manualSource, ledbox, livePush, close }
+}
+
+// Keep an HTTPS listener's certificate current without a restart. Returns a stop function.
+//
+// Watches the DIRECTORY holding the files, not the files. `tailscale cert` writes atomically — a
+// temp file renamed over the target — and a file watch follows the inode, not the path: the first
+// renewal fired on the old inode, the swap read the new files, and from then on the watcher sat on
+// a deleted inode and saw nothing. A board left running served the day-60 certificate until it
+// expired. The directory's inode survives any number of renames.
+//
+// An hourly stat is the backstop for whatever a watch can still miss (the directory itself
+// replaced, a filesystem that does not deliver events). Both paths go through reload(), which only
+// swaps when the files' identity (inode, mtime, size) actually changed, and only records the new
+// identity once the swap succeeded — so a read caught between the cert and the key landing (a
+// key/cert mismatch) is retried on the next event or tick instead of being forgotten.
+export function watchCertificate({ files, read, apply, log, debounceMs = 2000, pollMs = 60 * 60 * 1000 }) {
+  const identity = () => files.map((f) => {
+    const st = fs.statSync(f)
+    return `${st.ino}:${st.mtimeMs}:${st.size}`
+  }).join('|')
+  let current = null
+  try { current = identity() } catch { /* missing now: the first readable state counts as new */ }
+  const reload = () => {
+    let next
+    try { next = identity() } catch { return } // mid-rename, or gone: wait for the next event
+    if (next === current) return
+    try {
+      apply(read())
+      current = next
+      log.info('TLS certificate reloaded without a restart', { cert: files[0] })
+    } catch (err) {
+      log.warn(`TLS certificate reload failed, keeping the old one: ${err.message}`, { error: err.message })
+    }
+  }
+  let pending = null
+  const soon = () => { clearTimeout(pending); pending = setTimeout(reload, debounceMs) } // both files land together
+  const names = new Set(files.map((f) => path.basename(f)))
+  const watchers = []
+  for (const dir of new Set(files.map((f) => path.dirname(path.resolve(f))))) {
+    try {
+      // A null filename (some platforms) could be ours, so it counts.
+      watchers.push(fs.watch(dir, { persistent: false }, (_ev, name) => { if (!name || names.has(String(name))) soon() }))
+    } catch (err) {
+      log.warn(`not watching ${dir} for renewal (the hourly check still runs): ${err.message}`, { dir, error: err.message })
+    }
+  }
+  const poll = setInterval(reload, pollMs)
+  poll.unref()
+  return () => {
+    clearTimeout(pending)
+    clearInterval(poll)
+    for (const w of watchers) { try { w.close() } catch { /* already closed */ } }
+  }
 }
 
 // Run directly (node src/appliance.js)
@@ -283,7 +362,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // log store (and so on /logs and on disk), not just in whatever terminal is attached.
   installProcessLogging()
   startAppliance().then(({ close }) => {
-    const shutdown = async () => { await close(); process.exit(0) }
+    // The bound is a backstop, not the plan: close() normally finishes in milliseconds. It exists
+    // so that no future leak of the same kind as the SSE stream can turn a stop back into systemd's
+    // SIGKILL — the unit's TimeoutStopSec is set above this, so we always get to exit on our own.
+    const shutdown = async () => {
+      const bound = setTimeout(() => {
+        logStore.warn('appliance', 'shutdown did not finish in 5s — exiting anyway')
+        logStore.flush()
+        process.exit(0)
+      }, 5000)
+      bound.unref()
+      await close()
+      process.exit(0)
+    }
     process.on('SIGINT', shutdown)
     process.on('SIGTERM', shutdown)
   }).catch((err) => {

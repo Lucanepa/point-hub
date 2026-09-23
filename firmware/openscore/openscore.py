@@ -37,8 +37,10 @@ STATUS
 
 import argparse
 import configparser
+import errno
 import glob
 import gzip
+import io
 import json
 import logging
 import os
@@ -270,6 +272,9 @@ class Renderer:
         # Make sure the frame's directory exists so the atomic os.replace() can land it
         # (flushBuffer2 polls this path). A fresh checkout has no www/ yet.
         os.makedirs(os.path.dirname(os.path.abspath(buffer_path)), exist_ok=True)
+        # Set once the frame path turns out to be a mount point (see _save); sticky, so we don't
+        # write a doomed .tmp to the SD card on every frame just to watch the rename fail.
+        self._in_place = False
         self._font_path = font_path or next((p for p in _FONT_CANDIDATES if os.path.exists(p)), None)
         self._font_cache = {}
         self._img_cache = {}
@@ -336,7 +341,14 @@ class Renderer:
                     self._draw_bar(draw, s)
             except Exception as e:  # noqa: BLE001 - a bad section must not blank the board
                 log.warning("render error on section %s: %s", s.name, e)
-        self._save(img)
+        try:
+            self._save(img)
+        except OSError as e:
+            # A frame we could not write must not take the caller down with it: at startup that
+            # is Device.__init__ (main dies before :8889 listens), and in a client thread an
+            # OSError is read as "socket gone" and silently drops the bridge. Log it and keep the
+            # last frame; if it persists, buffer.png goes stale and the board watchdog restarts us.
+            log.warning("could not write %s: %s", self.buffer_path, e)
 
     def _draw_text(self, draw, s):
         if not s.text:
@@ -397,9 +409,42 @@ class Renderer:
                 draw.rectangle([s.x, top, s.x + w, s.y + h], fill=s.color)
 
     def _save(self, img):
-        tmp = self.buffer_path + ".tmp"
-        img.save(tmp, "PNG")
-        os.replace(tmp, self.buffer_path)  # atomic — flushBuffer2 never sees a half-written frame
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        data = buf.getvalue()
+        if not self._in_place:
+            tmp = self.buffer_path + ".tmp"
+            try:
+                with open(tmp, "wb") as f:
+                    f.write(data)
+                os.replace(tmp, self.buffer_path)  # atomic — flushBuffer2 never sees a half frame
+                return
+            except OSError as e:
+                # On the board buffer.png is a tmpfs file bind-mounted over www/buffer.png
+                # (provisioning/ledbox-buffer-tmpfs.sh), and rename(2) onto a mount point is EBUSY
+                # (EXDEV if the .tmp lands on the other filesystem). Replacing the file is exactly
+                # what that mount forbids, so fall back to overwriting it — as the vendor ledbox.py
+                # always has.
+                if e.errno not in (errno.EBUSY, errno.EXDEV):
+                    raise
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                log.info("%s cannot be replaced (%s; the tmpfs bind mount?) — writing frames "
+                         "in place from now on", self.buffer_path, errno.errorcode.get(e.errno, e.errno))
+                self._in_place = True
+        # r+b then truncate, not "wb": O_TRUNC would show flushBuffer2 an EMPTY file for the
+        # length of the write. Overwriting risks at worst one poll reading a mixed file, which
+        # stb_image all but always rejects — and on a failed load flushBuffer2 keeps the frame
+        # already on the glass.
+        try:
+            f = open(self.buffer_path, "r+b")
+        except FileNotFoundError:
+            f = open(self.buffer_path, "wb")
+        with f:
+            f.write(data)
+            f.truncate()
 
 
 # --------------------------------------------------------------------------------------
@@ -421,6 +466,23 @@ class Device:
         # the client thread on those commands; RLock lets the same thread re-enter.
         self._lock = threading.RLock()
         self.show_idle()
+
+    # openscore paints only on change, but the board watchdog reads "buffer.png unchanged for 60s"
+    # as a dead renderer (the vendor app repaints at ~5 fps) and restarts us — every ~90s on an
+    # idle crest or a paused match. startled also copies its "Starting..." splash over buffer.png
+    # on every brightness change, which nothing would ever paint over. Re-rendering the current
+    # screen on a heartbeat answers both; 10s keeps well inside the watchdog's 60s.
+    HEARTBEAT_S = 10
+
+    def start_heartbeat(self, every=HEARTBEAT_S):
+        def beat():
+            while True:
+                time.sleep(every)
+                with self._lock:
+                    if self.current is not None:
+                        self.renderer.render(self.current)
+
+        threading.Thread(target=beat, name="heartbeat", daemon=True).start()
 
     # ---- rendering helpers ----
     def _set_current(self, name):
@@ -721,6 +783,7 @@ def main():
 
     renderer = Renderer(cfg["width"], cfg["height"], cfg["buffer_path"], cfg["base_dir"], args.font)
     device = Device(cfg, renderer)
+    device.start_heartbeat()
     Server(device, args.host, cfg["port"]).serve_forever()
 
 

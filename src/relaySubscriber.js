@@ -149,9 +149,17 @@ export class RelaySubscriber extends EventEmitter {
           rlog.debug(`${msg.type} → live-state`, { matchId: msg.matchId })
           this.emit('state', liveState)
         } else {
-          // A sync with no computed live-state means the scoreboard app hasn't published one
-          // for this match — the board will sit unchanged, which looks like a bridge fault.
-          rlog.warn(`${msg.type} carried no liveState`, { matchId: msg.matchId, keys: Object.keys(msg.data || {}) })
+          // The normal case, not a fault. The relay's `sync-match-data` REPLACES its stored match
+          // with one that has no liveState, and the scoring app sends that sync after every action
+          // and every 30s — so match-data-update never carries one, and match-full-data only does
+          // if a live-state-update landed since the last sync. Logged as a warning, this filled
+          // /logs with a false "bridge fault" per point. The one worth recording is the subscribe
+          // reply: it tells the operator the panel is waiting for the scorer's next action.
+          if (msg.type === 'match-full-data') {
+            rlog.info('subscribed — waiting for the scoreboard\'s next live-state', { matchId: msg.matchId })
+          } else {
+            rlog.debug(`${msg.type} carried no liveState`, { matchId: msg.matchId })
+          }
           this.emit('nostate', msg) // raw match sync without the computed live-state
         }
         break

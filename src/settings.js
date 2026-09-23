@@ -1,7 +1,7 @@
 // Operator settings for the appliance — persisted to disk so a venue's preferences survive a
 // restart (and a power cut mid-tournament).
 //
-// PER-SPORT vs GLOBAL. Each sport (volleyball/beach/basketball) carries its OWN timing, allowances
+// PER-SPORT vs GLOBAL. Each sport (volleyball/beach/basketball/simple) carries its OWN timing, allowances
 // and format — beach runs 1' breaks and best-of-3, indoor runs 30s and best-of-5 — while
 // brightness, club name, PIN, the active sport, branding and live-scoring are shared (GLOBAL).
 //
@@ -20,7 +20,7 @@ import { log } from './logStore.js'
 
 const setlog = log.child('settings')
 
-const SPORTS = ['volleyball', 'beach', 'basketball']
+const SPORTS = ['volleyball', 'beach', 'basketball', 'simple']
 const BRANDINGS = ['kscw', 'plain']
 const LIVE_SYSTEMS = ['off', 'kscw']
 
@@ -66,12 +66,32 @@ export const PER_SPORT_DEFAULTS = {
     countdownOnTimeout: true, countdownOnSetInterval: true, hornOnCountdownEnd: true,
     totalTimeouts: 5, totalSubs: 5, bestOf: 3, matchFontMaxLeft: 18, matchFontMaxRight: 18,
   },
+  // Simple scoreboard. It has no sets, timeouts, subs or set intervals, so most of these keys
+  // describe nothing — but every sport must carry the full PER_SPORT_KEYS set (the sanitizer
+  // walks one key list for all of them), so they are present and inert. blinkSub is off because
+  // there are no substitutions to blink; the countdown/warm-up values stay usable because the
+  // warm-up clock is a plain timer and works here exactly as it does everywhere else.
+  simple: {
+    blinkPoint: true, blinkSub: false, blinkMs: 2000,
+    timeoutSeconds: 60, ttoSeconds: 0, setIntervalSeconds: 60, warmupSeconds: 600,
+    countdownOnTimeout: false, countdownOnSetInterval: false, hornOnCountdownEnd: true,
+    // These three take the LOWEST value their own sanitizers accept rather than the honest 0/1:
+    // totalTimeouts clamps to [1,9] and bestOf coerces anything but 3 to 5, so a truthful 0 or 1
+    // here would silently become 1 and 5 on the first save — a stored default that disagrees with
+    // the file it came from. Inert either way; this sport reads none of them.
+    totalTimeouts: 1, totalSubs: 0, bestOf: 3, matchFontMaxLeft: 18, matchFontMaxRight: 18,
+  },
 }
 
 export const GLOBAL_KEYS = Object.keys(GLOBAL_DEFAULTS)
 export const PER_SPORT_KEYS = Object.keys(PER_SPORT_DEFAULTS.volleyball)
 // Back-compat flat default view (global + volleyball) for anything that still imports DEFAULTS.
 export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
+
+// A scorer PIN: digits only, 1-8 of them. The ONE rule — the server's 400 on POST /api/settings and
+// the console's check before it sends both test against this, so the three can never disagree
+// about what a valid PIN is.
+export const PIN_RE = /^\d{1,8}$/
 
 const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames']
 const NUMS = {
@@ -94,7 +114,17 @@ function sanitizeInto(out, keys, patch = {}) {
     }
     if (k === 'bestOf') { out[k] = Number(patch[k]) === 3 ? 3 : 5; continue }
     if (k === 'clubName') { out[k] = String(patch[k] || '').replace(/[^\x20-\x7E]/g, '').slice(0, 20); continue }
-    if (k === 'scorerPin') { out[k] = String(patch[k] || '').replace(/\D/g, '').slice(0, 8); continue }
+    // Accepted as typed or not at all. This used to strip every non-digit and keep the rest, so
+    // "abcd" or " " became "" — which is not a malformed PIN but NO PIN, and the scorer lock came
+    // off under a "Saved.". A malformed value is dropped like any other bad value here (the prior
+    // PIN stands); POST /api/settings rejects it with a 400 before it gets this far, and removing
+    // the lock is its own explicit request (`clearPin`), never a side effect of a typo.
+    if (k === 'scorerPin') {
+      const pin = String(patch[k] ?? '').trim()
+      if (pin === '' || PIN_RE.test(pin)) out[k] = pin
+      else setlog.warn('ignored a malformed scorer PIN — the previous one stays in force', { rule: 'digits only, 1-8' })
+      continue
+    }
     if (k === 'sport') { out[k] = SPORTS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'branding') { out[k] = BRANDINGS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'liveScoring') { out[k] = LIVE_SYSTEMS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }

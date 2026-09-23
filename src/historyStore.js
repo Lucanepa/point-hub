@@ -11,6 +11,7 @@ const hlog = log.child('history')
 
 const MAX_MATCHES = 100 // keep the last N completed matches
 const MAX_EVENTS = 4000 // per-match event cap (a long 5-setter is ~250 rallies)
+const MAX_UNDO = 30 // matches the sources' undo journal (UNDO_MAX in manualSource.js)
 
 const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
 
@@ -19,6 +20,12 @@ export class HistoryStore {
     this.file = file || null
     this.matches = [] // completed matches, oldest-first on disk; API returns newest-first
     this.current = null // in-progress match buffer
+    this._lastFinished = null // { match, kind } for the match just archived, while its end can still be undone
+    // What each recent undoable action did to the log, newest last — so the console's general undo
+    // can take exactly that back (see _undoLast). Kept in step with the source's own journal by the
+    // server, which passes `undoable` only for actions the source journaled.
+    this._journal = []
+    this._step = null // the entry being filled while record() runs
     this._load()
   }
 
@@ -47,10 +54,26 @@ export class HistoryStore {
     }
   }
 
-  _teams(state) {
+  // The state as the history sees it: by TEAM, not by side. Every source stores its model by
+  // physical side and reports a=left, so after a change of ends "a" is the other team — and a log
+  // that took a/b at face value credited every point before the swap to the wrong team and flipped
+  // the score column at each set break (a 3-0 by one team read as a 50-25 split). `ends_swapped`
+  // says whether the teams stand the reverse of where they started; undoing it here gives an a/b
+  // that names the same team from the first rally to the last. A state that doesn't carry the
+  // flag (an older source) reads as not swapped, which is exactly the old behaviour.
+  _view(state) {
+    const sw = !!state.ends_swapped
+    const ab = (a, b) => (sw ? [b, a] : [a, b])
+    const [nameA, nameB] = ab(state.team_a_short || state.team_a_name, state.team_b_short || state.team_b_name)
     return {
-      a: state.team_a_short || state.team_a_name || 'A',
-      b: state.team_b_short || state.team_b_name || 'B',
+      names: { a: nameA || 'A', b: nameB || 'B' },
+      score: ab(num(state.points_a), num(state.points_b)),
+      sets: ab(num(state.sets_won_a), num(state.sets_won_b)),
+      results: (Array.isArray(state.set_results) ? state.set_results : [])
+        .filter((r) => r && typeof r === 'object')
+        .map((r) => { const [a, b] = ab(num(r.a), num(r.b)); return { a, b } }),
+      // A physical side ('left'|'right') -> the team standing there right now.
+      team: (side) => ((side === 'right') !== sw ? 'b' : 'a'),
     }
   }
 
@@ -58,32 +81,63 @@ export class HistoryStore {
   // timestamp string and `clock` a preformatted HH:MM:SS (both passed in so this module stays
   // deterministic/testable). `now` dates the match; `clock` times each event inside it, because a
   // play-by-play at minute resolution puts a whole rally sequence on one indistinguishable line.
-  record(action, state, event, now, clock = '') {
+  //
+  // `undoable` says the source put this action on its undo journal; the log then remembers what the
+  // action did so a later {type:'undo'} can take exactly that back. `label` (on an undo) is the
+  // source's words for what was undone, kept on the marker the undo leaves behind.
+  record(action, state, event, now, clock = '', { undoable = false, label = '' } = {}) {
     if (!action || !state) return
     const t = action.type
+    if (t === 'undo') return this._undoLast(state, now, clock, label)
+    this._step = undoable ? { pushed: [], finished: null, reopened: null, started: false, prevCurrent: this.current, prevFinished: this._lastFinished } : null
+    try { this._record(action, state, event, now, clock) } finally {
+      if (this._step) {
+        this._journal.push(this._step)
+        if (this._journal.length > MAX_UNDO) this._journal.shift()
+      }
+      this._step = null
+    }
+  }
+
+  // A fresh match (New game, Continue, a boot-time resume) starts with nothing to undo — undo
+  // reaching across it would edit a different match.
+  clearUndo() { this._journal = [] }
+
+  _record(action, state, event, now, clock) {
+    const t = action.type
+    const v = this._view(state)
     // A new match begins on reset, or on the first scoring action when nothing is buffered.
-    if (t === 'reset') { this.current = null; return }
+    if (t === 'reset') {
+      if (this._step) this._step.reset = true // prevCurrent/prevFinished already hold the way back
+      this.current = null; this._lastFinished = null; return
+    }
+    // The engines let "−" (or the trash icon) take back the point that ENDED the match — a mis-tap
+    // at 24-23 in the decider is as undoable as any other set point. The history used to have no
+    // such undo: the match stayed archived, the rest of it went into a second "match" holding only
+    // the tail, and the real match point archived that too — two entries for one match, the first
+    // one wrong. So while the match just archived is still the last one, an undo that leaves it no
+    // longer decided puts it back in the buffer, and the play-by-play carries on where it stopped.
+    if (!this.current && this._lastFinished && this._undoesFinish(t, action, state, v)) {
+      if (this._step) this._step.reopened = this._lastFinished
+      this._reopen()
+    }
     const scoring = t === 'point' || t === 'set' || t === 'timeout' || t === 'sub' || t === 'serve'
     if (!this.current && scoring) {
-      const nm = this._teams(state)
-      this.current = { date: now, team_a: nm.a, team_b: nm.b, events: [] }
-      hlog.info(`match started: ${nm.a} vs ${nm.b}`, { team_a: nm.a, team_b: nm.b, at: now })
+      this.current = { date: now, team_a: v.names.a, team_b: v.names.b, events: [] }
+      if (this._step) this._step.started = true
+      this._lastFinished = null // a new match has begun; the previous one is final now
+      hlog.info(`match started: ${v.names.a} vs ${v.names.b}`, { team_a: v.names.a, team_b: v.names.b, at: now })
     }
     if (!this.current) return
     // Keep names fresh — the operator often types them after the first point.
-    const nm = this._teams(state)
-    this.current.team_a = nm.a
-    this.current.team_b = nm.b
+    this.current.team_a = v.names.a
+    this.current.team_b = v.names.b
 
     // The running score and set tally at the moment the action landed, on EVERY event. That is
     // what makes the log answer the question people actually bring to it afterwards — "what was
     // the score when that happened" — without replaying the whole list to find out.
-    const at = () => ({
-      t: clock || now,
-      score: [num(state.points_a), num(state.points_b)],
-      sets: [num(state.sets_won_a), num(state.sets_won_b)],
-    })
-    const side = action.side === 'right' ? 'b' : 'a'
+    const at = () => ({ t: clock || now, score: v.score.slice(), sets: v.sets.slice() })
+    const side = v.team(action.side)
 
     // Everything the operator did, not just the points that went up. A correction, a timeout, a
     // change of ends and a typed-in score are exactly the entries a disputed sheet turns on, and
@@ -106,51 +160,146 @@ export class HistoryStore {
       this._push({ ...at(), type: 'remove-set' })
     }
 
-    // The set that just closed, in the orientation the board is in NOW (set_results are stored per
-    // physical side and travel with the change of ends, exactly as the console renders them).
+    // The set that just closed, by team like everything else in the log.
     const closingSet = () => {
-      const r = (state.set_results || []).slice(-1)[0] || { a: num(state.points_a), b: num(state.points_b) }
-      return { ...at(), type: 'set-end', set: num(state.sets_won_a) + num(state.sets_won_b),
-        score: [num(r.a), num(r.b)] }
+      const r = v.results.slice(-1)[0] || { a: v.score[0], b: v.score[1] }
+      return { ...at(), type: 'set-end', set: v.sets[0] + v.sets[1], score: [r.a, r.b] }
     }
+    // Basketball's period boundary. `period` is the one just played: a period-end has already
+    // moved the board on to the next one, a game-end leaves it where it was.
+    const closingPeriod = (ended) => ({ ...at(), type: 'period-end', period: ended })
+    const period = Math.max(1, num(state.period))
     if (event === 'set-end') {
       this._push(closingSet())
     } else if (event === 'switch-due') {
       this._push({ ...at(), type: 'switch-due' })
+    } else if (event === 'period-end') {
+      this._push(closingPeriod(period - 1))
     } else if (event === 'match-end') {
       // The last point of a match closes a set AND the match, but `lastEvent` can only be one of
       // them — so the deciding set used to have no close at all in the log, and the play-by-play
       // ended mid-set with "Match over". Write both, in the order they happened.
       this._push(closingSet())
       this._push({ ...at(), type: 'match-end' })
-      this._finish(state, now)
+      this._finish(state, now, 'match-end')
+    } else if (event === 'game-end') {
+      // Basketball's end of match. It was never listened for, so no basketball game ever reached
+      // the History tab or the export, and the buffer ran on into the next game until a reset.
+      this._push(closingPeriod(period))
+      this._push({ ...at(), type: 'match-end' })
+      this._finish(state, now, 'game-end')
     }
   }
 
-  _push(ev) {
-    if (this.current.events.length < MAX_EVENTS) this.current.events.push(ev)
+  // Did this action take back the result that closed the last archived match? Only an undo counts
+  // ("−" on a point, or removing a set/period) — a set-state or a typed tally that happens to lower
+  // the numbers is the operator loading a different board, not reopening the old match.
+  _undoesFinish(t, action, state, v) {
+    const undo = (t === 'point' && Number(action.delta) < 0) || t === 'remove-set'
+    if (!undo) return false
+    const f = this._lastFinished
+    if (this.matches[this.matches.length - 1] !== f.match) return false
+    // Basketball has no set tally; the game is decided exactly while the source says it is over.
+    if (f.kind === 'game-end') return !state.over
+    return v.sets[0] + v.sets[1] < f.match.sets_a + f.match.sets_b
   }
 
-  _finish(state, now) {
-    const sets = (state.set_results || []).map((r) => ({ a: num(r.a), b: num(r.b) }))
-    hlog.info(`match finished: ${this.current.team_a} ${num(state.sets_won_a)}-${num(state.sets_won_b)} ${this.current.team_b}`, {
-      team_a: this.current.team_a, team_b: this.current.team_b,
-      sets_a: num(state.sets_won_a), sets_b: num(state.sets_won_b),
-      sets, events: this.current.events.length,
+  _reopen() {
+    const { match } = this._lastFinished
+    this.matches.pop()
+    // Drop the "Match over" marker the finish wrote; the closing set-end stays, followed by the
+    // correction that undid it — the same trail an undone set leaves in the middle of a match.
+    const events = match.events.slice()
+    if (events.length && events[events.length - 1].type === 'match-end') events.pop()
+    this.current = { date: match.date, team_a: match.team_a, team_b: match.team_b, events }
+    this._lastFinished = null
+    hlog.info(`match reopened: ${match.team_a} vs ${match.team_b} (the match point was taken back)`, {
+      team_a: match.team_a, team_b: match.team_b, events: events.length,
     })
-    this.matches.push({
+    this._save()
+  }
+
+  _push(ev) {
+    if (this.current.events.length < MAX_EVENTS) {
+      this.current.events.push(ev)
+      if (this._step) this._step.pushed.push(ev)
+    }
+  }
+
+  // The console's general undo. The source has already restored its snapshot; this makes the log
+  // agree with it, so an archived match never keeps a point, a set end or a "Match over" that the
+  // board took back. The undone action's entries are REMOVED rather than flagged — the History tab,
+  // the CSV export and anything reading the JSON count set-ends and points as they find them — and
+  // one `undo` marker naming what was taken back stays in their place, so the trail still shows
+  // that a correction happened. An undo with nothing journaled (the log was cleared, the bridge
+  // restarted) only leaves the marker.
+  _undoLast(state, now, clock, label) {
+    const e = this._journal.pop()
+    if (e && e.reset) {
+      // Undoing a reset: the match it closed is the match again.
+      this.current = e.prevCurrent
+      this._lastFinished = e.prevFinished
+    } else if (e) {
+      if (e.finished) {
+        // The undone action archived the match: take it back off the archive, as _reopen does.
+        const i = this.matches.lastIndexOf(e.finished.match)
+        if (i !== -1) {
+          const m = e.finished.match
+          this.matches.splice(i, 1)
+          this.current = { date: m.date, team_a: m.team_a, team_b: m.team_b, events: m.events }
+          this._lastFinished = null
+          hlog.info(`match reopened: ${m.team_a} vs ${m.team_b} (its last action was undone)`, { team_a: m.team_a, team_b: m.team_b })
+        }
+      }
+      if (this.current && e.pushed.length) {
+        const gone = new Set(e.pushed)
+        this.current.events = this.current.events.filter((ev) => !gone.has(ev))
+      }
+      if (e.reopened) {
+        // The undone action had reopened an archived match (a "−" on its match point): put the
+        // match back exactly as it was archived.
+        this.matches.push(e.reopened.match)
+        this.current = null
+        this._lastFinished = e.reopened
+      } else if (e.started && this.current && !this.current.events.length) {
+        // The undone action is what opened this match — there is no match left to log.
+        this.current = e.prevCurrent
+        this._lastFinished = e.prevFinished
+      }
+      if (e.finished || e.reopened) this._save()
+    }
+    if (this.current) {
+      const v = this._view(state)
+      this._push({ t: clock || now, score: v.score.slice(), sets: v.sets.slice(), type: 'undo', ...(label ? { what: String(label) } : {}) })
+    }
+  }
+
+  _finish(state, now, kind) {
+    const v = this._view(state)
+    // Basketball has no sets (the source reports 0-0), so its headline result is the final score;
+    // `sets` then holds the per-period line score, which is what the source keeps in set_results.
+    const [ra, rb] = kind === 'game-end' ? v.score : v.sets
+    const sets = v.results
+    hlog.info(`match finished: ${this.current.team_a} ${ra}-${rb} ${this.current.team_b}`, {
+      team_a: this.current.team_a, team_b: this.current.team_b,
+      sets_a: ra, sets_b: rb, sets, events: this.current.events.length,
+    })
+    const match = {
       date: this.current.date || now,
       team_a: this.current.team_a, team_b: this.current.team_b,
-      sets_a: num(state.sets_won_a), sets_b: num(state.sets_won_b),
+      sets_a: ra, sets_b: rb,
       sets, events: this.current.events,
-    })
+    }
+    this.matches.push(match)
     if (this.matches.length > MAX_MATCHES) this.matches = this.matches.slice(-MAX_MATCHES)
     this.current = null
+    this._lastFinished = { match, kind }
+    if (this._step) this._step.finished = this._lastFinished
     this._save()
   }
 
   // API view — newest match first.
   list() { return { matches: this.matches.slice().reverse() } }
 
-  clear() { this.matches = []; this.current = null; this._save() }
+  clear() { this.matches = []; this.current = null; this._lastFinished = null; this._journal = []; this._save() }
 }

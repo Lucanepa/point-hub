@@ -6,7 +6,11 @@ save a PNG of each, so the renderer can be eyeballed with NO panel and NO bridge
 It feeds the Device the same {cmd,value} messages the bridge sends over the wire (SetLayout +
 the one-attrib-per-entry SetSections WRITE shape), then copies each composed www/buffer.png to
 samples/<name>.png. Run:  python3 render_samples.py   (needs Pillow)
+
+--base-dir renders from another firmware dir (layout/, media/, setting.ini) and --out writes the
+PNGs elsewhere; goldentest.py uses both to render against a fixture instead of this checkout.
 """
+import argparse
 import os
 import shutil
 
@@ -98,16 +102,25 @@ SCREENS = [
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    ap.add_argument("--base-dir", default=HERE, help="firmware dir to render from (default: this dir)")
+    ap.add_argument("--out", default=OUT, help="where to write the PNGs (default: samples/)")
+    ap.add_argument("--ips", help="comma list for the info screen instead of this host's own "
+                                  "addresses, so the render is the same on every machine")
+    args = ap.parse_args()
+    if args.ips:
+        olb._local_ips = lambda: args.ips.split(",")
     if not olb._HAVE_PIL:
         raise SystemExit("Pillow not installed: pip install pillow")
-    os.makedirs(OUT, exist_ok=True)
-    cfg = olb.build_config(HERE)
+    out = args.out
+    os.makedirs(out, exist_ok=True)
+    cfg = olb.build_config(args.base_dir)
     renderer = olb.Renderer(cfg["width"], cfg["height"], cfg["buffer_path"], cfg["base_dir"])
     device = olb.Device(cfg, renderer)  # boots showing the idle/waiting screen
 
     def snapshot(name):
-        shutil.copy(cfg["buffer_path"], os.path.join(OUT, name + ".png"))
-        print("  wrote samples/%s.png" % name)
+        shutil.copy(cfg["buffer_path"], os.path.join(out, name + ".png"))
+        print("  wrote %s" % os.path.join(out, name + ".png"))
 
     for name, layout, sections in SCREENS:
         if layout:
@@ -121,7 +134,7 @@ def main():
     # The procedural network-info screen (showInfo).
     device.show_info()
     snapshot("07_info")
-    print("OK — %d sample screens in %s" % (len(SCREENS) + 1, OUT))
+    print("OK — %d sample screens in %s" % (len(SCREENS) + 1, out))
 
 
 if __name__ == "__main__":

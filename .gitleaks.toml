@@ -45,6 +45,10 @@ id = "wifi-wpa-passphrase"
 description = "WIFI: QR payload embedding a WPA passphrase (openvolley shipped one as a PNG)"
 regex = '''WIFI:T:WPA;S:[^;]+;P:[^;]+;'''
 keywords = ["WIFI:T:WPA"]
+# The golden test's fixture QR (fixtures/wifi_qr.DUMMY.png) spells out an obviously fake payload.
+allowlists = [
+  { regexes = ['''P:(not-a-real-password|\{)'''], regexTarget = "match" },
+]
 
 [[rules]]
 id = "generic-credential-assignment"

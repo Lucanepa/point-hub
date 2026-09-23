@@ -67,6 +67,14 @@ const attr = (name, attrib, value) => ({ name, value: { attrib, value: String(va
 const text = (name, value, color) =>
   color ? [attr(name, 'text', value), attr(name, 'color', color)] : [attr(name, 'text', value)]
 const rect = (name, color) => [attr(name, 'color', color)]
+
+// The layout's own static captions: `lbl_to` "T" and `lbl_sub` "S" beside the two counters
+// (layouts/02_volleyball_matchscore_02.xml). The XML already says so, and for a long time nothing
+// wrote them — until the simple scoreboard, which shares this layout and empties both. The firmware
+// holds section values in memory across layout switches and bridge restarts, so volleyball then
+// came back with two unlabelled counters until the panel was power-cycled. Re-asserted on every
+// full paint, exactly like `vs`, so whatever last wrote them can never decide what they say.
+export const LAYOUT_LABELS = [attr('lbl_to', 'text', 'T'), attr('lbl_sub', 'text', 'S')]
 // The score box: black fill so the big number reads, border in the team colour.
 //
 // `bordercolor` appears NOWHERE in the vendor app — an exhaustive scan of ledbox.dll found
@@ -206,6 +214,8 @@ export function toBreakSections(state, {
 // "VS" between them, everything else blanked. No image upload needed — this is the version
 // that works today. A logo screen (full-panel image) is the eventual upgrade once the board
 // will accept a media upload; until then this replaces the bare "HOME 0 AWAY 0" idle look.
+// Indoor layout ONLY: it writes sub/set/serve sections the beach and basketball layouts do not
+// have, so those sports carry their own (toBeachIdleSections, toBasketballIdleSections).
 export function toIdleSections(state, { off = '30,30,30' } = {}) {
   const v = state ? toLeftRight(state) : null
   const left = v?.leftName || 'HOME'
@@ -219,6 +229,7 @@ export function toIdleSections(state, { off = '30,30,30' } = {}) {
     attr('vs', 'text', 'VS'),
     ...text('timeout1', ''), ...text('timeout2', ''),
     ...text('sub1', ''), ...text('sub2', ''),
+    ...LAYOUT_LABELS,
     ...rect('serve1', off), ...rect('serve2', off),
   ]
 }
@@ -406,6 +417,8 @@ export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MA
     ...text('timeout2', v.rightTimeouts, toColor(v.rightTimeouts)),
     ...text('sub1', v.leftSubs, subColor(v.leftSubs)),
     ...text('sub2', v.rightSubs, subColor(v.rightSubs)),
+    // The "T" / "S" captions — see LAYOUT_LABELS for why they are written at all.
+    ...LAYOUT_LABELS,
     // Serve indicators: light the serving side's rectangle in its team colour.
     ...rect('serve1', v.serving === 'left' ? v.leftColor : off),
     ...rect('serve2', v.serving === 'right' ? v.rightColor : off),

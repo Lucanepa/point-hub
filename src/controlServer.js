@@ -6,18 +6,19 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
-import { EventEmitter } from 'node:events'
 import { LanSource } from './lanSource.js'
 import { toLeftRight } from './volleyballMapper.js'
 import { hexToRgb } from './ledboxProtocol.js'
 import { execFile } from 'node:child_process'
 import { HistoryStore } from './historyStore.js'
 import { ResumeStore } from './resumeStore.js'
-import { SPORT_LIST } from './sports.js'
-import { PER_SPORT_KEYS } from './settings.js'
+import { SPORT_LIST, getSport } from './sports.js'
+import { PER_SPORT_KEYS, PIN_RE } from './settings.js'
 import { log, LEVELS } from './logStore.js'
 import { systemInfo } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
+import { ClockSync } from './clockSync.js'
+import { Schedule } from './schedule.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -38,15 +39,7 @@ const UI_RATE_MAX_IPS = 256
 const UI_LOG_MAX_BODY = 8 * 1024
 const UI_LOG_MAX_MSG = 300
 
-// Board shown when the operator picks "Blank" (all short names + serve cleared).
-const BLANK = {
-  side_a: 'left', team_a_name: '', team_a_short: '', team_a_color: '#2563eb',
-  team_b_name: '', team_b_short: '', team_b_color: '#ef4444',
-  points_a: 0, points_b: 0, sets_won_a: 0, sets_won_b: 0,
-  timeouts_a: 0, timeouts_b: 0, subs_a: 0, subs_b: 0, serving_team: null,
-}
-
-const ACTION_TYPES = new Set(['point', 'set', 'timeout', 'sub', 'serve', 'serve-order', 'serve-player', 'swap', 'team', 'next-set', 'remove-set', 'reset', 'set-state'])
+const ACTION_TYPES = new Set(['point', 'set', 'timeout', 'sub', 'serve', 'serve-order', 'serve-player', 'swap', 'team', 'next-set', 'remove-set', 'reset', 'set-state', 'undo'])
 
 // A team colour ends up inside a `style` attribute in the console and as a SetSections colour on
 // the panel. Only a #rrggbb literal is ever legitimate, and anything else is either a mistake or
@@ -97,16 +90,6 @@ const PROBE_BODIES = {
   '/success.txt': { type: 'text/plain', body: 'success\n' },
 }
 
-// A trivial idle source so /api/blank can put the SourceManager into an idle meta via the
-// uniform Source interface (stops the previous source). It carries the state it was seeded
-// with so the SourceManager caches it — keeping /api/status in sync with the blanked board.
-class IdleSource extends EventEmitter {
-  constructor(state = null) { super(); this._state = state }
-  getState() { return this._state }
-  start() {}
-  stop() {}
-}
-
 // Push a new LED brightness to the panel. `startled` reads [DISPLAY] brightness from setting.ini
 // and passes it to flushBuffer2 at launch, so we rewrite that key and bounce the driver. The
 // bridge runs as pi (passwordless sudo); setting.ini is world-writable. Best-effort — any failure
@@ -116,17 +99,47 @@ const SETTING_INI = '/home/pi/ledbox/setting.ini'
 // panel dark: without it the watchdog would relight the driver within 30s. Removing it lets the
 // watchdog keep the panel alive again.
 const PANEL_OFF_FLAG = '/home/pi/ledbox/PANEL_OFF'
-// Restart the panel driver at the current setting.ini brightness: SIGTERM the running driver,
-// then — under a lock the watchdog shares — WAIT for it to actually exit before starting exactly
-// one. Both halves matter: flushBuffer2 can take up to ~1s to release the GPIO on SIGTERM, so
-// starting on a fixed timer would either be skipped (guard still sees the dying process) or spawn
-// a second driver that fights it — which shows as vertical flicker on the panel. The shared lock
-// stops the watchdog racing this start. Process match is `-x flushBuffer2` (exact comm) so the
-// transient `sudo` wrapper never counts as a live driver.
+// Restart the panel driver at the current setting.ini brightness. Everything happens under the
+// lock the watchdog's start_panel shares (firmware/ledbox-watchdog.sh): SIGTERM the running driver,
+// WAIT for it to actually exit, start exactly one, and keep holding the lock until the new
+// flushBuffer2 is really there. Each part closes a race:
+//   * the kill is INSIDE the lock — outside it, the watchdog could see "no driver" in the gap and
+//     start one at the OLD brightness, which ours would then either skip or fight;
+//   * flushBuffer2 can take ~1s to release the GPIO on SIGTERM, so starting on a fixed timer would
+//     be skipped (the guard still sees the dying process) or spawn a second driver beside it —
+//     vertical flicker on the panel. If it will not die within ~5s we start nothing: a panel at the
+//     old brightness is better than two drivers;
+//   * the lock is held until pgrep sees the new driver (~10s max). startled takes a moment to exec
+//     flushBuffer2, and releasing the lock the instant it was launched let the watchdog take it,
+//     see no driver yet, and start a second one;
+//   * `flock -o` closes the lock fd in the command it runs, so the driver we launch (and systemd-run's
+//     helpers) never inherit it — an inherited fd would hold the lock for the driver's whole life
+//     and lock the watchdog out of every restart after this one.
+// Process match is `-x flushBuffer2` (exact comm) so the transient `sudo` wrapper never counts as a
+// live driver. Exit codes (logged by applyBrightness): 3 = no driver within 10s, 4 = the old one
+// would not exit, 1 = the lock stayed busy for 20s.
+//
+// The driver is launched as its OWN transient systemd unit, not as a child of this process. A
+// backgrounded `( ./startled & )` only leaves the shell, not the cgroup: sudo on this board opens
+// no new session scope, so flushBuffer2 stayed a member of ledbox-bridge.service, and the unit's
+// default KillMode=control-group took the panel down with the bridge on every deploy, sport switch
+// or crash restart after any brightness change — dark until the watchdog noticed (~40s), or for
+// good while the watchdog is disabled. systemd-run makes systemd the parent, so the driver outlives
+// us exactly as the one rc.local started does. Same user as before (id -un), so buffer.png keeps
+// its owner. The unit name carries $$ so a previous launch still being reaped can't collide with
+// it; --collect drops it once the driver exits. `sudo -n` never prompts, and should systemd-run be
+// refused for any reason the old in-cgroup launch still lights the panel — dark is the worse fault.
+const PANEL_START =
+  'sudo -n systemd-run --quiet --collect --unit=ledbox-panel-$$ --uid=$(id -un) /home/pi/ledbox/bin/startled >/dev/null 2>&1 || ' +
+  '( cd /home/pi/ledbox/bin && ./startled >/dev/null 2>&1 & )'
 const PANEL_RESTART =
-  'sudo pkill -x flushBuffer2; ' +
-  "flock /home/pi/ledbox/panel.lock -c 'for i in $(seq 25); do pgrep -x flushBuffer2 >/dev/null 2>&1 || break; sleep 0.2; done; " +
-  "pgrep -x flushBuffer2 >/dev/null 2>&1 || ( cd /home/pi/ledbox/bin && ./startled >/dev/null 2>&1 & )'"
+  "flock -o -w 20 /home/pi/ledbox/panel.lock -c '" +
+  'sudo -n pkill -x flushBuffer2; ' +
+  'for i in $(seq 25); do pgrep -x flushBuffer2 >/dev/null 2>&1 || break; sleep 0.2; done; ' +
+  'pgrep -x flushBuffer2 >/dev/null 2>&1 && exit 4; ' +
+  `{ ${PANEL_START}; }; ` +
+  'for i in $(seq 50); do pgrep -x flushBuffer2 >/dev/null 2>&1 && exit 0; sleep 0.2; done; ' +
+  "exit 3'"
 
 function applyBrightness(value) {
   if (value <= 0) {
@@ -161,11 +174,13 @@ function applyBrightness(value) {
   // setting.ini now holds the new level, so whichever starter wins the lock launches at it.
   clog.info(`restarting the panel driver at brightness ${value}`, { brightness: value })
   execFile('bash', ['-c', PANEL_RESTART], (err) => {
-    if (err) clog.warn(`panel driver restart reported an error: ${err.message}`, { error: err.message })
+    if (!err) return
+    const why = { 1: 'panel.lock stayed busy for 20s, restart skipped', 3: 'no flushBuffer2 appeared within 10s of startled', 4: 'the old flushBuffer2 did not exit, so no second driver was started' }[err.code]
+    clog.warn(`panel driver restart: ${why || err.message}`, { code: err.code, error: err.message })
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -175,6 +190,39 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // The per-sport "last game" slot behind the New / Continue / Delete menu (see resumeStore.js).
   const resume = new ResumeStore({ file: path.resolve(stateHome, 'resume.json') })
   const activeSport = () => (settings ? settings.values.sport : 'volleyball')
+  // Every change to the live score goes into the match log and the resume slot — not only the ones
+  // that arrive through /api/action. The set interval's next-set (/api/countdown swapFirst) and the
+  // announced change of ends (/api/message swap) mutate the board too, and skipping them left the
+  // slot at the FINISHED set: a restart during the interval, or Continue, brought back 25-23 on the
+  // old ends with the set closed, and the next +1 made it 26-23. Both halves are wrapped because
+  // persistence must never break scoring. A decided match is dropped from the slot instead: it is
+  // already archived in the history, and offering to "continue" a match that is over is worse than
+  // offering nothing.
+  //
+  // `undoable` defaults to whether the source just journaled the action (every caller persists
+  // straight after apply()), which is what keeps the log's undo steps in lock-step with the
+  // source's: a no-op the source didn't journal must not become a step the log would undo instead.
+  //
+  // A sport can opt out of the match log (sports.js `history: false` — the simple scoreboard, whose
+  // "match" never ends and so would never leave the buffer). The resume slot it keeps either way.
+  const keepsHistory = () => getSport(activeSport()).history !== false
+  // Whether anything has changed the live board since it was last (re)started — boot, New,
+  // Continue, crash restore. Deleting the saved game uses it: with nothing done since, the board is
+  // still showing exactly what was saved (or a blank boot board), so clearing it is what the
+  // operator means by "delete".
+  let touchedSinceStart = false
+  const persist = (action, state, event, { undoable = !!(manualSource && manualSource.lastJournaled), label = '' } = {}) => {
+    touchedSinceStart = true
+    if (keepsHistory()) try { history.record(action, state, event, nowStamp(), nowClock(), { undoable, label }) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+    try {
+      if (event === 'match-end' || event === 'game-end') resume.clear(activeSport())
+      else resume.save(activeSport(), state, nowStamp())
+    } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
+  }
+  // Open /api/logs/stream responses. An SSE response never ends by itself, and http.Server.close()
+  // waits for every active one — so a /logs tab left open on some laptop held every shutdown (sport
+  // switch, deploy, poweroff) until systemd's stop timeout SIGKILLed us. closeStreams() ends them.
+  const streams = new Set()
   // Scorer lock: with a PIN set, mutating requests must carry it (X-Scorer-Pin header) — a
   // spectator who scanned the QR can watch but not score. GET reads stay open.
   // Brute-force gate — see pinGate.js. Without it, /api/unlock is an oracle that answers
@@ -266,6 +314,21 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (expired && opt('hornOnCountdownEnd') && ledbox && typeof ledbox.horn === 'function') {
       ledbox.horn().catch(() => {})
     }
+  }
+  // Adopting the console's wall clock when we have no uplink — see clockSync.js for why this
+  // exists at all. `isBusy` is the gate that keeps a clock jump away from anything that measures
+  // an interval with Date.now(): a live countdown deadline (above) and a match mid-record.
+  // Injectable so a test never reaches for `sudo date` on the machine running it.
+  const clockSync = clockSyncIn || new ClockSync({
+    isBusy: () => countdown !== null || history.current !== null,
+  })
+  // Today's home games from the club's Directus (see schedule.js). Injectable so a test can point
+  // it at a local fake instead of the network.
+  const schedule = scheduleIn || new Schedule()
+
+  // Put the wall clock on the panel and keep it there (see LedboxClient.showIdle's `screen`).
+  const holdClock = async () => {
+    if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true, { screen: 'clock' })
   }
 
   // Named rather than inline so the appliance can hand the SAME handler to an https.Server and
@@ -392,6 +455,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     //
     // Open, like every other read (docs/logging-DESIGN.md). See src/systemInfo.js for what is
     // deliberately excluded — the AP's SSID above all, which appears nowhere else in the API.
+    // GET /api/schedule[?refresh=1] — today's home games for this board's sport, for the console's
+    // "start from the schedule" list. Open like every other read; the data is public anyway. Always
+    // 200: a board with no uplink is the normal case, so failure is `{ ok:false, error }` in words
+    // the console can show as they are, never a 5xx.
+    if (pathname === '/api/schedule' && req.method === 'GET') {
+      const refresh = new URL(req.url, 'http://localhost').searchParams.get('refresh') === '1'
+      const r = await schedule.today({ sport: activeSport(), refresh })
+      return sendJson(res, 200, r.ok
+        ? { ok: true, date: r.date, sport: activeSport(), games: r.games }
+        : { ok: false, error: r.error, games: [] })
+    }
     if (pathname === '/api/system' && req.method === 'GET') {
       return sendJson(res, 200, await systemInfo())
     }
@@ -426,8 +500,35 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Any live action (point, serve, …) means the match is on — drop the idle screen so
       // the state push below actually paints the scoreboard.
       if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') ledbox.showIdle(false)
+      // Read BEFORE the undo pops it: the log's undo marker says what was taken back.
+      const undoing = action.type === 'undo' ? String(manualSource.undoLabel || '') : ''
       manualSource.apply(action)
       const newState = manualSource.getState()
+      const event = manualSource.lastEvent || null
+      // Refused (the set is already won) or nothing to undo: the board did not change, so there is
+      // nothing to log as scoring, persist or blink. The console turns the event into a toast.
+      if (event === 'set-closed' || event === 'undo-empty') {
+        alog.info(event === 'set-closed'
+          ? `point ${action.side === 'right' ? 'right' : 'left'} refused — the set is already won`
+          : 'undo — nothing to undo', { ...action, event, ip: clientIp(req) })
+        return sendJson(res, 200, { ok: true, state: newState, event, ...undoView() })
+      }
+      if (event === 'undo') {
+        alog.info(`undo: ${undoing || 'last action'} → ${count(newState.points_a)}-${count(newState.points_b)}`, {
+          type: 'undo', undid: undoing,
+          score: `${count(newState.points_a)}-${count(newState.points_b)}`,
+          sets: `${count(newState.sets_won_a)}-${count(newState.sets_won_b)}`,
+          ip: clientIp(req),
+        })
+        // Undoing the match point while the result screen holds the panel: pushState will not paint
+        // over another layout, so the restored score would sit behind the winner until New game.
+        if (ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout) {
+          if (typeof ledbox.clearResult === 'function') await ledbox.clearResult().catch(() => {})
+          if (typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+        }
+        persist(action, newState, 'undo', { undoable: false, label: undoing })
+        return sendJson(res, 200, { ok: true, state: newState, event, ...undoView() })
+      }
       // The scoring trail: every hand-entered action with the score it produced. This is what
       // answers "the away team says the score was wrong at 18-17" after the fact.
       alog.info(actionLine(action, newState), {
@@ -438,18 +539,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         ip: clientIp(req),
       })
       pulseForAction(ledbox, action, settings, newState)
-      // Log to the match history — wrapped so a fault here can never break scoring.
-      try { history.record(action, newState, manualSource.lastEvent, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
-      // Keep the resume slot in step with the board, so a power cut mid-set loses nothing.
-      // A decided match is dropped instead: it is already archived in the history above, and
-      // offering to "continue" a match that is over is worse than offering nothing. Same
-      // try/catch reasoning as history — persistence must never break scoring.
-      try {
-        const ev = manualSource.lastEvent
-        if (ev === 'match-end' || ev === 'game-end') resume.clear(activeSport())
-        else resume.save(activeSport(), newState, nowStamp())
-      } catch (e) { console.error('[resume]', e && e.message) }
-      return sendJson(res, 200, { ok: true, state: newState, event: manualSource.lastEvent })
+      // Match history + resume slot, so a power cut mid-set loses nothing (see persist()).
+      persist(action, newState, manualSource.lastEvent)
+      return sendJson(res, 200, { ok: true, state: newState, event: manualSource.lastEvent, ...undoView() })
     }
     // GET /api/settings — operator preferences (persisted on the Pi)
     if (pathname === '/api/settings' && req.method === 'GET') {
@@ -465,11 +557,30 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (!settings) return sendJson(res, 501, { error: 'settings unavailable' })
       if (!pinOk(req)) return denyPin(res, req)
       const patch = { ...(body || {}) }
-      // Empty PIN field = leave the current PIN unchanged (else a normal save wipes the lock).
-      if (!patch.scorerPin) delete patch.scorerPin
+      // The PIN is validated here, not quietly repaired. An empty field means "leave the current
+      // PIN unchanged" (else every ordinary save would wipe the lock). Anything else must be 1-8
+      // digits or the whole save is refused: stripping it to its digits turned "abcd" into "" —
+      // the lock silently removed under a "Saved." — and "12.34" into a PIN that was not the one
+      // the scorer typed. Removing the PIN is its own explicit request, { clearPin: true }.
+      const clearPin = patch.clearPin === true
+      delete patch.clearPin
+      const pin = patch.scorerPin == null ? '' : String(patch.scorerPin).trim()
+      if (pin && !PIN_RE.test(pin)) {
+        clog.warn('rejected a malformed scorer PIN', { ip: clientIp(req) })
+        return sendJson(res, 400, { error: 'PIN must be 1–8 digits' })
+      }
+      if (pin) patch.scorerPin = pin
+      else delete patch.scorerPin
+      if (clearPin) patch.scorerPin = ''
       const before = { ...settings.values }
       const prevBrightness = settings.values.brightness
       const updated = settings.update(patch)
+      if (clearPin) clog.warn('scorer PIN removed — scoring is open to anyone on the network', { ip: clientIp(req) })
+      // The match format is read live by the scoring engine, not just by the console header. Without
+      // this a "Best of 3" save changed the header's idea of the deciding set while the engine kept
+      // playing best-of-5: set 3 went to 25, and a 2-0 or 2-1 match never ended. Sources without a
+      // format (basketball) simply have no setFormat.
+      if (manualSource && typeof manualSource.setFormat === 'function') manualSource.setFormat({ bestOf: updated.bestOf })
       // Only what actually CHANGED, so the trail reads as a history of decisions rather than a
       // wall of unchanged preferences. Values are redacted by key name in the log store.
       const changes = {}
@@ -575,6 +686,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         manualSource.apply({ type: 'next-set' })
         ledbox._suppressPaint = false
         state = manualSource.getState()
+        persist({ type: 'next-set' }, state, manualSource.lastEvent)
       }
       // `side` names the team that called the timeout; the board shows its short code so
       // the hall can see whose break it is. Resolved here rather than client-side so the
@@ -596,25 +708,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       stopCountdown({ expired: !!(body && body.expired) })
       return sendJson(res, 200, { ok: true })
     }
-    // POST /api/idle { on } — show the names+VS pre-match screen (on=false returns to scoring)
+    // POST /api/idle { on, screen } — show the names+VS pre-match screen (on=false returns to
+    // scoring). screen:'clock' is the console's "Show clock": the wall clock even with teams set,
+    // held until scoring resumes or idle is turned off. Without it, today's screen (names if any).
     if (pathname === '/api/idle' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const on = body ? body.on !== false : true
-      clog.info(on ? 'operator switched to the idle screen' : 'operator returned to scoring', { idle: on, ip: clientIp(req) })
-      if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(on)
-      return sendJson(res, 200, { ok: true, idle: on })
-    }
-    // POST /api/blank
-    if (pathname === '/api/blank' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res, req)
-      await readJson(req) // drain
-      clog.info('board blanked', { ip: clientIp(req) })
-      // Seed the idle source with BLANK so SourceManager caches it and pushes it to the
-      // board — /api/status.state then matches the physical (blanked) board.
-      sourceManager.setSource(new IdleSource(BLANK), { mode: 'idle', matchId: null })
-      await ledbox.pushState(BLANK)
-      return sendJson(res, 200, status())
+      const screen = on && body && body.screen === 'clock' ? 'clock' : 'auto'
+      clog.info(on ? `operator switched to the idle screen${screen === 'clock' ? ' (clock)' : ''}` : 'operator returned to scoring', { idle: on, screen, ip: clientIp(req) })
+      if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(on, { screen })
+      return sendJson(res, 200, { ok: true, idle: on, screen: on ? screen : null })
     }
     // POST /api/unlock { pin } — verify a scorer PIN without performing an action.
     if (pathname === '/api/unlock' && req.method === 'POST') {
@@ -629,30 +733,67 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       }
       return sendJson(res, 200, { ok: r.ok })
     }
+    // POST /api/clock { epochMs } — the console offering its own wall clock, for a board with no
+    // RTC and no uplink. PIN-gated like every other mutation: it is privileged (it shells out to
+    // `sudo date`) and a wildly wrong clock invalidates the board's TLS cert, which would lock the
+    // operator out of the HTTPS console. Answers 200 with `applied:false` far more often than it
+    // actually moves anything — see clockSync.js for the five gates and what each `reason` means.
+    if (pathname === '/api/clock' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req)
+      const r = await clockSync.setFromConsole(body && body.epochMs)
+      return sendJson(res, r.ok ? 200 : 400, r)
+    }
     // GET /api/game — what the New / Continue / Delete / Clock menu needs for the active sport.
     if (pathname === '/api/game' && req.method === 'GET') {
       return sendJson(res, 200, { sport: activeSport(), saved: resume.summary(activeSport()) })
     }
-    // POST /api/game { choice: 'new' | 'continue' | 'delete' | 'clock' }
+    // POST /api/game { choice: 'new' | 'continue' | 'delete' | 'clock', teams? }
     if (pathname === '/api/game' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const choice = body && body.choice
       const sport = activeSport()
 
-      // Housekeeping only — the board keeps showing whatever it was showing.
+      // Delete the saved game. When the board is still showing that game — or nothing has been
+      // done since boot / Continue — the panel is cleared too: a fresh 0-0 with no names, and the
+      // wall clock held on the panel. Deleting only the file left the deleted match on the wall,
+      // which reads to the volunteer as "Delete did nothing". A board showing some OTHER match
+      // (a finished one whose slot is already gone, a linked LAN match) is left alone.
       if (choice === 'delete') {
+        const saved = resume.get(sport)
+        const manual = sourceManager.status.mode !== 'lan'
+        const live = manualSource ? manualSource.getState() : null
+        const showingSaved = !!(saved && live && sameBoard(saved, live))
+        const clears = !!manualSource && manual && (showingSaved || !touchedSinceStart)
         resume.clear(sport)
-        return sendJson(res, 200, { ok: true, saved: null, ...status() })
+        if (clears) {
+          if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
+          // Clock FIRST: pushState is held while idle is up, so the reset below never flashes a
+          // 0-0 scoreboard between the old match and the clock.
+          await holdClock()
+          sourceManager.setSource(manualSource, { mode: 'manual' })
+          manualSource.apply({ type: 'reset' })
+          clearUndo()
+          // Same as New: an abandoned match must not stay open in the log and swallow the next one.
+          if (keepsHistory()) try { history.record({ type: 'reset' }, manualSource.getState(), null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+          touchedSinceStart = false
+        }
+        clog.info(clears ? 'saved game deleted — board cleared to the clock' : 'saved game deleted — board left as it is', {
+          sport, hadSaved: !!saved, showingSaved, cleared: clears, ip: clientIp(req),
+        })
+        return sendJson(res, 200, { ok: true, saved: null, cleared: clears, ...status() })
       }
-      // "Just show the clock": park the panel on the idle screen without touching the score.
+      // "Just show the clock": park the panel on the clock without touching the score.
       if (choice === 'clock') {
-        if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true)
+        await holdClock()
         return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
       }
       if (choice === 'new' || choice === 'continue') {
         const saved = choice === 'continue' ? resume.get(sport) : null
         if (choice === 'continue' && !saved) return sendJson(res, 404, { error: 'no saved game for this sport' })
+        const teams = choice === 'new' ? cleanTeams(body && body.teams) : null
+        if (teams) return startScheduledGame(res, req, sport, teams)
         // Lift idle FIRST: pushState is deliberately suppressed while an idle screen is up, so
         // restoring the state before this would leave the crest on the panel and the scoreboard
         // unpainted until the next point.
@@ -668,8 +809,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
         sourceManager.setSource(manualSource, { mode: 'manual' })
         manualSource.apply(saved ? { type: 'set-state', state: saved } : { type: 'reset' })
+        clearUndo()
         // Starting fresh discards the old slot; it refills from the first point of the new match.
-        if (choice === 'new') resume.clear(sport)
+        // It also closes the match log's open buffer. The log only starts a new match on a `reset`
+        // it is shown, and this reset never went through /api/action — so an abandoned match (a
+        // friendly stopped at 1-1) stayed open and the next match's rallies were appended to it,
+        // archived under the old match's date. Continue leaves the buffer alone: it is the same match.
+        if (choice === 'new') {
+          resume.clear(sport)
+          try { history.record({ type: 'reset' }, manualSource.getState(), null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+        }
+        touchedSinceStart = false
         return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
       }
       return sendJson(res, 400, { error: 'choice must be new, continue, delete or clock' })
@@ -698,6 +848,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         manualSource.apply({ type: 'swap' })
         ledbox._suppressPaint = false
         state = manualSource.getState()
+        persist({ type: 'swap' }, state, manualSource.lastEvent)
       }
       clog.info(`announcement: ${text}`, { text, ms, swap: !!body.swap, ip: clientIp(req) })
       const shown = ledbox && typeof ledbox.showMessage === 'function'
@@ -753,6 +904,18 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       setTimeout(() => { execFile('sudo', ['systemctl', 'poweroff'], () => {}) }, 700)
       return
     }
+    // POST /api/reboot — the same clean halt, then straight back up (~45 s). For a board that
+    // looks stuck, and for the firmware's in-memory layouts: it only re-reads the layout XMLs at
+    // start, so a label another sport blanked stays blank until the firmware restarts.
+    if (pathname === '/api/reboot' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      await readJson(req) // drain
+      clog.warn('restart requested — rebooting the board', { ip: clientIp(req) })
+      log.flush()
+      sendJson(res, 200, { ok: true })
+      setTimeout(() => { execFile('sudo', ['systemctl', 'reboot'], () => {}) }, 700)
+      return
+    }
 
     // ── /logs ────────────────────────────────────────────────────────────────
     // GET /api/logs?level=&scope=&q=&sinceId=&limit= — filtered slice of the ring buffer,
@@ -783,8 +946,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       })
-      // Catch up on what the client missed (a reconnect passes its last id), then stream.
-      for (const e of log.query({ level, scope, sinceId: p.get('sinceId') || undefined, limit: 200 })) {
+      // Send the headers NOW. writeHead only queues them, and on a quiet board nothing else is
+      // written until a log line or the 20s keep-alive — EventSource.onopen waits for them, so the
+      // /logs chip sat on "connecting…" while the stream was perfectly healthy.
+      res.write(': open\n\n')
+      // Catch up on what the client missed, then stream. An EventSource reconnecting on its own
+      // sends the last id it saw as Last-Event-ID, not as ?sinceId — without honouring it, every
+      // reconnect replayed the last 200 lines as if they were new. The header wins over the URL:
+      // both pages put ?sinceId in the URL, and an automatic reconnect reuses that stale URL, so
+      // the header is always the more recent of the two. A fresh page load sends no header.
+      const sinceId = req.headers['last-event-id'] || p.get('sinceId') || undefined
+      for (const e of log.query({ level, scope, sinceId, limit: 200 })) {
         res.write(`id: ${e.id}\ndata: ${JSON.stringify(e)}\n\n`)
       }
       const matches = (e) => {
@@ -799,7 +971,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Proxies and phones drop an idle connection; a comment frame every 20s keeps it up.
       const keepAlive = setInterval(() => { try { res.write(': keep-alive\n\n') } catch { /* ignore */ } }, 20000)
       if (keepAlive.unref) keepAlive.unref()
-      const done = () => { clearInterval(keepAlive); unsubscribe() }
+      streams.add(res)
+      const done = () => { clearInterval(keepAlive); unsubscribe(); streams.delete(res) }
       req.on('close', done)
       req.on('error', done)
       return
@@ -865,15 +1038,72 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     return sendJson(res, 404, { error: 'not found' })
   }
 
+  // New game with both teams already named — the console's "start from today's schedule", home on
+  // the left. The names go in BEFORE anything is painted: the reset and both team edits are applied
+  // with the paint held, so the hall never sees HOME / AWAY (or the previous match) in between,
+  // and the first frame is the new match at 0-0 under its own names. Persisted like any scoring
+  // action, so a power cut before the first rally still brings the names back.
+  async function startScheduledGame(res, req, sport, teams) {
+    const offMatch = ledbox && (ledbox._idle || (ledbox.currentLayout && ledbox.currentLayout !== ledbox.layout))
+    if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
+    if (ledbox) ledbox._suppressPaint = true
+    try {
+      sourceManager.setSource(manualSource, { mode: 'manual' })
+      manualSource.apply({ type: 'reset' })
+      for (const side of ['left', 'right']) {
+        const t = teams[side]
+        manualSource.apply({ type: 'team', side, name: t.name, short: t.short })
+      }
+    } finally {
+      if (ledbox) ledbox._suppressPaint = false
+    }
+    const state = manualSource.getState()
+    clearUndo()
+    resume.clear(sport)
+    try { history.record({ type: 'reset' }, state, null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+    try { resume.save(sport, state, nowStamp()) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
+    touchedSinceStart = false
+    // One paint, of the new state. Lifting idle repaints from the state the client now holds;
+    // already on the scoreboard, push it.
+    if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+    else if (ledbox && typeof ledbox.pushState === 'function') await Promise.resolve(ledbox.pushState(state)).catch(() => {})
+    clog.info(`new game from the schedule: ${teams.left.short || teams.left.name} v ${teams.right.short || teams.right.name}`, {
+      sport, left: teams.left, right: teams.right, ip: clientIp(req),
+    })
+    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+  }
+
   function status() {
     const { mode, matchId } = sourceManager.status
     return {
       mode, matchId,
       sport: settings ? settings.values.sport : 'volleyball',
       pinRequired: !!(settings && settings.values.scorerPin),
-      ledbox: { connected: ledbox.ready === true, host: ledbox.host, port: ledbox.port, layout: ledbox.currentLayout },
+      // So the console knows whether its clock is wanted. `synchronized:false` is the console's
+      // cue to offer one at unlock; `true` means NTP has it and the offer would be ignored anyway.
+      clock: clockSync.viewSync(),
+      ledbox: {
+        connected: ledbox.ready === true, host: ledbox.host, port: ledbox.port, layout: ledbox.currentLayout,
+        // What the idle screen is doing, so the console can show 'Show clock' as the active choice.
+        idle: !!ledbox._idle, clockHeld: !!(ledbox._idle && ledbox._clockHeld),
+      },
       state: sourceManager.getState(),
+      ...undoView(),
     }
+  }
+
+  // What the console's Undo button needs: whether there is anything to take back, and in words what
+  // it is. Only while the hand-scored source is the one on the board — linked to a LAN match, an
+  // undo would silently repaint a different score than the one the hall is watching.
+  function undoView() {
+    const live = sourceManager.status.mode === 'manual' && manualSource && manualSource.canUndo === true
+    return { canUndo: !!live, undoLabel: live ? String(manualSource.undoLabel || '') : '' }
+  }
+
+  // A fresh match on the board: nothing before it is undoable, in the source or in the log.
+  function clearUndo() {
+    if (manualSource && typeof manualSource.clearUndo === 'function') manualSource.clearUndo()
+    history.clearUndo()
   }
 
   // The exact SetSections payload the LedBox is showing right now, folded into a
@@ -962,10 +1192,20 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
     sourceManager.setSource(manualSource, { mode: 'manual' })
     manualSource.apply({ type: 'set-state', state: saved })
+    clearUndo()
+    touchedSinceStart = false
     clog.warn('restored the interrupted match after an unclean shutdown — press New if this is not the game in the room', {
       sport, teams: info && info.teams, points: info && info.points, sets: info && info.sets, updatedAt: info && info.updatedAt,
     })
     return info
+  }
+
+  // End every open log stream. Called by the appliance's close() before it closes the listeners,
+  // so an open /logs tab can't hold the shutdown; the browser's EventSource reconnects on its own
+  // once the new process is up.
+  server.closeStreams = () => {
+    for (const res of streams) { try { res.end() } catch { /* already gone */ } }
+    streams.clear()
   }
 
   return server
@@ -1036,6 +1276,31 @@ function scrubColors(action, onDrop) {
       if (v != null && !HEX_COLOR.test(String(v))) { onDrop(String(v)); delete action.state[k] }
     }
   }
+}
+
+// `teams` from POST /api/game { choice:'new', teams:{ left:{name,short}, right:{name,short} } },
+// clamped the way every other operator-typed string bound for the panel is (see /api/result):
+// printable ASCII plus the accented Latin-1 letters the panel font carries. null when the body
+// names no team at all, which keeps the plain New exactly as it was.
+function cleanTeams(teams) {
+  if (!teams || typeof teams !== 'object') return null
+  const line = (v, max) => String(v == null ? '' : v).replace(/[^\x20-\x7EÀ-ÿ]/g, '').replace(/\s+/g, ' ').trim().slice(0, max)
+  const side = (t) => ({ name: line(t && t.name, 40), short: line(t && t.short, 12) })
+  const out = { left: side(teams.left), right: side(teams.right) }
+  const any = (t) => t.name || t.short
+  return any(out.left) || any(out.right) ? out : null
+}
+
+// Is the live board the same game as the saved slot? Compared by what the hall sees, key-order
+// independent: the slot is a JSON round-trip of an earlier getState(), so reference or
+// string equality of the objects would never hold.
+function sameBoard(a, b) {
+  const stable = (v) => (Array.isArray(v)
+    ? `[${v.map(stable).join(',')}]`
+    : v && typeof v === 'object'
+      ? `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
+      : JSON.stringify(v))
+  return stable(a) === stable(b)
 }
 
 // A relay-supplied match id, clamped to something that can only ever be an id.

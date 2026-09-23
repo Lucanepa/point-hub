@@ -29,6 +29,11 @@ const text = (name, value, color) =>
   color ? [attr(name, 'text', value), attr(name, 'color', color)] : [attr(name, 'text', value)]
 const rect = (name, color) => [attr(name, 'color', color)]
 const box = (name, color) => [attr(name, 'color', '0,0,0'), attr(name, 'bordercolor', color)]
+// This layout's static captions: `lbl_foul` "F" and `lbl_to` "T" beside the two counter rows
+// (layouts/41_*.xml). Re-asserted on every paint for the reason given at LAYOUT_LABELS in
+// volleyballMapper.js — the firmware keeps section values in memory, so the layout file's text is
+// only a starting value.
+const BASKETBALL_LABELS = [attr('lbl_foul', 'text', 'F'), attr('lbl_to', 'text', 'T')]
 
 // Basketball counter / cue colours (self-contained, like the beach mapper).
 export const BASKETBALL_TIMEOUTS_TOTAL = BASKETBALL.teamTimeoutsTotal
@@ -76,9 +81,30 @@ export function toBasketballSections(state, { off = SERVE_OFF, totalTimeouts = B
     // Timeouts (T row) — red once the configured game total is used.
     ...text('timeout1', v.leftTimeouts, toColor(v.leftTimeouts)),
     ...text('timeout2', v.rightTimeouts, toColor(v.rightTimeouts)),
+    ...BASKETBALL_LABELS,
     // Possession (alternating-possession arrow): light the bar under the side that has it.
     ...rect('serve1', v.serving === 'left' ? v.leftColor : off),
     ...rect('serve2', v.serving === 'right' ? v.rightColor : off),
+  ]
+}
+
+// Pre-match screen on the basketball_matchscore layout itself — what showIdle falls back to when
+// the board has no kscw_idle/kscw_crest. The indoor toIdleSections cannot be reused here: it
+// writes set1/set2/sub1/sub2/vs, none of which this layout has, and the board aborts the whole
+// write on the first unknown section (code 6), so the fallback never painted. The two names,
+// everything else blanked; there is no "VS" section on this layout to borrow.
+export function toBasketballIdleSections(state, { off = SERVE_OFF } = {}) {
+  const v = state ? toLeftRight(state) : null
+  return [
+    ...text('team1', v?.leftName || 'HOME', v?.leftColor),
+    ...text('team2', v?.rightName || 'AWAY', v?.rightColor),
+    ...text('score1', '', v?.leftColor),
+    ...text('score2', '', v?.rightColor),
+    ...text('period', ''),
+    ...text('foul1', ''), ...text('foul2', ''),
+    ...text('bonus1', '', BONUS_DIM), ...text('bonus2', '', BONUS_DIM),
+    ...text('timeout1', ''), ...text('timeout2', ''),
+    ...rect('serve1', off), ...rect('serve2', off),
   ]
 }
 
@@ -142,6 +168,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ok(secOf(secs, 'serve1', 'color').value.value === SERVE_OFF, 'possession bar off on the left')
     ok(!names(secs).has('sub1') && !names(secs).has('sub2'), 'no volleyball sub sections emitted')
     ok(!names(secs).has('set1') && !names(secs).has('set2'), 'no volleyball set-line sections emitted')
+  }
+
+  // Idle fallback: only sections the basketball match screen itself paints, names kept, rest blank.
+  {
+    const match = names(toBasketballSections(base))
+    const idle = toBasketballIdleSections(base)
+    ok([...names(idle)].every((n) => match.has(n)), 'idle writes no section the basketball layout lacks')
+    ok(secOf(idle, 'team2', 'text').value.value === 'BOS' && secOf(idle, 'period', 'text').value.value === '',
+      'idle keeps the names and blanks the period')
   }
 
   console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

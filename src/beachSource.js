@@ -23,6 +23,7 @@
 
 import { EventEmitter } from 'node:events'
 import { formatRules } from './settings.js'
+import { UndoJournal, undoLabel } from './manualSource.js'
 
 // Beach rule constants — the only knobs that differ from the indoor model. bestOf/setsToWin are
 // the DEFAULT format only: the operator can pick one in Settings ▸ Match format, so the live
@@ -51,6 +52,7 @@ const NEUTRAL = {
   timeouts_a: 0, timeouts_b: 0, subs_a: 0, subs_b: 0, // subs unused in beach; kept for shape parity
   serving_team: 'left',
   server_a: 1, server_b: 1, served_a: true, served_b: false,
+  ends_swapped: false,
 }
 
 const clamp0 = (n) => (n < 0 ? 0 : n)
@@ -60,7 +62,9 @@ const player = (v) => (Number(v) === 2 ? 2 : 1) // coerce a serve-player field t
 export class BeachSource extends EventEmitter {
   constructor(opts = {}) {
     super()
-    this.lastEvent = null // transient: notable event from the last apply() (set-end / match-end / switch-due / tech-timeout)
+    this.lastEvent = null // transient: notable event from the last apply() (set-end / match-end / switch-due / tech-timeout / set-closed / undo)
+    this.lastJournaled = false // transient: did the last apply() add an undo step? (see manualSource)
+    this.journal = new UndoJournal()
     this.bestOf = BEACH.bestOf
     this.setFormat(opts)
     this._fromLiveState(NEUTRAL)
@@ -91,6 +95,20 @@ export class BeachSource extends EventEmitter {
     return this._rules().deciding
   }
 
+  // The rules the set ON THE BOARD was played under. Normally that is _rules(), but once the set
+  // has been awarded the tally already counts it — and after the deciding set that tally (2-1)
+  // no longer reads as a deciding set, so the target jumped back to 21. The "−" that takes back a
+  // mis-tapped match point then saw 14-13 as never having won "to 21", left the
+  // set and the match standing, and the only way out was retyping the whole board.
+  _boardRules() {
+    const last = this.setClosed && this.results[this.results.length - 1]
+    if (!last) return this._rules()
+    const leftWon = last.left > last.right
+    return formatRules(this.bestOf, clamp0(this.m.leftSets - (leftWon ? 1 : 0)), clamp0(this.m.rightSets - (leftWon ? 0 : 1)), {
+      normal: BEACH.targetNormal, deciding: BEACH.targetDeciding,
+    })
+  }
+
   _target() {
     return this._rules().target
   }
@@ -103,6 +121,12 @@ export class BeachSource extends EventEmitter {
   _fromLiveState(s) {
     const isALeft = (s.side_a || 'left') === 'left'
     const pick = (a, b) => (isALeft ? a : b)
+    // Completed-set final scores, per physical side (swapped on _swap()). Built BEFORE `this.m` is replaced
+    // and from objects only, as in manualSource: one null entry used to throw on `r.a` after the
+    // model had already changed, leaving the source half-loaded and out of step with the board.
+    const results = (Array.isArray(s.set_results) ? s.set_results : [])
+      .filter((r) => r && typeof r === 'object')
+      .map((r) => ({ left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)) }))
     this.m = {
       leftName: pick(s.team_a_name, s.team_b_name) ?? '',
       leftShort: pick(s.team_a_short, s.team_b_short) ?? '',
@@ -117,6 +141,9 @@ export class BeachSource extends EventEmitter {
       leftTO: num(pick(s.timeouts_a, s.timeouts_b)),
       rightTO: num(pick(s.timeouts_b, s.timeouts_a)),
       serving: s.serving_team ?? null, // already 'left' | 'right' | null
+      // Odd number of changes of ends since the match began (see manualSource) — the history's
+      // key to which TEAM is on which side. Kept from the model when a set-state doesn't carry it.
+      endsSwapped: s.ends_swapped != null ? !!s.ends_swapped : !!(this.m && this.m.endsSwapped),
       // Serve player (1|2) per pair, honouring side_a like every other field.
       leftServer: player(pick(s.server_a, s.server_b)),
       rightServer: player(pick(s.server_b, s.server_a)),
@@ -126,10 +153,7 @@ export class BeachSource extends EventEmitter {
     const servedGiven = s.served_a != null || s.served_b != null
     this.m.leftServed = servedGiven ? !!pick(s.served_a, s.served_b) : this.m.serving === 'left'
     this.m.rightServed = servedGiven ? !!pick(s.served_b, s.served_a) : this.m.serving === 'right'
-    // Completed-set final scores, stored per physical side (swapped on _swap()).
-    this.results = (Array.isArray(s.set_results) ? s.set_results : []).map((r) => ({
-      left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)),
-    }))
+    this.results = results
     this._syncClosed()
   }
 
@@ -144,6 +168,49 @@ export class BeachSource extends EventEmitter {
     const lastSet = this.results[this.results.length - 1]
     this.setClosed = !!lastSet && (lastSet.left > 0 || lastSet.right > 0) &&
       lastSet.left === this.m.leftPoints && lastSet.right === this.m.rightPoints
+  }
+
+  // Undo — the same journal and the same rules as manualSource (see UndoJournal there).
+  _snap() {
+    return JSON.stringify({ m: this.m, results: this.results, setClosed: this.setClosed })
+  }
+
+  _restore(snap) {
+    const s = JSON.parse(snap)
+    this.m = s.m
+    this.results = s.results
+    this.setClosed = !!s.setClosed
+  }
+
+  get canUndo() { return this.journal.canUndo }
+  get undoLabel() { return this.journal.label }
+  clearUndo() { this.journal.clear() }
+
+  _undo() {
+    const step = this.journal.pop()
+    this.lastJournaled = false
+    if (!step) { this.lastEvent = 'undo-empty'; return }
+    this._restore(step.snap)
+    this.lastEvent = 'undo'
+    this.emit('state', this.getState())
+  }
+
+  // The winning pair's + on a set that is already over (see manualSource._setClosedFor). Matters
+  // more here than indoors: the stray tap would ALSO flip that pair's server and serve flags.
+  _setClosedFor(side) {
+    const last = this._closedWinner()
+    return !!last && last.side === side &&
+      // Only while the board still HOLDS the closing score. A loser's + correction then the
+      // winner's − (25-23 → 25-24 → 24-24) left setClosed true, and refusing on the flag alone
+      // locked the winner out of scoring for the rest of the set.
+      this.m.leftPoints === last.left && this.m.rightPoints === last.right
+  }
+
+  // The last recorded set and who won it, while this set is still counted as closed.
+  _closedWinner() {
+    const last = this.setClosed && this.results[this.results.length - 1]
+    if (!last || last.left === last.right) return null
+    return { ...last, side: last.left > last.right ? 'left' : 'right' }
   }
 
   // Project the left/right model back to the a/b liveState contract (a=left). subs are
@@ -166,19 +233,29 @@ export class BeachSource extends EventEmitter {
       server_a: m.leftServer, server_b: m.rightServer,
       served_a: m.leftServed, served_b: m.rightServed,
       serve_player: m.serving === 'left' ? m.leftServer : m.serving === 'right' ? m.rightServer : 0,
+      ends_swapped: m.endsSwapped, // see manualSource.getState()
       set_results: this.results.map((r) => ({ a: r.left, b: r.right })),
     }
   }
 
   apply(action = {}) {
+    if (action && action.type === 'undo') return this._undo()
     const m = this.m
     this.lastEvent = null
+    this.lastJournaled = false
+    const snap = this._snap()
+    const label = undoLabel(action, m)
     const key = (base, side) => (side === 'right' ? 'right' : 'left') + base
     switch (action.type) {
       case 'point': {
         const side = action.side === 'right' ? 'right' : 'left'
         const other = side === 'left' ? 'right' : 'left'
         const before = m[side + 'Points']
+        // Refused before the serve tracking below touches anything, with no state event.
+        if (action.value == null && Number(action.delta) > 0 && this._setClosedFor(side)) {
+          this.lastEvent = 'set-closed'
+          return
+        }
         // An absolute set (an operator correction typed in) just sets the number — no serve
         // change, no set/switch/tech detection. Only a +delta drives the rally rules below. It DOES
         // re-derive setClosed, though: every score on the console is a tap-to-edit field, so
@@ -199,7 +276,7 @@ export class BeachSource extends EventEmitter {
         const d = Number(action.delta) || 0
         const wasServing = m.serving // who served this rally — needed to detect a side-out
         m[side + 'Points'] = clamp0(before + d)
-        const { toWin, target } = this._rules()
+        const { toWin, target } = this._boardRules()
         // Evaluated against the OTHER side's (unchanged) score, so the same predicate answers both
         // "was the set won before this tap" and "is it won after it" — that symmetry is what makes
         // the minus button able to undo a set instead of only moving the points.
@@ -245,7 +322,10 @@ export class BeachSource extends EventEmitter {
               this.lastEvent = 'switch-due'
             }
           }
-        } else if (d < 0 && this.setClosed && wonBefore && !wonNow) {
+        } else if (d < 0 && !wonNow && this._closedWinner()?.side === side) {
+          // Keyed on the recorded WINNER, not on "was a win before this tap": that also catches
+          // 25-24 → 24-24 after a loser's correction (the set stayed awarded at a tie), and stops
+          // the loser's − at 25-27 → 25-26 popping a set the loser never had.
           // Walking the score back below the winning condition IS the undo of the set that score
           // awarded. Without this the "−" only moved the points: a mis-tapped 21-19 left the set
           // counted and its pill in the strip, and then the REAL 21-19 a rally later counted it a
@@ -342,6 +422,7 @@ export class BeachSource extends EventEmitter {
       default:
         return // unknown action (incl. indoor-only 'sub'): no-op
     }
+    this.lastJournaled = this.journal.record(snap, this._snap(), label)
     this.emit('state', this.getState())
   }
 
@@ -361,6 +442,7 @@ export class BeachSource extends EventEmitter {
     if (m.serving === 'left') m.serving = 'right'
     else if (m.serving === 'right') m.serving = 'left'
     for (const r of this.results) { const t = r.left; r.left = r.right; r.right = t }
+    m.endsSwapped = !m.endsSwapped
   }
 
   start() {} // no-op; present for the uniform Source interface
@@ -595,6 +677,31 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     let s = null
     try { s = new BeachSource(null) } catch { threw = true }
     ok(!threw && s !== null && s.bestOf === 3, 'new BeachSource(null) constructs at the beach default (best-of-3)')
+  }
+
+  // Double-tap at set point: the winning pair's second + is refused — score, sets AND the serve
+  // player stay exactly as the set ended. The losing pair's + remains a correction.
+  {
+    const s = mk()
+    for (let i = 0; i < 21; i++) pt(s, 'left') // 21-0
+    ok(s.lastEvent === 'set-end', 'set ends at 21-0')
+    const before = JSON.stringify(s.getState())
+    ok(pt(s, 'left') === 'set-closed', "the winner's second tap is refused as set-closed")
+    ok(JSON.stringify(s.getState()) === before, 'and nothing on the board moved (serve player included)')
+    pt(s, 'right')
+    ok(s.getState().points_b === 1, "the losing pair's + still counts")
+  }
+
+  // Undo reverses a serve-order declaration and a point with its serve-player flip.
+  {
+    const s = mk()
+    s.apply({ type: 'serve-order', first: 'left', leftServer: 1, rightServer: 2 })
+    pt(s, 'right') // side-out: right's first serve keeps its declared player
+    pt(s, 'left') // side-out back: left flips 1 -> 2
+    ok(s.getState().server_a === 2, 'left flipped to player 2 on winning the serve back')
+    s.apply({ type: 'undo' })
+    ok(s.lastEvent === 'undo' && s.getState().server_a === 1 && s.getState().serving_team === 'right', 'undo restores the server and the serve')
+    ok(s.undoLabel === 'Point B/B', 'the next undo is labelled with the pair')
   }
 
   console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

@@ -1,5 +1,8 @@
 .env
 node_modules/
+# Python bytecode from running the firmware tools (gen_qr.py, render_samples.py, ...).
+__pycache__/
+*.pyc
 settings.json
 
 # vendor firmware zip (18MB) — see firmware/RECOVERY.md for the URL

@@ -22,6 +22,15 @@ EnvironmentFile=-/home/pi/ledbox-bridge/.env
 ExecStart=/opt/nodejs/bin/node src/appliance.js
 Restart=always
 RestartSec=5
+# A clean stop takes milliseconds, and the appliance bounds its own shutdown at 5s. The default
+# 90s is what a stuck stop used to cost: a sport switch, a deploy or a poweroff frozen for a minute
+# and a half with a stale panel, long enough for a volunteer to pull the plug on the SD card.
+# 15s leaves the appliance room to exit on its own and caps the damage if it somehow cannot.
+TimeoutStopSec=15
+# The default KillMode=control-group stays, on purpose: stopping this unit takes down everything
+# it started. The LED panel driver is the one thing that must outlive a restart, so the appliance
+# launches it as its own transient unit (systemd-run, see PANEL_RESTART in src/controlServer.js)
+# rather than as a child — it is never in this cgroup to begin with.
 
 [Install]
 WantedBy=multi-user.target

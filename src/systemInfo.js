@@ -55,10 +55,18 @@ export function parseThrottled(raw) {
   return { raw: String(raw), value: v, ok: v === 0, ...flags }
 }
 
+// The thermal zone reports millidegrees. read() turns a missing or unreadable file into '', and
+// Number('') is 0 — finite — so a board that cannot report its temperature showed a healthy 0 °C.
+// No reading is null, never a number.
+export function parseMilliC(raw) {
+  if (raw == null || String(raw).trim() === '') return null
+  const milli = Number(raw)
+  return Number.isFinite(milli) ? Math.round(milli / 100) / 10 : null
+}
+
 async function cpu() {
-  const milli = Number(await read('/sys/class/thermal/thermal_zone0/temp'))
   return {
-    tempC: Number.isFinite(milli) ? Math.round(milli / 100) / 10 : null,
+    tempC: parseMilliC(await read('/sys/class/thermal/thermal_zone0/temp')),
     load: os.loadavg().map((n) => Math.round(n * 100) / 100),
     cores: os.cpus().length,
     throttle: parseThrottled(await read('/sys/devices/platform/soc/soc:firmware/get_throttled')),

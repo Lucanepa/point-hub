@@ -11,7 +11,7 @@ The appliance runs **on the board itself** under systemd — see Key addresses b
 `openvolley` Pi is no longer in the path and must not run it.
 
 `firmware/openscore/` is the clean-room replacement renderer, already versioned
-**`openscore-1.0.0`** (`openscore.py:671`). It is **not deployed** — swapping it in is a separate,
+**`openscore-1.0.0`** (`build_config()` in `openscore.py`). It is **not deployed** — swapping it in is a separate,
 deliberate change, and this line is what should be updated on the day it happens.
 
 **Cold boot: ~45 s** from mains to the crest+QR idle screen — measured on the real board,
@@ -42,11 +42,15 @@ Verified on the real panel:
 - **VS pre-match screen** — team names + "VS", scores blanked. (Basic; the good version is the
   logo screen below.)
 - **Settings page** (persisted on the Pi, survives restart): blink on/off + length, countdown
-  on/off + lengths, horn on/off, best-of 3/5, club name.
+  on/off + lengths, horn on/off, best-of 3/5 (the scoring engine follows it — from boot and on
+  save, not only the header), club name, scorer PIN (digits only, 1–8: a malformed PIN is
+  refused with a message and never clears the lock; removing it is its own action).
 
 ## Working in the appliance / infra
 
-- **Control UI** — landscape-first phone page; game / link / settings tabs; full-screen.
+- **Control UI** — phone/tablet page, landscape or portrait (stacked teams); game / link /
+  settings tabs; full-screen; general Undo of the last action; a write that does not reach the
+  board is marked "Not sent" on the control that was tapped.
 - **Board auto-discovery** — finds the board on its Wi-Fi (`172.24.1.1`) or the cable
   (`192.168.5.1`), whichever answers; fails over in ~8s.
 - **systemd** — `ledbox-bridge.service` enabled; survives reboot; no MOCK in the unit.

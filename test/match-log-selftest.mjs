@@ -118,12 +118,12 @@ console.log('\n[5] the turning points still land, and the match still archives')
   const types = m.events.map((e) => e.type)
   eq(types.filter((t) => t === 'set-end').length, 3, 'three set ends on the record')
   ok(types.includes('match-end'), 'and the match end')
-  // Set scores are stored per PHYSICAL side and travel with the change of ends, so the winner is
-  // the left-hand number in the sets it won on the left and the right-hand one in the others —
-  // which is exactly how the console renders them.
+  // The log records by TEAM, not by physical side (historyStore._view undoes the change of ends),
+  // so a team that wins every set reads as the left-hand number in every set end — including the
+  // ones it won standing on the right.
   const setEnds = m.events.filter((e) => e.type === 'set-end')
   eq(setEnds[0].score.join('–'), '25–0', "a set end carries THAT SET's final score, not the running one")
-  eq(setEnds[1].score.join('–'), '0–25', 'and stays in the board\'s orientation after the ends change')
+  eq(setEnds[1].score.join('–'), '25–0', 'and stays with the team that won it after the ends change')
   ok(m.events.indexOf(setEnds[2]) < m.events.findIndex((e) => e.type === 'match-end'),
     'the deciding set is closed BEFORE the match is — the log does not end mid-set')
 }

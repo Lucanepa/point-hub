@@ -74,7 +74,10 @@ Make openscore the `:8889` service; retire the vendor renderer.
 - ⬜ Back up the vendor `ledbox.py` + start scripts **outside** `layout/` (never leave a `.bak`
   inside `layout/` — the vendor scanner hangs on multi-dot filenames).
 - ⬜ Edit `bin/startledbox` to launch `python3 -u openscore.py` instead of `ledbox.py`; leave
-  `bin/startled` (flushBuffer2) untouched.
+  `bin/startled` (flushBuffer2) untouched. The watchdog already matches that command line and
+  openscore's heartbeat repaint keeps its staleness check happy — deploy an up-to-date
+  `ledbox-watchdog.sh` with it, as the older one only knows `ledbox.py` and would relaunch
+  openscore every ~55s.
 - ⬜ Restart via the watchdog / reboot; watch the panel through a full match rehearsal (idle →
   scoreboard → point blink → timeout countdown → set interval → horn → idle).
 - ⬜ Soak: confirm no port wedge across bridge reconnects/Pi reboots over a session.

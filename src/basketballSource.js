@@ -32,6 +32,7 @@
 // volleyball mapper's toLeftRight() resolves it identically.
 
 import { EventEmitter } from 'node:events'
+import { UndoJournal, undoLabel } from './manualSource.js'
 
 // Basketball rule constants — the knobs that differ from the indoor model (FIBA / Swiss
 // Basketball; see the design doc for sources). teamTimeoutsTotal is the club DEFAULT, exposed
@@ -59,6 +60,7 @@ const NEUTRAL = {
   timeouts_a: 0, timeouts_b: 0, subs_a: 0, subs_b: 0, // subs_a/b carry TEAM FOULS in basketball
   serving_team: null, // basketball: the possession arrow ('left'|'right'|null)
   period: 1, over: false,
+  ends_swapped: false,
 }
 
 const clamp0 = (n) => (n < 0 ? 0 : n)
@@ -67,7 +69,9 @@ const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
 export class BasketballSource extends EventEmitter {
   constructor() {
     super()
-    this.lastEvent = null // transient: notable event from the last apply() (bonus / period-end / game-end)
+    this.lastEvent = null // transient: notable event from the last apply() (bonus / period-end / game-end / set-closed / undo)
+    this.lastJournaled = false // transient: did the last apply() add an undo step? (see manualSource)
+    this.journal = new UndoJournal()
     this._fromLiveState(NEUTRAL)
   }
 
@@ -75,6 +79,12 @@ export class BasketballSource extends EventEmitter {
   _fromLiveState(s) {
     const isALeft = (s.side_a || 'left') === 'left'
     const pick = (a, b) => (isALeft ? a : b)
+    // Per-physical-side result snapshots (swapped on _swap()). Built BEFORE `this.m` is replaced
+    // and from objects only, as in manualSource: one null entry used to throw on `r.a` after the
+    // model had already changed, leaving the source half-loaded and out of step with the board.
+    const results = (Array.isArray(s.set_results) ? s.set_results : [])
+      .filter((r) => r && typeof r === 'object')
+      .map((r) => ({ left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)) }))
     this.m = {
       leftName: pick(s.team_a_name, s.team_b_name) ?? '',
       leftShort: pick(s.team_a_short, s.team_b_short) ?? '',
@@ -92,12 +102,37 @@ export class BasketballSource extends EventEmitter {
       period: Math.max(1, num(s.period) || 1),
       over: !!s.over,
       serving: s.serving_team ?? null, // the possession arrow: 'left' | 'right' | null
+      // Odd number of changes of ends since the match began (see manualSource) — the history's
+      // key to which TEAM is on which side. Kept from the model when a set-state doesn't carry it.
+      endsSwapped: s.ends_swapped != null ? !!s.ends_swapped : !!(this.m && this.m.endsSwapped),
     }
     // Per-period cumulative score snapshots (the line score), stored per physical side so a
     // swap keeps them side-correct. The basketball analogue of volleyball's set_results.
-    this.results = (Array.isArray(s.set_results) ? s.set_results : []).map((r) => ({
-      left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)),
-    }))
+    this.results = results
+  }
+
+  // Undo — the same journal and the same rules as manualSource (see UndoJournal there).
+  _snap() {
+    return JSON.stringify({ m: this.m, results: this.results })
+  }
+
+  _restore(snap) {
+    const s = JSON.parse(snap)
+    this.m = s.m
+    this.results = s.results
+  }
+
+  get canUndo() { return this.journal.canUndo }
+  get undoLabel() { return this.journal.label }
+  clearUndo() { this.journal.clear() }
+
+  _undo() {
+    const step = this.journal.pop()
+    this.lastJournaled = false
+    if (!step) { this.lastEvent = 'undo-empty'; return }
+    this._restore(step.snap)
+    this.lastEvent = 'undo'
+    this.emit('state', this.getState())
   }
 
   // Project the left/right model back to the a/b liveState contract (a=left). subs_a/b carry
@@ -116,17 +151,33 @@ export class BasketballSource extends EventEmitter {
       subs_a: m.leftFoul, subs_b: m.rightFoul,
       serving_team: m.serving,
       period: m.period, over: m.over,
+      ends_swapped: m.endsSwapped, // see manualSource.getState()
       set_results: this.results.map((r) => ({ a: r.left, b: r.right })),
     }
   }
 
   apply(action = {}) {
+    if (action && action.type === 'undo') return this._undo()
     const m = this.m
     this.lastEvent = null
+    this.lastJournaled = false
+    const snap = this._snap()
+    const label = undoLabel(action, m, { sub: 'Foul', set: 'Period', 'next-set': 'End period', 'remove-set': 'Remove period' })
     const key = (base, side) => (side === 'right' ? 'right' : 'left') + base
     switch (action.type) {
       case 'point': {
         const side = action.side === 'right' ? 'right' : 'left'
+        // Basketball has no score that ends anything — the game ends on the operator's "End
+        // period", which sits behind a confirm, so volleyball's double-tap-at-set-point cannot
+        // happen. The nearest thing is a stray + for the WINNER after the final whistle, which
+        // would quietly rewrite a result already on the result screen and in the history; that
+        // is refused the same way. The trailing side's + stays open (a basket the table missed
+        // before ending the game is a correction), as does every − and a typed score.
+        if (m.over && action.value == null && Number(action.delta) > 0 && m.leftPoints !== m.rightPoints &&
+            (m.leftPoints > m.rightPoints ? 'left' : 'right') === side) {
+          this.lastEvent = 'set-closed'
+          return
+        }
         // An absolute set (an operator correction typed in) just sets the number — no events.
         // Only a +delta scores a basket. delta is +1/+2/+3 (free throw / field goal / three),
         // or a negative correction; the running score is cumulative and never resets per period.
@@ -221,6 +272,7 @@ export class BasketballSource extends EventEmitter {
       default:
         return // unknown action: no-op (server validates before calling)
     }
+    this.lastJournaled = this.journal.record(snap, this._snap(), label)
     this.emit('state', this.getState())
   }
 
@@ -238,6 +290,7 @@ export class BasketballSource extends EventEmitter {
     if (m.serving === 'left') m.serving = 'right'
     else if (m.serving === 'right') m.serving = 'left'
     for (const r of this.results) { const t = r.left; r.left = r.right; r.right = t }
+    m.endsSwapped = !m.endsSwapped
   }
 
   start() {} // no-op; present for the uniform Source interface
@@ -384,6 +437,29 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ok(st.sets_won_a === 0 && st.sets_won_b === 0, 'sets_won emitted as 0 for shape parity (no sets in basketball)')
     ok('subs_a' in st && 'timeouts_a' in st && 'serving_team' in st, 'full a/b contract shape emitted')
     ok('period' in st && 'over' in st, 'period and over ride along as extra scalars')
+  }
+
+  // After the final whistle the winner's + is refused; the trailing side's + is a correction.
+  {
+    const s = mk()
+    s.apply({ type: 'set', value: 4 })
+    score(s, 'left', 3)
+    s.apply({ type: 'next-set' }) // 3-0, game over
+    ok(score(s, 'left', 2) === 'set-closed' && s.getState().points_a === 3, "the winner's + after game-end is refused")
+    score(s, 'right', 2)
+    ok(s.getState().points_b === 2, "the trailing side's + still counts")
+  }
+
+  // Undo reverses an end of period, fouls included — the one thing remove-set cannot restore.
+  {
+    const s = mk()
+    foul(s, 'left'); foul(s, 'left')
+    s.apply({ type: 'next-set' })
+    ok(s.undoLabel === 'End period', 'undo is labelled End period')
+    s.apply({ type: 'undo' })
+    const st = s.getState()
+    ok(st.period === 1 && st.subs_a === 2 && st.set_results.length === 0, 'undo restores the period, the fouls and the line score')
+    ok(s.undoLabel === 'Foul HOME', 'and the next undo is the foul, by team')
   }
 
   console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

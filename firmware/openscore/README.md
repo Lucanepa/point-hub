@@ -90,7 +90,10 @@ just to confirm the wire protocol.
    `www/buffer.png` flushBuffer2 already polls). Try it first on a **spare port** alongside the
    vendor stack.
 3. Edit `bin/startledbox` to run `python3 -u openscore.py` instead of `ledbox.py`. Leave
-   `bin/startled` (flushBuffer2) untouched.
+   `bin/startled` (flushBuffer2) untouched. Keep that exact command line: the board watchdog
+   (`firmware/ledbox-watchdog.sh`) finds the app by `python3 -u (ledbox|openscore).py`, and
+   treats a `buffer.png` unchanged for 60s as a dead renderer — which openscore answers with
+   a 10s heartbeat repaint, so an idle crest is not mistaken for a frozen one.
 4. Restart via the watchdog (`sudo systemctl restart ledbox-watchdog`) or reboot; watch the panel.
 5. Calibrate fonts/positions in `layout/*.xml`, then retire `ledbox.py`.
 

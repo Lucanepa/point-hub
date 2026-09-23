@@ -5,9 +5,11 @@
 # spent six weeks in a cupboard renews on the first day it is back on the internet, rather than the
 # operator discovering an expired certificate at the start of a tournament.
 #
-# The appliance watches the cert files and swaps its secure context in place, so a renewal never
-# needs a service restart — deliberately, because restarting to pick up a certificate would blink
-# the scoreboard out mid-match.
+# The appliance watches /etc/ledbox-tls (the directory, because `tailscale cert` renames a new file
+# over the old one and a watch on the file itself dies with the old inode after the first renewal),
+# re-checks the files hourly as a backstop, and swaps its secure context in place, so a renewal
+# never needs a service restart — deliberately, because restarting to pick up a certificate would
+# blink the scoreboard out mid-match.
 #
 # The domain is DERIVED, never hardcoded: this repo is public and the tailnet name does not belong
 # in it. Same reasoning as the SSH alias in deploy-board.sh.

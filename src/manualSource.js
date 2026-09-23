@@ -15,10 +15,73 @@ const NEUTRAL = {
   points_a: 0, points_b: 0, sets_won_a: 0, sets_won_b: 0,
   timeouts_a: 0, timeouts_b: 0, subs_a: 0, subs_b: 0,
   serving_team: 'left',
+  ends_swapped: false,
 }
 
 const clamp0 = (n) => (n < 0 ? 0 : n)
 const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
+
+// Undo journal — shared by every scoring source (beach and basketball import it from here). A
+// bounded stack of whole-model snapshots taken BEFORE each state-changing action, so "Undo last
+// action" can take back any mistake — a swap, a serve change, a timeout, a sub, a next set —
+// instead of only the ones that have their own "−". Snapshots rather than inverse actions on
+// purpose: the rally rules have side effects (serve, set award, first server, beach server flips)
+// that an inverse would have to re-derive, and one missed side effect is a board that disagrees
+// with the hall after an undo. A snapshot is a few hundred bytes; 30 of them is nothing.
+export const UNDO_MAX = 30
+
+export class UndoJournal {
+  constructor(max = UNDO_MAX) {
+    this.max = max
+    this.stack = [] // [{ snap, label }] oldest-first
+  }
+
+  // Record `before` as the way back from the action just applied — unless the action changed
+  // nothing (a "−" at 0, a next-set on a finished game). A no-op on the stack would make the next
+  // undo look like it did nothing, and the scorer would tap it again and lose a real action.
+  record(before, after, label) {
+    if (before === after) return false
+    this.stack.push({ snap: before, label })
+    if (this.stack.length > this.max) this.stack.shift()
+    return true
+  }
+
+  pop() { return this.stack.pop() || null }
+  clear() { this.stack = [] }
+  get canUndo() { return this.stack.length > 0 }
+  get label() { return this.stack.length ? this.stack[this.stack.length - 1].label : '' }
+}
+
+// Short human text for what an undo would revert ("Point KSCW", "Switch sides"), shown on the
+// console's Undo button so the scorer knows WHAT they are about to take back before they tap it.
+// Worded from the model BEFORE the action, so a swap's label still names the team that scored.
+// `words` lets a sport rename the verbs it reuses (basketball: sub = foul, set = period).
+export function undoLabel(action, m, words = {}) {
+  const side = action.side === 'right' ? 'right' : action.side === 'left' ? 'left' : null
+  const team = side ? (m[side + 'Short'] || m[side + 'Name'] || side) : ''
+  const w = { point: 'Point', set: 'Sets', timeout: 'Timeout', sub: 'Sub', 'next-set': 'Next set', 'remove-set': 'Remove set', ...words }
+  const d = Number(action.delta)
+  const withTeam = (s) => (team ? `${s} ${team}` : s)
+  switch (action.type) {
+    case 'point':
+      if (action.value != null) return withTeam('Score edit')
+      if (d < 0) return withTeam(`${w.point} removed`)
+      return d > 1 ? withTeam(`+${d}`) : withTeam(w.point)
+    case 'set': return withTeam(w.set)
+    case 'timeout': return withTeam(w.timeout)
+    case 'sub': return withTeam(w.sub)
+    case 'serve': return withTeam('Serve')
+    case 'serve-order': return 'Serve order'
+    case 'serve-player': return 'Server'
+    case 'swap': return 'Switch sides'
+    case 'team': return withTeam('Team edit')
+    case 'next-set': return w['next-set']
+    case 'remove-set': return w['remove-set']
+    case 'reset': return 'Reset'
+    case 'set-state': return 'Board edit'
+    default: return String(action.type || '')
+  }
+}
 
 // Indoor volleyball is best-of-5 by default: 3 sets take the match, and the 5th is the deciding
 // set. The operator can pick best-of-3 (Settings ▸ Match format), so the numbers are NOT constants
@@ -32,7 +95,9 @@ const DECIDER_SWITCH_AT = 8
 export class ManualSource extends EventEmitter {
   constructor(opts = {}) {
     super()
-    this.lastEvent = null // transient: the notable event from the last apply() (set-end / match-end / switch-due)
+    this.lastEvent = null // transient: the notable event from the last apply() (set-end / match-end / switch-due / set-closed / undo)
+    this.lastJournaled = false // transient: did the last apply() add an undo step? (the history keeps its own in step)
+    this.journal = new UndoJournal()
     this.bestOf = DEFAULT_BEST_OF
     this.setFormat(opts)
     this._fromLiveState(NEUTRAL)
@@ -62,10 +127,30 @@ export class ManualSource extends EventEmitter {
     return this._rules().deciding
   }
 
+  // The rules the set ON THE BOARD was played under. Normally that is _rules(), but once the set
+  // has been awarded the tally already counts it — and after the deciding set that tally (3-2, or
+  // 2-1) no longer reads as a deciding set, so the target jumped back to the normal one. The "−"
+  // that takes back a mis-tapped match point then saw 14-13 as never having won "to 25", left the
+  // set and the match standing, and the only way out was retyping the whole board.
+  _boardRules() {
+    const last = this.setClosed && this.results[this.results.length - 1]
+    if (!last) return this._rules()
+    const leftWon = last.left > last.right
+    return formatRules(this.bestOf, clamp0(this.m.leftSets - (leftWon ? 1 : 0)), clamp0(this.m.rightSets - (leftWon ? 0 : 1)))
+  }
+
   // Load the internal left/right model from an a/b liveState, honouring side_a.
   _fromLiveState(s) {
     const isALeft = (s.side_a || 'left') === 'left'
     const pick = (a, b) => (isALeft ? a : b)
+    // Completed-set final scores, stored per physical side (swapped on _swap()). Built FIRST and
+    // from objects only: this used to run after `this.m` was already replaced, so one null entry
+    // (a hand-edited resume.json, a malformed direct-entry POST) threw on `r.a` with the new
+    // points on the model and the old sets strip still beside them — no state event, a 500, and a
+    // source that no longer matched the board until the next action.
+    const results = (Array.isArray(s.set_results) ? s.set_results : [])
+      .filter((r) => r && typeof r === 'object')
+      .map((r) => ({ left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)) }))
     this.m = {
       leftName: pick(s.team_a_name, s.team_b_name) ?? '',
       leftShort: pick(s.team_a_short, s.team_b_short) ?? '',
@@ -82,11 +167,12 @@ export class ManualSource extends EventEmitter {
       leftSub: num(pick(s.subs_a, s.subs_b)),
       rightSub: num(pick(s.subs_b, s.subs_a)),
       serving: s.serving_team ?? null, // already 'left' | 'right' | null
+      // Have the teams changed ends an odd number of times since the match began? Physical, like
+      // every other field here, so it does not care about side_a. Taken from the state when it
+      // carries it (the resume slot does); a state that doesn't say keeps what we had.
+      endsSwapped: s.ends_swapped != null ? !!s.ends_swapped : !!(this.m && this.m.endsSwapped),
     }
-    // Completed-set final scores, stored per physical side (swapped on _swap()).
-    this.results = (Array.isArray(s.set_results) ? s.set_results : []).map((r) => ({
-      left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)),
-    }))
+    this.results = results
     this._syncClosed()
     // Who served first in the set now on the board — only knowable at 0-0. Mid-set we cannot tell,
     // so the alternation at the next set break falls back to leaving the arrow where it is.
@@ -106,6 +192,57 @@ export class ManualSource extends EventEmitter {
       lastSet.left === this.m.leftPoints && lastSet.right === this.m.rightPoints
   }
 
+  // The whole mutable model as one string: what the undo journal stores, and how it tells a real
+  // change from a no-op. bestOf is left out on purpose — it is a setting, not match state.
+  _snap() {
+    return JSON.stringify({ m: this.m, results: this.results, setClosed: this.setClosed })
+  }
+
+  _restore(snap) {
+    const s = JSON.parse(snap)
+    this.m = s.m
+    this.results = s.results
+    this.setClosed = !!s.setClosed
+  }
+
+  get canUndo() { return this.journal.canUndo }
+  get undoLabel() { return this.journal.label }
+  // A new game, a Continue or a boot-time resume starts a fresh journal: "undo" reaching back
+  // across it would resurrect a different match.
+  clearUndo() { this.journal.clear() }
+
+  // Take back the last state-changing action. 'undo-empty' (and no state event) when there is
+  // nothing left, so the console can say so instead of silently doing nothing.
+  _undo() {
+    const step = this.journal.pop()
+    this.lastJournaled = false
+    if (!step) { this.lastEvent = 'undo-empty'; return }
+    this._restore(step.snap)
+    this.lastEvent = 'undo'
+    this.emit('state', this.getState())
+  }
+
+  // Is this +1 on the side that already WON the set now showing? The SET ENDED card is not modal
+  // and the board holds the final score until the interval starts, so a second tap on the set point
+  // (a double-tap, or a scorer who didn't see the first one land) went to 26-10 on the phone AND
+  // the wall while the history said 25-10. The loser's + and every − stay open: those are how a
+  // mis-scored rally is corrected before the interval.
+  _setClosedFor(side) {
+    const last = this._closedWinner()
+    return !!last && last.side === side &&
+      // Only while the board still HOLDS the closing score. A loser's + correction then the
+      // winner's − (25-23 → 25-24 → 24-24) left setClosed true, and refusing on the flag alone
+      // locked the winner out of scoring for the rest of the set.
+      this.m.leftPoints === last.left && this.m.rightPoints === last.right
+  }
+
+  // The last recorded set and who won it, while this set is still counted as closed.
+  _closedWinner() {
+    const last = this.setClosed && this.results[this.results.length - 1]
+    if (!last || last.left === last.right) return null
+    return { ...last, side: last.left > last.right ? 'left' : 'right' }
+  }
+
   // Project the left/right model back to the a/b liveState contract (a=left).
   getState() {
     const m = this.m
@@ -118,19 +255,33 @@ export class ManualSource extends EventEmitter {
       timeouts_a: m.leftTO, timeouts_b: m.rightTO,
       subs_a: m.leftSub, subs_b: m.rightSub,
       serving_team: m.serving,
+      // Every other field says who is on which side NOW; this says whether that is the reverse of
+      // where they started. The match history needs it to keep crediting a point to the TEAM that
+      // scored it rather than to whoever happens to be standing on the left after a change of ends.
+      ends_swapped: m.endsSwapped,
       set_results: this.results.map((r) => ({ a: r.left, b: r.right })),
     }
   }
 
   apply(action = {}) {
+    if (action && action.type === 'undo') return this._undo()
     const m = this.m
     this.lastEvent = null
+    this.lastJournaled = false
+    const snap = this._snap()
+    const label = undoLabel(action, m)
     const key = (base, side) => (side === 'right' ? 'right' : 'left') + base
     switch (action.type) {
       case 'point': {
         const side = action.side === 'right' ? 'right' : 'left'
         const other = side === 'left' ? 'right' : 'left'
         const before = m[side + 'Points']
+        // Guarded before anything moves (serve included) and without a state event: the board is
+        // already showing the right thing.
+        if (action.value == null && Number(action.delta) > 0 && this._setClosedFor(side)) {
+          this.lastEvent = 'set-closed'
+          return
+        }
         // Absolute set (an operator correction typed in) just sets the number — no serve
         // change, no set-win detection. Only a +delta drives the rally rules below. It DOES
         // re-derive setClosed, though: every score on the console is a tap-to-edit field, so
@@ -151,7 +302,7 @@ export class ManualSource extends EventEmitter {
         const d = Number(action.delta) || 0
         const wasServing = m.serving // who served this rally — the set's first server is read off it
         m[side + 'Points'] = clamp0(before + d)
-        const { toWin, deciding, target } = this._rules() // deciding = the last set (5th of 5, 3rd of 3)
+        const { toWin, deciding, target } = this._boardRules() // deciding = the last set (5th of 5, 3rd of 3)
         // Evaluated against the OTHER side's (unchanged) score, so the same predicate answers both
         // "was the set won before this tap" and "is it won after it" — that symmetry is what makes
         // the minus button able to undo a set instead of only moving the points.
@@ -178,7 +329,10 @@ export class ManualSource extends EventEmitter {
             // does NOT swap — the UI confirms ("Switch sides?"), blinks COURT SWITCH, then sends `swap`.
             this.lastEvent = 'switch-due'
           }
-        } else if (d < 0 && this.setClosed && wonBefore && !wonNow) {
+        } else if (d < 0 && !wonNow && this._closedWinner()?.side === side) {
+          // Keyed on the recorded WINNER, not on "was a win before this tap": that also catches
+          // 25-24 → 24-24 after a loser's correction (the set stayed awarded at a tie), and stops
+          // the loser's − at 25-27 → 25-26 popping a set the loser never had.
           // Walking the score back below the winning condition IS the undo of the set that score
           // awarded. Without this the "−" only moved the points: a mis-tapped 25-23 left the set
           // counted and its pill in the strip, and then the REAL 25-23 a rally later counted it a
@@ -272,6 +426,7 @@ export class ManualSource extends EventEmitter {
       default:
         return // unknown action: no-op (server validates before calling)
     }
+    this.lastJournaled = this.journal.record(snap, this._snap(), label)
     this.emit('state', this.getState())
   }
 
@@ -290,6 +445,7 @@ export class ManualSource extends EventEmitter {
     if (m.firstServer === 'left') m.firstServer = 'right'
     else if (m.firstServer === 'right') m.firstServer = 'left'
     for (const r of this.results) { const t = r.left; r.left = r.right; r.right = t }
+    m.endsSwapped = !m.endsSwapped
   }
 
   start() {} // no-op; present for the uniform Source interface
@@ -518,6 +674,79 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const st = d.getState()
     ok(st.team_a_short === 'AAA', 'ends do NOT swap going into the deciding set')
     ok(st.serving_team === 'left', 'and the serve does NOT alternate into it either (coin toss)')
+  }
+
+  // The "−" must take back a mis-tapped MATCH point too. Once the deciding set is awarded the tally
+  // reads 3-2 — not a deciding set any more — and the undo used to judge 14-13 against 25.
+  {
+    const s = decider()
+    for (let i = 0; i < 13; i++) { pt(s, 'left'); pt(s, 'right') } // 13-13
+    pt(s, 'left') // 14-13
+    ok(pt(s, 'left') === 'match-end', 'the mis-tap ends the match at 15-13')
+    s.apply({ type: 'point', side: 'left', delta: -1 })
+    const st = s.getState()
+    ok(st.sets_won_a === 2 && st.set_results.length === 0 && st.points_a === 14, 'the "−" takes the deciding set back')
+    ok(pt(s, 'left') === 'match-end', 'and the real match point still ends the match')
+  }
+
+  // The double-tap at set point: 24-10, two quick "+" — the second must not make it 26-10.
+  {
+    const s = mk()
+    for (let i = 0; i < 10; i++) pt(s, 'right')
+    for (let i = 0; i < 24; i++) pt(s, 'left') // 24-10
+    ok(pt(s, 'left') === 'set-end', 'the first tap wins the set 25-10')
+    let emitted = 0
+    s.on('state', () => { emitted++ })
+    ok(pt(s, 'left') === 'set-closed', 'the second tap on the winner is refused as set-closed')
+    const st = s.getState()
+    ok(st.points_a === 25 && st.sets_won_a === 1 && st.set_results.length === 1, 'the board stays 25-10, one set')
+    ok(emitted === 0 && s.lastJournaled === false, 'a refused tap neither repaints nor adds an undo step')
+    ok(pt(s, 'right') !== 'set-closed' && s.getState().points_b === 11, "the loser's + is still a correction")
+    s.apply({ type: 'point', side: 'left', delta: -1 })
+    ok(s.getState().sets_won_a === 0 && s.getState().points_a === 24, "and the winner's − still takes the set back")
+  }
+
+  // General undo: every state-changing action is one step back, labelled for the console.
+  {
+    const s = mk()
+    s.apply({ type: 'team', side: 'left', short: 'KSCW' })
+    pt(s, 'left')
+    ok(s.canUndo && s.undoLabel === 'Point KSCW', 'undo offers the point just scored, by team')
+    s.apply({ type: 'swap' })
+    ok(s.undoLabel === 'Switch sides', 'a swap is labelled as such')
+    s.apply({ type: 'timeout', side: 'right', delta: 1 })
+    s.apply({ type: 'undo' })
+    ok(s.lastEvent === 'undo' && s.getState().timeouts_b === 0, 'undo takes the timeout back')
+    s.apply({ type: 'undo' })
+    ok(s.getState().team_a_short === 'KSCW' && s.getState().points_a === 1, 'the next undo reverses the swap')
+    s.apply({ type: 'point', side: 'left', delta: -1 }) // 0-0: a real change
+    s.apply({ type: 'point', side: 'left', delta: -1 }) // still 0-0: a no-op
+    ok(s.lastJournaled === false, 'a no-op action adds no undo step')
+    s.apply({ type: 'undo' })
+    ok(s.getState().points_a === 1, 'so one undo reverses the last REAL change')
+    // Undoing a set win restores the set, its pill and the closed flag exactly.
+    const t = mk()
+    for (let i = 0; i < 25; i++) pt(t, 'left')
+    t.apply({ type: 'next-set' })
+    t.apply({ type: 'undo' })
+    ok(t.getState().points_a === 25 && t.setClosed === true, 'undoing next-set brings back the finished set, still closed')
+    t.apply({ type: 'undo' })
+    ok(t.getState().sets_won_a === 0 && t.getState().points_a === 24 && t.setClosed === false, 'and undoing the set point reopens it')
+    // Bounded, and empty says so.
+    const u = mk()
+    for (let i = 0; i < 40; i++) u.apply({ type: 'timeout', side: 'left', delta: 1 })
+    ok(u.journal.stack.length === UNDO_MAX, 'the journal is bounded')
+    u.clearUndo()
+    let emitted = 0
+    u.on('state', () => { emitted++ })
+    u.apply({ type: 'undo' })
+    ok(u.lastEvent === 'undo-empty' && emitted === 0 && !u.canUndo, 'an empty journal answers undo-empty and changes nothing')
+    // Reset is undoable too — the most expensive mis-tap of all.
+    const r = mk()
+    pt(r, 'left'); pt(r, 'left')
+    r.apply({ type: 'reset' })
+    r.apply({ type: 'undo' })
+    ok(r.getState().points_a === 2, 'undo brings a reset match back')
   }
 
   // A null options blob must not take the source down at construction.

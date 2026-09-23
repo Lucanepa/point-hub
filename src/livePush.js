@@ -38,7 +38,23 @@ import { log as logStore } from './logStore.js'
 // of from a restart with a different env var. The token is redacted there by key name.
 const plog = logStore.child('livePush')
 
-const DEFAULTS = { channel: 'kscw', collection: 'live_scores', historyCollection: 'live_history', sport: 'volleyball', timeoutMs: 2000, debounceMs: 150, debug: false }
+const DEFAULTS = {
+  channel: 'kscw', collection: 'live_scores', historyCollection: 'live_history', sport: 'volleyball',
+  timeoutMs: 2000, debounceMs: 150,
+  // The history POST gets far longer than the live PATCH. A live write that times out is simply
+  // sent again (it overwrites one row), but an archive that times out may already be committed and
+  // is NOT sent again (see archive()) — so every abort there is a history row possibly lost, and a
+  // slow hall uplink or a 4G TLS handshake on armhf routinely needs more than 2 s. Above undici's
+  // own 10 s connect timeout on purpose: a connect that never completes then fails as a connect
+  // error, which IS known to be safe to repeat, instead of as our ambiguous abort.
+  archiveTimeoutMs: 12000,
+  // A failed write is retried with the LATEST state, doubling from retryBaseMs up to retryMaxMs,
+  // at most maxRetries times in a row; the next board change then starts a fresh round. Bounded
+  // so a dead Directus costs a handful of requests per rally, not a request loop. A board change
+  // during a backoff does not wait it out — it goes after the normal debounce (see push()).
+  retryBaseMs: 1000, retryMaxMs: 30000, maxRetries: 8,
+  debug: false,
+}
 
 const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
 
@@ -46,6 +62,15 @@ const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
 // constants so this can never drift from what the board actually scores.
 // Basketball has no set tally at all — it publishes its own `over` flag instead.
 const SETS_TO_WIN = { volleyball: 3, beach: BEACH.setsToWin }
+
+// Is the match on this board finished? From MATCH STATE only — see toRow() for why not the event.
+function isOver(state, sport) {
+  return sport === 'basketball'
+    ? !!state.over
+    : num(state.sets_won_a) >= SETS_TO_WIN[sport] || num(state.sets_won_b) >= SETS_TO_WIN[sport]
+}
+
+const otherSide = (s) => (s === 'left' ? 'right' : s === 'right' ? 'left' : s)
 
 // A neutral board (no names, no points, no completed sets) reads as 'idle' so the
 // app shows its empty state instead of a blank 0:0 scoreboard.
@@ -80,9 +105,13 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
   // rest of the process (see flush()).
   const setResults = (Array.isArray(state.set_results) ? state.set_results : [])
     .filter((r) => r && typeof r === 'object')
-  const over = isBasketball
-    ? !!state.over
-    : num(state.sets_won_a) >= SETS_TO_WIN[sport] || num(state.sets_won_b) >= SETS_TO_WIN[sport]
+  const over = isOver(state, sport)
+  // The board's own sources always report team A on the left, but a LINKED OpenVolley liveState
+  // keeps A as a fixed team and says where it stands in `side_a` ('right' in sets 2 and 4), with
+  // `serving_team` as the PHYSICAL side. The row below is always A-left (the app reads 'left' as
+  // team A), so serve/possession has to be re-projected onto A/B or the dot sits on the wrong team
+  // for every rally of an even set.
+  const aOnRight = state.side_a === 'right'
   const status = over || event === 'match-end' ? 'final' : isBlank(state) ? 'idle' : 'live'
 
   return {
@@ -92,8 +121,10 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
     ts: Date.now(),
     over,
     // Basketball publishes the real period (1..4 = Q1..Q4, 5+ = overtime). For
-    // volleyball/beach the app shows the set being played.
-    period: isBasketball ? num(state.period) : setResults.length + 1,
+    // volleyball/beach the app shows the set being played — counted from set_results where the
+    // source keeps them, else OpenVolley's 1-based `current_set` (a relay liveState carries no
+    // set_results at all, so counting alone pinned every linked match at "Set 1").
+    period: isBasketball ? num(state.period) : (setResults.length ? setResults.length + 1 : num(state.current_set) || 1),
     side_a: 'left',
     team_a_name: state.team_a_name ?? '',
     team_a_short: state.team_a_short ?? '',
@@ -114,7 +145,7 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
     fouls_b: isBasketball ? num(state.subs_b) : 0,
     // Volleyball/beach: who serves. Basketball: the possession arrow — the board
     // uses the same left/right field, and so does the app.
-    serving_team: state.serving_team ?? null,
+    serving_team: (aOnRight ? otherSide(state.serving_team) : state.serving_team) ?? null,
     set_results: setResults.map((r) => ({ a: num(r.a), b: num(r.b) })),
   }
 }
@@ -137,8 +168,13 @@ function isFresh(s) {
 // Who is playing. Not a match identity on its own — a club plays the same opponent twice in an
 // evening — but a CHANGE in it is proof the match changed, which is what the counter needs for the
 // flows that never pass through 0-0.
+// Order-independent on purpose: the manual sources report team A as whoever is on the LEFT, so a
+// change of ends (the Swap button, or next-set) exchanges team_a and team_b. Read in order, that
+// looked like two new teams, and a swap after the final started a new instance of the very match
+// that was just archived — one more permanent live_history row per press.
 function whoIsPlaying(s) {
-  return `${String(s.team_a_name || s.team_a_short || '')}|${String(s.team_b_name || s.team_b_short || '')}`
+  return [s.team_a_name || s.team_a_short || '', s.team_b_name || s.team_b_short || '']
+    .map(String).sort().join('|')
 }
 
 export function createLivePush(opts = {}) {
@@ -157,6 +193,7 @@ export function createLivePush(opts = {}) {
 
   let pending = null // latest { state, event } waiting to be flushed
   let timer = null
+  let backingOff = false // `timer` is a retry backoff, not the debounce of a new change
   let attached = null // { source, handler } when attach() is active
   let inFlight = false // a flush is running — never overlap writes to one row
   // Which match is on the board, as a plain counter bumped on every fresh→scored edge, and which
@@ -168,11 +205,25 @@ export function createLivePush(opts = {}) {
   // identity therefore loses matches AND duplicates them; a counter does neither.
   let matchInstance = 0
   let atMatchStart = true // the board is at 0 and the next point starts a NEW match
-  let archivedMatch = null // matchInstance already appended to history
+  // Instances already written to history. A set rather than "the last one" because a backlog can
+  // land out of order; pruned, since instances only grow and nothing old is ever asked about again.
+  const archived = new Set()
   let playing = null // who was on the board last time, so a change of teams can start an instance
+  // Finished matches whose history row has not been written yet, by instance — the LATEST final
+  // row of each. Separate from `pending` because a failed archive must survive the next match's
+  // first point replacing the live payload. Bounded: a history POST that keeps failing drops the
+  // oldest entry rather than growing without end.
+  const unarchived = new Map()
+  let failures = 0 // consecutive failed flushes, for the retry backoff
+  let generation = 0 // bumped by detach() so a flush already in flight does not re-arm afterwards
 
   // Kept for the incidental call sites; the interesting ones log structured data directly.
   function log(...a) { plog.debug(a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')) }
+
+  function markArchived(match) {
+    archived.add(match)
+    for (const m of archived) if (m < match - 50) archived.delete(m)
+  }
 
   // Coalesce a burst of rapid changes (typed corrections, next-set, a swap) into
   // ONE write carrying the LATEST state — the app only ever wants "now".
@@ -197,7 +248,9 @@ export function createLivePush(opts = {}) {
       const who = whoIsPlaying(state)
       if (isFresh(state)) atMatchStart = true
       else if (atMatchStart) { matchInstance++; atMatchStart = false }
-      else if (playing !== null && who !== playing) matchInstance++
+      // Never on a board that already reads as finished: whatever changes there (a name typo fixed
+      // for the result screen, a late swap) is still the match that just ended — and was archived.
+      else if (playing !== null && who !== playing && !isOver(state, sport)) matchInstance++
       playing = who
     }
     if (!enabled || !isLive() || !state) {
@@ -207,23 +260,45 @@ export function createLivePush(opts = {}) {
       return
     }
     pending = { state, event, match: matchInstance }
-    if (timer || inFlight) return
+    if (inFlight) return // settle() sends it when the running flush ends
+    // A newer state cuts a retry backoff short. The backoff exists to stop hammering a Directus
+    // that keeps failing with the SAME payload; a new point is new information, and waiting out up
+    // to retryMaxMs for it left /live half a minute behind a board whose uplink had long recovered.
+    // `failures` is kept, so if this attempt fails too the next backoff is longer, not reset.
+    if (timer && !backingOff) return
+    if (timer) clearTimeout(timer)
+    backingOff = false
     timer = arm()
   }
 
-  function arm() {
-    const t = setTimeout(flush, cfg.debounceMs)
+  function arm(ms = cfg.debounceMs) {
+    const t = setTimeout(flush, ms)
     if (t.unref) t.unref() // never hold the process open for a score ping
     return t
   }
 
+  // Worth trying again: the network, a timeout, or Directus itself having a bad moment. A 4xx is
+  // the request's own fault (bad token, missing permission, schema drift) and would fail the same
+  // way forever, so it is logged and dropped instead.
+  const retryable = (status) => status === 0 || status >= 500 || status === 408 || status === 429
+
+  // Read the response to the end. undici only returns a keep-alive socket to its pool once the
+  // body is consumed (or collected), so an unread body meant a fresh TLS handshake to Directus on
+  // nearly every point — from an armhf board, on hall Wi-Fi, inside a 2 s budget.
+  async function drain(res) {
+    try { if (res && res.body && typeof res.arrayBuffer === 'function') await res.arrayBuffer() } catch { /* ignore */ }
+  }
+
   async function flush() {
     timer = null
+    backingOff = false
     const payload = pending
     pending = null
     if (!payload) return
 
     inFlight = true
+    const gen = generation
+    let retry = false // did this flush fail in a way that is worth sending again?
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.token}` }
     const ctrl = new AbortController()
     const t = setTimeout(() => ctrl.abort(), cfg.timeoutMs)
@@ -231,27 +306,51 @@ export function createLivePush(opts = {}) {
       // toRow() belongs INSIDE the try: it used to run just above it, so a throw there skipped the
       // finally that resets inFlight, and every later push() then returned at the overlap guard —
       // /live froze on the last published score for the rest of the process, with nothing said.
+      // A throw here is a bug in the state, not the network, so it is never retried.
       const row = toRow(payload.state, payload.event, sport)
-      // The row's primary key IS the channel, so PATCH the known item. If it was
-      // never seeded, Directus 404s → create it (POST) so the board self-heals.
-      // update+create is exactly what the publisher policy grants.
-      const coll = encodeURIComponent(cfg.collection)
-      let res = await fetch(`${base}/items/${coll}/${encodeURIComponent(cfg.channel)}`, {
-        method: 'PATCH', headers, body: JSON.stringify(row), signal: ctrl.signal,
-      })
-      if (res.status === 404) {
-        plog.info('row missing — creating the channel', { channel: cfg.channel, collection: cfg.collection })
-        res = await fetch(`${base}/items/${coll}`, {
-          method: 'POST', headers, body: JSON.stringify({ channel: cfg.channel, ...row }), signal: ctrl.signal,
-        })
+
+      // Queued BEFORE the live write and independently of it: whether the result reaches history
+      // must not depend on whether one PATCH got through. The latest final row of the instance
+      // wins, so a set-score correction made while the archive is still failing is what lands.
+      if (row.status === 'final' && !archived.has(payload.match)) {
+        unarchived.set(payload.match, row)
+        if (unarchived.size > 5) unarchived.delete(unarchived.keys().next().value)
+      } else if (row.status !== 'final') {
+        // A correction took the match back out of 'final' (remove-set) before its archive got
+        // through: that result no longer stands, and the match re-queues when it ends again.
+        unarchived.delete(payload.match)
       }
-      if (!res.ok) {
-        plog.warn(`directus responded ${res.status}`, { status: res.status, channel: cfg.channel, collection: cfg.collection })
-      } else {
-        plog.debug(`published ${row.points_a}-${row.points_b}`, {
-          sport, status: row.status, score: `${row.points_a}-${row.points_b}`,
-          sets: `${row.sets_won_a}-${row.sets_won_b}`, event: row.event,
+
+      try {
+        // The row's primary key IS the channel, so PATCH the known item. If it was
+        // never seeded, Directus 404s → create it (POST) so the board self-heals.
+        // update+create is exactly what the publisher policy grants.
+        const coll = encodeURIComponent(cfg.collection)
+        let res = await fetch(`${base}/items/${coll}/${encodeURIComponent(cfg.channel)}`, {
+          method: 'PATCH', headers, body: JSON.stringify(row), signal: ctrl.signal,
         })
+        if (res.status === 404) {
+          await drain(res)
+          plog.info('row missing — creating the channel', { channel: cfg.channel, collection: cfg.collection })
+          res = await fetch(`${base}/items/${coll}`, {
+            method: 'POST', headers, body: JSON.stringify({ channel: cfg.channel, ...row }), signal: ctrl.signal,
+          })
+        }
+        await drain(res)
+        if (!res.ok) {
+          plog.warn(`directus responded ${res.status}`, { status: res.status, channel: cfg.channel, collection: cfg.collection })
+          if (retryable(res.status)) retry = true
+        } else {
+          plog.debug(`published ${row.points_a}-${row.points_b}`, {
+            sport, status: row.status, score: `${row.points_a}-${row.points_b}`,
+            sets: `${row.sets_won_a}-${row.sets_won_b}`, event: row.event,
+          })
+        }
+      } catch (err) {
+        // Swallowed — scoring must not care — but no longer invisible, and sent again: the last
+        // point of a match is followed by silence, so nothing else would ever correct the row.
+        plog.warn(`publish failed: ${err && err.message}`, { error: err && err.message, channel: cfg.channel })
+        retry = true
       }
 
       // Archive the result the FIRST time a match reads as finished, so /live can
@@ -263,32 +362,95 @@ export function createLivePush(opts = {}) {
       // republished 'live' and then 'final' (a remove-set, or a set −1 and back), and
       // appended a second row for the same match; the contents change on that same
       // correction, and cannot tell two back-to-back games apart at all.
+      // Marked done once Directus has CONFIRMED the row, and retried only while the POST provably
+      // never landed: a refused connection, a failed DNS lookup, a 503. A POST whose outcome is
+      // unknown — aborted after it was sent, a socket reset mid-response, a gateway timeout — may
+      // well be committed, and resending it is how one match became up to nine identical rows the
+      // board has no right to delete. Those are given up on instead, like a 4xx: a possibly lost
+      // row, logged, over a possibly duplicated one.
       // ⚠ The counter is in memory: restarting the appliance while a finished match is
       // still on the board can archive it a second time.
-      if (row.status === 'final' && archivedMatch !== payload.match) {
-        await archive(row)
-        archivedMatch = payload.match
+      for (const [match, finalRow] of [...unarchived]) {
+        const status = await archive(finalRow)
+        if (status >= 200 && status < 300) { unarchived.delete(match); markArchived(match) }
+        else if (archiveRetryable(status)) retry = true
+        else {
+          unarchived.delete(match) // logged by archive()
+          // Not re-queued by the next push of this still-finished board either.
+          if (mayHaveLanded(status)) markArchived(match)
+        }
       }
     } catch (err) {
-      // Swallowed — scoring must not care — but no longer invisible.
       plog.warn(`publish failed: ${err && err.message}`, { error: err && err.message, channel: cfg.channel })
     } finally {
       clearTimeout(t)
       inFlight = false
-      // A change that landed mid-flight still needs sending.
-      if (pending && !timer) timer = arm()
+      if (gen === generation) settle(payload, retry)
     }
+  }
+
+  // After a flush: send what is waiting — a change that landed mid-flight, or, after a failure,
+  // this payload again. A retry always carries the LATEST state: a newer push() already in
+  // `pending` wins over the one that failed, and every retry is a full overwrite of the one row.
+  function settle(payload, retry) {
+    if (!retry) {
+      failures = 0
+      if (pending && !timer) timer = arm()
+      return
+    }
+    failures++
+    if (failures > cfg.maxRetries) {
+      plog.warn(`giving up after ${cfg.maxRetries} retries — the next board change will try again`, { channel: cfg.channel })
+      failures = 0
+      if (pending && !timer) timer = arm()
+      return
+    }
+    if (!pending) pending = payload
+    const delay = Math.min(cfg.retryMaxMs, cfg.retryBaseMs * 2 ** (failures - 1))
+    plog.debug(`retrying in ${delay}ms`, { attempt: failures, delay })
+    if (timer) clearTimeout(timer)
+    timer = arm(delay)
+    backingOff = true
+  }
+
+  // archive()'s answer when the POST may or may not have been committed. Never retried.
+  const OUTCOME_UNKNOWN = -1
+  // retryable() minus everything that can mean "the server got it and the answer was lost": 504
+  // and Cloudflare's 524 are a proxy giving up on an origin that HAD the request.
+  const mayHaveLanded = (status) => status === OUTCOME_UNKNOWN || status === 504 || status === 524
+  const archiveRetryable = (status) => !mayHaveLanded(status) && retryable(status)
+
+  // Errors raised before a single byte of the request left the board — the only failures of a
+  // non-idempotent POST that are safe to repeat. undici wraps them as TypeError('fetch failed')
+  // with the system error in `cause` (an AggregateError of per-address errors when happy-eyeballs
+  // tried several). An AbortError, a reset socket or anything unrecognised is NOT in here: it
+  // can happen after the body was sent, so it has to be treated as possibly delivered.
+  const PRE_SEND = new Set([
+    'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EAI_NONAME', 'EHOSTUNREACH', 'ENETUNREACH', 'ENETDOWN',
+    'EADDRNOTAVAIL', 'UND_ERR_CONNECT_TIMEOUT',
+  ])
+  // A TLS handshake that failed on the certificate never got as far as sending the request either.
+  const TLS_REJECT = /^(ERR_TLS_|ERR_SSL_|CERT_|UNABLE_TO_|DEPTH_ZERO_|SELF_SIGNED_)/
+  function neverSent(err) {
+    for (let e = err, depth = 0; e && depth < 4; e = e.cause, depth++) {
+      if (e.name === 'AbortError') return false
+      const codes = [e.code, ...(Array.isArray(e.errors) ? e.errors.map((x) => x && x.code) : [])]
+      if (codes.some((c) => c && (PRE_SEND.has(c) || TLS_REJECT.test(c)))) return true
+    }
+    return false
   }
 
   /**
    * Append one finished match to `live_history`. Best-effort like everything else:
    * a failure here loses a history row, never a point on the board. Separate from
    * the live row on purpose — `live_scores` is one mutable row per board, this is
-   * the append-only log behind /live's "recent matches".
+   * the append-only log behind /live's "recent matches". Resolves to the HTTP status, 0 when
+   * the request provably never left the board, OUTCOME_UNKNOWN when it may have landed with the
+   * answer lost — never throws.
    */
   async function archive(row) {
     const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), cfg.timeoutMs)
+    const t = setTimeout(() => ctrl.abort(), cfg.archiveTimeoutMs)
     try {
       const res = await fetch(`${base}/items/${encodeURIComponent(cfg.historyCollection)}`, {
         method: 'POST',
@@ -306,10 +468,23 @@ export function createLivePush(opts = {}) {
         }),
         signal: ctrl.signal,
       })
+      await drain(res)
       if (res.ok) plog.info('archived finished match', { channel: cfg.channel, score: `${row.sets_won_a}-${row.sets_won_b}`, teams: `${row.team_a_short}/${row.team_b_short}` })
       else plog.warn(`archive responded ${res.status}`, { status: res.status, collection: cfg.historyCollection })
+      // A stub or proxy that says ok without a number is still a success.
+      return res.ok ? (res.status || 200) : (res.status || 0)
     } catch (err) {
-      plog.warn(`archive failed: ${err && err.message}`, { error: err && err.message }) // swallow
+      if (neverSent(err)) {
+        plog.warn(`archive failed: ${err && err.message}`, { error: err && err.message, cause: err?.cause?.code }) // swallow
+        return 0
+      }
+      // Said loudly: this is the one path where a finished match can go missing from /live's
+      // history, and "why is Saturday's game not listed?" should be answerable from /logs.
+      plog.warn(`archive outcome unknown, not resent: ${err && err.message}`, {
+        error: err && err.message, cause: err?.cause?.code,
+        teams: `${row.team_a_short}/${row.team_b_short}`, score: `${row.sets_won_a}-${row.sets_won_b}`,
+      })
+      return OUTCOME_UNKNOWN
     } finally {
       clearTimeout(t)
     }
@@ -343,7 +518,10 @@ export function createLivePush(opts = {}) {
   function detach() {
     if (attached) { attached.source.off('state', attached.handler); attached = null }
     if (timer) { clearTimeout(timer); timer = null }
+    backingOff = false
     pending = null
+    failures = 0
+    generation++ // a flush still in flight must not re-arm a retry for a detached publisher
   }
 
   return { enabled, sport, push, attach, detach, isLive }

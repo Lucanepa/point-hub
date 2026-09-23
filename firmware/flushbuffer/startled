@@ -22,12 +22,15 @@ SCREEN_HEIGHT=$screen_height
 
 NO_HARDWARE_PULSE=
 
-if [ "$HARDWARE_PULSING" = "1" ]
+# The variable is NO_HARDWARE_PULSING. This used to test an unset $HARDWARE_PULSING, so
+# no_hardware_pulsing=1 in setting.ini (the usual fix when the sound module grabs the PWM
+# hardware after an OS update) was silently ignored.
+if [ "$NO_HARDWARE_PULSING" = "1" ]
 then
     NO_HARDWARE_PULSE=--led-no-hardware-pulse
 fi;
 
-if [ -z $1  ]
+if [ -z "$1" ]
 then
     echo ""
 else
@@ -37,4 +40,4 @@ fi;
 
 
 cp starting.png ../www/buffer.png
-sudo /home/pi/ledbox/bin/flushBuffer2 ../www/buffer.png $NO_HARDWARE_PULSE --led-pwm-bits=$PWM_BITS --led-gpio-mapping=$HARDWARE_MAPPING --led-slowdown-gpio=$SLOWDOWN_GPIO --led-pwm-lsb-nanoseconds=$PWM_LSB_NANOSECONDS --led-multiplexing=$multiplexing --led-brightness=$brightness --led-pwm-dither-bits=$DITHER
+sudo /home/pi/ledbox/bin/flushBuffer2 ../www/buffer.png $NO_HARDWARE_PULSE --led-pwm-bits=$PWM_BITS --led-gpio-mapping=$HARDWARE_MAPPING --led-slowdown-gpio=$SLOWDOWN_GPIO --led-pwm-lsb-nanoseconds=$PWM_LSB_NANOSECONDS --led-multiplexing=$MULTIPLEXING --led-brightness=$BRIGHTNESS --led-pwm-dither-bits=$DITHER

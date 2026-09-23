@@ -6,10 +6,10 @@
 // FRAMING CAVEAT: the docs' TCP examples read a raw recv() buffer and gunzip the
 // whole thing, implying one gzip member == one message with no length prefix.
 // gzip members are self-delimiting (magic 1f 8b ... 8-byte CRC/ISIZE footer), so
-// on a stream we buffer bytes and try to gunzip the accumulation; a successful
-// decode yields one message and we drop the consumed bytes. This matches the
-// reference clients but MUST be confirmed against real hardware (a device that
-// coalesces two messages into one TCP segment is the case to verify).
+// on a stream we buffer bytes and inflate the member at the head; once its deflate
+// stream and footer are both in, that is one message and we drop the consumed bytes.
+// This matches the reference clients but MUST be confirmed against real hardware (a
+// device that coalesces two messages into one TCP segment is the case to verify).
 
 import zlib from 'node:zlib'
 
@@ -40,8 +40,9 @@ const MAX_BUFFERED = 64 * 1024
 const STALL_MS = 5000
 
 // Incremental de-framer for a TCP byte stream. push() returns any fully-decoded
-// messages found so far. Uses the gzip footer (ISIZE = uncompressed length mod
-// 2^32) to locate member boundaries when several arrive back-to-back.
+// messages found so far. Member boundaries come from the deflate stream itself: we parse the
+// gzip header, inflate the body once, and zlib reports how many compressed bytes it consumed
+// before the end-of-stream marker — the 8-byte CRC32/ISIZE footer follows right after.
 //
 // ONE PER CONNECTION, never one per client: a socket that dies mid-reply leaves a truncated
 // member in `buf`, and the next connection's bytes appended behind it are unreachable forever
@@ -77,7 +78,6 @@ export class StreamDecoder {
 
   // Pull every complete member out of the head of the buffer into `out`.
   #drain(out) {
-    // Fast path: whole buffer is exactly one member.
     while (this.buf.length >= 18 /* min gzip size */) {
       const resyncsBefore = this.resyncs
       const member = this.#takeOneMember()
@@ -94,6 +94,7 @@ export class StreamDecoder {
       // threw again, and returned nothing, so every following board reply was lost while the
       // process looked perfectly healthy.
       this.buf = this.buf.subarray(member.length)
+      if (member.text === null) continue // failed its checksum; see #takeOneMember
       try {
         out.push(JSON.parse(member.text))
       } catch {
@@ -128,24 +129,61 @@ export class StreamDecoder {
     this.resyncs++
   }
 
-  // Returns { length, text } for the shortest prefix that gunzips cleanly, or null if the
-  // member is incomplete. Decompresses once and hands the text back, so push() doesn't gunzip
+  // Returns { length, text } for the member at the head of the buffer, or null if it has not
+  // finished arriving. `text` is null for a member that is complete but fails its CRC/ISIZE
+  // check: its extent is known, so it is consumed and dropped rather than left to stall the
+  // stream for STALL_MS. Decompresses once and hands the text back, so push() doesn't gunzip
   // the same member a second time — that cost is paid per reply, on a Pi.
+  //
+  // ONE inflate per call. This used to gunzip every prefix from 18 bytes up to the buffer's
+  // length until one decoded, i.e. a reply of n bytes cost n failed decompressions, each
+  // allocating an Error — ~7 ms for a 300-byte reply on x86 and 40 ms when it dripped in, on a
+  // board that sends one per paint and per blink toggle. inflateRaw stops at the deflate
+  // end-of-stream marker on its own and reports how far it read, which IS the member boundary.
   #takeOneMember() {
     if (this.buf[0] !== 0x1f || this.buf[1] !== 0x8b) {
       this.#resync()
       return null
     }
-    // Try progressively longer slices ending on a plausible footer boundary.
-    for (let end = 18; end <= this.buf.length; end++) {
-      try {
-        return { length: end, text: zlib.gunzipSync(this.buf.subarray(0, end)).toString('utf-8') }
-      } catch {
-        /* keep growing */
-      }
+    const start = gzipHeaderLength(this.buf)
+    if (start === -1) { this.#resync(); return null } // `1f 8b` by chance, not a gzip header
+    if (start === 0) return null // header itself still in flight
+    let inflated
+    try {
+      inflated = zlib.inflateRawSync(this.buf.subarray(start), { info: true })
+    } catch {
+      return null // truncated (or corrupt — the stall timer tells those apart)
     }
-    return null
+    const end = start + inflated.engine.bytesWritten + 8
+    if (end > this.buf.length) return null // body complete, footer not yet here
+    const body = inflated.buffer
+    const crc = this.buf.readUInt32LE(end - 8)
+    const isize = this.buf.readUInt32LE(end - 4)
+    // zlib.crc32 is Node >= 22.2; on anything older ISIZE alone still catches most damage.
+    const intact = isize === (body.length >>> 0) && (typeof zlib.crc32 !== 'function' || crc === zlib.crc32(body) >>> 0)
+    return { length: end, text: intact ? body.toString('utf-8') : null }
   }
+}
+
+// Length of the gzip member header at the head of `buf` (RFC 1952 §2.3): 0 when more bytes are
+// needed to know, -1 when it is not a deflate gzip header at all.
+function gzipHeaderLength(buf) {
+  if (buf.length < 10) return 0
+  const flags = buf[3]
+  if (buf[2] !== 8 || (flags & 0xe0)) return -1 // CM must be deflate; reserved FLG bits must be 0
+  let at = 10
+  if (flags & 0x04) { // FEXTRA
+    if (buf.length < at + 2) return 0
+    at += 2 + buf.readUInt16LE(at)
+  }
+  for (const bit of [0x08, 0x10]) { // FNAME, FCOMMENT: zero-terminated
+    if (!(flags & bit)) continue
+    const nul = buf.indexOf(0, at)
+    if (nul === -1) return 0
+    at = nul + 1
+  }
+  if (flags & 0x02) at += 2 // FHCRC
+  return buf.length > at ? at : 0
 }
 
 // #ef4444 / ef4444 / rgb(...) -> "r,g,b" (LEDbox colour format). Falls back to white.

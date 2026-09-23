@@ -1,4 +1,5 @@
 <!doctype html>
+<html lang="en">
 <!-- LedBox appliance — log viewer. Live-tails the appliance's structured log over SSE
      (GET /api/logs/stream), with the last few hundred entries fetched up front. Same
      Console styling as the controller: white ground, hairline borders, mono numerals;
@@ -15,6 +16,8 @@
     --blue:#0A34D6; --gold:#B45309;
     --ok:#12813f; --warn:#B45309; --bad:#E0301A;
     --r:3px;
+    /* Same finger-sized minimum as the controller: this page is opened on the venue tablet too. */
+    --tap:44px;
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -28,7 +31,11 @@
   /* ---- chrome ---- */
   .topbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap}
   .brand{font-weight:800;font-size:15px;white-space:nowrap}
-  .brand a{color:var(--muted);text-decoration:none;font-weight:700}
+  /* The way back to scoring. It was an 18px-tall text link — the smallest target on a page that is
+     usually opened mid-evening, from the controller, by someone who then needs to get back. */
+  .brand a{display:inline-flex;align-items:center;min-height:var(--tap);padding:0 12px;margin-left:4px;
+    color:var(--fg);text-decoration:none;font-weight:700;border:1.5px solid var(--line);border-radius:var(--r)}
+  .brand a:active{background:var(--fill)}
   .spacer{flex:1}
   .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;font-size:12px;font-weight:700;
     border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);white-space:nowrap}
@@ -38,27 +45,30 @@
   #liveChip.paused .dot{background:var(--gold)}
   .cWarn{color:var(--warn)} .cBad{color:var(--bad)} .cMuted{color:var(--muted)}
 
-  button.btn{min-height:36px;padding:0 12px;font-size:13px;font-weight:700;line-height:1;cursor:pointer;
+  button.btn{min-height:var(--tap);padding:0 12px;font-size:13px;font-weight:700;line-height:1;cursor:pointer;
     border:1.5px solid var(--line);background:var(--card);color:var(--fg);border-radius:var(--r)}
   button.btn:active{background:var(--fill)}
   button.btn.on{color:var(--blue);border-color:var(--fg)}
   button.btn.danger{color:var(--bad)}
-  a.btn{min-height:36px;display:inline-flex;align-items:center;padding:0 12px;font-size:13px;font-weight:700;
+  a.btn{min-height:var(--tap);display:inline-flex;align-items:center;padding:0 12px;font-size:13px;font-weight:700;
     border:1.5px solid var(--line);border-radius:var(--r);color:var(--fg);text-decoration:none}
 
   .filters{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 12px 8px;flex-wrap:wrap}
   .seg{display:flex;border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden}
-  .seg button{min-height:34px;padding:0 11px;font-size:12px;font-weight:800;letter-spacing:.04em;cursor:pointer;
+  .seg button{min-height:var(--tap);padding:0 11px;font-size:12px;font-weight:800;letter-spacing:.04em;cursor:pointer;
     border:0;border-right:1.5px solid var(--line-soft);background:var(--card);color:var(--muted)}
   .seg button:last-child{border-right:0}
   .seg button.on{background:var(--fill);color:var(--fg)}
   .seg button.on[data-level="warn"]{color:var(--warn)}
   .seg button.on[data-level="error"]{color:var(--bad)}
   .lbl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  input#q{min-height:34px;min-width:150px;flex:1;padding:0 10px;font-size:14px;
+  input#q{min-height:var(--tap);min-width:150px;flex:1;padding:0 10px;font-size:14px;
     border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
-  #scopes{display:flex;gap:6px;flex-wrap:wrap}
-  #scopes button{min-height:30px;padding:0 9px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--mono);
+  /* One row that scrolls sideways: at --tap height a wrapped set of ten chips ate half a phone
+     screen, leaving the log itself a sliver. */
+  #scopes{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;flex:1 1 240px;min-width:0;scrollbar-width:thin}
+  #scopes button{flex:0 0 auto}
+  #scopes button{min-height:var(--tap);padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--mono);
     border:1.5px solid var(--line-soft);border-radius:var(--r);background:var(--card);color:var(--muted)}
   #scopes button.on{border-color:var(--line);color:var(--fg);background:var(--fill)}
 
@@ -79,7 +89,7 @@
   .row .data{grid-column:1/-1;margin:6px 0 2px;padding:8px 10px;font-family:var(--mono);font-size:12px;
     white-space:pre-wrap;overflow-wrap:anywhere;background:var(--fill);border:1px solid var(--line-soft);
     border-radius:var(--r);color:var(--fg)}
-  .row .data[hidden]{display:none}
+  [hidden]{display:none!important}
   .row.hasData .msg::after{content:" ▸";color:var(--muted);font-size:11px}
   .row.open.hasData .msg::after{content:" ▾"}
   #empty{padding:26px 14px;text-align:center;color:var(--muted);font-size:14px}
@@ -92,12 +102,10 @@
   /* Confirm — never a native dialog on a venue tablet (it blocks the event loop). */
   #confirm{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
     background:rgba(10,11,13,.45);padding:16px}
-  #confirm[hidden]{display:none}
   .box{width:min(420px,100%);background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:16px}
   .box p{margin:0 0 14px;font-size:15px;font-weight:600}
   .box .btns{display:flex;gap:8px;justify-content:flex-end}
-  #pinWrap[hidden]{display:none}
-  #pin{min-height:34px;width:96px;padding:0 10px;font-family:var(--mono);font-size:14px;
+  #pin{min-height:var(--tap);width:96px;padding:0 10px;font-family:var(--mono);font-size:14px;
     border:1.5px solid var(--line);border-radius:var(--r)}
 </style>
 
@@ -144,7 +152,7 @@
 
 <button class="btn on" id="jump" hidden>↓ new entries</button>
 
-<div id="confirm" hidden>
+<div id="confirm" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmMsg">
   <div class="box">
     <p id="confirmMsg">Confirm</p>
     <div class="btns">
@@ -167,6 +175,8 @@
   let paused = false;
   let pending = [];                   // entries that arrived while paused
   let lastId = 0;
+  let streamId = 0;                   // highest id taken off the live stream (see connect)
+  let boot = null;                    // which run of the appliance the stream is attached to
   let knownScopes = [];
   let es = null;
 
@@ -289,10 +299,18 @@
   function connect() {
     if (es) es.close();
     // Ask for everything; this page filters locally so changing the view never reconnects.
-    es = new EventSource(`/api/logs/stream?sinceId=${lastId}`);
-    es.onopen = () => setLive("on", "live");
+    // The sinceId is baked into the URL, and EventSource's own reconnects (a Wi-Fi roam in the
+    // hall) reuse it — so each one replays everything since THIS moment, up to 200 entries. The
+    // rows themselves are de-duplicated in append(), but the ERR/WARN counters were bumped again
+    // for every replayed line until the next stats poll. Drop the replay here, before anything
+    // counts it: ids only move forward within a run.
+    streamId = lastId;
+    const src = es = new EventSource(`/api/logs/stream?sinceId=${lastId}`);
+    es.onopen = () => { setLive("on", "live"); checkBoot(src); };
     es.onmessage = (ev) => {
       let e; try { e = JSON.parse(ev.data); } catch { return; }
+      if (!(Number(e.id) > streamId)) return;
+      streamId = Number(e.id);
       if (paused) { pending.push(e); $("jump").hidden = false; $("jump").textContent = `↓ ${pending.length} new`; return; }
       append([e]);
       if (e.level === "error") $("cErr").textContent = Number($("cErr").textContent) + 1;
@@ -300,6 +318,25 @@
     };
     // EventSource reconnects on its own; say so rather than looking dead.
     es.onerror = () => setLive("off", "reconnecting…");
+  }
+  // ...except across a restart of the appliance, which numbers its log from 1 again: every line
+  // of the new run would sit under the old mark and be dropped, the page frozen right after the
+  // crash it exists to explain. Each (re)connect checks which run it reached; a new one starts
+  // the page over from the server's buffer, the same as a filter change does.
+  async function checkBoot(src) {
+    let s;
+    try {
+      const r = await fetch("/api/logs?limit=1", { cache: "no-store" });
+      if (!r.ok) return;
+      s = (await r.json()).stats;
+    } catch { return; }
+    if (!s || src !== es) return;
+    const restarted = (boot && s.startedAt !== boot) || Number(s.lastId) < streamId;
+    boot = s.startedAt;
+    if (!restarted) return;
+    pending = []; lastId = 0;
+    await reload();
+    connect();
   }
 
   // ---- controls -----------------------------------------------------------

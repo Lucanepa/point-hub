@@ -22,6 +22,10 @@ const attr = (name, attrib, value) => ({ name, value: { attrib, value: String(va
 const text = (name, value, color) =>
   color ? [attr(name, 'text', value), attr(name, 'color', color)] : [attr(name, 'text', value)]
 const box = (name, color) => [attr(name, 'color', '0,0,0'), attr(name, 'bordercolor', color)]
+// This layout's static caption: `lbl_to` "T" beside the timeout counters (layouts/40_*.xml).
+// Re-asserted on every paint for the reason given at LAYOUT_LABELS in volleyballMapper.js — the
+// firmware keeps section values in memory, so the layout file's text is only a starting value.
+const BEACH_LABELS = [attr('lbl_to', 'text', 'T')]
 
 // Beach counter/cue colours.
 export const BEACH_TIMEOUTS_PER_SET = 1
@@ -73,6 +77,27 @@ export function toBeachSections(state, { off = SERVE_OFF, totalTimeouts = BEACH_
     // One team timeout per set — red once used. No sub row on the beach layout.
     ...text('timeout1', v.leftTimeouts, toColor(v.leftTimeouts)),
     ...text('timeout2', v.rightTimeouts, toColor(v.rightTimeouts)),
+    ...BEACH_LABELS,
+  ]
+}
+
+// Pre-match screen on the beach_matchscore layout itself — what showIdle falls back to when the
+// board has no kscw_idle/kscw_crest. The indoor toIdleSections cannot be reused here: it writes
+// sub1/sub2/serve1/serve2, which this layout does not have, and the board aborts the whole write
+// on the first unknown section (code 6), so the fallback never painted. Same look as indoor: the
+// two names with "VS" between them, every number and cue blanked.
+export function toBeachIdleSections(state, { off = SERVE_OFF } = {}) {
+  const v = state ? toLeftRight(state) : null
+  return [
+    ...text('team1', v?.leftName || 'HOME', v?.leftColor),
+    ...text('team2', v?.rightName || 'AWAY', v?.rightColor),
+    ...text('score1', '', v?.leftColor),
+    ...text('score2', '', v?.rightColor),
+    ...text('set1', ''), ...text('set2', ''),
+    attr('vs', 'text', 'VS'),
+    ...text('switch', '', SWITCH_DIM),
+    ...text('serveplr1', '', off), ...text('serveplr2', '', off),
+    ...text('timeout1', ''), ...text('timeout2', ''),
   ]
 }
 
@@ -138,6 +163,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const bound = toBeachSections({ ...base, points_a: 4, points_b: 3, serving_team: 'left', serve_player: 2 })
     ok(secOf(bound, 'switch', 'text').value.value === 'SWITCH', 'boundary: centre SWITCH shown')
     ok(secOf(bound, 'serveplr1', 'text').value.value === '', 'boundary: serving-side digit blanked')
+  }
+
+  // Idle fallback: only sections the beach match screen itself paints, names kept, rest blank.
+  {
+    const match = names(toBeachSections(base))
+    const idle = toBeachIdleSections(base)
+    ok([...names(idle)].every((n) => match.has(n)), 'idle writes no section the beach layout lacks')
+    ok(secOf(idle, 'team1', 'text').value.value === 'MOL/SOR' && secOf(idle, 'score1', 'text').value.value === '',
+      'idle keeps the names and blanks the score')
   }
 
   console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

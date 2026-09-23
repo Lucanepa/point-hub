@@ -42,7 +42,25 @@ against a new runtime, so an upgrade is a download, a checksum and a symlink.
 points · team short names (in team colour) · sets won · timeouts (**T**) · substitutions (**S**) · serve indicator
 
 ## Configure
-Copy `.env.example` → `.env`. Key vars: `RELAY_URL`, `MATCH_ID`, `LEDBOX_HOST`.
+Copy `.env.example` → `.env`. Every var is optional for the appliance — an empty `.env`
+boots a working board on the defaults below (`src/config.js` is the source of truth).
+
+| Var | Default | Notes |
+|---|---|---|
+| `LEDBOX_HOST` | `172.24.1.1,192.168.5.1` | Comma-separated, tried in turn: the board's own AP, then the bench cable. Pinning ONE address loses the failover — leave it unset unless the board lives elsewhere. |
+| `LEDBOX_PORT` | `8889` | |
+| `CONTROL_PORT` | `8890` | The console. The QR on the panel and the hall guide point here. |
+| `RELAY_URL` / `RELAY_HTTP_URL` | `ws://127.0.0.1:8080` / derived (`:5173`) | OpenVolley LAN relay for **Link** mode. |
+| `TLS_CERT`, `TLS_KEY`, `HTTPS_PORT` | empty, empty, `8891` | Both paths set = an HTTPS listener alongside HTTP (wake lock, installable app). Written by `provisioning/setup-console-tls.sh`. |
+| `DIRECTUS_URL`, `LIVE_PUBLISH_TOKEN` | empty | Live publishing to wiedisync, below. |
+| `DIRECTUS_URL` (schedule) | `https://directus.kscw.ch` when unset | Where **today's games** come from (`GET /api/schedule`, the console's "start from the schedule" list). A public, token-free read of `/items/games`, so it works without `LIVE_PUBLISH_TOKEN`. No uplink in the hall = a plain "type the names instead" message, never an error. |
+| `SCHEDULE_HALLS` | empty (every hall) | Comma list of hall names, e.g. `KWI A,KWI B`: only games in those halls are offered. Case-insensitive. |
+| `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error`; `DEBUG=1` is shorthand for `debug`. |
+| `MOCK` | off | `1` = in-process mock LedBox, no hardware. |
+| `MATCH_ID` | — | Only the headless `src/bridge.js` needs it; the appliance picks matches in the UI. |
+
+`LEDBOX_LAYOUT` is read by the headless bridge only — the appliance takes its layouts from the
+active sport (`src/sports.js`).
 
 ### Publishing the board to wiedisync (`/live`)
 Optional. Set **both** of these and the appliance mirrors every score change to the
@@ -59,6 +77,11 @@ it does without it. Every failure inside it (outage, bad token, slow network) is
 swallowed, so it can never affect scoring. These are deliberately distinct from
 `RELAY_URL`, which is the LAN relay the board *subscribes* to.
 
+A failed live write is retried with the latest score, backing off and bounded; a new
+point during a backoff goes out after the normal debounce instead of waiting it out. A
+4xx is not retried. A finished match's history row is resent only when it provably
+never reached Directus, so a timeout can lose that row but never duplicate it.
+
 ⚠️ Prod and dev have **different** tokens, and the dev one is replaced by the
 nightly prod clone. Collection, permissions and setup:
 `wiedisync/src/modules/live/DIRECTUS-SETUP.md`.
@@ -70,6 +93,10 @@ that to explicit `fouls_a`/`fouls_b` on the wire.
 
 ## Test / run
 ```bash
+# everything: source rules + every test/*-selftest.mjs (no network, no hardware; the panel
+# driver tests — test:panel — need Linux for flock/pgrep and skip themselves elsewhere)
+npm test
+
 # unit test: mapper → client → mock LedBox (no deps, no hardware) — the on-Pi smoke test
 npm run test:mapper
 
@@ -88,6 +115,13 @@ Instead of the headless bridge, run the **appliance**: a phone-friendly control 
 served by the Pi (`CONTROL_PORT`, default 8890) with two modes — **Manual** (drive the
 board by hand: names, ±points, sets, timeouts, subs, serve, swap) and **Link** (list LAN
 matches from the relay and mirror one live). Cloud/Supabase source is a stub.
+
+- **Undo** — one button beside the set strip takes back the last action, whatever it was
+  (point, timeout, sub, swap, next set, reset), up to 30 steps; it reads what it will undo
+  (`Undo · Point KSCW`) and the history log follows it. A second `+` for a team that has
+  already won the set is refused instead of scoring (`set-closed`).
+- **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
+  of a "rotate" wall; a dismissible tip still suggests landscape.
 ```bash
 npm run appliance                 # open http://<pi-ip>:8890  (or http://openvolley:8890 over Tailscale)
 MOCK=1 npm run appliance          # in-process mock LedBox, no hardware
@@ -117,7 +151,7 @@ Design notes: [`docs/logging-DESIGN.md`](./docs/logging-DESIGN.md).
 ```bash
 # on the Pi (reachable as `ssh openvolley`):
 cd ~/ledbox-bridge
-cp .env.example .env && nano .env        # set MATCH_ID, LEDBOX_HOST
+cp .env.example .env && nano .env        # optional — the defaults drive the board (see Configure)
 sudo cp systemd/ledbox-bridge.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now ledbox-bridge
 journalctl -u ledbox-bridge -f

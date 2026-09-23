@@ -1,3 +1,4 @@
+<html lang="en">
 <!-- LedBox appliance control UI — self-contained, offline, landscape-first. Talks to the control API on its own origin over relative URLs. -->
 <meta charset="utf-8">
 <!-- interactive-widget=resizes-content is load-bearing, not tidiness. Without it the on-screen
@@ -20,26 +21,51 @@
     --blue:#0A34D6; --gold:#B45309;
     --ok:#12813f; --warn:#B45309; --bad:#E0301A;
     --left:#0A34D6; --right:#E0301A; --r:3px;
+    /* Smallest thing a finger may be asked to hit. The console is used standing, one-handed, often
+       mid-rally; 44px is the platform guideline and anything under it was measured mis-tapping. */
+    --tap:44px;
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+  /* `hidden` must win over every author display rule. Without this each toggled element needed its
+     own `#x[hidden]{display:none}` restatement, and the one that was missed (.gpopt) put "Continue
+     game" and "Delete saved game" on screen with nothing saved behind them. */
+  [hidden]{display:none!important}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
     font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   button,input{font-family:inherit}
   :focus-visible{outline:2.5px solid var(--blue);outline-offset:2px}
+  /* An opened dialog takes focus on its (full-screen) overlay so Tab starts inside it; the overlay
+     itself is not a control and must not wear a ring around the whole screen. */
+  [role=dialog]:focus,[role=alertdialog]:focus{outline:none}
   .licon{width:1.15em;height:1.15em;flex:0 0 auto;vertical-align:-.17em}
   /* flat primitive (Console) */
   .press,button:active{background:var(--fill)}
   #app{display:flex;flex-direction:column;height:100dvh;overflow:hidden;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)}
 
   .topbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 14px}
-  .brand{font-weight:800;font-size:15px;white-space:nowrap;color:var(--fg)}
-  #dot{font-size:12px}
-  #mode{flex:1;min-width:0;font-size:12px;color:var(--muted);display:flex;gap:7px;align-items:center;white-space:nowrap;overflow:hidden}
-  #mode b{color:var(--fg)} #setNo{padding:2px 10px;border-radius:4px;font-weight:800;font-family:var(--mono);color:var(--fg);background:var(--card);border:1.5px solid var(--line)}
+  .brand{display:inline-flex;align-items:center;gap:7px;font-weight:800;font-size:15px;white-space:nowrap;color:var(--fg)}
+  /* The Point Hub mark itself (favicon.svg), not a stand-in volleyball: the same gold point and ring
+     the browser tab shows. It carries its own dark tile, so it reads on this light bar and would on
+     a dark one without a second variant. Drawn at 32 units, so 20px lands on whole pixels. */
+  .brandmark{width:20px;height:20px;flex:0 0 auto;display:block}
+  /* Board state in WORDS beside the icon: a red wifi glyph alone is easy to miss from arm's length
+     and has no tooltip on touch. */
+  #dot{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:800;white-space:nowrap;color:var(--muted)}
+  #dot.ok{color:var(--ok)} #dot.bad{color:var(--bad)}
+  #mode{flex:1;min-width:0;font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;white-space:nowrap;overflow:hidden}
+  #mode b{color:var(--fg)}
+  /* Only a LINKED match says where its score comes from; "Mode Manual" was prime header space
+     spent telling the scorer what they were already doing. */
+  #modeTag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:1.5px solid var(--blue);color:var(--blue);font-weight:800}
+  #modeTag b{color:var(--blue)}
+  /* The set / period is what a scorer glances up for between rallies, so it is the biggest thing
+     in the header rather than a 12px chip. */
+  #setNo{display:inline-flex;align-items:center;min-height:34px;padding:2px 12px;border-radius:4px;font-size:18px;font-weight:800;font-family:var(--mono);color:var(--fg);background:var(--card);border:1.5px solid var(--line)}
+  #setNo:empty{display:none}
   #setNo.clickable{cursor:pointer;border-color:var(--gold);color:var(--gold)}
   .nav{display:flex;gap:8px;flex:0 0 auto}
-  .nav button{min-height:40px;min-width:40px;padding:0 15px;font-size:13px;font-weight:700;line-height:1;
+  .nav button{min-height:var(--tap);min-width:var(--tap);padding:0 15px;font-size:13px;font-weight:700;line-height:1;
     border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:var(--r);cursor:pointer}
   .nav button.active{color:var(--blue);border-color:var(--fg)}
   #fsBtn,#awakeBtn,#tabSettingsBtn{font-size:16px;padding:0 12px}
@@ -56,14 +82,14 @@
   .teamcard{flex:0 1 auto;max-height:100%;min-height:0;display:flex;flex-direction:column;gap:14px;
     background:var(--card);border-radius:var(--r);padding:12px 14px;
     border:1.5px solid var(--line)}
-  .sidehdr{flex:0 0 auto;display:flex;align-items:center;gap:8px}
+  .sidehdr{flex:0 0 auto;display:flex;align-items:stretch;gap:8px}
   .side.right .sidehdr{flex-direction:row-reverse}
-  input.short{flex:1;min-width:0;padding:9px 12px;font-size:16px;font-weight:800;text-transform:uppercase;
+  input.short{flex:1;min-width:0;min-height:var(--tap);padding:9px 12px;font-size:16px;font-weight:800;text-transform:uppercase;
     letter-spacing:.03em;background:var(--card);color:var(--fg);border:1.5px solid var(--line);border-radius:var(--r)}
   .side.right input.short{text-align:right}
   input.short.flashname{animation:nameflash 1s ease 3}
   @keyframes nameflash{50%{color:var(--ok)}}
-  input.color{width:38px;height:38px;padding:0;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);cursor:pointer;flex:0 0 auto}
+  input.color{width:var(--tap);min-height:var(--tap);padding:0;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);cursor:pointer;flex:0 0 auto}
 
   .score{flex:0 0 auto;max-height:30vh;min-height:0;display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;gap:8px}
   .score .val{flex:1;min-width:0;text-align:center;font-weight:800;line-height:.9;color:var(--edge);
@@ -75,15 +101,18 @@
 
   /* stat blocks: label + number on top, -/+ UNDERNEATH */
   .statrow{flex:0 0 auto;display:flex;gap:8px}
+  /* The whole tile, not just the digit, opens the number editor (see the side click handler): the
+     digit alone was a 13x22px target. The −/+ inside keep their own meaning. */
   .stat{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;
-    background:var(--card);border-radius:var(--r);padding:7px 4px 8px;
+    background:var(--card);border-radius:var(--r);padding:7px 4px 8px;cursor:pointer;
     border:1.5px solid var(--line)}
-  .stat .name{font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+  .stat .name{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
   .stat .num{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--fg);line-height:1}
   .stat .num.bump{animation:numbump .5s ease}
   @keyframes numbump{40%{transform:scale(1.5);color:var(--ok)}}
-  .stat .pm{display:flex;gap:6px;margin-top:2px}
-  .smbtn{width:34px;height:30px;font-size:17px;font-weight:700;line-height:1;border:1.5px solid var(--line);background:var(--card);color:var(--fg);
+  /* 8px between − and +: at 6px (and 34x30 buttons) a hurried "+" on a timeout landed on "−". */
+  .stat .pm{display:flex;gap:8px;margin-top:2px}
+  .smbtn{width:var(--tap);height:var(--tap);font-size:20px;font-weight:700;line-height:1;border:1.5px solid var(--line);background:var(--card);color:var(--fg);
     border-radius:var(--r);cursor:pointer}
   .stat.warn{color:var(--warn)} .stat.warn .num,.stat.warn .name{color:var(--warn)}
   .stat.maxed .num,.stat.maxed .name{color:var(--bad)}
@@ -103,12 +132,14 @@
   .side .bigbtn:active,.side .smbtn:active,.side .score .ptbtn:active{background:color-mix(in srgb,var(--on-edge) 30%,transparent)}
   .side .score .bigbtn.minus{background:color-mix(in srgb,var(--on-edge) 12%,transparent)}
   .side .stat{background:color-mix(in srgb,var(--on-edge) 15%,transparent);border-color:color-mix(in srgb,var(--on-edge) 26%,transparent)}
-  .side .stat .name{color:color-mix(in srgb,var(--on-edge) 85%,transparent)}
+  .side .stat .name{color:var(--on-edge)}
   .side .stat .num{color:var(--on-edge)}
   .side .stat.warn .num,.side .stat.warn .name{color:#ffe08a}
   .side .stat.maxed{background:color-mix(in srgb,var(--on-edge) 30%,transparent);border-color:var(--on-edge)}
   .side .stat.maxed .num,.side .stat.maxed .name{color:var(--on-edge)}
-  .side .taphint{color:color-mix(in srgb,var(--on-edge) 72%,transparent)}
+  /* Full-strength ink, no opacity: at 72% × .75 this hint measured ~2:1 on red — invisible under
+     hall lights. The panel colour itself is darkened by JS until the ink clears 4.5:1 (panelFor). */
+  .side .taphint{color:var(--on-edge)}
 
   /* centre column: serve + quick controls */
   .centercol{flex:0 0 auto;align-self:center;display:flex;flex-direction:column;align-items:center;gap:12px;
@@ -118,27 +149,38 @@
   .servebox .lbl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   /* one consolidated SERVE pill: two arrows + label; the serving side fills its team colour */
   .servetoggle{display:flex;align-items:center;gap:4px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:4px}
-  .sv-arrow{display:flex;align-items:center;justify-content:center;width:42px;height:38px;border:0;background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;transition:background .14s,color .14s}
+  .sv-arrow{display:flex;align-items:center;justify-content:center;width:var(--tap);height:var(--tap);border:0;background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;transition:background .14s,color .14s}
   .sv-arrow:hover{color:var(--fg)}
-  .sv-arrow[data-serve="left"].on{background:var(--left);color:#fff}
-  .sv-arrow[data-serve="right"].on{background:var(--right);color:#fff}
+  .sv-arrow[data-serve="left"].on{background:var(--left);color:var(--left-ink,#fff)}
+  .sv-arrow[data-serve="right"].on{background:var(--right);color:var(--right-ink,#fff)}
   .sv-lbl{padding:0 3px}
+  /* Basketball's period, in the centre beside POSS. It is one shared value, not a per-team stat,
+     and as a tile on each team card it showed the same −/+ twice and pushed the fouls row below
+     the fold on a phone. */
+  #periodBox{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .periodctl{display:flex;align-items:center;gap:4px;border:1.5px solid var(--line);border-radius:var(--r);padding:4px}
+  .pdbtn{width:var(--tap);height:var(--tap);font-size:20px;font-weight:700;line-height:1;border:0;border-radius:2px;background:transparent;color:var(--fg);cursor:pointer}
+  .pdbtn:active{background:var(--fill)}
+  .pdval{min-width:44px;text-align:center;font-size:20px;font-weight:800;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  /* The portrait-only copies of keep-awake / full screen in the header (see the portrait block). */
+  .topbar .hdricon{display:none;width:var(--tap);height:var(--tap);flex:0 0 auto;align-items:center;justify-content:center;padding:0}
+  #periodBox .lbl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   /* beach serve-player control (centre column, beach only) */
   #beachServe{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
-  #beachServe[hidden]{display:none}
   .plrbtn{display:flex;flex-direction:column;align-items:center;gap:2px;width:64px;padding:7px 0;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .plrbtn .plrlbl{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .plrbtn .plrnum{font-size:24px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;font-family:var(--mono)}
-  .ordbtn{font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--blue);background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:8px 10px;cursor:pointer}
+  .ordbtn{min-height:var(--tap);font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--blue);background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:8px 10px;cursor:pointer}
   .iconbtn{width:48px;height:44px;font-size:18px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);border-radius:var(--r);cursor:pointer}
   .iconbtn.active{color:var(--gold)}
   /* Team-name size, one per side, sitting in the name row it belongs to. Each side gets its own
      because the fitter already shrinks a long name on its own — a shared ceiling would only stop
-     a SHORT name being made bigger on the other side. Sized to match input.color (38px) so the
-     header row keeps one height. .side.right .sidehdr is row-reverse, so this mirrors for free. */
-  .namesize{flex:0 0 auto;display:flex;align-items:center;gap:2px;height:38px;padding:0 3px;
+     a SHORT name being made bigger on the other side. Buttons are full --tap squares (they were
+     26x32); the header row stretches so the name box and colour swatch keep one height with it.
+     .side.right .sidehdr is row-reverse, so this mirrors for free. */
+  .namesize{flex:0 0 auto;display:flex;align-items:center;gap:0;padding:0;
     border:1.5px solid var(--line);border-radius:var(--r);background:var(--card)}
-  .namesize button{width:26px;height:32px;padding:0;font-size:16px;font-weight:800;line-height:1;
+  .namesize button{width:var(--tap);height:var(--tap);padding:0;font-size:18px;font-weight:800;line-height:1;
     border:0;background:transparent;color:var(--fg);cursor:pointer;border-radius:6px}
   .namesize button:disabled{opacity:.3;cursor:default}
   .namesize .num{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);
@@ -151,26 +193,39 @@
 
   .gfooter{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
   .setstrip{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto}
-  .setstrip[hidden]{display:none}
   .setpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:5px 11px;border-radius:4px;
     background:var(--card);font-size:12px;font-variant-numeric:tabular-nums;font-family:var(--mono);
     border:1.5px solid var(--line)}
   .setpill .sn{font-size:10px;font-weight:700;color:var(--muted);margin-right:3px}
   .setpill b{font-weight:600;color:var(--muted)} .setpill b.w{color:var(--fg);font-weight:800} .setpill em{color:var(--muted)}
-  .setundo{width:30px;height:26px;border-radius:var(--r);font-size:12px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer}
+  .setundo{flex:0 0 auto;width:var(--tap);height:var(--tap);border-radius:var(--r);font-size:14px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer}
+  /* The set strip and the general Undo share one row: Undo is always there (greyed when there is
+     nothing to take back), so the strip being empty early in a match must not move it. */
+  .striprow{display:flex;align-items:center;gap:8px;min-width:0}
+  .striprow .setstrip{flex:0 1 auto;min-width:0}
+  #undoBtn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:var(--tap);max-width:210px;padding:0 12px;
+    font-size:13px;font-weight:800;white-space:nowrap;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--blue);cursor:pointer}
+  #undoBtn .ulabel{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:600;color:var(--muted)}
+  #undoBtn:disabled{color:var(--muted);opacity:.45;cursor:default}
   .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .actions button{min-height:44px;padding:0 16px;font-size:13px;font-weight:800;white-space:nowrap;border:1.5px solid var(--line);
     background:var(--card);color:var(--fg);border-radius:var(--r);cursor:pointer}
   .actions .switch{color:var(--blue)}
-  .actions .danger{color:var(--bad)} .actions .danger:first-of-type{margin-left:auto}
+  /* Reset is pushed to the far end behind a hairline, away from Switch sides. The old
+     `.danger:first-of-type` never matched (first-of-type counts <button>s, and VS is first), so the
+     destructive button sat flush against the everyday one it is easiest to mistake for. */
+  .actions .danger{color:var(--bad)}
+  #resetBtn{position:relative;margin-left:auto}
+  #resetBtn::before{content:"";position:absolute;left:-10px;top:6px;bottom:6px;width:1.5px;background:var(--line-soft)}
 
   /* countdown overlay */
-  #cd{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:15;display:flex;align-items:center;gap:14px;
+  /* width:max-content — with left:50% the shrink-to-fit width is capped at HALF the screen, which on
+     a portrait phone wrapped "Start interval →" onto two lines. */
+  #cd{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 16px);z-index:15;display:flex;align-items:center;gap:14px;
     padding:10px 18px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
-  #cd[hidden]{display:none}
   #cd .cd-time{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--warn)}
   #cd .cd-label{font-size:14px;font-weight:800;letter-spacing:.03em;color:var(--fg);text-transform:uppercase}
-  #cd .cd-stop{min-width:36px;height:36px;padding:0 12px;border-radius:var(--r);font-size:15px;font-weight:800;border:1.5px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+  #cd .cd-stop{min-width:var(--tap);height:var(--tap);padding:0 12px;border-radius:var(--r);font-size:15px;font-weight:800;border:1.5px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
   #cd.major{top:50%;transform:translate(-50%,-50%);flex-direction:column;gap:10px;padding:26px 42px}
   #cd.major .cd-time{font-size:66px} #cd.major .cd-label{font-size:16px}
   #cd.major .cd-stop{height:44px;font-size:16px;padding:0 20px;color:var(--blue)}
@@ -181,72 +236,140 @@
 
   /* ---- LINK ---- */
   .link{padding:14px;overflow-y:auto}
-  .linkbar{display:flex;gap:8px;margin-bottom:12px}
-  .linkbar button,#matches .linkbtn{padding:11px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
+  .link > *{flex:0 0 auto}
+  .linkhead{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+  .linkhead + ul,.linkhead + div{margin-top:0}
+  .link .note + .linkhead{margin-top:14px}
+  .linkh{flex:1;min-width:0;margin:0;font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--blue);text-transform:uppercase}
+  .linkdate{margin-left:6px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;display:inline-block}
+  .linkhead button,#matches .linkbtn{min-height:var(--tap);padding:11px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   #matches{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
   #matches li{display:flex;align-items:center;gap:12px;padding:13px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--line)}
   #matches .info{flex:1;min-width:0} #matches .label{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #matches .sub{font-size:12px;color:var(--muted)}
   .live{font-size:11px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--ok);padding:3px 8px;border-radius:20px}
   #matches li.linked .linkbtn{color:#fff;background:var(--blue);border-color:var(--blue)}
+  /* A schedule row is ONE big button: time · HOME vs AWAY · league. The whole row is the target —
+     read and tapped at arm's length, often with the teams already on court. */
+  .schedlist{list-style:none;padding:0;margin:0 0 4px;display:flex;flex-direction:column;gap:10px}
+  .schedrow{width:100%;display:flex;align-items:center;gap:14px;min-height:64px;padding:10px 14px;text-align:left;
+    border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer;font:inherit}
+  .schedrow:active{background:var(--fill)}
+  .schedrow .stime{flex:0 0 auto;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20px;font-weight:800}
+  .schedrow .sinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .schedrow .steams{font-size:17px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .schedrow .steams .vs{font-weight:600;color:var(--muted);margin:0 .35em}
+  .schedrow .smeta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .schedrow .sgo{flex:0 0 auto;padding:8px 14px;border:1.5px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:14px;font-weight:800}
+  @media (max-width:420px){ .schedrow{gap:10px;padding:10px} .schedrow .stime{font-size:17px} .schedrow .steams{font-size:15px} .schedrow .sgo{display:none} }
   .note{color:var(--muted);font-size:13px;padding:8px 2px} .err{color:var(--bad);font-size:13px;padding:6px 2px}
 
   /* ---- SETTINGS ---- */
   .settings{padding:14px;overflow-y:auto}
-  .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+  .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
   .settings fieldset{border:1.5px solid var(--line);border-radius:var(--r);padding:12px 16px 14px;margin:0;background:var(--card);min-width:0}
   .settings legend{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--blue);text-transform:uppercase;padding:0 4px 2px;display:flex;align-items:center;gap:6px}
   .settings .row{display:flex;align-items:center;gap:8px;padding:9px 0;font-size:13px}
   .settings .row + .row{border-top:1px solid var(--line-soft)}
-  .settings .row span{flex:1;min-width:0} .settings .row em{font-style:normal;color:var(--muted);font-size:11px;width:16px}
+  /* The LABEL text only. This used to be `.row span`, which also caught the stepper wrapper (a
+     span) and gave it flex:1;min-width:0 — shrinking it below its buttons, so "+" slid over the
+     unit label and out past the card border. */
+  .settings .row > span:first-child{flex:1;min-width:0}
+  /* The unit is a fixed slot right of the stepper, on EVERY stepper row — buildSteppers gives a
+     unitless one ("Total subs / set") an empty slot. Without it that stepper sat 24px further right
+     than its neighbours and, on a narrow card, pushed its "+" past the border; and at 16px wide the
+     slot was narrower than "ms"/"px" with the row squeezed, so "px" slid under the "+" and read "+x". */
+  .settings .row em{font-style:normal;color:var(--muted);font-size:11px;font-weight:700;flex:0 0 18px;width:18px;white-space:nowrap}
   .settings input[type=number],.settings input[type=text],.settings select{padding:7px 10px;font-size:13px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
   .settings input[type=number]{width:84px} .settings input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:46px;height:26px;border-radius:3px;position:relative;cursor:pointer;background:var(--card);border:1.5px solid var(--line);transition:background .2s}
   .settings input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:2px;background:var(--muted);transition:transform .2s}
   .settings input[type=checkbox]:checked{background:var(--blue);border-color:var(--blue)}
   .settings input[type=checkbox]:checked::after{transform:translateX(20px);background:#fff}
-  .settings .hint{font-size:11px;color:var(--muted);margin:4px 0 0} #setStatus.saved{color:var(--ok)}
+  .settings .hint{font-size:11px;color:var(--muted);margin:4px 0 0} #setStatus.saved{color:var(--ok)} #setStatus.err{color:var(--bad);font-weight:700;font-size:13px}
   /* Numeric settings get real −/+ buttons. Mobile Chrome and Safari render NO spinner at all for
      input[type=number], so on the venue tablet these had no tap affordance whatsoever — the only
      way to change one was to focus the field and type on the numeric keyboard, mid-match. The
      native spinner is suppressed on desktop too, so both look and behave the same. */
-  .settings .stepper{display:flex;align-items:center;gap:6px;flex:0 0 auto}
-  .settings .stepper input[type=number]{width:56px;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+  .settings .stepper{display:flex;align-items:center;gap:6px;flex:0 0 auto;width:calc(2 * var(--tap) + 68px)}
+  .settings .stepper input[type=number]{width:56px;min-height:var(--tap);text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
   .settings .stepper input[type=number]::-webkit-outer-spin-button,
   .settings .stepper input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-  .stbtn{width:38px;height:38px;flex:0 0 auto;font-size:19px;font-weight:700;line-height:1;border:1.5px solid var(--line);
+  .stbtn{width:var(--tap);height:var(--tap);flex:0 0 auto;font-size:19px;font-weight:700;line-height:1;border:1.5px solid var(--line);
     border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .stbtn:active{background:var(--fill)}
   .stbtn:disabled{opacity:.35;cursor:default}
   /* explicit per-section Save: muted "Saved" when clean, filled blue "Save" when there are unsaved edits */
   .setsaverow{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft)}
-  .setsavebtn{min-height:38px;padding:0 20px;font-size:13px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--muted);cursor:pointer}
+  .setsavebtn{min-height:var(--tap);padding:0 20px;font-size:13px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--muted);cursor:pointer}
   .setsavebtn.dirty{background:var(--blue);border-color:var(--blue);color:#fff}
   .setsavebtn.ok{border-color:var(--ok);color:var(--ok)}
+  .setsavebtn.fail{border-color:var(--bad);color:var(--bad);background:var(--card)}
 
+  /* Portrait is a layout (see the portrait block at the end), not a wall. This used to replace the
+     whole console with "Rotate to landscape" and no way past it — a volunteer with rotation lock on
+     could not score at all, and the offline banner and a running countdown were hidden behind it.
+     What is left is a one-line tip that goes away for good when dismissed. */
   #rotate{display:none}
   @media (orientation:portrait) and (max-width:600px){
-    #rotate{display:flex;position:fixed;inset:0;z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);color:var(--fg);text-align:center;padding:28px}
-    #rotate .ic{display:flex;animation:rothint 2.4s ease-in-out infinite} #rotate .ic .licon{width:56px;height:56px} #rotate .t{font-size:17px;font-weight:800} #rotate .s{font-size:13px;color:var(--muted);max-width:280px}
-    @keyframes rothint{0%,55%{transform:rotate(0)}78%,100%{transform:rotate(-90deg)}}
+    #rotate{display:flex;flex:0 0 auto;align-items:center;gap:8px;margin:0 8px 4px;padding:4px 4px 4px 10px;font-size:12px;color:var(--muted);
+      border:1.5px solid var(--line-soft);border-radius:var(--r)}
+    #rotate .licon{width:16px;height:16px;flex:0 0 auto;transform:rotate(90deg)}
+    #rotate .t{flex:1;min-width:0}
+    #rotate button{flex:0 0 auto;width:var(--tap);height:36px;border:0;background:transparent;color:var(--muted);font-size:16px;cursor:pointer}
+    body.rotate-ok #rotate{display:none}
+    /* Toasts sit above the tip, not under it. */
+    body:not(.rotate-ok) #toast{bottom:62px}
   }
-  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--card);color:var(--fg);padding:12px 18px;border-radius:var(--r);font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:60;text-align:center;border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--card);color:var(--fg);padding:12px 18px;border-radius:var(--r);font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;width:max-content;z-index:95;text-align:center;border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   #toast.show{opacity:1}
+  /* A toast with a button in it (Undo, or ✕ on a sticky one) has to take taps — but only while it
+     is on screen, or the invisible box would swallow taps on the actions row beneath it. */
+  #toast.show.interactive{pointer-events:auto;padding:4px 4px 4px 16px}
+  #toast .tmsg{flex:1 1 auto;min-width:0}
+  #toast button{flex:0 0 auto;min-height:var(--tap);min-width:var(--tap);padding:0 14px;font-size:14px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--blue);cursor:pointer}
+  #toast button.tclose{border-color:transparent;color:var(--muted);padding:0}
+  /* A write that did not reach the board stays up, in red, until dismissed or until a later write
+     gets through — a 3-second note at the bottom was easy to miss mid-rally. */
+  #toast.bad{border-color:var(--bad);color:var(--bad);font-weight:700}
   #edit{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
-  #edit[hidden]{display:none}
   .editbox{background:var(--card);border-radius:var(--r);padding:18px;width:min(300px,90vw);border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   .editlabel{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;text-align:center}
   #editInput{width:100%;padding:14px;font-size:32px;font-weight:800;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;font-family:var(--mono)}
   .editbtns{display:flex;gap:10px;margin-top:14px}
   .editbtns button{flex:1;padding:13px;font-size:15px;font-weight:800;border-radius:var(--r);border:1.5px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
   #editOk{color:var(--blue)}
-  #offline{display:none;align-items:center;gap:10px;padding:11px 15px;margin:0 10px;border-radius:var(--r);background:var(--card);color:var(--bad);font-weight:700;border:1.5px solid var(--bad)}
+  /* Laid OVER the header, never in the flow: as an in-flow row it pushed the whole scoreboard ~65px
+     down mid-rally, so the next tap landed on whatever had moved under the thumb. The header is the
+     least useful thing on screen while the console cannot reach the board. */
+  #offline{position:fixed;top:0;left:0;right:0;z-index:45;display:none;align-items:center;gap:10px;min-height:56px;
+    padding:6px max(14px,env(safe-area-inset-right)) 6px max(14px,env(safe-area-inset-left));background:var(--card);color:var(--bad);font-weight:700;
+    border-bottom:2px solid var(--bad);box-shadow:0 18px 30px -22px rgba(10,11,13,.5)}
   #offline.show{display:flex} #offline .sub{font-weight:400;color:var(--muted);font-size:.82rem}
+  #offline .otext{flex:1;min-width:0;line-height:1.25}
+  /* Only the "panel not connected" variant can be put away: scoring still works then and the header
+     keeps saying "Board ✗". The unreachable-controller one goes by itself when the link is back. */
+  #offlineClose{flex:0 0 auto;width:var(--tap);height:var(--tap);border:1.5px solid var(--line-soft);border-radius:var(--r);background:var(--card);color:var(--muted);font-size:16px;cursor:pointer}
+  #offline.unreachable #offlineClose{display:none}
+  /* Controller unreachable: every scoring control greys out and the board says, in words, that
+     taps are not getting through. They stay tappable — the first one that does get through brings
+     the console back — but nobody should mistake them for live. */
+  body.offline #tab-manual .boardview,body.offline #tab-manual .board,body.offline #tab-manual .gfooter{filter:grayscale(1);opacity:.45}
+  body.offline #tab-manual::after{content:"Not sent — board unreachable";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:14;
+    padding:12px 18px;border-radius:var(--r);background:var(--card);color:var(--bad);border:2px solid var(--bad);font-size:16px;font-weight:800;
+    white-space:nowrap;pointer-events:none;box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
+  /* The control whose write failed: red ring and a "!" so the scorer knows which tap did not count. */
+  .notsent{position:relative;outline:3px solid var(--bad)!important;outline-offset:2px}
+  /* Inside the corner, not hanging off it: the team card clips its overflow, so a badge at -9px
+     showed as a sliver on the + it was meant to mark. */
+  .notsent::after{content:"!";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:var(--bad);color:#fff;
+    font:800 13px/20px system-ui,sans-serif;text-align:center;pointer-events:none}
   .editable{cursor:pointer}
   /* Power / shutdown */
   .dangerbtn{width:100%;margin-top:6px;padding:14px;font-size:15px;font-weight:800;border:1.5px solid var(--bad);border-radius:var(--r);background:var(--card);color:var(--bad);cursor:pointer}
   .setlink{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:6px;padding:13px;font-size:14px;font-weight:800;
     border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);text-decoration:none}
   .setlink:active{background:var(--fill)}
+  #pinClear{cursor:pointer}
   #shutdown{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);color:var(--fg);text-align:center;padding:32px}
   #shutdown.show{display:flex}
   #shutdown .ic{font-size:66px;color:var(--muted)}
@@ -257,7 +380,7 @@
   /* ---- HISTORY ---- */
   .history{padding:14px;overflow-y:auto}
   .histbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-  .histbar button{padding:11px 16px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
+  .histbar button{min-height:var(--tap);padding:11px 16px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   .histbar button.danger{color:var(--bad)}
   #histList{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
   .histcard{padding:13px 16px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--line)}
@@ -285,13 +408,18 @@
   /* Above serveOrder (76) and sportPicker (78): this is the shared yes/no primitive, so it must
      be able to open ON TOP of any other dialog. Below shutdown (90), which is terminal. */
   #confirm{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
-  #confirm[hidden]{display:none}
   #confirm .editlabel{font-size:16px;text-transform:none;letter-spacing:0;color:var(--fg);margin-bottom:14px}
   #confirmYes{color:var(--blue)}
+  /* A confirm that throws work away says so in red on its verb ("Reset match"), not a blue
+     "Confirm" identical to the one on a harmless question. */
+  #confirmYes.danger{color:#fff;background:var(--bad);border-color:var(--bad)}
   /* beach serve-order modal */
-  #serveOrder{position:fixed;inset:0;z-index:76;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32);padding:20px}
-  #serveOrder[hidden]{display:none}
+  #serveOrder{position:fixed;inset:0;z-index:76;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32);padding:12px}
   #serveOrder .editbox{width:min(340px,92vw)}
+  /* Every dialog box scrolls inside the viewport rather than past it: on a phone in landscape
+     (390px tall) the serve-order box was taller than the screen, centred, and clipped top AND
+     bottom — title and "Set order" both unreachable. */
+  #serveOrder .editbox,#edit .editbox,#confirm .editbox,#pinModal .editbox{max-height:calc(100dvh - 24px);overflow-y:auto}
   #serveOrder h3{margin:0 0 4px;font-size:18px;font-weight:800}
   #serveOrder .sub{margin:0 0 15px;font-size:12px;color:var(--muted)}
   .ordgrp{margin-bottom:13px}
@@ -302,7 +430,6 @@
   #ordOk{color:var(--blue)}
   /* scorer PIN lock */
   #pinModal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
-  #pinModal[hidden]{display:none}
   #pinInput{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;font-family:var(--mono)}
   #pinOk{color:var(--blue)}
   #lockBtn{font-size:16px;padding:0 12px}
@@ -310,7 +437,6 @@
   body.locked #tab-manual .board,body.locked #tab-manual .gfooter{filter:opacity(.72)}
   /* whole-UI entry lock — a PIN screen over everything until the scorer unlocks */
   #lockGate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px}
-  #lockGate[hidden]{display:none}
   .lg-box{width:min(360px,92vw);background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:32px 26px;text-align:center;box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   .lg-ic .licon{width:40px;height:40px;color:var(--fg)}
   .lg-title{font-size:20px;font-weight:800;margin:12px 0 4px}
@@ -331,10 +457,16 @@
   .bvblink{animation:bvblink 1.8s steps(1,end)}
   @keyframes bvblink{0%,100%{opacity:1}12%,37%,62%,87%{opacity:.1}}
   /* mirror non-match board states */
-  #bvPanel[data-mode="idle"] .bvinner,#bvPanel[data-mode="countdown"] .bvinner,#bvPanel[data-mode="blank"] .bvinner{display:none}
+  #bvPanel[data-mode="idle"] .bvinner,#bvPanel[data-mode="clock"] .bvinner,#bvPanel[data-mode="countdown"] .bvinner{display:none}
   .bvidle{position:absolute;inset:0;display:none;align-items:center;justify-content:center;gap:5cqw;padding:0 6cqw;font-family:Arial,Helvetica,sans-serif}
-  #bvPanel[data-mode="idle"] .bvidle{display:flex}
+  #bvPanel[data-mode="idle"] .bvidle,#bvPanel[data-mode="clock"] .bvidle{display:flex}
   .bvcrest{height:80cqh;width:auto;flex:0 0 auto}
+  /* "Show clock" (kscw_clock): the crest with the time and date beside it instead of the names. */
+  .bvclock{display:none;flex:1 1 auto;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4cqh}
+  #bvPanel[data-mode="clock"] .bvclock{display:flex}
+  #bvPanel[data-mode="clock"] .bvnames{display:none}
+  .bvclock .bvtime{font-weight:700;font-size:40cqh;line-height:1;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .bvclock .bvdate{font-weight:700;font-size:18cqh;line-height:1;color:#ffc832;white-space:nowrap}
   .bvnames{display:flex;flex-direction:column;justify-content:center;min-width:0}
   .bvnames .bvn{font-weight:700;font-size:23cqh;line-height:1.02;letter-spacing:-.02em;white-space:nowrap}
   .bvnames .bvsep{height:.6cqh;background:#39415f;margin:2.5cqh 0;border-radius:1cqh}
@@ -345,7 +477,9 @@
   .bvcd .bvcdtime{font-weight:700;font-size:42cqh;line-height:.85;color:#ffcf47;font-variant-numeric:tabular-nums}
   .bvcd .bvcdsub{font-weight:700;font-size:15cqh;color:#e7ecff;font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;gap:1.5cqw;align-items:baseline}
   /* Board mirror + top-anchored cards only where there's room (tablets and up) */
-  @media (min-width:740px){
+  /* Height matters as much as width: a phone on its side is 844 wide but only ~390 tall, and there
+     the mirror collapsed to a lone "-" while pushing Switch sides / Reset below the fold. */
+  @media (min-width:740px) and (min-height:560px){
     .board{flex:0 0 auto}
     .boardview{display:flex}
     /* lift the big break-countdown card so the board mirror below stays visible */
@@ -355,10 +489,10 @@
   @media (orientation:portrait){
     .bvpanel{width:100%;height:auto;max-height:100%}
   }
-  .taphint{font-size:10px;color:var(--muted);text-align:center;opacity:.75;margin-top:-4px}
+  .taphint{font-size:12px;font-weight:700;color:var(--muted);text-align:center;margin-top:-4px}
 
   /* ---- multi-sport: header badge, per-sport score cluster, sport picker ---- */
-  .sportbadge{display:inline-flex;align-items:center;gap:6px;min-height:40px;min-width:40px;padding:0 12px;border:1.5px solid var(--line);border-radius:var(--r);
+  .sportbadge{display:inline-flex;align-items:center;gap:6px;min-height:var(--tap);min-width:var(--tap);padding:0 12px;border:1.5px solid var(--line);border-radius:var(--r);
     background:var(--card);color:var(--blue);font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;flex:0 0 auto}
   .sportbadge .sbico{display:inline-flex;align-items:center} .sportbadge .sbico .licon{width:1.15em;height:1.15em}
   @media (max-width:560px){ .sportbadge .sbtxt{display:none} }
@@ -370,14 +504,11 @@
   .score.bball .ptrow{display:flex;gap:8px;width:100%}
   .score .ptbtn{flex:1 1 0;min-width:0;min-height:46px;height:clamp(46px,7vh,58px);font-size:20px;font-weight:800;line-height:1;border:1.5px solid var(--line);
     background:var(--card);color:var(--fg);border-radius:var(--r);cursor:pointer}
-  .score .bigbtn.minus{width:auto;height:40px;min-height:40px;border-radius:var(--r);font-size:18px;padding:0 20px;align-self:center}
-  /* Author display rules beat the [hidden] attribute, so restate it for the toggled bits. */
-  .stat[hidden]{display:none} .actions button[hidden]{display:none}
+  .score .bigbtn.minus{width:auto;height:var(--tap);min-height:var(--tap);border-radius:var(--r);font-size:18px;padding:0 20px;align-self:center}
   /* Plain branding: drop the crest on the board-mirror idle screen (names only). */
   #bvPanel[data-branding="plain"] .bvcrest{display:none}
   /* Full-screen sport selector (landing + re-open from the header badge). */
   #sportPicker{position:fixed;inset:0;z-index:78;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
-  #sportPicker[hidden]{display:none}
   .spbox{width:min(560px,94vw);max-height:92vh;overflow-y:auto;background:var(--card);border-radius:var(--r);padding:26px 24px;
     border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   .sptitle{font-size:20px;font-weight:800;text-align:center;color:var(--fg)}
@@ -399,7 +530,6 @@
   /* End-of-match summary. Shares .spbox with the two pickers so the three landing overlays read
      as one family; only the result block is its own. */
   #matchEnd{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
-  #matchEnd[hidden]{display:none}
   .mescore{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 16px}
   .mescore .mt{font-size:15px;font-weight:800;text-transform:uppercase;max-width:34%;overflow-wrap:anywhere;text-align:center}
   .mescore .mn{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);line-height:1}
@@ -419,7 +549,6 @@
   /* Game menu — shown once the sport is settled. Sits ABOVE the sport picker (78) and BELOW the
      shared confirm modal (80), which Delete and an overwriting New both call into. */
   #gamePicker{position:fixed;inset:0;z-index:79;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
-  #gamePicker[hidden]{display:none}
   .gplist{display:grid;gap:12px}
   /* Full-width rows, not a grid of tiles: these are four different decisions, not four of a kind,
      and one of them throws work away. Reading them in a column makes that hard to mis-tap. */
@@ -454,6 +583,7 @@
   .dbig{font-size:26px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;font-family:var(--mono)}
   .dsub{font-size:12px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
   .dsub.dmono{font-family:var(--mono);font-size:11px}
+  .dsub.warn{color:var(--gold)}
   .dcard .hint{margin:8px 0 0;font-size:11px}
   .dcard.warn{border-color:var(--gold)} .dcard.warn .dbig{color:var(--gold)}
   .dcard.bad{border-color:var(--bad)}   .dcard.bad .dbig{color:var(--bad)}
@@ -468,14 +598,23 @@
 
   .logbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
   .logbar strong{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-  .logbar select,.logbar input{font-size:12px;padding:5px 7px;border:1.5px solid var(--line);
+  .logbar select,.logbar input{min-height:var(--tap);font-size:13px;padding:5px 9px;border:1.5px solid var(--line);
     border-radius:var(--r);background:var(--card);color:var(--fg)}
   .logbar input{flex:1;min-width:110px}
-  .logbar button{font-size:12px;padding:5px 10px}
+  .logbar button{min-height:var(--tap);font-size:13px;font-weight:700;padding:0 14px;border:1.5px solid var(--line);
+    border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .logbar button.paused{border-color:var(--gold);color:var(--gold)}
-  /* Fixed height with its own scroll: the tail must not push the health cards off the screen,
-     and on a phone an unbounded list would make the whole tab unusable within a minute. */
-  .loglist{list-style:none;margin:0;padding:6px;max-height:46vh;overflow-y:auto;
+  /* .tab.active is `display:flex;flex-direction:column`, so everything in here is a flex item and
+     shrinks by default. That crushed the log: max-height:46vh is a CEILING, nothing stopped the
+     list from being squeezed to a couple of pixels by the health cards above it, and an empty
+     list has no content to hold it open either. The three flex declarations below are the actual
+     fix — the height alone would not have helped.
+     .diag scrolls, so the cards keep their natural size and the log gets a floor of most of the
+     screen and grows into any space left over. A log you cannot read several lines of at once is
+     not a log. */
+  .dgrid{flex:0 0 auto}
+  .logbar{flex:0 0 auto}
+  .loglist{flex:1 1 auto;min-height:min(72vh,640px);list-style:none;margin:0;padding:6px;overflow-y:auto;
     background:var(--fill);border:1.5px solid var(--line);border-radius:var(--r);
     font-family:var(--mono);font-size:11px;line-height:1.45}
   .loglist li{display:flex;gap:7px;padding:1px 0;border-bottom:1px solid var(--line-soft)}
@@ -487,13 +626,165 @@
   .loglist li.warn .lgl{color:var(--gold)}
   .loglist li.error .lgl{color:var(--bad)}
   .loglist li.debug{opacity:.65}
+  .logrow.period-end{color:var(--gold);font-weight:800}
+  .logrow.undo,.logrow.set-closed{color:var(--muted);font-style:italic}
+
+  /* ---- short screens (a phone on its side: ~844x390) --------------------------------------
+     Everything the scorer needs mid-rally has to fit without scrolling — scrolling to reach Switch
+     sides moved the scores out of view. The mirror is already gone at this height; here the team
+     cards tighten, the serve label stacks over its arrows so the centre column narrows (the stat
+     tiles need that width for two --tap buttons), and the set strip shares one row with the
+     actions. Nothing is hidden and no target drops under --tap. */
+  @media (max-height:500px){
+    .topbar{padding-top:5px;padding-bottom:5px}
+    .game{padding:8px;gap:8px}
+    .board{gap:8px}
+    .teamcard{gap:6px;padding:8px 10px}
+    .score{max-height:none}
+    .bigbtn{height:56px}
+    .score .val{font-size:clamp(40px,14vh,64px)}
+    .score.bball{gap:6px}
+    .score.bball .val{font-size:clamp(34px,11vh,52px)}
+    .score .ptbtn{height:var(--tap);min-height:var(--tap)}
+    .score .bigbtn.minus{height:var(--tap);min-height:var(--tap)}
+    .statrow{gap:6px}
+    /* Label and number share one line ("T/O 0") above the −/+, which buys back the height the
+       --tap buttons cost. */
+    .stat{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:baseline;column-gap:6px;row-gap:3px;padding:4px 2px}
+    .stat .pm{grid-column:1 / -1;margin-top:0}
+    .stat .num{font-size:20px}
+    .taphint{margin-top:-3px}
+    .centercol{display:grid;grid-template-columns:auto auto;justify-items:center;gap:6px;padding:8px}
+    .centercol .servebox,.centercol #beachServe,.centercol #periodBox{grid-column:1/-1}
+    .servetoggle{flex-wrap:wrap;justify-content:center;width:calc(var(--tap) * 2 + 15px)}
+    .servetoggle .sv-lbl{order:-1;flex-basis:100%;text-align:center;padding:2px 0 0}
+    #periodBox{gap:2px}
+    .periodctl{padding:2px}
+    .pdval{min-width:36px;font-size:17px}
+    .plrbtn{padding:4px 0}
+    .gfooter{flex-direction:row;align-items:center}
+    .striprow{flex:0 1 auto;min-width:0}
+    .setstrip{flex:0 1 auto;min-width:0}
+    #undoBtn{max-width:170px}
+    /* Only the latest set's pill here. The strip shares its row with Undo and the actions, so from
+       the third set on it overflowed into a sideways scroll nobody would guess at — and the
+       remove-last-set trash, the one control in it, went off the end. The set count is on the
+       cards anyway; the full list is in portrait, on a tablet and in the match summary. */
+    .setpill:not(:last-of-type){display:none}
+    .actions{flex:1 0 auto;flex-wrap:nowrap;justify-content:flex-end}
+    .actions button{padding:0 12px}
+    /* Landing dialogs: "Keep current sport" sat at y=380–424 on a 390px screen. */
+    #sportPicker,#gamePicker,#matchEnd{padding:8px}
+    .spbox{padding:14px 18px;max-height:calc(100dvh - 16px)}
+    .sptitle{font-size:18px}
+    .spsub{margin:2px 0 10px}
+    .splist{gap:8px}
+    .spopt{min-height:0;flex-direction:row;justify-content:center;gap:10px;padding:10px 12px}
+    .spopt .spico .licon{width:26px;height:26px}
+    .spstatus{margin:8px 0 0}
+    .sputil{margin:10px 0 0}
+    .spcancel{margin:10px auto 0}
+    .gplist{gap:8px}
+    .gpopt{min-height:0;padding:8px 14px}
+    /* No wider than the centre column (plus a little), so it covers the serve controls rather
+       than a team's − — the loser's − is how a mis-scored rally is corrected while it is up. */
+    #cd.major{padding:10px 12px;gap:6px;max-width:156px}
+    #cd.major .cd-time{font-size:40px}
+    #cd.major .cd-label{font-size:14px;text-align:center}
+    #cd.major .cd-stop{height:auto;min-height:var(--tap);padding:4px 10px;font-size:14px;line-height:1.15;white-space:normal;text-wrap:balance}
+    /* Basketball's score cluster side by side (total | +1 +2 +3 over −1) instead of three stacked
+       rows, which pushed the name row off the top of the card. */
+    .score.bball{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2.2fr);align-items:center;column-gap:8px}
+    .score.bball .val{grid-row:1 / 3}
+    .score.bball .bigbtn.minus{justify-self:stretch}
+    /* Beach serve order: its three questions side by side, so the box fits a 390px-tall screen
+       without scrolling (it still scrolls rather than clips if it must). */
+    #serveOrder .editbox{width:min(760px,96vw);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:14px;padding:14px 16px}
+    #serveOrder .editbox > h3,#serveOrder .editbox > .sub,#serveOrder .editbox > .editbtns{grid-column:1 / -1}
+    #serveOrder .sub{margin-bottom:10px}
+    .ordgrp{margin-bottom:4px}
+    .segbtns button{padding:8px;min-height:var(--tap)}
+    #serveOrder .editbtns{margin-top:10px}
+    #offline{min-height:48px;padding-top:4px;padding-bottom:4px}
+  }
+
+  /* ---- portrait phones (~390x844) -------------------------------------------------------------
+     A real layout rather than the old "Rotate to landscape" wall. The two team cards stack, top =
+     the LEFT team and bottom = the RIGHT, with the centre controls as one row between them; the
+     serve arrows turn to point up/down to match. Every scoring control — +/−, serve, T/O, subs or
+     fouls, the basketball period — fits without scrolling at 390x844; the tab scrolls only on a
+     shorter screen, as a fallback, so nothing is ever out of reach. */
+  @media (orientation:portrait) and (max-width:600px){
+    .topbar{flex-wrap:wrap;gap:6px 8px;padding:6px 10px}
+    /* The name goes, the mark stays: the room buys keep-awake and full screen up here. */
+    .brand{font-size:0;gap:0} .brand .brandmark{width:24px;height:24px}
+    .topbar .hdricon{display:inline-flex}
+    .nav{order:5;flex:1 1 100%}
+    .nav button{flex:1 1 auto;padding:0 8px}
+    .game{padding:8px;gap:8px;overflow-y:auto}
+    .board{display:flex;flex-direction:column;gap:8px;flex:0 0 auto;align-items:stretch}
+    .side{flex:0 0 auto}
+    .side.right .sidehdr{flex-direction:row}
+    .side.right input.short{text-align:left}
+    .teamcard{gap:6px;padding:8px 10px}
+    .score{max-height:none}
+    .bigbtn{width:76px;height:58px}
+    .score .val{font-size:60px}
+    /* The hint is the one thing that goes: the number is still tappable, and it cost a row. */
+    .taphint{display:none}
+    .statrow{gap:6px}
+    .stat{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:baseline;column-gap:6px;row-gap:3px;padding:4px 2px}
+    .stat .pm{grid-column:1 / -1;margin-top:0}
+    .stat .num{font-size:20px}
+    /* Centre controls as one row between the cards. Keep-awake and full screen move to the header
+       (their .js-awake/.js-fs copies there), which has the room this row does not. */
+    .centercol{flex-direction:row;flex-wrap:wrap;justify-content:center;align-self:stretch;gap:10px;padding:6px 8px}
+    .centercol > .iconbtn{display:none}
+    .servebox{flex-direction:row}
+    .sv-arrow .licon{transform:rotate(90deg)}
+    #beachServe{flex-direction:row;width:auto}
+    .plrbtn{flex-direction:row;gap:6px;width:auto;min-height:var(--tap);padding:0 10px}
+    /* "Q1" between − and + needs no caption, and the caption would push it onto a row of its own. */
+    #periodBox{flex-direction:row}
+    #periodBox .lbl{display:none}
+    /* Basketball: −1, the total and +1 +2 +3 on ONE row, in the volleyball order (− total +). */
+    .score.bball{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1.6fr);align-items:center;column-gap:8px}
+    .score.bball .val{grid-column:2;grid-row:1;font-size:54px}
+    .score.bball .bigbtn.minus{grid-column:1;grid-row:1;height:52px;padding:0 12px}
+    .score.bball .ptrow{grid-column:3;grid-row:1;gap:6px}
+    .score .ptbtn{height:52px;min-height:52px;font-size:18px}
+    /* One wrapping flow for Undo and the actions, so an empty set strip doesn't cost Undo a row of
+       its own; once there are set results, the strip takes the first row by itself. */
+    .gfooter{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}
+    .striprow,.actions{display:contents}
+    .striprow .setstrip{flex:1 1 100%;flex-wrap:wrap}
+    /* Two groups split by a hairline: the in-match actions (Undo, Switch sides, End period) above
+       it, the board and pre-match ones (VS, Warm-up | Reset) below. Reset used to wrap in
+       right beside Switch sides — one slip from the everyday button. The ::after is a zero-height,
+       full-width flex item: the one way to force a line break in a flex row, and it doubles as the
+       divider. Same row count as before, so the footer still fits a 390x844 screen. */
+    .gfooter::after{content:"";order:1;flex:1 1 100%;height:0;border-top:1.5px solid var(--line-soft)}
+    #idleBtn,#warmupBtn,#resetBtn{order:2}
+    #resetBtn{margin-left:10px}
+    /* Grow to fill each wrapped row, so a short last row reads as intended, not as spill-over. */
+    .actions button,#undoBtn{flex:1 1 auto;justify-content:center;padding:0 10px}
+    /* Between the − and + columns (they sit ~100 px in from each edge), so neither team's
+       correction buttons are under it. */
+    #cd.major{padding:12px 14px;gap:8px;max-width:calc(100% - 200px)}
+    #cd.major .cd-time{font-size:44px}
+    #cd.major .cd-label{text-align:center}
+    #cd.major .cd-stop{height:auto;min-height:var(--tap);padding:4px 12px;line-height:1.15;white-space:normal;text-wrap:balance}
+  }
 </style>
 
 <div id="app">
   <header class="topbar">
-    <span class="brand"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> Point Hub</span>
-    <span id="dot" title="LedBox connection"><svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg></span>
-    <div id="mode">Mode <b id="modeName">…</b><span id="setNo"></span><span id="matchTag"></span></div>
+    <span class="brand"><img class="brandmark" src="favicon.svg" alt="" width="20" height="20"> Point Hub</span>
+    <span id="dot" title="LedBox connection"><span id="dotIc"><svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg></span><span id="dotTxt">Board …</span></span>
+    <div id="mode"><span id="modeTag" hidden><b id="modeName">…</b><span id="matchTag"></span></span><span id="setNo"></span></div>
+    <!-- Portrait-only copies of keep-awake / full screen (the centre column's are hidden there). -->
+    <button class="iconbtn hdricon js-awake" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
+    <button class="iconbtn hdricon js-fs" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
     <button id="sportBadge" class="sportbadge" title="Change sport" aria-label="Change sport"><span class="sbico" aria-hidden="true"></span><span class="sbtxt"></span></button>
     <nav class="nav">
       <button id="tabManualBtn" class="active" data-tab="manual">Game</button>
@@ -507,10 +798,11 @@
 
   <div id="offline" role="status" aria-live="polite">
     <span aria-hidden="true"><svg class="licon l-triangle-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></svg></span>
-    <span>
+    <span class="otext">
       <span class="big">Board not connected</span><br>
       <span class="sub" id="offlineHint">Scores are still being recorded — the panel is not updating.</span>
     </span>
+    <button type="button" id="offlineClose" aria-label="Hide this notice">✕</button>
   </div>
 
   <main>
@@ -520,7 +812,7 @@
     <div class="side left" data-side="left">
       <div class="teamcard">
         <div class="sidehdr">
-          <input class="short" data-field="short" maxlength="12" placeholder="TEAM A">
+          <input class="short" data-field="short" maxlength="12" placeholder="TEAM A" aria-label="Left team name" autocomplete="off">
           <div class="namesize" title="Size of this name on the LED panel — a long name still shrinks to fit">
             <button type="button" data-font="left" data-d="-1" aria-label="Smaller left team name on the panel">−</button>
             <span class="num" data-fontval="left">–</span>
@@ -556,13 +848,21 @@
         <button class="plrbtn" id="servePlrBtn" title="Serving player — tap to switch" aria-label="Switch the serving player"><span class="plrlbl">PLAYER</span><span class="plrnum" id="servePlrNum">–</span></button>
         <button class="ordbtn" id="serveOrderBtn" title="Set the beach serve order">Serve order</button>
       </div>
+      <div id="periodBox" hidden>
+        <span class="lbl">PERIOD</span>
+        <div class="periodctl" role="group" aria-label="Period">
+          <button type="button" class="pdbtn" data-period="-1" aria-label="Previous period">−</button>
+          <span class="pdval" id="periodVal">Q1</span>
+          <button type="button" class="pdbtn" data-period="1" aria-label="Next period">+</button>
+        </div>
+      </div>
       <button id="awakeBtn" class="iconbtn js-awake" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
       <button id="fsBtn" class="iconbtn js-fs" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
     </div>
     <div class="side right" data-side="right">
       <div class="teamcard">
         <div class="sidehdr">
-          <input class="short" data-field="short" maxlength="12" placeholder="TEAM B">
+          <input class="short" data-field="short" maxlength="12" placeholder="TEAM B" aria-label="Right team name" autocomplete="off">
           <div class="namesize" title="Size of this name on the LED panel — a long name still shrinks to fit">
             <button type="button" data-font="right" data-d="-1" aria-label="Smaller right team name on the panel">−</button>
             <span class="num" data-fontval="right">–</span>
@@ -592,26 +892,44 @@
     <div class="bvpanel" id="bvPanel"></div>
   </div>
   <div class="gfooter">
-    <div id="setStrip" class="setstrip" hidden></div>
+    <div class="striprow">
+      <div id="setStrip" class="setstrip" hidden></div>
+      <!-- General undo: takes back the last thing entered (a point, a timeout, a sub, the serve, a
+           swap, a new set…). The label says what that is, so the tap is never a guess. -->
+      <button id="undoBtn" type="button" disabled title="Nothing to undo yet"><svg class="licon l-undo-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5" /> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></svg><span>Undo</span><span class="ulabel" id="undoLabel"></span></button>
+    </div>
     <div class="actions">
       <button id="idleBtn" title="Show team names + VS on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
       <button id="warmupBtn" title="Pre-match warm-up countdown"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Warm-up</button>
       <button id="nextPeriodBtn" hidden title="End the quarter / period"><svg class="licon l-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /> <line x1="4" x2="4" y1="22" y2="15" /></svg> End period</button>
       <button id="swapBtn" class="switch" title="Teams change ends"><svg class="licon l-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></svg> Switch sides</button>
-      <button id="resetBtn" class="danger" title="Clear the board to 0–0">Reset</button>
-      <button id="blankBtn" class="danger" title="Blank the display">Blank</button>
+      <!-- Reset used to sit beside a Blank button, both styled danger, both one vague verb — and
+           only ONE of them destroyed anything. Blank has since been taken off the console (VS
+           still takes the score off the panel, and Undo takes back a mis-tap), so Reset is
+           labelled by what it acts ON: the match, which it throws away. -->
+      <button id="resetBtn" class="danger" title="Throw this match away and start again from 0–0">Reset match</button>
     </div>
   </div>
 </section>
 
     <!-- LINK -->
     <section id="tab-link" class="tab link">
-      <div class="linkbar">
-        <button id="refreshBtn">↻ Refresh matches</button>
+      <!-- Today's KSCW home games, from the club's public schedule. One tap starts a game with both
+           names already on the board — the thing a volunteer used to type, badly, with the teams
+           warming up. Above the relay list because it is what most evenings actually need. -->
+      <div class="linkhead">
+        <h2 class="linkh">Today at the hall <span class="linkdate" id="schedDate"></span></h2>
+        <button id="schedRefreshBtn" type="button">↻ Refresh</button>
+      </div>
+      <ul id="schedule" class="schedlist"></ul>
+      <p class="note" id="schedNote">Loading today's games…</p>
+      <div class="linkhead">
+        <h2 class="linkh">Live matches on this network</h2>
+        <button id="refreshBtn" type="button">↻ Refresh matches</button>
       </div>
       <div id="linkErrs"></div>
       <ul id="matches"></ul>
-      <p class="note" id="matchesNote">Tap “Refresh matches” to discover live matches on the LAN.</p>
+      <p class="note" id="matchesNote">Tap “Refresh matches” to find a match an OpenVolley laptop is scoring on this network.</p>
     </section>
 
     <!-- SETTINGS (Phase 2 placeholder) -->
@@ -701,8 +1019,9 @@
         <fieldset>
           <legend><svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg> Access</legend>
           <label class="row"><span>Scorer PIN</span>
-            <input type="password" inputmode="numeric" data-set="scorerPin" maxlength="8" autocomplete="off" placeholder="unchanged" style="width:110px"></label>
+            <input type="password" inputmode="numeric" pattern="[0-9]*" data-set="scorerPin" maxlength="8" autocomplete="off" placeholder="unchanged" style="width:110px"></label>
           <p class="hint">Set a digits-only PIN so only your scorer can change the score — anyone who scans the board can still watch, not touch. Leave blank to keep the current PIN.</p>
+          <button type="button" id="pinClear" class="setlink" hidden>Remove the PIN — anyone can score</button>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-scroll-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 12h-5" /> <path d="M15 8h-5" /> <path d="M19 17V5a2 2 0 0 0-2-2H4" /> <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></svg> Diagnostics</legend>
@@ -714,7 +1033,8 @@
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10" /> <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg> Power</legend>
-          <p class="hint">Halt the scoreboard cleanly before switching the power off — protects the memory card.</p>
+          <p class="hint">Halt the scoreboard cleanly before switching the power off — protects the memory card. Restart brings it straight back (about 45 seconds) — try it first when the board looks stuck.</p>
+          <button id="rebootBtn" class="dangerbtn"><svg class="licon l-rotate-cw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg> Restart board</button>
           <button id="shutdownBtn" class="dangerbtn"><svg class="licon l-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10" /> <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg> Shut down</button>
         </fieldset>
       </div>
@@ -770,6 +1090,9 @@
           <div class="dsub" id="dLoad">—</div>
           <div class="dsub" id="dMem">—</div>
           <div class="dsub dmono" id="dHostInfo">—</div>
+          <div class="dsub" id="dClock">—</div>
+          <p class="hint">The board has no battery clock. Without an uplink it can only replay the
+            time it last saved, so this console hands it the tablet's clock when you unlock.</p>
         </div>
 
         <div class="dcard wide" id="dcNet">
@@ -782,13 +1105,13 @@
 
       <div class="logbar">
         <strong>Live log</strong>
-        <select id="logLevel" title="Minimum level">
+        <select id="logLevel" title="Minimum level" aria-label="Log level">
           <option value="debug">debug</option>
           <option value="info" selected>info</option>
           <option value="warn">warn</option>
           <option value="error">error</option>
         </select>
-        <input id="logFilter" type="search" placeholder="filter…" autocomplete="off">
+        <input id="logFilter" type="search" placeholder="filter…" autocomplete="off" aria-label="Filter logs">
         <button id="logPauseBtn" title="Pause the tail">Pause</button>
         <button id="logExportBtn" title="Download the whole trail as JSONL">Export</button>
         <span class="dsub" id="logState">connecting…</span>
@@ -804,19 +1127,19 @@
     </div>
   </main>
 
-  <!-- Portrait nudge -->
-  <div id="rotate">
-    <div class="ic"><svg class="licon l-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" /></svg></div>
-    <div class="t">Rotate to landscape</div>
-    <div class="s">The scoreboard controller is built for a landscape screen.</div>
+  <!-- Portrait tip: one line, dismissible, remembered. Not a wall — see the #rotate CSS. -->
+  <div id="rotate" role="note">
+    <svg class="licon l-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" /></svg>
+    <span class="t">Tip: turn the phone sideways for bigger buttons.</span>
+    <button type="button" id="rotateOk" aria-label="Hide this tip">✕</button>
   </div>
 </div>
 
 <!-- Direct-entry editor for a score / set / T-O / sub number (tap the number to open). -->
-<div id="edit" hidden>
+<div id="edit" hidden role="dialog" aria-modal="true" aria-labelledby="editLabel">
   <div class="editbox">
     <div class="editlabel" id="editLabel">Edit</div>
-    <input id="editInput" type="number" inputmode="numeric" min="0" step="1">
+    <input id="editInput" type="number" inputmode="numeric" min="0" step="1" aria-labelledby="editLabel">
     <div class="editbtns">
       <button id="editCancel">Cancel</button>
       <button id="editOk">Set</button>
@@ -824,8 +1147,9 @@
   </div>
 </div>
 
-<div id="toast"></div>
-<div id="confirm" hidden>
+<!-- role=status: a failed write ("The board didn't answer in time") is otherwise only ever SEEN. -->
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="confirm" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmMsg">
   <div class="editbox">
     <div class="editlabel" id="confirmMsg">Confirm</div>
     <div class="editbtns">
@@ -834,7 +1158,7 @@
     </div>
   </div>
 </div>
-<div id="serveOrder" hidden role="dialog" aria-label="Beach serve order">
+<div id="serveOrder" hidden role="dialog" aria-modal="true" aria-label="Beach serve order">
   <div class="editbox">
     <h3>Beach serve order</h3>
     <p class="sub">Who serves first, and each pair's first server. The board tracks it automatically after that — override any time.</p>
@@ -865,10 +1189,10 @@
     </div>
   </div>
 </div>
-<div id="pinModal" hidden>
+<div id="pinModal" hidden role="dialog" aria-modal="true" aria-labelledby="pinLabel">
   <div class="editbox">
     <div class="editlabel" id="pinLabel">Enter scorer PIN</div>
-    <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+    <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" aria-labelledby="pinLabel">
     <div class="editbtns">
       <button id="pinCancel">Cancel</button>
       <button id="pinOk">Unlock</button>
@@ -877,9 +1201,9 @@
 </div>
 <div id="shutdown" role="alertdialog" aria-live="assertive">
   <div class="ic"><svg class="licon l-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10" /> <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg></div>
-  <div class="t">Shutting down…</div>
-  <div class="s">The panel will go dark in a few seconds.</div>
-  <div class="press">Now press the power button to switch it off</div>
+  <div class="t" id="sdTitle">Shutting down…</div>
+  <div class="s" id="sdSub">The panel will go dark in a few seconds.</div>
+  <div class="press" id="sdPress">Now press the power button to switch it off</div>
   <!-- Only revealed if the board is still answering well after the request — i.e. the shutdown
        did not take. Without it this screen is a dead end: nothing removes .show and polling has
        already stopped, so a failed or reconsidered shutdown strands the UI until a reload. -->
@@ -887,7 +1211,7 @@
 </div>
 
 <!-- Sport selector: shown on load (current sport pre-highlighted) and re-openable from the header badge. -->
-<div id="sportPicker" hidden role="dialog" aria-label="Choose the sport">
+<div id="sportPicker" hidden role="dialog" aria-modal="true" aria-label="Choose the sport">
   <div class="spbox">
     <div class="sptitle">Choose the sport</div>
     <p class="spsub">Switching restarts the board with the new rules and layout — about 8 seconds.</p>
@@ -896,6 +1220,9 @@
     <div class="sputil">
       <button type="button" class="js-fs" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg><span>Full screen</span></button>
       <button type="button" class="js-awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg><span>Keep awake</span></button>
+      <!-- The picker is what the tablet opens on, and on most evenings nobody is scoring yet —
+           the board just wants to look like a clock until the first team walks in. -->
+      <button type="button" id="spClock" aria-label="Show the clock on the board"><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Show clock</span></button>
       <button type="button" id="spGameMenu" aria-label="Open the game menu for the current sport"><svg class="licon l-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13" /> <path d="M8 12h13" /> <path d="M8 18h13" /> <path d="M3 6h.01" /> <path d="M3 12h.01" /> <path d="M3 18h.01" /></svg><span>Game menu</span></button>
       <!-- The picker is the FIRST thing on screen every evening, and it covers the whole page.
            If the board is misbehaving, this is the moment you find out — so the way to look at
@@ -908,7 +1235,7 @@
 
 <!-- Game menu: what to do with THIS sport, once the sport itself is settled. Continue and Delete
      only exist when the board actually has a saved game for the active sport. -->
-<div id="gamePicker" hidden role="dialog" aria-label="Start or continue a game">
+<div id="gamePicker" hidden role="dialog" aria-modal="true" aria-label="Start or continue a game">
   <div class="spbox">
     <div class="sptitle" id="gpTitle">Game</div>
     <p class="spsub" id="gpSub">What would you like to do?</p>
@@ -945,7 +1272,7 @@
 
 <!-- End-of-match summary. Offered once the winning set count is reached, and re-openable from the
      "Final" chip in the header — declining the prompt must not bury the result for good. -->
-<div id="matchEnd" hidden role="dialog" aria-label="Match result">
+<div id="matchEnd" hidden role="dialog" aria-modal="true" aria-label="Match result">
   <div class="spbox">
     <div class="sptitle">Match result</div>
     <p class="spsub" id="meWinner"></p>
@@ -973,7 +1300,7 @@
     <div class="lg-ic"><svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
     <div class="lg-title">Scoreboard locked</div>
     <div class="lg-sub">Enter the scorer PIN to open the controller.</div>
-    <input id="lgPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••">
+    <input id="lgPin" aria-label="Scorer PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••">
     <button id="lgUnlock" type="button">Unlock</button>
     <div class="lg-err" id="lgErr" role="alert"></div>
   </div>
@@ -991,6 +1318,8 @@
   // Tabler ball-basketball for basketball (Lucide has no basketball icon — same 24px stroke style).
   IC.beach = '<svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg>';
   IC.basketball = '<svg class="licon l-basketball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /> <path d="M5.65 5.65l12.7 12.7" /> <path d="M5.65 18.35l12.7 -12.7" /> <path d="M12 3a9 9 0 0 0 9 9" /> <path d="M3 12a9 9 0 0 1 9 9" /></svg>';
+  // Simple scoreboard: Lucide 'hash' — deliberately not a ball, because this one is not a sport.
+  IC.simple = '<svg class="licon l-hash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="9" y2="9" /> <line x1="4" x2="20" y1="15" y2="15" /> <line x1="10" x2="8" y1="3" y2="21" /> <line x1="16" x2="14" y1="3" y2="21" /></svg>';
 
   // --- tiny helpers -------------------------------------------------------
   const $ = (s, r = document) => r.querySelector(s);
@@ -1021,29 +1350,74 @@
   // court POSITION (fixed board, pairs change ends), so it reads "Team L" / "Team R"; the indoor
   // sports keep the A/B identities.
   const SPORT_UI = {
-    volleyball: { serveLabel: "SERVE", stat: { to: "T/O", set: "Sets", sub: "Subs" }, show: { set: true, sub: true }, teams: { left: "TEAM A", right: "TEAM B" } },
-    beach: { serveLabel: "SERVE", stat: { to: "T/O", set: "Sets", sub: "Subs" }, show: { set: true, sub: false }, teams: { left: "TEAM L", right: "TEAM R" } },
-    basketball: { serveLabel: "POSS.", stat: { to: "T/O", set: "Period", sub: "Fouls" }, show: { set: true, sub: true }, teams: { left: "TEAM A", right: "TEAM B" } },
+    volleyball: { serveLabel: "SERVE", stat: { to: "T/O", set: "Sets", sub: "Subs" }, show: { to: true, set: true, sub: true, serve: true }, teams: { left: "TEAM A", right: "TEAM B" } },
+    beach: { serveLabel: "SERVE", stat: { to: "T/O", set: "Sets", sub: "Subs" }, show: { to: true, set: true, sub: false, serve: true }, teams: { left: "TEAM L", right: "TEAM R" } },
+    // Basketball's period is ONE shared value, so it lives in the centre beside POSS. (#periodBox),
+    // not as a tile on each team card.
+    basketball: { serveLabel: "POSS.", stat: { to: "T/O", set: "Period", sub: "Fouls" }, show: { to: true, set: false, sub: true, serve: true }, teams: { left: "TEAM A", right: "TEAM B" } },
+    // Two numbers and nothing else — the whole point of the sport is what is NOT here. It is the
+    // only row that turns the timeout tile and the serve box off, which is why `show` grew `to`
+    // and `serve`.
+    simple: { serveLabel: "SERVE", stat: { to: "T/O", set: "Sets", sub: "Subs" }, show: { to: false, set: false, sub: false, serve: false }, teams: { left: "LEFT", right: "RIGHT" } },
   };
   const sportLabel = (k) => (SPORTS_LIST.find((s) => s.key === k) || {}).label || (k ? k[0].toUpperCase() + k.slice(1) : "");
-  const sportIcon = (k) => k === "basketball" ? IC.basketball : k === "beach" ? IC.beach : IC.ball;
+  const sportIcon = (k) => k === "basketball" ? IC.basketball : k === "beach" ? IC.beach : k === "simple" ? IC.simple : IC.ball;
 
   // Preset team colours — tap-friendly on mobile (the native picker is fiddly).
   const PRESETS = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#22c55e", "#14b8a6",
     "#0ea5e9", "#3b82f6", "#2563eb", "#6366f1", "#a855f7", "#ec4899",
     "#ffffff", "#111827"];
 
-  let toastTimer;
-  function toast(msg) {
+  // toast(msg)                       — a 3.2 s note, as it always was
+  // toast(msg, { action: {label, fn} }) — with one button (the "Undo" after a timeout or a sub)
+  // toast(msg, { sticky: true })       — stays until ✕ or clearStickyToast(): a write that never
+  //                                      reached the board must not vanish while the scorer looks
+  //                                      at the court. An ordinary toast may show over it; the
+  //                                      sticky one comes back when that one is done.
+  let toastTimer, stickyToast = null;
+  function toast(msg, opts = {}) {
     const t = $("#toast");
-    t.textContent = msg; t.classList.add("show");
+    if (opts.sticky) stickyToast = { msg, opts };
+    t.textContent = "";
+    const m = document.createElement("span"); m.className = "tmsg"; m.textContent = msg;
+    t.append(m);
+    if (opts.action) {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = opts.action.label;
+      b.addEventListener("click", () => { hideToast(); opts.action.fn(); });
+      t.append(b);
+    }
+    if (opts.sticky) {
+      const x = document.createElement("button"); x.type = "button"; x.className = "tclose";
+      x.textContent = "✕"; x.setAttribute("aria-label", "Dismiss");
+      x.addEventListener("click", clearStickyToast);
+      t.append(x);
+    }
+    t.classList.toggle("interactive", !!(opts.action || opts.sticky));
+    t.classList.toggle("bad", !!((opts.sticky && !opts.calm) || opts.bad));
+    t.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+    if (!opts.sticky) toastTimer = setTimeout(hideToast, opts.ms || 3200);
+  }
+  function hideToast() {
+    clearTimeout(toastTimer);
+    const t = $("#toast");
+    t.classList.remove("show", "interactive", "bad");
+    // A passing note was shown over an unresolved failure: put the failure back.
+    if (stickyToast) { const s = stickyToast; toastTimer = setTimeout(() => { if (stickyToast === s) toast(s.msg, s.opts); }, 250); }
+  }
+  function clearStickyToast() {
+    if (!stickyToast) return;
+    const t = $("#toast");
+    const showing = t.classList.contains("show") && t.textContent.startsWith(stickyToast.msg);
+    stickyToast = null;
+    if (showing) hideToast();
   }
 
   // Scorer lock: a PIN (when the board has one set) gates all scoring; stored per-device.
   let SCORER_PIN = ""; try { SCORER_PIN = localStorage.getItem("kscwScorerPin") || ""; } catch {}
   let pinRequired = false;
+  // The board's rule for a PIN, checked before anything is sent so the two can never disagree.
+  const PIN_RE = /^\d{1,8}$/;
 
   // Every request to the board gets a deadline. Against a link that blackholes rather than resets
   // — a wifi roam in the hall, a wedged board socket — fetch never settles, the browser's six
@@ -1305,19 +1679,24 @@
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
     lastLedbox = st.ledbox || lastLedbox;
+    renderClock(st.clock);
     const connected = !!(st.ledbox && st.ledbox.connected);
     // Only rewrite the icon SVG when the state flips — re-setting innerHTML every poll makes it flash.
-    const dotEl = $("#dot");
-    if (dotEl._conn !== connected) { dotEl.innerHTML = connected ? IC.wifiOn : IC.wifiOff; dotEl._conn = connected; }
-    dotEl.title = connected
+    setDot(connected, connected
       ? `LedBox connected (${st.ledbox.host}:${st.ledbox.port})`
-      : "LedBox not connected";
+      : "LedBox not connected");
+    // We only get here on a SUCCESSFUL poll or write, so the console can reach the controller.
+    setOffline(false);
     // Say it in words too — the dot is easy to miss and has no tooltip on touch.
     const off = $("#offline");
     if (off) {
-      off.classList.toggle("show", !connected);
-      // We only get here on a SUCCESSFUL poll, so whatever showFrozen() wrote about this screen
-      // being stale is now out of date — put the banner's own wording back before reusing it.
+      // Dismissed stays dismissed only for THIS outage: once the panel is back, the next drop
+      // is news again.
+      if (connected) offlineDismissed = false;
+      off.classList.remove("unreachable");
+      off.classList.toggle("show", !connected && !offlineDismissed);
+      // Whatever showFrozen() wrote about this screen being stale is now out of date — put the
+      // banner's own wording back before reusing it.
       const big = off.querySelector(".big");
       if (big) big.textContent = "Board not connected";
       if (!connected) {
@@ -1328,8 +1707,12 @@
           : "Scores are still being recorded — the panel is not updating.";
       }
     }
+    // The source is only worth header space when the score is NOT coming from this tablet.
+    const linked = !!st.mode && !["manual", "idle"].includes(st.mode);
+    $("#modeTag").hidden = !linked;
     $("#modeName").textContent = MODE_LABELS[st.mode]
       || (st.mode ? st.mode[0].toUpperCase() + st.mode.slice(1) : "Idle");
+    renderUndo(st);
     const setNo = $("#setNo");
     setNo.textContent = setLabel(st.state);
     // Once it reads "Final" the chip becomes the way back into the result — otherwise declining
@@ -1363,6 +1746,9 @@
 
   function setLabel(state) {
     if (!state) return "";
+    // Simple scoreboard: no sets and no periods, so there is nothing to label. Without this the
+    // header would read "Set I" for the entire session — sets never move, so the count never does.
+    if (SPORT === "simple") return "";
     // Basketball: the header shows the period (Q1–Q4 / OT1… / FINAL), not a set count.
     if (SPORT === "basketball") return state.over ? "FINAL" : periodLabel(state.period);
     if (matchOver(state)) return "Final";
@@ -1405,7 +1791,7 @@
     });
     const undo = document.createElement("button");
     undo.className = "setundo"; undo.title = "Remove last set"; undo.innerHTML = IC.del;
-    undo.addEventListener("click", async () => { if (await askConfirm("Remove the last set result?")) sendAction({ type: "remove-set" }); });
+    undo.addEventListener("click", async () => { if (await askConfirm("Remove the last set result?", { yes: "Remove set", danger: true })) sendAction({ type: "remove-set" }); });
     strip.appendChild(undo);
   }
 
@@ -1483,6 +1869,15 @@
       { n:"bg_score2", t:"box", x:127, y:17, w:64, h:46 },
       { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
     ],
+    // Simple scoreboard — the same volleyball_matchscore_02 layout with everything else blanked
+    // (see src/simpleMapper.js), so the mirror lists only what actually lights up. No bg_score
+    // boxes: the mapper paints them black on black, which on the panel is nothing at all.
+    simple: [
+      { n:"team1", t:"text", x:0,   y:-4, fs:18, a:"left"  },
+      { n:"score1", t:"text", x:32, y:40, fs:50, a:"center", vc:true },
+      { n:"team2", t:"text", x:192, y:-4, fs:18, a:"right" },
+      { n:"score2", t:"text", x:160, y:40, fs:50, a:"center", vc:true },
+    ],
   };
   const cq = (v, ax) => (v / (ax === "x" ? BW : BH) * 100) + (ax === "x" ? "cqw" : "cqh");
   function buildBoard() {
@@ -1507,12 +1902,11 @@
     // overlay layers shown for non-match board states (idle crest, break countdown)
     const idle = document.createElement("div"); idle.className = "bvidle";
     idle.innerHTML =
-      '<svg class="bvcrest" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-      '<path d="M50 4 L90 16 V50 C90 74 72 90 50 96 C28 90 10 74 10 50 V16 Z" fill="#3a5fb0" stroke="#e3b23c" stroke-width="4"/>' +
-      '<circle cx="50" cy="39" r="17" fill="#f7fafc" stroke="#14213d" stroke-width="2.4"/>' +
-      '<g fill="none" stroke="#14213d" stroke-width="2.1" stroke-linecap="round">' +
-      '<path d="M50 22 Q44 39 50 56"/><path d="M35 27 Q50 38 45 55"/><path d="M65 27 Q50 38 55 55"/></g>' +
-      '<text x="50" y="83" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="19" fill="#f2c14e">KSCW</text></svg>' +
+      // The real club crest (web/kscw_logo.svg, a copy of the website's), not a drawn look-alike:
+      // the panel shows the actual crest PNG, and a mirror that paints a different badge is a
+      // mirror that lies. alt="" — the names beside it say what the screen is.
+      '<img class="bvcrest" src="kscw_logo.svg" alt="">' +
+      '<div class="bvclock"><span class="bvtime" data-n="clocktime"></span><span class="bvdate" data-n="clockdate"></span></div>' +
       '<div class="bvnames"><span class="bvn" data-n="idle1"></span><span class="bvsep"></span><span class="bvn" data-n="idle2"></span></div>';
     p.appendChild(idle);
     const cd = document.createElement("div"); cd.className = "bvcd";
@@ -1573,8 +1967,17 @@
     paintBoardMode();
   }
 
-  // Reflect the board's non-match states onto the mirror: idle (crest + names),
-  // break countdown (timeout / interval / warm-up), or blank.
+  // Same text the board writes on kscw_clock (ledboxClient.formatClock): HH:MM:SS over "Wed 23.09.2026".
+  let mirrorClockTimer = null;
+  function paintMirrorClock() {
+    const p = $("#bvPanel"); if (!p) return;
+    const now = new Date(), z = (n) => String(n).padStart(2, "0");
+    const t = p.querySelector('[data-n="clocktime"]'), d = p.querySelector('[data-n="clockdate"]');
+    if (t) t.textContent = z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
+    if (d) d.textContent = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()] + " " + z(now.getDate()) + "." + z(now.getMonth() + 1) + "." + now.getFullYear();
+  }
+  // Reflect the board's non-match states onto the mirror: idle (crest + names), the clock (crest +
+  // time, from "Show clock"), or a break countdown (timeout / interval / warm-up).
   function paintBoardMode() {
     const p = $("#bvPanel"); if (!p) return;
     buildBoard();
@@ -1584,6 +1987,12 @@
     if (cdEl) cdEl.classList.toggle("blink", board.mode === "countdown" && !!(board.cd && board.cd.blink));
     const s = bvLast.s;
     const set = (n, v, c) => { const e = p.querySelector('[data-n="' + n + '"]'); if (e) { e.textContent = v; if (c) e.style.color = c; } };
+    // The clock screen ticks on its own; the mirror follows it from THIS device's clock, which is
+    // the one the board was handed at unlock (POST /api/clock) — close enough for a preview.
+    if (board.mode === "clock") {
+      paintMirrorClock();
+      if (!mirrorClockTimer) mirrorClockTimer = setInterval(() => { if (board.mode === "clock") paintMirrorClock(); }, 1000);
+    } else if (mirrorClockTimer) { clearInterval(mirrorClockTimer); mirrorClockTimer = null; }
     if (board.mode === "idle") {
       set("idle1", (s && s.left.short ? s.left.short : "HOME").toUpperCase(), s ? s.left.color : "#ffcf47");
       set("idle2", (s && s.right.short ? s.right.short : "GUEST").toUpperCase(), s ? s.right.color : "#ff7a3d");
@@ -1618,22 +2027,55 @@
     const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
     return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#111318" : "#ffffff";
   };
+  // The panel colour actually painted behind that ink. A team's own colour is often too light for
+  // small white text: stock red #ef4444 gives 3.8:1, and the hints and stat labels on it could not
+  // be read under hall lights. So the PANEL is shaded — towards black under white ink, towards
+  // white under dark ink — just far enough for the ink to clear 4.5:1 on the stat tiles (the
+  // palest surface text sits on). The team still reads as its colour; the LED mirror and the board
+  // keep the exact colour, since that is what the shirts are.
+  const PANEL_MIN_CONTRAST = 4.5;
+  const TILE_TINT = 0.15;   // .side .stat is the ink mixed 15% over the panel
+  function panelFor(hex) {
+    const h = String(hex || "").trim().replace("#", "");
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    const rgb = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const inkHex = inkOn("#" + h);
+    const ink = inkHex === "#ffffff" ? [255, 255, 255] : [0x11, 0x13, 0x18];
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    const away = ink[0] > 128 ? [0, 0, 0] : [255, 255, 255];
+    let bg = rgb;
+    for (let t = 0; t <= 0.9; t += 0.05) {
+      bg = mix(rgb, away, t);
+      if (ratio(ink, mix(bg, ink, TILE_TINT)) >= PANEL_MIN_CONTRAST) break;
+    }
+    return { bg: "#" + bg.map((v) => v.toString(16).padStart(2, "0")).join(""), ink: inkHex };
+  }
   function renderBoard(s) {
     // The serve toggle paints from --left/--right, which are stock blue/red constants. Track the
     // TEAM colours onto them so the serve indicator matches the panel and the shirts instead of
     // always reading blue-left / red-right whatever the teams are wearing.
+    // Shaded the same way as the panels (panelFor), with the matching ink for the arrow, so a
+    // white or yellow team's serve arrow does not vanish into its own fill.
     if (s) {
       const docRoot = document.documentElement;
-      if (s.left && s.left.color) docRoot.style.setProperty("--left", s.left.color);
-      if (s.right && s.right.color) docRoot.style.setProperty("--right", s.right.color);
+      for (const k of ["left", "right"]) {
+        const pan = s[k] && panelFor(s[k].color);
+        if (!pan) continue;
+        docRoot.style.setProperty("--" + k, pan.bg);
+        docRoot.style.setProperty("--" + k + "-ink", pan.ink);
+      }
     }
     for (const side of ["left", "right"]) {
       const root = $(`.side.${side}`);
       const d = s ? s[side] : { short: "", color: "#888", points: 0, sets: 0, to: 0, sub: 0 };
       setIfIdle(root, ".short", d.short);
       setColorIfIdle(root, ".color", d.color);
-      root.style.setProperty("--edge", d.color || "var(--" + side + ")");
-      root.style.setProperty("--on-edge", inkOn(d.color)); // readable ink for the Arena colour block
+      const pan = panelFor(d.color);
+      root.style.setProperty("--edge", pan ? pan.bg : "var(--" + side + ")");
+      root.style.setProperty("--on-edge", pan ? pan.ink : inkOn(d.color)); // readable ink for the Arena colour block
       const prev = shown[side];
       // The point just assigned pulses green — confirmation that the tap registered.
       paint($('[data-val="points"]', root), d.points, prev.points, "flash");
@@ -1667,6 +2109,11 @@
     // Highlight the serving side on the consolidated SERVE pill (fills that side's team colour).
     $$('[data-serve]').forEach((b) =>
       b.classList.toggle("on", serving === b.dataset.serve));
+    // Basketball's period readout, in the centre beside POSS.
+    if (SPORT === "basketball") {
+      const pv = $("#periodVal");
+      if (pv) pv.textContent = s ? (s.over ? "FINAL" : periodLabel(s.period)) : "Q1";
+    }
     // Beach serve-player readout: the serving pair's number (1|2) in that pair's colour.
     if (SPORT === "beach") {
       const spn = $("#servePlrNum");
@@ -1683,6 +2130,10 @@
   // default volleyball layout is untouched until a different sport is picked.
   function applySportUI() {
     const cfg = SPORT_UI[SPORT] || SPORT_UI.volleyball;
+    // A countdown or a "SET ENDED — Start interval" card belongs to the match of the sport being
+    // left; it used to stay up over the new sport's scoreboard, offering an interval for a set that
+    // no longer exists.
+    clearCountdown();
     document.body.dataset.sport = SPORT;
     $$(".side").forEach((root) => {
       const side = root.dataset.side;
@@ -1696,12 +2147,15 @@
       toB.querySelector(".name").textContent = cfg.stat.to;
       setB.querySelector(".name").textContent = cfg.stat.set;
       subB.querySelector(".name").textContent = cfg.stat.sub;
-      setB.hidden = !cfg.show.set;   // (always shown today; kept for future sports)
-      subB.hidden = !cfg.show.sub;   // beach hides subs
+      toB.hidden = !cfg.show.to;     // simple has no timeouts
+      setB.hidden = !cfg.show.set;   // basketball: the period is in the centre instead; simple has no sets
+      subB.hidden = !cfg.show.sub;   // beach and simple hide subs
     });
+    const sb = $(".servebox"); if (sb) sb.hidden = !cfg.show.serve;  // simple has no serve
     const sl = $(".servebox .lbl"); if (sl) sl.textContent = cfg.serveLabel;
     const bs = $("#beachServe"); if (bs) bs.hidden = SPORT !== "beach"; // serve-player control: beach only
     const nq = $("#nextPeriodBtn"); if (nq) nq.hidden = SPORT !== "basketball";
+    const pb = $("#periodBox"); if (pb) pb.hidden = SPORT !== "basketball";
     const bi = $("#sportBadge .sbico"), bt = $("#sportBadge .sbtxt");
     if (bi) bi.innerHTML = sportIcon(SPORT); if (bt) bt.textContent = sportLabel(SPORT);
     // Rebuild the board mirror on the new layout, then repaint the last known state.
@@ -1770,12 +2224,62 @@
     const off = $("#offline");
     if (!off) return;
     const big = off.querySelector(".big");
-    if (big) big.textContent = "Not connected to the scoreboard controller";
+    if (big) big.textContent = "Not connected — taps are not reaching the board";
     const hint = $("#offlineHint");
     if (hint) hint.textContent = lastGoodAt
-      ? "This screen is frozen at " + clockAt(lastGoodAt) + " — nothing below it is live."
-      : "This screen is not live — the controller has not answered yet.";
-    off.classList.add("show");
+      ? "Frozen at " + clockAt(lastGoodAt) + ". Retrying on its own — check the tablet is on the board's Wi-Fi."
+      : "The controller has not answered yet. Retrying on its own — check the tablet is on the board's Wi-Fi.";
+    off.classList.add("show", "unreachable");
+    setOffline(true);
+  }
+
+  // body.offline = the CONTROLLER is unreachable (not merely the panel): the scoring controls grey
+  // out under "Not sent — board unreachable". Set by the first failed poll or write, cleared by the
+  // first one that gets through — no reload, no tap needed.
+  function setOffline(on) {
+    if (document.body.classList.contains("offline") === !!on) return;
+    document.body.classList.toggle("offline", !!on);
+    if (on) setDot(false, "Not connected to the scoreboard controller");
+    // The link came back on a POLL, not on a write: the banner clears, but the tap that failed is
+    // still unaccounted for (it may or may not have landed). Leaving the red "unreachable" toast up
+    // read as still-offline under a cleared banner, so it turns into the next step instead. The
+    // red ring on that tap stays until a write gets through.
+    else if (stickyToast && stickyToast.msg.startsWith("Not sent — board unreachable") /* notSent() */) {
+      stickyToast = null;
+      toast("Connection back — check the board score, then carry on", { sticky: true, calm: true });
+    }
+  }
+  // The header's connection glyph AND its word. Only the SVG is swapped, and only when the state
+  // flips — re-setting innerHTML every poll makes it flash.
+  function setDot(connected, title) {
+    const dotEl = $("#dot");
+    if (!dotEl) return;
+    if (dotEl._conn !== connected) {
+      $("#dotIc").innerHTML = connected ? IC.wifiOn : IC.wifiOff;
+      $("#dotTxt").textContent = connected ? "Board ✓" : "Board ✗";
+      dotEl.classList.toggle("ok", connected);
+      dotEl.classList.toggle("bad", !connected);
+      dotEl._conn = connected;
+    }
+    dotEl.title = title;
+    dotEl.setAttribute("aria-label", title);
+  }
+  // "Hide this notice" on the panel-not-connected banner (see #offlineClose).
+  let offlineDismissed = false;
+  $("#offlineClose").addEventListener("click", () => { offlineDismissed = true; $("#offline").classList.remove("show"); });
+
+  // The Undo button mirrors the board's journal: enabled only when there is something to take
+  // back, labelled with what that is. `canUndo` / `undoLabel` ride on /api/status and on every
+  // /api/action reply; a status without them (an old board) leaves the button disabled.
+  function renderUndo(st) {
+    const b = $("#undoBtn");
+    if (!b) return;
+    const can = st.canUndo === true;
+    const label = can ? String(st.undoLabel || "") : "";
+    b.disabled = !can;
+    $("#undoLabel").textContent = label;
+    b.title = can ? "Undo: " + (label || "the last action") : "Nothing to undo";
+    b.setAttribute("aria-label", b.title);
   }
 
   let statusInFlight = false, statusAgain = false;
@@ -1798,12 +2302,12 @@
     // board that was answering perfectly.
     try { st = await api("/api/status"); pollFails = 0; lastGoodAt = Date.now(); }
     catch (e) {
-      const dot = $("#dot");
-      // The title used to keep its last successful text, so the icon said "offline" while the
-      // tooltip said "LedBox connected (host:port)" — the one place a scorer looks to check.
-      if (dot && dot._conn !== false) { dot.innerHTML = IC.wifiOff; dot._conn = false; dot.title = "Not connected to the scoreboard controller"; }
-      // Quiet about a single miss (a poll lost to a wifi roam is normal); after two, say it.
-      if (++pollFails >= 2) showFrozen();
+      // The first miss already says so. This used to wait for two (3–8 s) while the scorer kept
+      // tapping into a dead link; the banner now lies OVER the header, so showing it early costs
+      // no layout jump, and the next good poll takes it away again by itself. showFrozen() also
+      // turns the header dot off — whose title used to keep reading "LedBox connected".
+      pollFails++;
+      showFrozen();
     }
     finally {
       statusInFlight = false;
@@ -1841,28 +2345,74 @@
     // straight to the board on top of a point that is still in flight.
     const gen = ++actionGen;
     actionBusy = true; actionSince = Date.now(); actionBtn = btn || null;
-    if (btn) btn.disabled = true;
+    if (btn) { btn.disabled = true; btn.classList.remove("notsent"); }
     const seq = nextSeq();
     try {
       const r = await postJSON("/api/action", { action });
-      if (gen !== actionGen) return; // superseded — its state and its set-end prompt are both stale
+      if (gen !== actionGen) return null; // superseded — its state and its set-end prompt are both stale
+      // It got through, so whatever an earlier failure left on screen is resolved: the sticky
+      // "Not sent", the red rings, and the greyed-out controls.
+      markSent();
       const s = r && r.state;
-      if (s && (board.mode === "idle" || board.mode === "blank")) board.mode = "match";
-      if (s) renderStatus({ ledbox: lastLedbox, state: s }, seq); // merged over LAST_STATUS — no field is reset
+      if (s && (board.mode === "idle" || board.mode === "clock")) board.mode = "match";
+      // merged over LAST_STATUS — no field is reset. canUndo/undoLabel only when the reply has
+      // them, so an older board's reply can't blank a label a poll just delivered.
+      const patch = { ledbox: lastLedbox, state: s };
+      if (r && "canUndo" in r) { patch.canUndo = r.canUndo; patch.undoLabel = r.undoLabel; }
+      if (s) renderStatus(patch, seq);
       handleEvent(r && r.event, s);
       refreshStatus();
-    } catch (e) { if (gen === actionGen) toast(e.message); }
+      return r;
+    } catch (e) {
+      if (gen === actionGen) notSent(e, btn);
+      return null;
+    }
     finally {
       if (gen === actionGen) { actionBusy = false; actionBtn = null; if (btn) btn.disabled = false; }
       // Superseded: give the operator its button back only if the current action isn't the one
       // holding it down.
       else if (btn && btn !== actionBtn) btn.disabled = false;
+      // Undo's enabled state belongs to the journal, not to the round trip that just ended.
+      if (btn && btn.id === "undoBtn") renderUndo(LAST_STATUS);
     }
+  }
+  // A write that failed. No reply at all (timeout, refused connection) means the console cannot
+  // reach the controller: that is the offline state, and the tap that hit it is ringed in red so
+  // the scorer knows which one did not count. A reply that refused (a 400, a 409) is the board
+  // answering — say why, but the link is fine. A 403 already opened the PIN pad.
+  function notSent(e, btn) {
+    const msg = (e && e.message) || String(e);
+    if (e && e.status === 403) { toast(msg); return; }
+    if (btn && btn.isConnected) btn.classList.add("notsent");
+    if (!(e && e.status)) {
+      showFrozen();
+      // Not "try again": a timed-out write may still have landed, and a blind re-tap is how one
+      // rally becomes two points. Checking the board first is always right.
+      toast("Not sent — board unreachable. Check the score on the board before tapping again.", { sticky: true });
+    } else {
+      toast("Not sent — " + msg, { sticky: true });
+    }
+  }
+  function markSent() {
+    clearStickyToast();
+    $$(".notsent").forEach((el) => el.classList.remove("notsent"));
+    setOffline(false);
   }
 
   // Game-flow reactions signalled by the backend on a point.
   function handleEvent(event, s) {
     if (!event || !s) return;
+    if (event === "undo-empty") { toast("Nothing to undo"); return; }
+    if (event === "undo") { afterUndo(s); return; }
+    if (event === "set-closed") {
+      // The board refused a point for the side that has ALREADY won this set — a double tap at set
+      // point, or a second tablet a beat behind. Nothing changed; say why, and put the way forward
+      // back on screen if it was dismissed (or this tablet never saw the set end).
+      if (matchOver(s)) { toast("The match is over — start a new game from the game menu"); return; }
+      toast(SPORT === "basketball" ? "This period is over — tap End period" : "Set is over — tap Start interval");
+      if (SPORT !== "basketball" && $("#cd").hidden) showSetEndPrompt(s);
+      return;
+    }
     if (event === "set-end") {
       // Flash the set-winning side, then WAIT: the board holds the final score and the operator
       // presses "Start interval" to begin the countdown. This keeps the winning point visible
@@ -1900,6 +2450,47 @@
     }
   }
 
+  // --- undo -----------------------------------------------------------------
+  // The set on the board is still the one just WON: the score showing is exactly the last recorded
+  // result. The same test the board's source applies (ManualSource._syncClosed), from the state.
+  function setIsClosed(state) {
+    const r = (state && state.set_results) || [];
+    const last = r[r.length - 1];
+    if (!last) return false;
+    const a = num(last.a), b = num(last.b);
+    return (a > 0 || b > 0) && a === num(state.points_a) && b === num(state.points_b);
+  }
+  // What the last Undo tap asked to take back (the label the board showed at that moment).
+  let undoAsked = "";
+  async function doUndo(btn) {
+    undoAsked = String(LAST_STATUS.undoLabel || "");
+    return sendAction({ type: "undo" }, btn);
+  }
+  // The board has restored the state before the last action. Put the screens that action opened
+  // or closed back the way they were, or the console would describe a moment that no longer is.
+  function afterUndo(s) {
+    toast(undoAsked ? "Undone: " + undoAsked : "Last action undone");
+    const cdShown = !$("#cd").hidden;
+    const running = board.mode === "countdown" && board.cd ? board.cd.label : "";
+    if (SPORT !== "basketball") {
+      if (setIsClosed(s)) {
+        // "Start interval" (next-set) taken back: the finished set is on the board again, so the
+        // interval clock is about a set that has not started. Stop it — on the panel too — and
+        // offer the interval again.
+        if (running === "INTERVAL") { clearCountdown(); stopServerCountdown(false); }
+        if ($("#cd").hidden) showSetEndPrompt(s);
+      } else if (cdShown && $("#cdLabel").textContent === "SET ENDED") {
+        // The set-winning point taken back: the set is open again, so "Start interval" is wrong.
+        clearCountdown();
+      }
+    }
+    // A timeout taken back: its clock goes with it.
+    if (/^Timeout\b/.test(undoAsked) && running === "TIME OUT") { clearCountdown(); stopServerCountdown(false); }
+    // The match point taken back: the result dialog is about a match that is not over.
+    if (!matchOver(s) && !$("#matchEnd").hidden) closeMatchEnd();
+  }
+  $("#undoBtn").addEventListener("click", (e) => doUndo(e.currentTarget));
+
   // Operator-confirmed court switch. When the boundary point is scored the backend flags
   // 'switch-due'; we ASK first ("Switch sides?"). YES -> the whole panel says COURT SWITCH in
   // club gold for ~3 s while the ends are swapped behind it, then the board comes back on the
@@ -1911,7 +2502,7 @@
   // at them was both wrong and small: the label lived in the break screen's 12px `lbl` box while
   // the panel's whole middle went to a number nobody was waiting for.
   async function requestCourtSwitch() {
-    if (!(await askConfirm("Switch sides?"))) return;
+    if (!(await askConfirm("Switch sides?", { yes: "Switch sides" }))) return;
     try {
       const r = await postJSON("/api/message", { text: "COURT SWITCH", seconds: 3, swap: true });
       // The server swapped ends under the announcement and handed back the new state; show it
@@ -1924,24 +2515,42 @@
     }
   }
 
-  async function blank() {
-    try { await postJSON("/api/blank"); toast("Board blanked"); refreshStatus(); }
-    catch (e) { toast(e.message); }
-  }
 
   // --- LINK ---------------------------------------------------------------
+  // The server reports discovery failures as "<source>: <node error>" — "lan: fetch failed" — which
+  // is for the log, not a volunteer at the scorer's table. Say what it means and what still works;
+  // the raw text stays on the row's tooltip for whoever is debugging.
+  function linkErrorText(raw) {
+    const m = String(raw || "");
+    if (/no relay configured|RELAY_HTTP_URL is empty/i.test(m)) {
+      return "Live match linking isn't set up on this board. Scoring by hand on the Game tab works as normal.";
+    }
+    if (/fetch failed|ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN|timed? ?out|abort|socket|network/i.test(m)) {
+      // The "lan" source IS the OpenVolley laptop's relay, so an unreachable one almost always
+      // means nobody has brought the laptop tonight — the normal case, not a fault.
+      if (/^lan\b/i.test(m)) return "The OpenVolley laptop isn't on this network. Scoring by hand on the Game tab works as normal.";
+      return "Can't reach the scoresheet server — the board may have no internet connection. Scoring by hand on the Game tab still works.";
+    }
+    if (/\b(4\d\d|5\d\d)\b/.test(m)) return "The scoresheet server answered with an error. Try Refresh in a minute — scoring by hand still works.";
+    return "Couldn't load the match list (" + m.replace(/^\w+:\s*/, "") + "). Scoring by hand still works.";
+  }
   async function refreshMatches() {
     const list = $("#matches"), note = $("#matchesNote"), errs = $("#linkErrs");
     errs.innerHTML = ""; note.textContent = "Loading…";
     try {
       const r = await api("/api/matches");
       const matches = (r && r.matches) || [];
-      (r && r.errors || []).forEach((m) => {
+      const errors = (r && r.errors) || [];
+      errors.forEach((m) => {
         const p = document.createElement("div");
-        p.className = "err"; p.textContent = "⚠ " + m; errs.appendChild(p);
+        const text = linkErrorText(m);
+        // No laptop on the network is how most evenings look: say it plainly, not in red.
+        const normal = /OpenVolley laptop isn't/.test(text);
+        p.className = normal ? "note" : "err"; p.textContent = normal ? text : "⚠ " + text; p.title = String(m); errs.appendChild(p);
       });
       list.innerHTML = "";
-      if (!matches.length) { note.textContent = "No matches found."; return; }
+      // The error line already says why the list is empty; "No matches found" under it is noise.
+      if (!matches.length) { note.textContent = errors.length ? "" : "No matches found."; return; }
       note.textContent = "";
       for (const m of matches) {
         const li = document.createElement("li");
@@ -1967,6 +2576,89 @@
       markLinked();
     } catch (e) { note.textContent = ""; toast(e.message); }
   }
+
+  // --- today's games (GET /api/schedule) ------------------------------------
+  // The server reads the club's public schedule, keeps tonight's home games for this board's sport
+  // and caches it; ?refresh=1 skips the cache. A board with no uplink is normal, so a failure is a
+  // plain sentence plus the way round it, never a red error.
+  let schedLoading = false;
+  function fmtSchedDate(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    if (!m) return "";
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + " " + m[3] + "." + m[2] + ".";
+  }
+  // Short names come from the server already shortened ("KSCW H1"), but it is a courtesy, not a
+  // promise: fall back to the full name, and cap it at what the board's name field takes.
+  const schedShort = (short, name) => String(short || name || "").trim().toUpperCase().slice(0, 12);
+  async function refreshSchedule(force) {
+    if (schedLoading) return;
+    schedLoading = true;
+    const list = $("#schedule"), note = $("#schedNote"), btn = $("#schedRefreshBtn");
+    if (btn) btn.disabled = true;
+    note.hidden = false; note.textContent = "Loading today's games…";
+    let r = null, failed = "";
+    try { r = await api("/api/schedule" + (force ? "?refresh=1" : "")); }
+    catch (e) { failed = "Couldn't load today's games from the board."; }
+    finally { schedLoading = false; if (btn) btn.disabled = false; }
+    list.innerHTML = "";
+    $("#schedDate").textContent = r && r.date ? fmtSchedDate(r.date) : "";
+    const games = (r && r.ok !== false && Array.isArray(r.games)) ? r.games : [];
+    if (failed || (r && r.ok === false)) {
+      // The server's own reason is already written for a volunteer ("The board has no internet
+      // connection"), so it goes on screen as is — as text, never markup.
+      // Its own "type the team names instead" tail is dropped for the one that says WHERE.
+      const why = failed || String(r.error || "Couldn't load today's games.").replace(/[\s.,;:—–-]*type the team names instead\.?\s*$/i, "");
+      note.textContent = why.replace(/\.?$/, ".") + " You can still type the names on the Game tab.";
+      return;
+    }
+    if (!games.length) { note.textContent = "No home games today."; return; }
+    note.hidden = true; note.textContent = "";
+    for (const g of games) {
+      const home = schedShort(g.homeShort, g.home), away = schedShort(g.awayShort, g.away);
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "schedrow";
+      // Everything here came off the club's API via the board: textContent only.
+      const t = document.createElement("span"); t.className = "stime"; t.textContent = String(g.time || "").slice(0, 5);
+      const info = document.createElement("span"); info.className = "sinfo";
+      const teams = document.createElement("span"); teams.className = "steams";
+      const vs = document.createElement("span"); vs.className = "vs"; vs.textContent = "vs";
+      teams.append(document.createTextNode(home), vs, document.createTextNode(away));
+      const meta = document.createElement("span"); meta.className = "smeta";
+      meta.textContent = [g.league, g.hall].filter(Boolean).join(" · ");
+      info.append(teams, meta);
+      const go = document.createElement("span"); go.className = "sgo"; go.setAttribute("aria-hidden", "true"); go.textContent = "Start";
+      b.append(t, info, go);
+      b.setAttribute("aria-label", "Start " + home + " vs " + away + (g.time ? " at " + g.time : ""));
+      b.title = String(g.home || home) + " vs " + String(g.away || away);
+      b.addEventListener("click", () => startScheduled(g, b));
+      li.appendChild(b); list.appendChild(li);
+    }
+  }
+  // One tap → a new game with both names on the board, home on the left. Only red when there is
+  // a real score to lose; on an empty board it is just "yes, this game".
+  async function startScheduled(g, btn) {
+    const home = schedShort(g.homeShort, g.home), away = schedShort(g.awayShort, g.away);
+    const live = hasScore(lastState);
+    if (!await askConfirm("Start " + home + " vs " + away + "? The current score is cleared.", { yes: "Start game", danger: live })) return;
+    if (btn) btn.disabled = true;
+    try {
+      const r = await postJSON("/api/game", { choice: "new", teams: {
+        left: { name: String(g.home || home), short: home },
+        right: { name: String(g.away || away), short: away },
+      } });
+      if (r) renderStatus(r);
+      savedGame = null;
+      clearCountdown(); board.mode = "match";
+      goToTab("manual");
+      toast(home + " vs " + away + " — ready");
+      if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
+    } catch (e) {
+      toast(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then tap the game again." : "Couldn't start that game: " + ((e && e.message) || e));
+    } finally { if (btn) btn.disabled = false; }
+  }
+  $("#schedRefreshBtn").addEventListener("click", () => refreshSchedule(true));
 
   function markLinked() {
     $$("#matches li").forEach((li) => {
@@ -2003,6 +2695,9 @@
   const LOG_MAX_ROWS = 400;       // the tail is a tail, not an archive — Export is the archive
   const LOG_DATA_MAX = 220;       // …and one stack trace must not fill the screen
   let diagTimer = null, diagPrev = null, logES = null, logPaused = false;
+  // Highest log id this tail has already taken. Log ids only ever move forward, so it is a
+  // complete record of what is on screen (0 = nothing yet, replay the history).
+  let logLastId = 0, logBoot = null;
 
   const fmtBytes = (n) => {
     if (!Number.isFinite(n)) return "—";
@@ -2029,7 +2724,10 @@
     // Tri-state: true / false / null. null means "nothing here keeps time with timesyncd", which
     // is not a fault and must not be painted like one — see src/systemInfo.js.
     if (c.synced === true) {
-      $("#dClockSync").textContent = "synced" + (c.lastSyncAt ? ` · last ${new Date(c.lastSyncAt).toLocaleTimeString()}` : "");
+      // Nothing. A synced clock is the expected state and says nothing an operator can act on —
+      // the time itself is right above, and it being correct is the whole message. Only the two
+      // states below are worth a line, and they stand out precisely because this one is silent.
+      $("#dClockSync").textContent = "";
       setCard($("#dcClock"), "");
     } else if (c.synced === false) {
       $("#dClockSync").textContent = "NOT SYNCED — match timestamps may be wrong";
@@ -2091,7 +2789,9 @@
     // Interfaces.
     const ul = $("#dNet");
     ul.textContent = "";
-    for (const n of s.net || []) {
+    // Container and loopback plumbing (docker0, veth…, br-<hash>, lo) is noise on a dev box and
+    // tells a scorer nothing; the board's own wlan/eth links are what this card is for.
+    for (const n of (s.net || []).filter((x) => !VIRTUAL_IFACE.test(String(x && x.name || "")))) {
       const li = document.createElement("li");
       const a = document.createElement("span"); a.className = "nname"; a.textContent = n.name;
       const b = document.createElement("span");
@@ -2105,6 +2805,7 @@
     diagPrev = s;
   }
 
+  const VIRTUAL_IFACE = /^(lo$|docker\d*$|veth|br-|virbr|vnet\d|cni|flannel)/;
   async function pollSystem() {
     if (document.hidden) return;
     try { renderSystem(await api("/api/system")); }
@@ -2113,19 +2814,63 @@
 
   // The tail is Server-Sent Events, which the board already serves and which reconnects on its
   // own — the console has no WebSocket client in production and this is not the place to add one.
+  //
+  // Every (re)connect opens with a catch-up of up to 200 entries. Leaving the tab, the tablet
+  // sleeping, or a Wi-Fi roam in the hall used to append that whole history again under what was
+  // already there, burying the new lines under repeats. So the stream asks only for what came
+  // after the last entry shown, and anything at or below it is dropped — the latter also covers
+  // EventSource's own reconnects, which reuse the URL this was opened with.
   function openLogStream() {
     closeLogStream();
     const level = $("#logLevel").value;
+    const since = logLastId ? `&sinceId=${logLastId}` : "";
     try {
-      logES = new EventSource(`/api/logs/stream?level=${encodeURIComponent(level)}`);
+      logES = new EventSource(`/api/logs/stream?level=${encodeURIComponent(level)}${since}`);
     } catch { $("#logState").textContent = "log stream unavailable"; return; }
-    logES.onopen = () => { $("#logState").textContent = "live"; };
+    logES.onopen = () => {
+      $("#logState").textContent = "live";
+      // The last row shown before this connection, so a restart found below can take back what
+      // the connection has already appended — see checkLogBoot.
+      checkLogBoot(logES, $("#logList").lastElementChild);
+    };
     logES.onerror = () => { $("#logState").textContent = "reconnecting…"; };
     logES.onmessage = (ev) => {
       if (logPaused) return;
       let e; try { e = JSON.parse(ev.data); } catch { return; }
+      const id = Number(e && e.id);
+      if (Number.isFinite(id)) { if (id <= logLastId) return; logLastId = id; }
       appendLogRow(e);
     };
+  }
+  // The high-water mark only holds within one run of the appliance: a restart numbers its log
+  // from 1 again, and every line of the new run would sit below the mark and be dropped — the
+  // tail frozen at exactly the moment after a crash. So each (re)connect checks which run it
+  // reached; a new one resets the mark and reopens to replay that run from its start. The rows
+  // already shown stay — they are the lead-up to the restart.
+  //
+  // Not every row, though. The connection that noticed the restart is itself on the new run, and
+  // before the check comes back it may already have appended some of it: lines numbered above the
+  // old mark, or anything that arrived while the check was in flight. The replay brings those
+  // again under the marker, so they are taken back first — everything after `mark`, the row that
+  // was last when this connection opened. If the row cap has since evicted `mark`, every row now
+  // shown came after it.
+  async function checkLogBoot(es, mark) {
+    let st; try { st = (await api("/api/logs?limit=1")).stats; } catch { return; }
+    if (!st || es !== logES) return;
+    const restarted = (logBoot && st.startedAt !== logBoot) || Number(st.lastId) < logLastId;
+    logBoot = st.startedAt;
+    if (!restarted) return;
+    const list = $("#logList");
+    if (mark && mark.parentNode === list) {
+      while (mark.nextElementSibling) list.removeChild(mark.nextElementSibling);
+    } else {
+      list.textContent = "";
+    }
+    const li = document.createElement("li"); li.style.color = "var(--muted)";
+    li.textContent = "— the board restarted —";
+    list.appendChild(li);
+    logLastId = 0;
+    openLogStream();
   }
   function closeLogStream() {
     if (logES) { try { logES.close(); } catch { /* already gone */ } logES = null; }
@@ -2173,7 +2918,8 @@
   }
   const diagOpen = () => !!$("#tab-diag") && $("#tab-diag").classList.contains("active");
 
-  $("#logLevel").addEventListener("change", () => { $("#logList").textContent = ""; openLogStream(); });
+  // A new level empties the tail and replays the history at that level, so it starts from 0.
+  $("#logLevel").addEventListener("change", () => { $("#logList").textContent = ""; logLastId = 0; openLogStream(); });
   $("#logPauseBtn").addEventListener("click", () => {
     logPaused = !logPaused;
     $("#logPauseBtn").textContent = logPaused ? "Resume" : "Pause";
@@ -2194,6 +2940,7 @@
     $$(".nav button[data-tab]").forEach((x) => x.classList.toggle("active", x === b));
     $$(".tab").forEach((t) => t.classList.toggle(
       "active", t.id === "tab-" + b.dataset.tab));
+    if (b.dataset.tab === "link") refreshSchedule(false);   // cheap: the server caches it
     if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
     if (b.dataset.tab === "history") refreshHistory();
     // Diagnostics polls and holds an SSE socket, so it starts on open and stops on leave rather
@@ -2274,8 +3021,10 @@
   $("#edit").addEventListener("click", (e) => { if (e.target.id === "edit") closeEdit(); }); // backdrop = cancel
 
   // Styled yes/no confirm (used for the consequential T/O + substitution taps).
+  // opts.yes names the verb ("Reset match") and opts.danger paints it red, so a confirm that throws
+  // work away can't be passed on autopilot the way a generic blue "Confirm" is.
   let confirmResolve = null;
-  function askConfirm(msg) {
+  function askConfirm(msg, opts = {}) {
     // One modal, one resolver, and exactly one slot to hold it in. The overlay covers the scoring
     // controls, but the countdowns do not go through it: a technical timeout running out on its own
     // sends `swap`, and that reply can come back flagged switch-due and ask "Switch sides?" while
@@ -2284,6 +3033,10 @@
     // forever and its action is silently never sent. Settle the outgoing one as "no" first.
     if (confirmResolve) { const stale = confirmResolve; confirmResolve = null; stale(false); }
     $("#confirmMsg").textContent = msg;
+    const yes = $("#confirmYes");
+    yes.textContent = opts.yes || "Confirm";
+    yes.classList.toggle("danger", !!opts.danger);
+    $("#confirmNo").textContent = opts.no || "Cancel";
     $("#confirm").hidden = false;
     return new Promise((res) => { confirmResolve = res; });
   }
@@ -2291,6 +3044,70 @@
   $("#confirmYes").addEventListener("click", () => closeConfirm(true));
   $("#confirmNo").addEventListener("click", () => closeConfirm(false));
   $("#confirm").addEventListener("click", (e) => { if (e.target.id === "confirm") closeConfirm(false); });
+
+  // --- modal focus ----------------------------------------------------------
+  // Every overlay is a modal for a keyboard or a screen reader too: focus moves in when one opens,
+  // Tab cycles inside the top-most one instead of wandering into the scoreboard underneath, Escape
+  // takes that dialog's own way out, and focus returns to whatever opened it. Driven by ONE
+  // observer on the `hidden` attribute, so none of the many open/close paths above had to change —
+  // a new dialog only needs an entry here. Value = the button Escape presses (null: no Escape).
+  const MODALS = {
+    confirm: "#confirmNo", edit: "#editCancel", pinModal: "#pinCancel", serveOrder: "#ordCancel",
+    matchEnd: "#meClose", gamePicker: "#gpCancel", sportPicker: "#spCancel", lockGate: null,
+  };
+  const modalEls = () => Object.keys(MODALS).map((id) => document.getElementById(id)).filter(Boolean);
+  const isShown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
+  function topModal() {
+    let top = null, z = -Infinity;
+    for (const el of modalEls()) {
+      if (!isShown(el)) continue;
+      const zi = Number(getComputedStyle(el).zIndex) || 0;
+      if (zi >= z) { z = zi; top = el; }
+    }
+    return top;
+  }
+  const focusables = (root) => $$('button,input,select,textarea,a[href],[tabindex]:not([tabindex="-1"])', root)
+    .filter((el) => !el.disabled && el.getClientRects().length > 0);
+  const returnFocus = new Map();
+  const modalObserver = new MutationObserver((records) => {
+    for (const { target: el } of records) {
+      if (!el.hidden) {
+        const from = document.activeElement;
+        if (from && from !== document.body && !el.contains(from)) returnFocus.set(el, from);
+        // A dialog that focuses its own field (the number editor, the PIN pad) has already done so.
+        // Otherwise focus the overlay itself, not its first button: the first button is often the
+        // one that acts, and Enter on a freshly opened "Reset match?" must not be the reset.
+        if (!el.contains(document.activeElement)) { el.setAttribute("tabindex", "-1"); el.focus({ preventScroll: true }); }
+      } else {
+        const back = returnFocus.get(el);
+        returnFocus.delete(el);
+        const a = document.activeElement;
+        if ((!a || a === document.body || el.contains(a)) && back && back.isConnected && back.getClientRects().length) {
+          back.focus({ preventScroll: true });
+        }
+      }
+    }
+  });
+  modalEls().forEach((el) => modalObserver.observe(el, { attributes: true, attributeFilter: ["hidden"] }));
+  // Capture phase, so this runs BEFORE the editor's and PIN pad's own Escape handlers — otherwise
+  // Escape in the PIN pad closed it and then, bubbling on, closed the sport picker under it too.
+  document.addEventListener("keydown", (e) => {
+    const top = topModal();
+    if (!top) return;
+    if (e.key === "Escape") {
+      const sel = MODALS[top.id];
+      const btn = sel && $(sel);
+      if (btn && !btn.disabled && isShown(btn)) { e.preventDefault(); e.stopPropagation(); btn.click(); }
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const f = focusables(top);
+    if (!f.length) { e.preventDefault(); return; }
+    const first = f[0], last = f[f.length - 1], a = document.activeElement;
+    if (!top.contains(a) || a === top) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+  }, true);
 
   // --- end of match ---------------------------------------------------------
   // The board used to just start reading "Final" and then sit there. Nothing closed the match off,
@@ -2328,25 +3145,46 @@
     let seen = null;
     try { seen = localStorage.getItem("endAskedSig"); } catch { /* private mode: ask once per load */ }
     if (seen === sig) return;
+    // Not on top of the sport or game picker: a device opening on a finished match got this over
+    // the picker at load. Returning before the signature is stored means the next poll after the
+    // picker closes asks instead.
+    if (isShown($("#sportPicker")) || isShown($("#gamePicker"))) return;
     endAsking = true;
     // Marked BEFORE the await, not after: the confirm is open for as long as it takes someone to
     // read it, and several polls land in that window. Declining is also an answer — it must not
     // be re-asked on the next tick.
     try { localStorage.setItem("endAskedSig", sig); } catch {}
     try {
-      if (await askConfirm("End match?")) showMatchEnd(state);
+      // Worded as what it is: the match is ALREADY over, and a bare "End match?" with a generic
+      // Confirm read like a destructive action.
+      if (await askConfirm("Match finished — show the result?", { yes: "Show result", no: "Not now" })) showMatchEnd(state);
     } finally { endAsking = false; }
+  }
+
+  // What decides the match, for the console summary and the panel alike. Basketball has no sets —
+  // its sets_won_a/b are a constant 0 — so the result IS the running score; reading the set tally
+  // there called every basketball game "Match drawn 0 – 0". One helper so the two screens can't
+  // disagree about who won again.
+  function matchTally(state) {
+    const bball = SPORT === "basketball";
+    return {
+      bball,
+      a: bball ? num(state.points_a) : num(state.sets_won_a),
+      b: bball ? num(state.points_b) : num(state.sets_won_b),
+    };
   }
 
   function showMatchEnd(state) {
     if (!state) return;
     const nameA = (state.team_a_short || state.team_a_name || "TEAM A").toUpperCase();
     const nameB = (state.team_b_short || state.team_b_name || "TEAM B").toUpperCase();
-    const sa = num(state.sets_won_a), sb = num(state.sets_won_b);
+    const { bball, a: sa, b: sb } = matchTally(state);
     const colA = SAFE_HEX.test(state.team_a_color || "") ? state.team_a_color : null;
     const colB = SAFE_HEX.test(state.team_b_color || "") ? state.team_b_color : null;
 
     const win = $("#meWinner");
+    // Reset first: the dialog is reused, and a draw would otherwise keep the last winner's colour.
+    win.style.color = ""; win.style.fontWeight = "";
     if (sa === sb) win.textContent = "Match drawn";
     else {
       const wName = sa > sb ? nameA : nameB;
@@ -2374,15 +3212,18 @@
     // Every set, in the order they were played, in the same A–B orientation as the names above.
     const sets = $("#meSets");
     sets.innerHTML = "";
+    // Basketball's entries are cumulative score snapshots at the end of each period, so the pill
+    // shows the points scored IN that period (the line score), labelled Q1…/OT1… as on the header.
     const results = state.set_results || [];
     if (!results.length) {
-      sets.append(mk("msp", "No completed sets recorded"));
+      sets.append(mk("msp", bball ? "No completed periods recorded" : "No completed sets recorded"));
     } else {
       results.forEach((r, i) => {
-        const a = num(r.a), b = num(r.b);
+        const prev = bball && i > 0 ? results[i - 1] : null;
+        const a = num(r.a) - (prev ? num(prev.a) : 0), b = num(r.b) - (prev ? num(prev.b) : 0);
         const pill = document.createElement("span");
         pill.className = "msp";
-        const n = document.createElement("i"); n.className = "sn"; n.textContent = roman(i + 1);
+        const n = document.createElement("i"); n.className = "sn"; n.textContent = bball ? periodLabel(i + 1) : roman(i + 1);
         const la = document.createElement("b"); la.textContent = String(a); if (a > b) la.className = "w";
         const dash = document.createElement("em"); dash.textContent = "–";
         const lb = document.createElement("b"); lb.textContent = String(b); if (b > a) lb.className = "w";
@@ -2402,10 +3243,7 @@
   function resultLines(state) {
     const nameA = (state.team_a_short || state.team_a_name || "TEAM A").toUpperCase();
     const nameB = (state.team_b_short || state.team_b_name || "TEAM B").toUpperCase();
-    // Basketball has no sets — the result IS the running score.
-    const bball = SPORT === "basketball";
-    const a = bball ? num(state.points_a) : num(state.sets_won_a);
-    const b = bball ? num(state.points_b) : num(state.sets_won_b);
+    const { bball, a, b } = matchTally(state);
     if (a === b) return null;                       // a draw has no winner line; skip the screen
     const aWon = a > b;
     const history = bball ? "" : (state.set_results || [])
@@ -2451,11 +3289,11 @@
     // "New game" already clears the saved slot server-side, so ending a match here is what stops
     // the finished one being offered back as "Continue" on the next visit to the game menu.
     if (!await gameChoice("new")) { meStatus("Couldn't start a new game — try the game menu.", true); return; }
-    closeMatchEnd(); goToTab("manual");
+    clearCountdown(); closeMatchEnd(); goToTab("manual");
     if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
   });
   $("#meClock").addEventListener("click", async () => {
-    if (!await gameChoice("clock")) { meStatus("Couldn't park the board on the clock.", true); return; }
+    if (!await showClock((m) => meStatus(m, true))) return;
     closeMatchEnd();
   });
 
@@ -2491,7 +3329,7 @@
   const serveOrderBtn = $("#serveOrderBtn");
   if (serveOrderBtn) serveOrderBtn.addEventListener("click", openServeOrder);
   const servePlrBtn = $("#servePlrBtn");
-  if (servePlrBtn) servePlrBtn.addEventListener("click", () => sendAction({ type: "serve-player" })); // bare = flip the serving pair
+  if (servePlrBtn) servePlrBtn.addEventListener("click", () => sendAction({ type: "serve-player" }, servePlrBtn)); // bare = flip the serving pair
 
   // Auto-prompt the serve order at the start of each beach set — once, and only after a real rally
   // has been played (so an idle refresh never pops it). Match start is handled by chooseSport.
@@ -2521,7 +3359,11 @@
       // The button goes with the action: sendAction disables it for the round trip, so a second
       // tap on a link that hasn't answered yet has nowhere to land.
       if (pt && root.contains(pt)) { sendAction({ type: "point", side, delta: Number(pt.dataset.pt) }, pt); return; }
-      const val = e.target.closest("[data-val]");
+      // A tap anywhere on a stat tile that isn't one of its −/+ counts as a tap on its number: the
+      // digit on its own was a 13x22px target.
+      const tile = e.target.closest(".stat");
+      const val = e.target.closest("[data-val]") ||
+        (tile && root.contains(tile) && !e.target.closest("button") ? tile.querySelector("[data-val]") : null);
       if (val && root.contains(val)) {
         const type = VAL_TYPE[val.dataset.val]; if (!type) return;
         // Basketball's "Sets" slot is the shared PERIOD label — adjust it with ± / End period, not a typed value.
@@ -2531,23 +3373,42 @@
           Number(val.textContent) || 0, (v) => sendAction({ type, side, value: v }));
       }
     });
+    // Timeouts and subs go straight through and offer Undo, instead of a "Add a timeout for X?"
+    // confirm BEFORE the action. The confirm cost a second tap on every one of them, mid-rally, to
+    // guard against a mistake that is now one tap to take back — and a confirm answered on autopilot
+    // guarded against nothing. Destructive, whole-match actions (Reset, New game) keep theirs.
     root.querySelectorAll("[data-stat]").forEach((b) => b.addEventListener("click", async () => {
       const stat = b.dataset.stat, d = Number(b.dataset.d);
-      if (stat === "timeout" || stat === "sub") {
-        const nm = ($(".short", root).value || side).toUpperCase();
-        const what = stat === "timeout" ? "timeout" : (SPORT === "basketball" ? "team foul" : "substitution");
-        if (!(await askConfirm((d > 0 ? "Add a " : "Remove a ") + what + " for " + nm + "?"))) return;
+      const nm = ($(".short", root).value || side).toUpperCase();
+      const startsClock = stat === "timeout" && d > 0 && SETTINGS.countdownOnTimeout !== false;
+      if (startsClock) {
+        // Started at the tap, not after the round trip: the teams are already walking off. The
+        // phone shows "TO KSCW" on one line; the board has a separate line for the calling team,
+        // so it gets `side` and a bare label.
+        startCountdown(SETTINGS.timeoutSeconds || 30, "TO " + nm, null,
+          { content: "full", side, label: "TIME OUT" });
       }
-      sendAction({ type: stat, side, delta: d }, b);
-      if (stat === "timeout" && d > 0) {
-        const nm = ($(".short", root).value || side).toUpperCase();
-        if (SETTINGS.countdownOnTimeout !== false) {
-          // The phone still shows "TO KSCW" on one line; the board has a separate
-          // line for the calling team, so it gets `side` and a bare label.
-          startCountdown(SETTINGS.timeoutSeconds || 30, "TO " + nm, null,
-            { content: "full", side, label: "TIME OUT" });
+      const r = await sendAction({ type: stat, side, delta: d }, b);
+      const clockUp = () => board.mode === "countdown" && board.cd && board.cd.label === "TIME OUT";
+      if (!r) {
+        // Not recorded, so there is no timeout to time.
+        if (startsClock && clockUp()) { clearCountdown(); stopServerCountdown(false); }
+        return;
+      }
+      if (stat !== "timeout" && stat !== "sub") return;
+      const what = stat === "timeout" ? "Timeout" : (SPORT === "basketball" ? "Team foul" : "Substitution");
+      // The label the board gave THIS step. The toast's Undo only acts while it is still the last
+      // thing entered — two taps later it would take back something else entirely.
+      const step = String(r.undoLabel || "");
+      const said = (d > 0 ? what : what + " taken back") + " · " + nm;
+      if (!r.canUndo) { toast(said); return; }
+      toast(said, { ms: 6000, action: { label: "Undo", fn: () => {
+        if (!LAST_STATUS.canUndo || String(LAST_STATUS.undoLabel || "") !== step) {
+          toast("Something else was entered since — use Undo beside the set results.");
+          return;
         }
-      }
+        doUndo($("#undoBtn"));
+      } } });
     }));
     const shortEl = $(".short", root), colorEl = $(".color", root);
     shortEl.addEventListener("change", () => {
@@ -2563,9 +3424,14 @@
       () => sendAction({ type: "team", side, color: colorEl.value }));
   });
 
+  // Basketball period −/+ (the centre control). `set` is the period in basketball — the board
+  // ignores the side — and a period has no side, so one control sends it.
+  $$("[data-period]").forEach((b) => b.addEventListener("click",
+    () => sendAction({ type: "set", side: "left", delta: Number(b.dataset.period) }, b)));
+
   // serve toggle
   $$('[data-serve]').forEach((b) => b.addEventListener("click",
-    () => sendAction({ type: "serve", side: b.dataset.serve })));
+    () => sendAction({ type: "serve", side: b.dataset.serve }, b)));
 
   // global actions
   // Pre-match "names + VS" screen on the board. Any scoring action lifts it automatically.
@@ -2576,14 +3442,46 @@
   // Pre-match warm-up: a plain 10-minute clock, no side effects when it ends.
   $("#warmupBtn").addEventListener("click", () =>
     startCountdown(SETTINGS.warmupSeconds || 600, "WARM UP", null, { major: true, action: "End warm-up", content: "none" }));
-  $("#swapBtn").addEventListener("click", () => sendAction({ type: "swap" }));
+  $("#swapBtn").addEventListener("click", (e) => sendAction({ type: "swap" }, e.currentTarget));
+  // Both confirms say what is LOST, in the sport's own words, and name the verb in red — "Reset the
+  // board to neutral?" over a blue Confirm read like a display setting, not the end of a match.
+  // The History half is true of every sport but the simple scoreboard, which keeps no history: an
+  // unfinished match never reaches it (historyStore drops the buffer on reset without saving it).
+  function resetWarning() {
+    const lost = " An unfinished match will not appear in History.";
+    if (SPORT === "simple") return "Reset to 0–0? Both scores are cleared.";
+    if (SPORT === "basketball") return "Reset to 0–0? The score, period, timeouts and fouls for this game are cleared." + lost;
+    if (SPORT === "beach") return "Reset to 0–0? Scores, sets and timeouts for this match are cleared." + lost;
+    return "Reset to 0–0? Scores, sets, timeouts and subs for this match are cleared." + lost;
+  }
   $("#resetBtn").addEventListener("click", async () => {
-    if (await askConfirm("Reset the board to neutral?")) { clearCountdown(); board.mode = "match"; sendAction({ type: "reset" }); }
-  });
-  $("#blankBtn").addEventListener("click", async () => {
-    if (await askConfirm("Blank the LedBox display?")) { clearCountdown(); board.mode = "blank"; paintBoardMode(); blank(); }
+    if (await askConfirm(resetWarning(), { yes: "Reset match", danger: true })) { clearCountdown(); board.mode = "match"; sendAction({ type: "reset" }); }
   });
   $("#refreshBtn").addEventListener("click", refreshMatches);
+
+  // Anything on the scoreboard worth losing: a point or a set on either side.
+  function hasScore(state) {
+    if (!state) return false;
+    return num(state.points_a) + num(state.points_b) + num(state.sets_won_a) + num(state.sets_won_b) > 0;
+  }
+
+  // "Show clock", from every menu that offers it: the crest and the time, and it STAYS the clock.
+  // Plain /api/idle {on:true} is the names screen whenever teams are typed in, and the server's
+  // idle ticker would swap a clock back to it — screen:'clock' pins the clock until scoring
+  // resumes or idle is turned off. The score underneath is untouched. `onErr` puts the reason in
+  // the dialog the button lives in; without one it goes to a toast. Resolves true on success.
+  async function showClock(onErr) {
+    try {
+      await postJSON("/api/idle", { on: true, screen: "clock" });
+      clearCountdown(); board.mode = "clock"; paintBoardMode();
+      refreshStatus();
+      return true;
+    } catch (e) {
+      const m = /pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then try again." : "Couldn't show the clock: " + ((e && e.message) || e);
+      if (onErr) onErr(m); else toast(m);
+      return false;
+    }
+  }
 
   // --- sport selector -----------------------------------------------------
   // Shown on load (current sport pre-highlighted → one tap continues) and re-openable from the
@@ -2594,7 +3492,8 @@
     const list = $("#spList"); if (!list) return;
     const cur = curSport();
     const opts = SPORTS_LIST.length ? SPORTS_LIST
-      : [{ key: "volleyball", label: "Volleyball" }, { key: "beach", label: "Beach volleyball" }, { key: "basketball", label: "Basketball" }];
+      : [{ key: "volleyball", label: "Volleyball" }, { key: "beach", label: "Beach volleyball" },
+         { key: "basketball", label: "Basketball" }, { key: "simple", label: "Simple scoreboard" }];
     list.innerHTML = "";
     opts.forEach((sp) => {
       const b = document.createElement("button");
@@ -2747,8 +3646,9 @@
   if (gpNewBtn) gpNewBtn.addEventListener("click", async () => {
     // Starting over discards a real match, so make it deliberate — but only when there is one
     // to lose. On an empty board this must stay a single tap.
-    if (savedGame && !await askConfirm("Start a new game? The saved match (" + describeSaved(savedGame) + ") will be deleted.")) return;
+    if (savedGame && !await askConfirm("Start a new game? The saved match (" + describeSaved(savedGame) + ") will be deleted.", { yes: "Start new game", danger: true })) return;
     if (!await gameChoice("new")) return;
+    clearCountdown();   // any SET ENDED / interval card was about the match just discarded
     closeGamePicker(); goToTab("manual");
     // Beach opens with a serve order. Asked HERE rather than on the sport switch, so continuing
     // an existing beach match doesn't re-ask something already decided mid-match.
@@ -2756,15 +3656,31 @@
   });
   const gpDeleteBtn = $("#gpDelete");
   if (gpDeleteBtn) gpDeleteBtn.addEventListener("click", async () => {
-    if (!await askConfirm("Delete the saved game? " + describeSaved(savedGame))) return;
-    if (!await gameChoice("delete")) return;
+    if (!await askConfirm("Delete the saved game? " + describeSaved(savedGame), { yes: "Delete", danger: true })) return;
+    const r = await gameChoice("delete");
+    if (!r) return;
     savedGame = null;
-    await openGamePicker(); // stay in the menu, now without Continue/Delete
+    // Stay in the menu, now without Continue/Delete — there is nothing left for them to act on.
+    // Hidden here rather than by re-reading GET /api/game: that round trip is what left both on
+    // screen for a beat after a delete, and a second tap on "Delete" then answered 404.
+    $("#gpContinue").hidden = true; $("#gpDelete").hidden = true;
+    $("#gpContinue").classList.remove("primary"); $("#gpNew").classList.add("primary");
+    $("#gpSub").textContent = "Nothing saved for this sport yet.";
+    // When the deleted game was the one on the panel, the server has reset it to 0–0 and parked
+    // the board on the clock, and says so with `cleared` (the reply's state, already rendered by
+    // gameChoice, is the fresh 0–0). Mirror that, so the preview shows the panel as it now is
+    // rather than the match just thrown away. A live match that was NOT the saved one keeps its
+    // score, and its screen. (No `cleared` = an older board: judge by the score it sent back.)
+    const cleared = "cleared" in r ? r.cleared === true : !!(r.state && !hasScore(r.state));
+    if (cleared) { clearCountdown(); board.mode = "clock"; paintBoardMode(); }
+    refreshStatus();
     toast("Saved game deleted");
   });
   const gpClockBtn = $("#gpClock");
   if (gpClockBtn) gpClockBtn.addEventListener("click", async () => {
-    if (!await gameChoice("clock")) return;
+    gpBusy(true); gpStatus("");
+    try { if (!await showClock((m) => gpStatus(m, true))) return; }
+    finally { gpBusy(false); }
     closeGamePicker();
   });
   // Deliberately NOT part of gpBusy: when a choice is hanging on a board that isn't answering,
@@ -2794,18 +3710,27 @@
   // goToTab clicks the real nav button rather than toggling classes directly, so the Diagnostics
   // tab's own wiring runs — startDiag() opens the log stream and begins polling. Setting
   // .active by hand here would show the tab with every card reading "—" forever.
+  const spClockBtn = $("#spClock");
+  if (spClockBtn) spClockBtn.addEventListener("click", async () => {
+    const st = $("#spStatus");
+    spClockBtn.disabled = true;
+    try {
+      if (!await showClock((m) => { if (st) { st.hidden = false; st.classList.add("err"); st.textContent = m; } })) return;
+    } finally { spClockBtn.disabled = false; }
+    closeSportPicker(); toast("Clock on the board");
+  });
   const spDiagBtn = $("#spDiag");
   if (spDiagBtn) spDiagBtn.addEventListener("click", () => { closeSportPicker(); goToTab("diag"); });
   const sportPickerEl = $("#sportPicker");
   if (sportPickerEl) sportPickerEl.addEventListener("click", (e) => { if (e.target.id === "sportPicker") closeSportPicker(); });
   const nextPeriodBtn = $("#nextPeriodBtn");
   if (nextPeriodBtn) nextPeriodBtn.addEventListener("click", async () => {
-    if (SPORT === "basketball" && await askConfirm("End this period?")) sendAction({ type: "next-set" });
+    if (SPORT === "basketball" && await askConfirm("End this period?", { yes: "End period" })) sendAction({ type: "next-set" });
   });
   // Power: halt the board cleanly, then tell the operator it's safe to cut the power.
   const shutdownBtn = $("#shutdownBtn");
   if (shutdownBtn) shutdownBtn.addEventListener("click", async () => {
-    if (!await askConfirm("Shut down the scoreboard?")) return;
+    if (!await askConfirm("Shut down the scoreboard?", { yes: "Shut down", danger: true })) return;
     try {
       await postJSON("/api/shutdown");
       stopPolling();
@@ -2813,6 +3738,30 @@
       $("#shutdown").classList.add("show");
       watchShutdown();
     } catch (e) { toast(e.message || "Shutdown failed"); }
+  });
+  // Restart: same overlay, but it is NOT terminal — wait for the board to go away, then for it to
+  // answer again, and reload so the page picks up whatever the board now runs.
+  const rebootBtn = $("#rebootBtn");
+  if (rebootBtn) rebootBtn.addEventListener("click", async () => {
+    if (!await askConfirm("Restart the scoreboard? It is back in about 45 seconds; the game is kept.", { yes: "Restart", danger: true })) return;
+    try {
+      await postJSON("/api/reboot");
+      stopPolling();
+      $("#sdTitle").textContent = "Restarting…";
+      $("#sdSub").textContent = "The panel goes dark, then comes back in about 45 seconds. This page reconnects by itself.";
+      $("#sdPress").hidden = true;
+      $("#shutdownBack").hidden = true;
+      $("#shutdown").classList.add("show");
+      let wentDown = false;
+      const since = Date.now();
+      const t = setInterval(async () => {
+        try {
+          await api("/api/status");
+          // Back up after having been down — or never went down within 2 minutes: reload either way.
+          if (wentDown || Date.now() - since > 120000) { clearInterval(t); location.reload(); }
+        } catch { wentDown = true; }
+      }, 3000);
+    } catch (e) { toast(e.message || "Restart failed"); }
   });
   // The overlay is terminal ON PURPOSE — but only if the board actually goes away. Keep one quiet
   // poll running behind it: if the board is still answering well after the request, the shutdown
@@ -2893,6 +3842,19 @@
         b.addEventListener("click", () => stepNumber(input, dir));
         return b;
       };
+      // Named explicitly: once wrapped, the "−" button is the first labelable thing inside the
+      // row's <label>, so the label names THAT and a screen reader read the input as a bare
+      // "spin button, 30". The unit rides along ("Blink length, ms").
+      if (label) {
+        const unit = input.parentElement.querySelector("em");
+        input.setAttribute("aria-label", label.textContent.trim() + (unit ? ", " + unit.textContent.trim() : ""));
+      }
+      // Every stepper row ends in a unit slot, empty when there is no unit, so all the −/value/+
+      // groups on a card line up in one column (see `.settings .row em`).
+      if (!input.parentElement.querySelector("em")) {
+        const slot = document.createElement("em"); slot.setAttribute("aria-hidden", "true");
+        input.parentElement.appendChild(slot);
+      }
       input.replaceWith(wrap);
       wrap.append(mk(-1, "decrease", "−"), input, mk(1, "increase", "+"));
       input.addEventListener("input", () => syncStepper(wrap));
@@ -2994,14 +3956,26 @@
         el.type === "number" ? Number(el.value) :
         el.value; // text / select stay as strings; the server coerces + clamps
     }
+    // Checked here, before anything is sent, against the same rule the board applies. The tablet's
+    // numeric keypad still offers "." "," and "-": "12.34" used to reach the board as 1234 while
+    // this device remembered "12.34", so the next point came back 403 and the PIN just set was
+    // "wrong" when typed again — and a PIN with no digits at all silently removed the lock under a
+    // "Saved.". Empty still means "keep the current PIN"; removing it is its own button below.
     const newPin = String(patch.scorerPin || "").trim(); // adopt after save so setting a PIN never locks the setter out
+    const st0 = $("#setStatus");
+    if (newPin && !PIN_RE.test(newPin)) {
+      st0.classList.remove("saved"); st0.classList.add("err"); st0.textContent = "PIN must be 1–8 digits";
+      toast("PIN must be 1–8 digits");
+      return;
+    }
+    patch.scorerPin = newPin;
     try {
       SETTINGS = await postJSON("/api/settings", patch);
       if (newPin) { SCORER_PIN = newPin; try { localStorage.setItem("kscwScorerPin", newPin); } catch {} }
       pinRequired = !!SETTINGS.pinSet; updateLock();
       const st = $("#setStatus");
       st.textContent = "Saved.";
-      st.classList.add("saved");
+      st.classList.remove("err"); st.classList.add("saved");
       // The server clamps out-of-range values, so reflect what it actually stored.
       for (const el of setEls()) {
         const v = SETTINGS[el.dataset.set];
@@ -3010,12 +3984,34 @@
       }
       renderFontBox();   // a Settings save can move the same number the Game tab shows
       // One save persists EVERY field, so every section is now clean.
-      $$(".setsavebtn").forEach((b) => { b.classList.remove("dirty", "ok"); b.textContent = "Saved"; });
+      $$(".setsavebtn").forEach((b) => { b.classList.remove("dirty", "ok", "fail"); b.textContent = "Saved"; b.title = ""; });
       if (clickedBtn) { clickedBtn.classList.add("ok"); clickedBtn.textContent = "Saved ✓"; setTimeout(() => { clickedBtn.classList.remove("ok"); clickedBtn.textContent = "Saved"; }, 1600); }
       renderPreview(bvLast.s, bvLast.serving); // reflect branding / counter-threshold changes on the mirror now
       setTimeout(() => { st.textContent = "Saved on the board — these survive a restart."; st.classList.remove("saved"); }, 1800);
-    } catch (e) { toast(e.message); }
+    } catch (e) {
+      // A 400 carries the board's own reason ("PIN must be 1–8 digits"). A toast is gone in three
+      // seconds; the line under the form stays until the next save, where the operator is looking.
+      const msg = (e && e.message) || "Couldn't save the settings";
+      st0.classList.remove("saved"); st0.classList.add("err");
+      st0.textContent = e && e.status === 400 ? "Not saved — " + msg : "Not saved: " + msg;
+      toast(st0.textContent);
+      // …and on the Save that was pressed, since the status line sits under the last card.
+      if (clickedBtn) { clickedBtn.classList.remove("ok"); clickedBtn.classList.add("fail"); clickedBtn.textContent = "Not saved"; clickedBtn.title = msg; }
+    }
   }
+  // The only way to take the lock off. An empty box means "unchanged", so without an explicit
+  // request there was none — except typing letters, which the board stripped to "" and took as
+  // removal. It posts ONLY the flag, so no other half-edited field rides along with it.
+  $("#pinClear").addEventListener("click", async () => {
+    if (!(await askConfirm("Remove the scorer PIN? Anyone who opens the controller will be able to score.", { yes: "Remove PIN", danger: true }))) return;
+    try {
+      SETTINGS = await postJSON("/api/settings", { clearPin: true });
+      if (SETTINGS.pinSet) throw new Error("The board kept the PIN — update the appliance and try again.");
+      SCORER_PIN = ""; try { localStorage.removeItem("kscwScorerPin"); } catch {}
+      pinRequired = false; updateLock();
+      toast("PIN removed — scoring is open");
+    } catch (e) { toast(e.message); }
+  });
   // Explicit save: a Save button per settings section (no silent auto-save). Editing a field marks
   // its section as unsaved; clicking any Save persists ALL fields, so every section goes clean.
   $$("#tab-settings fieldset").forEach((fs) => {
@@ -3027,12 +4023,13 @@
   });
   const markSettingDirty = (el) => {
     const fs = el.closest("fieldset"); const b = fs && fs.querySelector(".setsavebtn");
-    if (b) { b.classList.remove("ok"); b.classList.add("dirty"); b.textContent = "Save changes"; }
+    if (b) { b.classList.remove("ok", "fail"); b.classList.add("dirty"); b.textContent = "Save changes"; b.title = ""; }
   };
   setEls().forEach((el) => { el.addEventListener("input", () => markSettingDirty(el)); el.addEventListener("change", () => markSettingDirty(el)); });
 
   // --- scorer lock ---------------------------------------------------------
   function updateLock() {
+    const pc = $("#pinClear"); if (pc) pc.hidden = !pinRequired;
     const b = $("#lockBtn"); if (!b) return;
     b.hidden = !pinRequired;
     const open = !SCORER_PIN;
@@ -3048,6 +4045,49 @@
   }
   function openPinModal() { $("#pinModal").hidden = false; const i = $("#pinInput"); i.value = ""; setTimeout(() => i.focus(), 30); }
   function closePinModal() { $("#pinModal").hidden = true; }
+  // --- handing the board our clock ----------------------------------------
+  // The board has no RTC: fake-hwclock only replays its last hourly save, so a board booted
+  // without an uplink is wrong by however long it sat dark, and it stamps match history from that.
+  // This tablet DOES have a battery clock, and — the reason this works at all — it does not need
+  // to be online right now to know the time. It only had to be online at some point in the past.
+  //
+  // Epoch milliseconds, never a formatted string: the board applies its own Europe/Zurich on the
+  // way out, so a tablet left on holiday time still yields the right instant.
+  const fmtOffset = (ms) => {
+    const s = Math.abs(ms) / 1000, dir = ms > 0 ? "behind" : "ahead";
+    if (s < 5400) return `${Math.round(s / 60)} min ${dir}`;
+    if (s < 172800) return `${Math.round(s / 3600)} h ${dir}`;
+    return `${Math.round(s / 86400)} days ${dir}`;
+  };
+  let clockOffered = false;
+  // Fire-and-forget, and deliberately quiet. `applied:false` is the NORMAL answer — NTP already
+  // has the clock, or the gap is trivial — and none of those deserve to interrupt a scorer who is
+  // trying to start a match. Only an actual correction is worth saying out loud, because it also
+  // tells the operator that anything stamped before this moment was wrong.
+  async function offerClock() {
+    if (clockOffered) return;
+    clockOffered = true;
+    try {
+      const r = await postJSON("/api/clock", { epochMs: Date.now() });
+      if (r && r.applied) toast(`Board clock corrected — it was ${fmtOffset(r.offsetMs)}`);
+      // 'busy' means a match or countdown was in flight, so the jump was refused rather than
+      // risked mid-rally. Clear the latch so the next unlock tries again instead of giving up for
+      // the rest of the session.
+      if (r && r.reason === "busy") clockOffered = false;
+    } catch { /* the board is entitled to refuse; never let this block scoring */ }
+  }
+  function renderClock(c) {
+    const el = $("#dClock"); if (!el || !c) return;
+    const t = c.now ? new Date(c.now) : null;
+    const hhmm = t ? t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—";
+    let how = "";
+    if (c.synchronized === true) how = " · synced over the network";
+    else if (c.setFromConsoleAt) how = " · set from this console";
+    else if (c.synchronized === false) how = " · NOT synced — no uplink";
+    el.textContent = "clock " + hhmm + how;
+    el.classList.toggle("warn", c.synchronized === false && !c.setFromConsoleAt);
+  }
+
   async function tryUnlock(pin) {
     if (!pin) return;
     try {
@@ -3055,6 +4095,7 @@
       if (r && r.ok) {
         SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
         closePinModal(); updateLock(); toast("Unlocked — you can score");
+        offerClock();
       } else { const i = $("#pinInput"); i.value = ""; i.focus(); toast("Wrong PIN"); }
     } catch (e) { toast(e.message); }
   }
@@ -3069,7 +4110,7 @@
   // would put the PIN pad between the scorer and the next point.
   $("#lockBtn").addEventListener("click", async () => {
     if (!SCORER_PIN) return openPinModal();
-    if (!(await askConfirm("Lock scoring on this device? You'll need the PIN to score again."))) return;
+    if (!(await askConfirm("Lock scoring on this device? You'll need the PIN to score again.", { yes: "Lock scoring" }))) return;
     SCORER_PIN = ""; try { localStorage.removeItem("kscwScorerPin"); } catch {}
     updateLock();
     toast("Locked — the PIN is needed to score");
@@ -3106,11 +4147,20 @@
         : "Full screen was refused: " + (e && e.message ? e.message : e));
       return;
     }
-    // Phone-only and gesture-bound; desktop Chrome rejects it. Never fatal.
+    // Phone-only and gesture-bound; desktop Chrome rejects it. Never fatal. Locks the orientation
+    // the scorer is ALREADY using — portrait is a supported layout now, and forcing a phone held
+    // upright onto its side the moment it goes full screen would take that away again.
     if (screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock("landscape").catch(() => {});
+      const portrait = window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
+      screen.orientation.lock(portrait ? "portrait" : "landscape").catch(() => {});
     }
   }
+  // The portrait tip goes away for good once dismissed (per device).
+  try { if (localStorage.getItem("rotateTipOk") === "1") document.body.classList.add("rotate-ok"); } catch {}
+  $("#rotateOk").addEventListener("click", () => {
+    document.body.classList.add("rotate-ok");
+    try { localStorage.setItem("rotateTipOk", "1"); } catch {}
+  });
   $$(".js-fs").forEach((b) => b.addEventListener("click", toggleFS));
   // Icon-only buttons get their whole contents swapped; the labelled ones only have the <svg>
   // replaced, so the caption survives — writing innerHTML on those would delete the text.
@@ -3239,6 +4289,12 @@
       case "remove-set": return "Set removed";
       case "set-end": return "End of set " + (e.set || "") + (e.score ? " (" + e.score[0] + "–" + e.score[1] + ")" : "");
       case "match-end": return "Match over";
+      // Basketball: `period` is the one just played; its cumulative score, when recorded, is the
+      // line a table official reads back ("End of Q3 (54–48)"). Same Q/OT labels as the header.
+      case "period-end": return "End of " + periodLabel(e.period) + (e.score ? " (" + e.score[0] + "–" + e.score[1] + ")" : "");
+      // The general undo leaves one marker where the action it took back used to be.
+      case "undo": return e.what ? "Undone: " + e.what : "Last action undone";
+      case "set-closed": return "Point refused · " + who + " — the set was already over";
       default: return e.type || "";
     }
   }
@@ -3314,7 +4370,7 @@
   $("#expCsvBtn").addEventListener("click", exportCSV);
   $("#expJsonBtn").addEventListener("click", exportJSON);
   $("#clearHistBtn").addEventListener("click", async () => {
-    if (!await askConfirm("Clear all recorded matches? This can't be undone.")) return;
+    if (!await askConfirm("Clear all recorded matches? This can't be undone.", { yes: "Clear all", danger: true })) return;
     try { await postJSON("/api/history/clear"); } catch {}
     HISTORY = []; refreshHistory(); toast("History cleared");
   });
@@ -3328,9 +4384,10 @@
   async function bootLock() {
     let pinSet = false;
     try { const s = await api("/api/settings"); pinSet = !!s.pinSet; } catch { hideGate(); return; } // board down → don't trap the operator (writes stay server-gated anyway)
-    if (!pinSet) { hideGate(); return; }                 // no PIN configured → open access
+    // No PIN configured → open access, and /api/clock is open too, so still offer the clock.
+    if (!pinSet) { hideGate(); offerClock(); return; }
     if (SCORER_PIN) {                                     // remember a prior unlock if the PIN still checks out
-      try { const r = await postJSON("/api/unlock", { pin: SCORER_PIN }); if (r && r.ok) { pinRequired = true; updateLock(); hideGate(); return; } } catch {}
+      try { const r = await postJSON("/api/unlock", { pin: SCORER_PIN }); if (r && r.ok) { pinRequired = true; updateLock(); hideGate(); offerClock(); return; } } catch {}
     }
     showGate();
   }
@@ -3342,7 +4399,7 @@
       if (r && r.ok) {
         SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
         pinRequired = true; updateLock();
-        $("#lgErr").textContent = ""; hideGate();
+        $("#lgErr").textContent = ""; hideGate(); offerClock();
       } else { $("#lgErr").textContent = "Wrong PIN — try again."; el.value = ""; el.focus(); }
     } catch (e) {
       // A lockout comes back as 429 with a real explanation ("too many wrong PINs — try again in

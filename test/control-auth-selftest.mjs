@@ -40,7 +40,10 @@ const ROUTES = {
   '/api/countdown': { guard: 'pin', body: { seconds: 5 } },
   '/api/countdown/stop': { guard: 'pin', body: {} },
   '/api/idle': { guard: 'pin', body: { on: true } },
-  '/api/blank': { guard: 'pin', body: {} },
+  // Sets the host clock (`sudo date`). The authed probe offers this machine's OWN time on purpose:
+  // that is under clockSync's 30 s "close enough" floor (or NTP already has the clock), so it is
+  // answered 200 with applied:false and can never move the clock of the machine running the test.
+  '/api/clock': { guard: 'pin', body: { epochMs: Date.now() } },
   '/api/game': { guard: 'pin', body: { choice: 'clock' } },
   // Writes three operator-supplied lines onto the scoreboard in the hall — the most public
   // surface this appliance has, so it is PIN-gated like any other paint.
@@ -52,6 +55,7 @@ const ROUTES = {
   '/api/logs/level': { guard: 'pin', body: { level: 'info' } },
   '/api/logs/clear': { guard: 'pin', body: {} },
   '/api/shutdown': { guard: 'pin', body: {}, skipAuthed: 'HALTS THE BOARD — never send this a valid PIN' },
+  '/api/reboot': { guard: 'pin', body: {}, skipAuthed: 'REBOOTS THE BOARD — never send this a valid PIN' },
   '/api/logs': { guard: 'open', body: { msg: 'ui event' }, why: 'the console posts its own errors; a spectator hitting a bug is what we want to see' },
   '/api/unlock': { guard: 'unlock', body: { pin: PIN } },
 }

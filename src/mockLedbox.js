@@ -37,10 +37,17 @@ const KNOWN_LAYOUTS = new Set([
 ])
 
 export class MockLedbox extends EventEmitter {
-  constructor({ deviceName = 'MOCK01', firmware = '0.551' } = {}) {
+  // Both options are opt-in so the existing tests keep the lenient board they were written for.
+  //   noresend — like the real device: a SetLayout for the layout already up gets NO reply at all.
+  //   layouts  — { name: [sections] }: extra layouts this board has, each checked against its OWN
+  //              section list (the real board refuses a section its current layout lacks, code 6;
+  //              the global KNOWN_SECTIONS below cannot catch a section written to the wrong one).
+  constructor({ deviceName = 'MOCK01', firmware = '0.551', noresend = false, layouts = null } = {}) {
     super()
     this.deviceName = deviceName
     this.firmware = firmware
+    this.noresend = noresend
+    this.layouts = new Map(Object.entries(layouts || {}).map(([k, v]) => [k, new Set(v)]))
     this.currentLayout = 'waiting'
     this.screen = {} // section name -> { text, color }
   }
@@ -62,13 +69,14 @@ export class MockLedbox extends EventEmitter {
   // attribute object, NOT an array of attribs (that is the READ shape). Throws a
   // protocol error (with a numeric .code) on the wrong shape or an unknown section.
   _applySections(sections = []) {
+    const strict = this.layouts.get(this.currentLayout)
     for (const s of sections) {
       if (Array.isArray(s.value)) {
         const e = new Error(`key 'attrib' in section ${s.name} not defined`)
         e.code = 9
         throw e
       }
-      if (!KNOWN_SECTIONS.has(s.name)) {
+      if (strict ? !strict.has(s.name) : !KNOWN_SECTIONS.has(s.name)) {
         const e = new Error('code 6 - section not found')
         e.code = 6
         throw e
@@ -117,7 +125,8 @@ export class MockLedbox extends EventEmitter {
       }
       case 'SetLayout': {
         const name = msg.name || msg.value
-        if (typeof name === 'string' && KNOWN_LAYOUTS.has(name)) {
+        if (typeof name === 'string' && (KNOWN_LAYOUTS.has(name) || this.layouts.has(name))) {
+          if (this.noresend && name === this.currentLayout) return undefined // silence, as on the glass
           this.currentLayout = name
           return ok(name)
         }
