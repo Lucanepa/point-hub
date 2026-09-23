@@ -193,7 +193,14 @@ export async function startAppliance(config = loadConfig()) {
   // repaint both talk to the board, and firing them at a socket that has not handshaken yet just
   // burns two send timeouts. `once` — a later reconnect must not resurrect a match the operator
   // has since replaced.
-  if (uncleanShutdown) {
+  // A game saved during its pre-match comes back after ANY restart (a deploy at 19:50 included):
+  // the board shows the clock at boot either way, and this only puts the names and the console's
+  // "Ready" banner back. See controlServer's `prematch`. Done BEFORE connect(), not on 'ready':
+  // with the panel not up yet the held clock is recorded as intent, so the handshake's own default
+  // screen IS the clock — restoring on 'ready' raced that default screen, and the crest won.
+  if (server.savedPrematch()) {
+    try { await server.resumeInterruptedGame() } catch (e) { log.error(`could not restore the pre-match: ${e.message}`, { error: e.message }) }
+  } else if (uncleanShutdown) {
     ledbox.once('ready', () => {
       Promise.resolve(server.resumeInterruptedGame())
         .then((info) => { if (!info) log.info('nothing saved to restore for this sport', { sport: sport.key }) })

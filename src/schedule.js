@@ -56,7 +56,7 @@ export function shortName(full) {
   if (!name) return ''
   // Our own teams: the club already calls itself KSCW everywhere, so keep the whole designation.
   const own = /^KSC\s*Wiedikon\b\s*(.*)$/i.exec(name)
-  if (own) return clampShort(`KSCW${own[1] ? ` ${own[1]}` : ''}`)
+  if (own) return ownShort(own[1])
   const words = name.split(' ')
   const last = words[words.length - 1]
   const number = words.length > 1 && TEAM_NO.test(last) ? words.pop() : ''
@@ -69,6 +69,22 @@ export function shortName(full) {
   // A double-barrelled place that does not fit keeps its first half: ANDWIL, not ANDWIL-ARN.
   if (word.length > room && word.includes('-')) word = word.split('-')[0]
   return clampShort(number ? `${word.slice(0, Math.max(3, room))} ${number}` : word)
+}
+
+// 'KSC Wiedikon <rest>' → KSCW plus the designation, and the designation is the part that must
+// survive: clamping 'KSCW HERREN 1' to ten characters printed 'KSCW HERRE' and dropped the number
+// that tells H1 from H3. So a spelled-out 'Herren 1' / 'Damen 2' folds to the league's own H1 / D2,
+// and anything else that does not fit shortens the middle word, never the number.
+function ownShort(rest) {
+  const parts = String(rest || '').split(' ').filter(Boolean)
+  const number = parts.length > 1 && TEAM_NO.test(parts[parts.length - 1]) ? parts.pop() : ''
+  const mid = parts.join(' ')
+  const whole = ['KSCW', mid, number].filter(Boolean).join(' ')
+  if (!number || whole.length <= SHORT_MAX) return clampShort(whole)
+  const folded = `KSCW ${mid[0]}${number}`
+  if (/^\p{L}+$/u.test(mid) && folded.length <= SHORT_MAX) return clampShort(folded)
+  const room = SHORT_MAX - 'KSCW '.length - number.length - 1
+  return clampShort(room > 0 ? `KSCW ${mid.slice(0, room)} ${number}` : `KSCW ${number}`)
 }
 
 const clampShort = (s) => s.toLocaleUpperCase('de-CH').slice(0, SHORT_MAX).trim()

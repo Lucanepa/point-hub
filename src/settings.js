@@ -23,6 +23,7 @@ const setlog = log.child('settings')
 const SPORTS = ['volleyball', 'beach', 'basketball', 'simple']
 const BRANDINGS = ['kscw', 'plain']
 const LIVE_SYSTEMS = ['off', 'kscw']
+const ORIENTATIONS = ['behind', 'front']
 
 // Shared across every sport.
 export const GLOBAL_DEFAULTS = {
@@ -43,6 +44,11 @@ export const GLOBAL_DEFAULTS = {
   branding: 'kscw',
   // Live-scoring publish target: 'off' | 'kscw' (Directus → wiedisync /live; see livePush).
   liveScoring: 'off',
+  // Where the scorer sits: 'behind' the panel (the usual table, facing the court with the board at
+  // their back — their left is the panel's right) or 'front' (facing the panel, sides 1:1). Only the
+  // console reads it, to put each team card on the scorer's own side; the server, the sources and
+  // the mappers keep PANEL sides whatever it says. Shared like branding: it is about the hall.
+  orientation: 'behind',
 }
 
 // Per-sport. Volleyball = the historical flat values (so a migrated board is identical). Beach =
@@ -128,6 +134,7 @@ function sanitizeInto(out, keys, patch = {}) {
     if (k === 'sport') { out[k] = SPORTS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'branding') { out[k] = BRANDINGS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'liveScoring') { out[k] = LIVE_SYSTEMS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
+    if (k === 'orientation') { out[k] = ORIENTATIONS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
   }
   return out
 }

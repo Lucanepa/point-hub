@@ -39,6 +39,10 @@ const UI_RATE_MAX_IPS = 256
 const UI_LOG_MAX_BODY = 8 * 1024
 const UI_LOG_MAX_MSG = 300
 
+// Actions that set a game up rather than play it. During a pre-match they keep the board on the
+// clock and the pre-match on; every other action starts the match (see `prematch`).
+const PREMATCH_ACTIONS = new Set(['team', 'serve', 'serve-order', 'serve-player', 'swap', 'undo'])
+
 const ACTION_TYPES = new Set(['point', 'set', 'timeout', 'sub', 'serve', 'serve-order', 'serve-player', 'swap', 'team', 'next-set', 'remove-set', 'reset', 'set-state', 'undo'])
 
 // A team colour ends up inside a `style` attribute in the console and as a SetSections colour on
@@ -216,9 +220,21 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (keepsHistory()) try { history.record(action, state, event, nowStamp(), nowClock(), { undoable, label }) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
     try {
       if (event === 'match-end' || event === 'game-end') resume.clear(activeSport())
-      else resume.save(activeSport(), state, nowStamp())
+      else resume.save(activeSport(), state, nowStamp(), { prematch })
     } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
   }
+  // PRE-MATCH: a game started from the schedule is set up (names, 0-0) but not yet on the panel —
+  // the hall keeps the wall clock until the warm-up ends or the scorer starts the match. While this
+  // is true the board is on the held clock (or the warm-up countdown), /api/status says so and the
+  // console shows its "Ready: … — board shows the clock" banner. Ends — the 0-0 scoreboard painted
+  // — when the warm-up countdown ends or is skipped, on "Start match now" (POST /api/prematch), on
+  // the first scoring action, and whenever the operator starts, continues or deletes a game, links
+  // a LAN match or turns idle off. Kept in the resume slot, so a restart comes back to it.
+  //
+  // Starting the match is NOT undoable, and undo never reaches back across it: beginMatch() clears
+  // the undo trail, so the first undo after the start takes back the first point and stops at 0-0
+  // on the scoreboard — it never returns the hall to the clock or unwinds a name typed beforehand.
+  let prematch = false
   // Open /api/logs/stream responses. An SSE response never ends by itself, and http.Server.close()
   // waits for every active one — so a /logs tab left open on some laptop held every shutdown (sport
   // switch, deploy, poweroff) until systemd's stop timeout SIGKILLed us. closeStreams() ends them.
@@ -289,7 +305,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (cdTicker) clearInterval(cdTicker)
     const tick = () => {
       const remainingMs = countdown ? countdown.endsAt - Date.now() : -1
-      if (remainingMs <= 0) return stopCountdown({ expired: true })
+      if (remainingMs <= 0) { stopCountdown({ expired: true }).catch(() => {}); return }
       // Best-effort push to the physical board (no-op when not ready / no method).
       if (ledbox && typeof ledbox.pushCountdown === 'function') {
         ledbox.pushCountdown(Math.ceil(remainingMs / 1000), countdown.label, { content: countdown.content, team: countdown.team, side: countdown.side }).catch(() => {})
@@ -303,17 +319,54 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // expired=true means the clock reached zero (time's up); false is a manual skip. Guarded so
   // that whichever of {server tick, client /stop} fires first wins — the other is a no-op, so
   // the horn sounds exactly once.
-  function stopCountdown({ expired = false } = {}) {
-    if (!countdown) return
+  //
+  // `repaint: false` is for the callers that are about to put the idle clock up (Show clock, the
+  // game menu's Clock and Delete): the countdown has to END first — its 1 s ticker re-asserts the
+  // break screen and knocks `_idle` off on every tick, so a clock requested over a running warm-up
+  // was gone within a second — but going back to the match on the way would flash the scoreboard.
+  // Such a stop also leaves a pending pre-match as it is: the hall asked for the clock, not the game.
+  //
+  // Returns a promise that settles once the panel has left the break screen, so a caller can put
+  // the clock up after it rather than race it. Never rejects.
+  function stopCountdown({ expired = false, repaint = true } = {}) {
+    if (!countdown) return Promise.resolve(false)
     clog.info(expired ? 'countdown reached zero' : 'countdown skipped', {
-      expired, label: countdown.label, horn: !!(expired && opt('hornOnCountdownEnd')),
+      expired, label: countdown.label, horn: !!(expired && opt('hornOnCountdownEnd')), repaint, prematch,
     })
     countdown = null
     if (cdTicker) { clearInterval(cdTicker); cdTicker = null }
-    if (ledbox && typeof ledbox.pushCountdown === 'function') ledbox.pushCountdown(null).catch(() => {})
+    const cleared = ledbox && typeof ledbox.pushCountdown === 'function'
+      ? Promise.resolve(ledbox.pushCountdown(null, '', { repaint })).catch(() => {})
+      : Promise.resolve()
     if (expired && opt('hornOnCountdownEnd') && ledbox && typeof ledbox.horn === 'function') {
       ledbox.horn().catch(() => {})
     }
+    // The warm-up of a pre-match ran out (or was skipped): the match is on.
+    if (repaint && prematch) return cleared.then(() => beginMatch(expired ? 'warm-up over' : 'warm-up stopped')).catch(() => true)
+    return cleared.then(() => true)
+  }
+  // Leave the pre-match: clear the flag, rewrite the resume slot without it, and make sure the 0-0
+  // scoreboard is what the panel shows (after a countdown, pushCountdown(null) has already painted
+  // it and `_idle` is off; from the held clock, lifting idle repaints from the state the client
+  // holds). Not undoable — see `prematch` above. Returns whether there was a pre-match to leave.
+  async function beginMatch(reason) {
+    if (!prematch) return false
+    prematch = false
+    clearUndo()
+    try {
+      const state = manualSource ? manualSource.getState() : null
+      if (state) resume.save(activeSport(), state, nowStamp(), { prematch: false })
+    } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
+    clog.info(`match started from the pre-match clock (${reason})`, { reason })
+    if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+    return true
+  }
+  // Any path that replaces the game on the board (New, Continue, Delete, a LAN link) drops a
+  // pending pre-match without painting anything — that path paints whatever it puts up itself.
+  const dropPrematch = (why) => {
+    if (!prematch) return
+    prematch = false
+    clog.info(`pre-match dropped (${why})`, { why })
   }
   // Adopting the console's wall clock when we have no uplink — see clockSync.js for why this
   // exists at all. `isBusy` is the gate that keeps a clock jump away from anything that measures
@@ -326,8 +379,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // it at a local fake instead of the network.
   const schedule = scheduleIn || new Schedule()
 
-  // Put the wall clock on the panel and keep it there (see LedboxClient.showIdle's `screen`).
+  // Put the wall clock on the panel and keep it there (see LedboxClient.showIdle's `screen`). A
+  // running countdown is ended first (quietly, see stopCountdown's `repaint`): left running, its
+  // ticker took the panel back to the break screen within a second.
   const holdClock = async () => {
+    await stopCountdown({ expired: false, repaint: false })
     if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true, { screen: 'clock' })
   }
 
@@ -473,7 +529,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/manual' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       await readJson(req) // drain
-      // Leave the crest/idle screen so the manual scoreboard paints.
+      // Leave the crest/idle screen so the manual scoreboard paints — from a pre-match, that is
+      // starting the match.
+      if (prematch) await beginMatch('manual mode')
       if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
       sourceManager.setSource(manualSource, { mode: 'manual' })
       return sendJson(res, 200, status())
@@ -497,9 +555,19 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (sourceManager.status.mode !== 'manual') {
         sourceManager.setSource(manualSource, { mode: 'manual' })
       }
+      // Getting the teams right before the start — names, colours, who serves, which end — is
+      // part of the pre-match, so those keep the board on the clock (their paint is held while idle
+      // is up) and leave the flag alone. Anything that scores starts the match: the undo trail is
+      // cut first, so the start itself can never be undone (see `prematch`).
+      const keepsPrematch = prematch && PREMATCH_ACTIONS.has(action.type)
+      if (prematch && !keepsPrematch) {
+        prematch = false
+        clearUndo()
+        clog.info(`match started from the pre-match clock (${action.type})`, { reason: action.type })
+      }
       // Any live action (point, serve, …) means the match is on — drop the idle screen so
       // the state push below actually paints the scoreboard.
-      if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') ledbox.showIdle(false)
+      if (!keepsPrematch && ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') ledbox.showIdle(false)
       // Read BEFORE the undo pops it: the log's undo marker says what was taken back.
       const undoing = action.type === 'undo' ? String(manualSource.undoLabel || '') : ''
       manualSource.apply(action)
@@ -663,6 +731,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (body.matchId == null) return sendJson(res, 400, { error: 'matchId required' })
       // Linking a live match leaves the crest/idle screen so the scoreboard paints.
       if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+      dropPrematch('linked a LAN match')
       clog.info(`linking to LAN match ${body.matchId}`, { matchId: String(body.matchId), relayUrl, ip: clientIp(req) })
       const lan = new LanSource({ relayUrl, matchId: String(body.matchId), reconnectMs })
       sourceManager.setSource(lan, { mode: 'lan', matchId: String(body.matchId) })
@@ -717,8 +786,26 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       const on = body ? body.on !== false : true
       const screen = on && body && body.screen === 'clock' ? 'clock' : 'auto'
       clog.info(on ? `operator switched to the idle screen${screen === 'clock' ? ' (clock)' : ''}` : 'operator returned to scoring', { idle: on, screen, ip: clientIp(req) })
+      // An idle screen over a running countdown has to end the countdown — see holdClock.
+      if (on) await stopCountdown({ expired: false, repaint: false })
+      // Back to scoring from a pre-match is "Start match now" by another name.
+      if (!on && prematch) await beginMatch('idle turned off')
       if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(on, { screen })
-      return sendJson(res, 200, { ok: true, idle: on, screen: on ? screen : null })
+      return sendJson(res, 200, { ok: true, idle: on, screen: on ? screen : null, prematch })
+    }
+    // POST /api/prematch { action: 'start' } — the console's "Start match now": leave the pre-match
+    // clock for the 0-0 scoreboard straight away. A warm-up still running is ended without the horn
+    // (the scorer called it, the clock did not run out). Answers 200 with `started:false` when there
+    // is no pre-match — a second tap from another tablet is not an error.
+    if (pathname === '/api/prematch' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req)
+      if (!body || body.action !== 'start') return sendJson(res, 400, { error: "action must be 'start'" })
+      const was = prematch
+      if (was && countdown) await stopCountdown({ expired: false })
+      const started = was && (prematch ? await beginMatch('start now') : true)
+      if (was) alog.info('start match now', { ip: clientIp(req) })
+      return sendJson(res, 200, { ok: true, started, ...status() })
     }
     // POST /api/unlock { pin } — verify a scorer PIN without performing an action.
     if (pathname === '/api/unlock' && req.method === 'POST') {
@@ -775,6 +862,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           sourceManager.setSource(manualSource, { mode: 'manual' })
           manualSource.apply({ type: 'reset' })
           clearUndo()
+          dropPrematch('saved game deleted')
           // Same as New: an abandoned match must not stay open in the log and swallow the next one.
           if (keepsHistory()) try { history.record({ type: 'reset' }, manualSource.getState(), null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
           touchedSinceStart = false
@@ -793,7 +881,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         const saved = choice === 'continue' ? resume.get(sport) : null
         if (choice === 'continue' && !saved) return sendJson(res, 404, { error: 'no saved game for this sport' })
         const teams = choice === 'new' ? cleanTeams(body && body.teams) : null
-        if (teams) return startScheduledGame(res, req, sport, teams)
+        if (teams) return startScheduledGame(res, req, sport, teams, { prematch: !!(body && body.prematch === true) })
+        // Continuing a game saved during its pre-match goes back to the pre-match: names set,
+        // 0-0, the clock on the panel.
+        if (saved && resume.isPrematch(sport)) return restorePrematch(res, sport, saved)
+        dropPrematch(choice === 'new' ? 'new game' : 'continued a saved game')
         // Lift idle FIRST: pushState is deliberately suppressed while an idle screen is up, so
         // restoring the state before this would leave the crest on the panel and the scoreboard
         // unpainted until the next point.
@@ -817,7 +909,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         // archived under the old match's date. Continue leaves the buffer alone: it is the same match.
         if (choice === 'new') {
           resume.clear(sport)
-          try { history.record({ type: 'reset' }, manualSource.getState(), null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+          if (keepsHistory()) try { history.record({ type: 'reset' }, manualSource.getState(), null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
         }
         touchedSinceStart = false
         return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
@@ -1043,9 +1135,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // with the paint held, so the hall never sees HOME / AWAY (or the previous match) in between,
   // and the first frame is the new match at 0-0 under its own names. Persisted like any scoring
   // action, so a power cut before the first rally still brings the names back.
-  async function startScheduledGame(res, req, sport, teams) {
+  //
+  // `prematch` (the console always sends it from the schedule) sets the game up but keeps the hall
+  // on the clock: the clock goes up FIRST — pushState is held while idle is up, so nothing of the
+  // new match reaches the panel — and the match itself is painted later by beginMatch().
+  async function startScheduledGame(res, req, sport, teams, { prematch: pre = false } = {}) {
     const offMatch = ledbox && (ledbox._idle || (ledbox.currentLayout && ledbox.currentLayout !== ledbox.layout))
     if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
+    if (pre) await holdClock()
+    // Without a pre-match the new game is painted at once, so a countdown still running (a warm-up
+    // started before the game was picked) must not keep the break screen over it.
+    else await stopCountdown({ expired: false, repaint: false })
     if (ledbox) ledbox._suppressPaint = true
     try {
       sourceManager.setSource(manualSource, { mode: 'manual' })
@@ -1060,16 +1160,36 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     const state = manualSource.getState()
     clearUndo()
     resume.clear(sport)
-    try { history.record({ type: 'reset' }, state, null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
-    try { resume.save(sport, state, nowStamp()) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
+    prematch = pre
+    if (keepsHistory()) try { history.record({ type: 'reset' }, state, null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+    try { resume.save(sport, state, nowStamp(), { prematch: pre }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
     touchedSinceStart = false
     // One paint, of the new state. Lifting idle repaints from the state the client now holds;
-    // already on the scoreboard, push it.
-    if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+    // already on the scoreboard, push it. A pre-match paints nothing: the clock stays up.
+    if (pre) { /* held on the clock until beginMatch() */ }
+    else if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
     else if (ledbox && typeof ledbox.pushState === 'function') await Promise.resolve(ledbox.pushState(state)).catch(() => {})
-    clog.info(`new game from the schedule: ${teams.left.short || teams.left.name} v ${teams.right.short || teams.right.name}`, {
-      sport, left: teams.left, right: teams.right, ip: clientIp(req),
+    clog.info(`new game from the schedule${pre ? ' (pre-match: the board keeps the clock)' : ''}: ${teams.left.short || teams.left.name} v ${teams.right.short || teams.right.name}`, {
+      sport, left: teams.left, right: teams.right, prematch: pre, ip: clientIp(req),
     })
+    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+  }
+
+  // Bring back a game saved during its pre-match (Continue, or a restart — see
+  // server.resumeInterruptedGame): the state goes in behind the held clock, and the pre-match is on
+  // again exactly as it was left.
+  async function applyPrematch(sport, saved) {
+    if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
+    await holdClock()
+    sourceManager.setSource(manualSource, { mode: 'manual' })
+    manualSource.apply({ type: 'set-state', state: saved })
+    clearUndo()
+    prematch = true
+    touchedSinceStart = false
+    clog.info('pre-match restored — the board keeps the clock until the match starts', { sport })
+  }
+  async function restorePrematch(res, sport, saved) {
+    await applyPrematch(sport, saved)
     return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
   }
 
@@ -1078,6 +1198,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     return {
       mode, matchId,
       sport: settings ? settings.values.sport : 'volleyball',
+      // A schedule start waiting on the clock for its warm-up / "Start match now" (see `prematch`).
+      prematch,
+      // Where the scorer sits (settings.js). The console mirrors its team cards by it; nothing on
+      // the server side changes with it.
+      orientation: settings ? settings.values.orientation : 'behind',
       pinRequired: !!(settings && settings.values.scorerPin),
       // So the console knows whether its clock is wanted. `synchronized:false` is the console's
       // cue to offer one at unlock; `true` means NTP has it and the offer would be ignored anyway.
@@ -1087,6 +1212,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         // What the idle screen is doing, so the console can show 'Show clock' as the active choice.
         idle: !!ledbox._idle, clockHeld: !!(ledbox._idle && ledbox._clockHeld),
       },
+      // The name sizes the match screen is painted with, per PANEL side — the operator's ceiling
+      // after the mapper's shrink-to-fit — so the console's preview draws the names at the board's
+      // own size instead of guessing (and a long name no longer runs into the set score there).
+      board: { fontsize: matchFontsize() },
       state: sourceManager.getState(),
       ...undoView(),
     }
@@ -1111,19 +1240,34 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // physical board. Works with or without hardware (it maps the live liveState the
   // same way the LedboxClient does before pushing).
   function board() {
-    const state = sourceManager.getState() || {}
     return {
       layout: ledbox.layout,
       connected: ledbox.ready === true,
       mode: sourceManager.status.mode,
       countdown: countdownView(),
-      // Same options the real paint uses, so /api/board (and the virtual panel it feeds) shows
-      // the same name sizes and counter colours as the panel on the wall.
-      screen: sectionsToScreen(ledbox.mapper.toSections(state, {
-        totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs,
-        matchFontMaxLeft: ledbox.matchFontMaxLeft, matchFontMaxRight: ledbox.matchFontMaxRight,
-      })),
+      screen: matchScreen(),
     }
+  }
+
+  // The match screen exactly as the real paint builds it — same mapper, same options — so
+  // /api/board (and the virtual panel it feeds) and the console preview show the same name sizes
+  // and counter colours as the panel on the wall.
+  function matchScreen() {
+    const state = sourceManager.getState() || {}
+    return sectionsToScreen(ledbox.mapper.toSections(state, {
+      totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs,
+      matchFontMaxLeft: ledbox.matchFontMaxLeft, matchFontMaxRight: ledbox.matchFontMaxRight,
+    }))
+  }
+
+  // Per-side team-name font size of the match screen (team1 = panel left, team2 = panel right in
+  // every sport's mapper). Never throws: a status poll must not fail over a preview nicety.
+  function matchFontsize() {
+    try {
+      const screen = matchScreen()
+      const px = (n) => { const v = Number(screen[n] && screen[n].fontsize); return Number.isFinite(v) && v > 0 ? v : null }
+      return { left: px('team1'), right: px('team2') }
+    } catch { return { left: null, right: null } }
   }
 
   // Query the OpenVolley relay for its match list; never throws (failures land in errors[]).
@@ -1189,11 +1333,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     const saved = resume.get(sport)
     if (!saved) return null
     const info = resume.summary(sport)
+    // A game still in its pre-match comes back to the pre-match: the clock, not the scoreboard.
+    if (resume.isPrematch(sport)) {
+      await applyPrematch(sport, saved)
+      return info
+    }
     if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
     sourceManager.setSource(manualSource, { mode: 'manual' })
     manualSource.apply({ type: 'set-state', state: saved })
     clearUndo()
     touchedSinceStart = false
+    dropPrematch('restored an interrupted match')
     clog.warn('restored the interrupted match after an unclean shutdown — press New if this is not the game in the room', {
       sport, teams: info && info.teams, points: info && info.points, sets: info && info.sets, updatedAt: info && info.updatedAt,
     })
@@ -1203,6 +1353,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // End every open log stream. Called by the appliance's close() before it closes the listeners,
   // so an open /logs tab can't hold the shutdown; the browser's EventSource reconnects on its own
   // once the new process is up.
+  // Whether the saved slot for the active sport is a pre-match. The appliance restores one at every
+  // boot, clean or not: the board shows the clock at boot anyway, so bringing the pre-match back
+  // only puts the console's "Ready" banner (and the names) back where the scorer left them.
+  server.savedPrematch = () => resume.isPrematch(activeSport())
+
   server.closeStreams = () => {
     for (const res of streams) { try { res.end() } catch { /* already gone */ } }
     streams.clear()
@@ -1384,6 +1539,7 @@ function sectionsToScreen(sections) {
     for (const a of attrs) {
       if (a.attrib === 'text') cur.text = a.value
       if (a.attrib === 'color') cur.color = a.value
+      if (a.attrib === 'fontsize') cur.fontsize = a.value
     }
   }
   return screen

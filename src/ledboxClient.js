@@ -526,7 +526,15 @@ export class LedboxClient extends EventEmitter {
   // none of those can quietly swap a held clock back to the names screen.
   async showIdle(on = true, { screen } = {}) {
     if (!this.ready) {
-      blog.debug('showIdle ignored — board not ready', { on })
+      // Nothing to paint, but the INTENT is kept: connect() re-asserts idle from `_idle` after the
+      // handshake. Dropping it meant a saved game deleted while the panel was down (the clock
+      // promised) came back as a fresh 0-0 scoreboard on reconnect, and a "Start match now" while
+      // it was down came back as the clock.
+      this._idle = !!on
+      if (!on) this._clockHeld = false
+      else if (screen === 'clock') this._clockHeld = true
+      else if (screen) this._clockHeld = false
+      blog.debug('showIdle deferred — board not ready; applied on reconnect', { on, clockHeld: this._clockHeld })
       return false
     }
     const wasIdle = this._idle
@@ -889,7 +897,11 @@ export class LedboxClient extends EventEmitter {
   // real C0270 reports it holding `lbl` ("TIMEOUT"), `timer` ("30"), both scores and both set
   // counts. So a timeout, a set interval and the warm-up clock are all the same screen with a
   // different label and number; we switch to it for the duration and switch back after.
-  async pushCountdown(secondsLeft, label = '', { content = 'full', team, side = null } = {}) {
+  //
+  // `repaint: false` (clearing only) blanks the break screen but does not go back to the match:
+  // the caller is about to put the idle clock up, and a match paint in between would flash the
+  // scoreboard — or, racing the clock's own SetLayout, leave the match layout up under `_idle`.
+  async pushCountdown(secondsLeft, label = '', { content = 'full', team, side = null, repaint = true } = {}) {
     if (!this.ready) return false
     this._idle = false // a countdown means the match is live; leave any idle screen
     this._clockHeld = false
@@ -924,6 +936,7 @@ export class LedboxClient extends EventEmitter {
             this.mapper.toBreakSections(null, { timerText: null, label: '', content: 'none' }),
           ).catch(() => {}) // cosmetic: never block the return to the match screen
         }
+        if (!repaint) return true
         await this.setLayoutIfNeeded(this.layout)
         if (this._lastState) await this.pushState(this._lastState) // repaint the match
         return true

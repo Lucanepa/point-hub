@@ -67,14 +67,19 @@ export class ResumeStore {
   }
 
   // `now` is a preformatted stamp passed in by the caller, so this module stays deterministic.
-  save(sport, state, now) {
+  //
+  // `prematch` marks a schedule start still waiting on the clock (controlServer's `prematch`), so a
+  // restart comes back to the pre-match rather than to a 0-0 scoreboard. Such a game is kept even
+  // with only short names typed: it is a game the scorer has deliberately set up.
+  save(sport, state, now, { prematch = false } = {}) {
     if (!sport) return false
-    if (!ResumeStore.worthKeeping(state)) return false
+    if (!ResumeStore.worthKeeping(state) && !prematch) return false
     const prev = this.games[sport]
     this.games[sport] = {
       state,
       savedAt: (prev && prev.savedAt) || now, // when this game STARTED being tracked
       updatedAt: now,
+      ...(prematch ? { prematch: true } : {}),
     }
     this._save()
     return true
@@ -83,6 +88,11 @@ export class ResumeStore {
   get(sport) {
     const g = this.games[sport]
     return g && g.state ? g.state : null
+  }
+
+  isPrematch(sport) {
+    const g = this.games[sport]
+    return !!(g && g.state && g.prematch === true)
   }
 
   has(sport) {
@@ -109,6 +119,7 @@ export class ResumeStore {
       points: { a: num(s.points_a), b: num(s.points_b) },
       sets: { a: num(s.sets_won_a), b: num(s.sets_won_b) },
       setsPlayed: Array.isArray(s.set_results) ? s.set_results.length : 0,
+      prematch: g.prematch === true,
     }
   }
 }

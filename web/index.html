@@ -191,6 +191,19 @@
   .side .namesize button{color:var(--on-edge)}
   .side .namesize .num{color:color-mix(in srgb,var(--on-edge) 75%,transparent)}
 
+  /* Pre-match banner (see #prematch). Gold, like the other "the board is waiting on you" cues, and
+     in the flow rather than over the cards: names and colours are still being fixed at this point. */
+  .prematch{flex:0 0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;
+    border:2px solid var(--gold);border-radius:var(--r);background:color-mix(in srgb,var(--gold) 9%,var(--card))}
+  .prematch .pmtext{flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .prematch .pmready{font-size:17px;font-weight:800;line-height:1.2;overflow-wrap:anywhere}
+  .prematch .pmsub{font-size:14px;font-weight:700;color:var(--gold)}
+  .prematch .pmbtns{flex:1 1 260px;min-width:0;display:flex;gap:8px;justify-content:flex-end}
+  .prematch .pmbtns button{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:52px;padding:0 10px;
+    font-size:15px;font-weight:800;line-height:1.15;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
+  .prematch .pmbtns button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .prematch .pmbtns button:disabled{opacity:.5;cursor:default}
+  .bvhint{font-weight:700;letter-spacing:0;text-transform:none}
   .gfooter{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
   .setstrip{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto}
   .setpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:5px 11px;border-radius:4px;
@@ -636,6 +649,15 @@
      tiles need that width for two --tap buttons), and the set strip shares one row with the
      actions. Nothing is hidden and no target drops under --tap. */
   @media (max-height:500px){
+    /* A phone on its side has no height to spare, so while the banner is up it stays one row and
+       the cards give back what it takes: no tap hint, shorter ± buttons. */
+    .prematch{padding:4px 8px;gap:8px;flex-wrap:nowrap}
+    .prematch .pmtext{flex:1 1 auto}
+    .prematch .pmready{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .prematch .pmbtns{flex:0 0 auto}
+    .prematch .pmbtns button{flex:0 0 auto;min-height:var(--tap);font-size:14px;padding:0 12px}
+    body.is-prematch .taphint{height:0;margin:0;overflow:hidden}
+    body.is-prematch .bigbtn{height:var(--tap)}
     .topbar{padding-top:5px;padding-bottom:5px}
     .game{padding:8px;gap:8px}
     .board{gap:8px}
@@ -808,15 +830,27 @@
   <main>
     <!-- GAME -->
     <section id="tab-manual" class="tab game active">
+  <!-- Pre-match: a game started from tonight's schedule sets the names up at 0–0 but leaves the
+       panel on the clock, because the teams are still arriving and a 0–0 scoreboard twenty minutes
+       early reads as "the match has started". This says so, and offers the two ways on. -->
+  <div id="prematch" class="prematch" hidden role="status" aria-live="polite">
+    <div class="pmtext">
+      <span class="pmready">Ready: <b id="pmTeams"></b> <span class="pmsub" id="pmSub">— board shows the clock</span></span>
+    </div>
+    <div class="pmbtns">
+      <button type="button" id="pmWarmup"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Start warm-up</button>
+      <button type="button" id="pmStart" class="primary">Start match now</button>
+    </div>
+  </div>
   <div class="board">
     <div class="side left" data-side="left">
       <div class="teamcard">
         <div class="sidehdr">
           <input class="short" data-field="short" maxlength="12" placeholder="TEAM A" aria-label="Left team name" autocomplete="off">
           <div class="namesize" title="Size of this name on the LED panel — a long name still shrinks to fit">
-            <button type="button" data-font="left" data-d="-1" aria-label="Smaller left team name on the panel">−</button>
+            <button type="button" data-font="left" data-d="-1" aria-label="Smaller name for this team on the panel">−</button>
             <span class="num" data-fontval="left">–</span>
-            <button type="button" data-font="left" data-d="1" aria-label="Bigger left team name on the panel">+</button>
+            <button type="button" data-font="left" data-d="1" aria-label="Bigger name for this team on the panel">+</button>
           </div>
           <input class="color" type="color" data-field="color" value="#3b6fe0" aria-label="left team colour">
         </div>
@@ -864,9 +898,9 @@
         <div class="sidehdr">
           <input class="short" data-field="short" maxlength="12" placeholder="TEAM B" aria-label="Right team name" autocomplete="off">
           <div class="namesize" title="Size of this name on the LED panel — a long name still shrinks to fit">
-            <button type="button" data-font="right" data-d="-1" aria-label="Smaller right team name on the panel">−</button>
+            <button type="button" data-font="right" data-d="-1" aria-label="Smaller name for this team on the panel">−</button>
             <span class="num" data-fontval="right">–</span>
-            <button type="button" data-font="right" data-d="1" aria-label="Bigger right team name on the panel">+</button>
+            <button type="button" data-font="right" data-d="1" aria-label="Bigger name for this team on the panel">+</button>
           </div>
           <input class="color" type="color" data-field="color" value="#e0453d" aria-label="right team colour">
         </div>
@@ -888,7 +922,9 @@
     </div>
   </div>
   <div class="boardview">
-    <span class="bvlabel">On the board now</span>
+    <!-- The mirror is what the HALL sees, always: panel left is on the left here, whichever side of
+         the board the scorer is sitting. The team cards above are the ones that flip. -->
+    <span class="bvlabel">Seen from the court <span class="bvhint" id="bvHint" hidden>(mirrored — you sit behind the board)</span></span>
     <div class="bvpanel" id="bvPanel"></div>
   </div>
   <div class="gfooter">
@@ -1003,11 +1039,15 @@
           <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Board identity</legend>
           <label class="row"><span>Crest / branding</span>
             <select data-set="branding"><option value="kscw">KSC Wiedikon</option><option value="plain">Plain (no logo)</option></select></label>
+          <label class="row"><span>Scorer sits behind the board</span>
+            <input type="checkbox" data-set="orientation" data-on="behind" data-off="front" checked></label>
           <label class="row"><span>Connect to live scoring</span>
             <select data-set="liveScoring"><option value="off">Off</option><option value="kscw">KSC Wiedikon</option></select></label>
           <p class="hint">Branding sets the idle / crest screen — KSC Wiedikon shows the club crest,
             Plain shows the team names only. Live scoring publishes the running score to the
-            public /live page.</p>
+            public /live page. With the scorer behind the board, the Game tab's team cards are
+            swapped to match what the scorer sees — the team on your left is the one on the panel's
+            right. The preview under them always shows the panel as the court sees it.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-landmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 18v-7" /> <path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z" /> <path d="M14 18v-7" /> <path d="M18 18v-7" /> <path d="M3 22h18" /> <path d="M6 18v-7" /></svg> Club</legend>
@@ -1550,11 +1590,12 @@
     if (board.mode === "countdown") { board.mode = "match"; paintBoardMode(); }
   }
   // expired=true when the clock ran out (fires the board horn); false on a manual skip.
+  // onFinish gets the stop request's promise, for a caller that must read the board after it.
   function finishCountdown(expired) {
     const cb = cdOnFinish;
     clearCountdown();
-    stopServerCountdown(expired);
-    if (cb) cb();
+    const stopped = stopServerCountdown(expired);
+    if (cb) cb(stopped);
   }
   // opts.major = take over the screen (set interval / warm-up, where play has stopped).
   // opts.action = label for the button, which RUNS onFinish rather than just dismissing —
@@ -1598,7 +1639,7 @@
     clearCountdown();
     const sd = sides(state);
     $("#cdLabel").textContent = "SET ENDED";
-    $("#cdTime").textContent = sd ? (sd.left.points + "–" + sd.right.points) : "";
+    $("#cdTime").textContent = sd ? (sd[panelSide("left")].points + "–" + sd[panelSide("right")].points) : "";
     $("#cdStop").textContent = "Start interval →";
     $("#cdStop").title = "Start the set interval";
     $("#cd").classList.add("major");
@@ -1651,6 +1692,42 @@
     return aWins === aIsLeft ? "left" : "right";
   }
 
+  // --- where the scorer sits ------------------------------------------------
+  // Everything above and below this speaks PANEL sides: left/right as the hall sees the board, which
+  // is what the server, the sources and the mappers use. The Game tab's two team cards are SCREEN
+  // sides — where they sit on this tablet. At the usual table the scorer is BEHIND the panel, facing
+  // the court with the board at their back, so their left is the panel's right; a card layout that
+  // copied the panel put the team on the scorer's left under the scorer's right hand, and every tap
+  // was a mirror-image translation made mid-rally.
+  //
+  // So the cards are mapped, and ONLY here: `.side.left` / `.side.right`, [data-serve], [data-font]
+  // and [data-fontval] name screen sides, and every one of them goes through panelSide() on its way
+  // to the board and screenSide() on its way back. 'front' makes both the identity. The mirror under
+  // the cards is never mapped — it is the panel as the court sees it.
+  let orientSavedAt = 0;   // a local Settings save beats a poll that left before it (see renderStatus)
+  const behind = () => (SETTINGS.orientation || "behind") !== "front";
+  const panelSide = (screen) => (behind() ? (screen === "left" ? "right" : "left") : (screen === "right" ? "right" : "left"));
+  const screenSide = panelSide;   // a mirror is its own inverse
+  let orientShown = null;
+  // Re-seat everything that is keyed by screen side after the setting changes (or first arrives).
+  function applyOrientation() {
+    const b = behind();
+    if (orientShown === b) return;
+    orientShown = b;
+    document.body.dataset.orientation = b ? "behind" : "front";
+    const hint = $("#bvHint"); if (hint) hint.hidden = !b;
+    const cfg = SPORT_UI[SPORT] || SPORT_UI.volleyball;
+    $$(".side").forEach((root) => {
+      const el = $(".short", root);
+      if (el && cfg.teams) el.placeholder = cfg.teams[panelSide(root.dataset.side)] || "";
+    });
+    // What each card last showed belongs to the other card now: forget it, so nothing "changes".
+    shown.left = {}; shown.right = {};
+    const strip = $("#setStrip"); if (strip) strip._sig = "";
+    renderFontBox();
+    if (lastState) { renderBoard(sides(lastState)); renderSetStrip(lastState); }
+  }
+
   // --- render -------------------------------------------------------------
   let linkedMatchId = null;
   let lastState = null; // last raw a/b state seen — prefills the beach serve-order modal
@@ -1678,6 +1755,15 @@
     st = LAST_STATUS = { ...LAST_STATUS, ...st };
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
+    // Where the scorer sits rides on every poll, so a change made on another tablet lands here too.
+    // Not in the few seconds after this tablet saved it: a poll already in the air says the old one.
+    if ((st.orientation === "behind" || st.orientation === "front") && st.orientation !== SETTINGS.orientation
+      && Date.now() - orientSavedAt > 4000) {
+      SETTINGS = { ...SETTINGS, orientation: st.orientation };
+      const oc = $('[data-set="orientation"]');
+      if (oc && !oc.closest("fieldset").querySelector(".setsavebtn.dirty")) writeSet(oc, st.orientation);
+    }
+    applyOrientation();
     lastLedbox = st.ledbox || lastLedbox;
     renderClock(st.clock);
     const connected = !!(st.ledbox && st.ledbox.connected);
@@ -1723,6 +1809,7 @@
     linkedMatchId = st.matchId != null ? String(st.matchId) : null;
     $("#matchTag").textContent = st.matchId ? " · match " + st.matchId : "";
     lastState = st.state || lastState;
+    renderPrematch(st);
     renderBoard(sides(st.state));
     renderSetStrip(st.state);
     markLinked();
@@ -1757,12 +1844,13 @@
     return "Set " + roman(Math.min(win * 2 - 1, a + b + 1));
   }
 
+  // `side` is a PANEL side (sideOf): the card it flashes is wherever that team sits on screen.
   function flashSide(side) {
-    const el = $(`.side.${side} [data-val="points"]`);
+    const el = $(`.side.${screenSide(side)} [data-val="points"]`);
     if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
   }
   function flashName(side) {
-    const el = $(`.side.${side} .short`);
+    const el = $(`.side.${screenSide(side)} .short`);
     if (el) { el.classList.remove("flashname"); void el.offsetWidth; el.classList.add("flashname"); }
   }
 
@@ -1771,18 +1859,21 @@
     const strip = $("#setStrip");
     const results = (state && state.set_results) || [];
     if (!results.length) { strip.hidden = true; strip.innerHTML = ""; strip._sig = ""; return; }
+    // In the order the CARDS are in, so each pill reads the way the scorer is looking: the first
+    // number is the team on the scorer's left, whichever panel half that is.
     const aIsLeft = !state || state.side_a !== "right";
+    const aFirst = aIsLeft === (panelSide("left") === "left");
     strip.hidden = false;
     // Rebuilding this on every 1.5 s poll detached the undo button between pointerdown and click,
     // so roughly one "remove last set" in ten did nothing at all — and that is the control the
     // operator reaches for under pressure, right after a set closes. Rebuild only when what it
     // shows has actually changed, so the nodes and their listeners survive between polls.
-    const sig = JSON.stringify(results) + "|" + aIsLeft;
+    const sig = JSON.stringify(results) + "|" + aFirst;
     if (strip._sig === sig) return;
     strip._sig = sig;
     strip.innerHTML = "";
     results.forEach((r, i) => {
-      const l = num(aIsLeft ? r.a : r.b), rt = num(aIsLeft ? r.b : r.a);
+      const l = num(aFirst ? r.a : r.b), rt = num(aFirst ? r.b : r.a);
       const pill = document.createElement("span");
       pill.className = "setpill";
       pill.innerHTML = `<i class="sn">${roman(i + 1)}</i>` +
@@ -1917,6 +2008,33 @@
     p.appendChild(cd);
   }
   const bvSeen = { s1:null, s2:null };
+  // The team-name size the PANEL paints, per panel half, so the mirror draws the name at the board's
+  // own size: the operator's ceiling (the −/+ on the card) after the mapper's shrink-to-fit. The
+  // board works it out (status.board.fontsize, from the same mapper call that paints) — measuring it
+  // again here is how a long name in the preview ran into the set score while the panel was fine.
+  // Clamped to the local ceiling, so a −/+ tap moves the mirror before the next status confirms it.
+  // Only a board too old to send it falls back to measuring Arial capitals in a canvas.
+  const NAME_WIDTH = { volleyball: 86, beach: 78, basketball: 62, simple: 86 };
+  let nameCanvas = null;
+  function fitNameLocally(text, max) {
+    const width = NAME_WIDTH[SPORT] || NAME_WIDTH.volleyball;
+    try {
+      nameCanvas = nameCanvas || document.createElement("canvas").getContext("2d");
+      for (let size = max; size > 9; size--) {
+        nameCanvas.font = size + "px Arial, Helvetica, sans-serif";
+        if (nameCanvas.measureText(text).width <= width - 2) return size;
+      }
+      return 9;
+    } catch { return max; }
+  }
+  function nameFontSize(side, text) {
+    const ceil = Number(SETTINGS[fontKey(side)]);
+    const max = Number.isFinite(ceil) && ceil > 0 ? ceil : 18;
+    const fs = LAST_STATUS.board && LAST_STATUS.board.fontsize;
+    const board = fs ? Number(fs[side]) : NaN;
+    if (Number.isFinite(board) && board > 0) return Math.min(board, max);
+    return fitNameLocally(text, max);
+  }
   function renderPreview(s, serving) {
     buildBoard();
     bvLast = { s: s, serving: serving };
@@ -1927,6 +2045,16 @@
     // Shared on every sport: names, running scores, box borders, serve/possession bars.
     put("team1", (d.left.short || "").toUpperCase(), d.left.color);
     put("team2", (d.right.short || "").toUpperCase(), d.right.color);
+    // The mapper sizes the name it paints, which is "TEAM A"/"TEAM B" when none is typed.
+    const n1 = g("team1"), n2 = g("team2");
+    // Each name also stays inside the column the mapper sizes it for: a name too long even at the
+    // smallest size is cut at the column's edge here rather than drawn over the set score.
+    const col = cq(NAME_WIDTH[SPORT] || NAME_WIDTH.volleyball, "x");
+    for (const [el, side, text] of [[n1, "left", d.left.short || "TEAM A"], [n2, "right", d.right.short || "TEAM B"]]) {
+      if (!el) continue;
+      el.style.fontSize = cq(nameFontSize(side, text.toUpperCase()), "y");
+      el.style.maxWidth = col; el.style.overflow = "hidden";
+    }
     put("score1", d.left.points, d.left.color);   put("score2", d.right.points, d.right.color);
     const b1 = g("bg_score1"); if (b1) b1.style.borderColor = d.left.color;
     const b2 = g("bg_score2"); if (b2) b2.style.borderColor = d.right.color;
@@ -1960,6 +2088,13 @@
       put("set1", d.left.sets, d.left.color);          put("set2", d.right.sets, d.right.color);
       put("timeout1", d.left.to, toCol(d.left.to));    put("timeout2", d.right.to, toCol(d.right.to));
       put("sub1", d.left.sub, subCol(d.left.sub));     put("sub2", d.right.sub, subCol(d.right.sub));
+    }
+    const set1 = g("set1"), set2 = g("set2"), inner = p.querySelector(".bvinner");
+    // …and never past the set digits as drawn here (offset* are unscaled layout px, so this holds at
+    // any mirror size). set1 is right-anchored (translateX(-100%)), team2 right-anchored at the edge.
+    if (inner && inner.clientWidth) {
+      if (n1 && set1 && set1.textContent) n1.style.maxWidth = "min(" + col + "," + Math.max(0, set1.offsetLeft - set1.offsetWidth) + "px)";
+      if (n2 && set2 && set2.textContent) n2.style.maxWidth = "min(" + col + "," + Math.max(0, inner.clientWidth - set2.offsetLeft - set2.offsetWidth) + "px)";
     }
     const blink = (el, v, key) => { if (!el) return; if (bvSeen[key] !== null && bvSeen[key] !== v) { el.classList.remove("bvblink"); void el.offsetWidth; el.classList.add("bvblink"); } bvSeen[key] = v; };
     blink(g("score1"), d.left.points, "s1");
@@ -2059,18 +2194,22 @@
     // always reading blue-left / red-right whatever the teams are wearing.
     // Shaded the same way as the panels (panelFor), with the matching ink for the arrow, so a
     // white or yellow team's serve arrow does not vanish into its own fill.
+    // --left/--right colour the SCREEN sides (the serve arrows sit either side of the SERVE pill),
+    // so each takes the colour of the team whose card is on that side.
     if (s) {
       const docRoot = document.documentElement;
       for (const k of ["left", "right"]) {
-        const pan = s[k] && panelFor(s[k].color);
+        const t = s[panelSide(k)];
+        const pan = t && panelFor(t.color);
         if (!pan) continue;
         docRoot.style.setProperty("--" + k, pan.bg);
         docRoot.style.setProperty("--" + k + "-ink", pan.ink);
       }
     }
+    // `side` is the SCREEN side of the card; the team painted into it is panelSide(side).
     for (const side of ["left", "right"]) {
       const root = $(`.side.${side}`);
-      const d = s ? s[side] : { short: "", color: "#888", points: 0, sets: 0, to: 0, sub: 0 };
+      const d = s ? s[panelSide(side)] : { short: "", color: "#888", points: 0, sets: 0, to: 0, sub: 0 };
       setIfIdle(root, ".short", d.short);
       setColorIfIdle(root, ".color", d.color);
       const pan = panelFor(d.color);
@@ -2108,7 +2247,7 @@
     const serving = s ? s.serving : null;
     // Highlight the serving side on the consolidated SERVE pill (fills that side's team colour).
     $$('[data-serve]').forEach((b) =>
-      b.classList.toggle("on", serving === b.dataset.serve));
+      b.classList.toggle("on", serving === panelSide(b.dataset.serve)));
     // Basketball's period readout, in the centre beside POSS.
     if (SPORT === "basketball") {
       const pv = $("#periodVal");
@@ -2141,7 +2280,7 @@
       if (scoreEl) { scoreEl.classList.toggle("bball", SPORT === "basketball"); scoreEl.innerHTML = scoreInner(SPORT, side); }
       // Team-name placeholder per sport (beach = "Team L" / "Team R"; A/B otherwise).
       const shortEl = root.querySelector(".short");
-      if (shortEl && cfg.teams && cfg.teams[side]) shortEl.placeholder = cfg.teams[side];
+      if (shortEl && cfg.teams && cfg.teams[panelSide(side)]) shortEl.placeholder = cfg.teams[panelSide(side)];
       const statOf = (t) => root.querySelector('[data-stat="' + t + '"]').closest(".stat");
       const toB = statOf("timeout"), setB = statOf("set"), subB = statOf("sub");
       toB.querySelector(".name").textContent = cfg.stat.to;
@@ -2354,10 +2493,14 @@
       // "Not sent", the red rings, and the greyed-out controls.
       markSent();
       const s = r && r.state;
-      if (s && (board.mode === "idle" || board.mode === "clock")) board.mode = "match";
+      // Setting the teams up (names, colours, serve, ends) keeps a pre-match on the clock; anything
+      // that scores starts the match on the board (the server's PREMATCH_ACTIONS).
+      const keepsPre = prematchOn && PREMATCH_ACTIONS.includes(action.type);
+      if (s && !keepsPre && (board.mode === "idle" || board.mode === "clock")) board.mode = "match";
       // merged over LAST_STATUS — no field is reset. canUndo/undoLabel only when the reply has
       // them, so an older board's reply can't blank a label a poll just delivered.
       const patch = { ledbox: lastLedbox, state: s };
+      if (prematchOn && !keepsPre) patch.prematch = false;
       if (r && "canUndo" in r) { patch.canUndo = r.canUndo; patch.undoLabel = r.undoLabel; }
       if (s) renderStatus(patch, seq);
       handleEvent(r && r.event, s);
@@ -2421,7 +2564,7 @@
       showSetEndPrompt(s);
     } else if (event === "match-end") {
       const winSide = sideOf(s, num(s.sets_won_a) > num(s.sets_won_b));
-      const name = (winSide === "left" ? sides(s).left.short : sides(s).right.short) || winSide.toUpperCase();
+      const name = (winSide === "left" ? sides(s).left.short : sides(s).right.short) || screenSide(winSide).toUpperCase();
       flashSide(sideOf(s, num(s.points_a) > num(s.points_b)));
       flashName(winSide);
       toast("🏆 " + name + " wins the match");
@@ -2443,7 +2586,7 @@
     } else if (event === "game-end") {
       // Basketball: decided by SCORE (there is no set tally). Flash + name the leader.
       const winSide = sideOf(s, num(s.points_a) > num(s.points_b));
-      const name = (winSide === "left" ? sides(s).left.short : sides(s).right.short) || winSide.toUpperCase();
+      const name = (winSide === "left" ? sides(s).left.short : sides(s).right.short) || screenSide(winSide).toUpperCase();
       flashSide(winSide);
       flashName(winSide);
       toast("🏆 " + name + " wins");
@@ -2644,15 +2787,17 @@
     if (!await askConfirm("Start " + home + " vs " + away + "? The current score is cleared.", { yes: "Start game", danger: live })) return;
     if (btn) btn.disabled = true;
     try {
+      // prematch: the names go in now, but the hall keeps the clock until the warm-up or "Start
+      // match now" (see renderPrematch) — the teams are only just walking in.
       const r = await postJSON("/api/game", { choice: "new", teams: {
         left: { name: String(g.home || home), short: home },
         right: { name: String(g.away || away), short: away },
-      } });
+      }, prematch: true });
+      clearCountdown(); board.mode = r && r.prematch === true ? "clock" : "match";
       if (r) renderStatus(r);
       savedGame = null;
-      clearCountdown(); board.mode = "match";
       goToTab("manual");
-      toast(home + " vs " + away + " — ready");
+      toast(home + " vs " + away + " — ready" + (r && r.prematch === true ? "; the board shows the clock" : ""));
       if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
     } catch (e) {
       toast(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then tap the game again." : "Couldn't start that game: " + ((e && e.message) || e));
@@ -2957,12 +3102,75 @@
   // NOT /api/manual: this must not switch the source, or opening the Game tab during a linked
   // LAN match would silently drop the link and strand the match on manual.
   async function showBoardLive() {
+    // Not from a pre-match: the hall keeps the clock until the warm-up ends or the scorer starts
+    // the match, and opening the tab (which starting from the schedule does itself) is neither.
+    if (prematchOn) return;
     try {
       await postJSON("/api/idle", { on: false });
       board.mode = "match";
       paintBoardMode();
     } catch { /* locked, or the board is down — the PIN gate / offline banner already says so */ }
   }
+
+  // --- pre-match -------------------------------------------------------------
+  // A game started from the schedule is set up (names, 0–0) while the panel keeps the clock — see
+  // `prematch` in src/controlServer.js. The banner says so and offers the two ways on: the warm-up
+  // (whose end, run out or skipped, puts the scoreboard up) or "Start match now". Scoring a point
+  // starts it too. What does NOT start it: names, colours, serve and ends, which are setting up.
+  const PREMATCH_ACTIONS = ["team", "serve", "serve-order", "serve-player", "swap", "undo"];
+  let prematchOn = false;
+  const warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";
+  function renderPrematch(st) {
+    const on = !!(st && st.prematch === true);
+    const was = prematchOn;
+    prematchOn = on;
+    const box = $("#prematch");
+    if (box) box.hidden = !on;
+    document.body.classList.toggle("is-prematch", on);
+    if (!on) {
+      // Started elsewhere (another tablet, the warm-up running out): the panel is the scoreboard now.
+      if (was && board.mode === "clock") board.mode = "match";
+      return;
+    }
+    const s = st.state || {};
+    const name = (x, y, dflt) => String(x || y || dflt).toUpperCase();
+    $("#pmTeams").textContent = name(s.team_a_short, s.team_a_name, "TEAM A") + " vs " + name(s.team_b_short, s.team_b_name, "TEAM B");
+    const warm = warmupRunning();
+    // The mirror shows what the panel shows: the held clock (or the names, after VS).
+    const names = !!(st.ledbox && st.ledbox.idle && st.ledbox.clockHeld === false);
+    if (!warm && board.mode !== "countdown") board.mode = names ? "idle" : "clock";
+    $("#pmSub").textContent = warm ? "— warm-up running; the match starts when it ends"
+      : names ? "— board shows the team names" : "— board shows the clock";
+    const wb = $("#pmWarmup"); if (wb) wb.hidden = warm;
+  }
+  // The Game tab's Warm-up and the banner's "Start warm-up" are the same clock. In a pre-match its
+  // end is the start of the match — the server paints the 0–0 scoreboard when it stops — so the
+  // console drops the banner at once and reads the board back once the stop has landed. Outside a
+  // pre-match it is the plain clock it always was.
+  function startWarmup() {
+    const pre = prematchOn;
+    startCountdown(SETTINGS.warmupSeconds || 600, "WARM UP", pre ? (stopped) => {
+      board.mode = "match";
+      renderStatus({ prematch: false });
+      Promise.resolve(stopped).then(() => refreshStatus());
+    } : null, { major: true, action: pre ? "End warm-up · start match" : "End warm-up", content: "none" });
+    if (pre) renderPrematch(LAST_STATUS);
+  }
+  async function startMatchNow(btn) {
+    if (btn) btn.disabled = true;
+    try {
+      // The board ends a running warm-up itself (no horn), so only the console's clock is cleared.
+      const r = await postJSON("/api/prematch", { action: "start" });
+      if (warmupRunning()) clearCountdown();
+      board.mode = "match";
+      renderStatus({ ...(r || {}), prematch: false });
+      toast("Match on — the scoreboard is on the board");
+    } catch (e) {
+      toast(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then try again." : "Couldn't start the match: " + ((e && e.message) || e));
+    } finally { if (btn) btn.disabled = false; }
+  }
+  $("#pmWarmup").addEventListener("click", startWarmup);
+  $("#pmStart").addEventListener("click", (e) => startMatchNow(e.currentTarget));
 
   // Put the on-screen keyboard away, deliberately, before hiding whatever had focus.
   //
@@ -3306,20 +3514,24 @@
     ordSel.first = raw.serving_team === "right" ? "right" : "left";
     ordSel.left = Number(raw.server_a) === 2 ? 2 : 1;
     ordSel.right = Number(raw.server_b) === 2 ? 2 : 1;
-    const lname = s && s.left.short ? s.left.short.toUpperCase() : "TEAM L";
-    const rname = s && s.right.short ? s.right.short.toUpperCase() : "TEAM R";
-    $("#ordLlbl").textContent = lname + " — first server";
-    $("#ordRlbl").textContent = rname + " — first server";
-    const fb = $$("#ordFirst button"); fb[0].textContent = lname; fb[1].textContent = rname;
+    // The rows follow the cards: the first is the pair on the scorer's left (panelSide), and each
+    // button carries the PANEL side it stands for, which is what the board is sent.
+    const L = panelSide("left"), R = panelSide("right");
+    const nameOf = (ps) => s && s[ps].short ? s[ps].short.toUpperCase() : (ps === "left" ? "TEAM L" : "TEAM R");
+    $("#ordLlbl").textContent = nameOf(L) + " — first server";
+    $("#ordRlbl").textContent = nameOf(R) + " — first server";
+    const fb = $$("#ordFirst button");
+    fb[0].dataset.first = L; fb[0].textContent = nameOf(L);
+    fb[1].dataset.first = R; fb[1].textContent = nameOf(R);
     segPick("ordFirst", (b) => b.dataset.first === ordSel.first);
-    segPick("ordLeft", (b) => Number(b.dataset.p) === ordSel.left);
-    segPick("ordRight", (b) => Number(b.dataset.p) === ordSel.right);
+    segPick("ordLeft", (b) => Number(b.dataset.p) === ordSel[L]);
+    segPick("ordRight", (b) => Number(b.dataset.p) === ordSel[R]);
     $("#serveOrder").hidden = false;
   }
   const closeServeOrder = () => { $("#serveOrder").hidden = true; };
   $("#ordFirst").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel.first = b.dataset.first; segPick("ordFirst", (x) => x === b); } });
-  $("#ordLeft").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel.left = Number(b.dataset.p); segPick("ordLeft", (x) => x === b); } });
-  $("#ordRight").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel.right = Number(b.dataset.p); segPick("ordRight", (x) => x === b); } });
+  $("#ordLeft").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel[panelSide("left")] = Number(b.dataset.p); segPick("ordLeft", (x) => x === b); } });
+  $("#ordRight").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { ordSel[panelSide("right")] = Number(b.dataset.p); segPick("ordRight", (x) => x === b); } });
   $("#ordCancel").addEventListener("click", closeServeOrder);
   $("#serveOrder").addEventListener("click", (e) => { if (e.target.id === "serveOrder") closeServeOrder(); });
   $("#ordOk").addEventListener("click", () => {
@@ -3351,14 +3563,17 @@
 
   // per-side controls
   $$(".side").forEach((root) => {
-    const side = root.dataset.side;
+    // `scr` is where this card sits on screen; side() is the PANEL side it controls right now —
+    // asked at every tap, so flipping the orientation needs no re-wiring.
+    const scr = root.dataset.side;
+    const side = () => panelSide(scr);
     // Score buttons (rebuilt per sport by applySportUI) and the tap-to-edit numbers are DELEGATED
     // on the side, so they keep working after the +1/+2/+3 cluster replaces the +/− pair.
     root.addEventListener("click", (e) => {
       const pt = e.target.closest("[data-pt]");
       // The button goes with the action: sendAction disables it for the round trip, so a second
       // tap on a link that hasn't answered yet has nowhere to land.
-      if (pt && root.contains(pt)) { sendAction({ type: "point", side, delta: Number(pt.dataset.pt) }, pt); return; }
+      if (pt && root.contains(pt)) { sendAction({ type: "point", side: side(), delta: Number(pt.dataset.pt) }, pt); return; }
       // A tap anywhere on a stat tile that isn't one of its −/+ counts as a tap on its number: the
       // digit on its own was a 13x22px target.
       const tile = e.target.closest(".stat");
@@ -3369,8 +3584,11 @@
         // Basketball's "Sets" slot is the shared PERIOD label — adjust it with ± / End period, not a typed value.
         if (SPORT === "basketball" && val.dataset.val === "sets") return;
         const name = (SPORT === "basketball" && val.dataset.val === "sub") ? "fouls" : VAL_NAME[val.dataset.val];
-        openEdit((side === "left" ? "Left " : "Right ") + name,
-          Number(val.textContent) || 0, (v) => sendAction({ type, side, value: v }));
+        // Named as the scorer sees it: this card's team, or its side of the tablet.
+        const who = ($(".short", root).value || "").toUpperCase() || (scr === "left" ? "Left" : "Right");
+        const target = side();
+        openEdit(who + " " + name,
+          Number(val.textContent) || 0, (v) => sendAction({ type, side: target, value: v }));
       }
     });
     // Timeouts and subs go straight through and offer Undo, instead of a "Add a timeout for X?"
@@ -3379,16 +3597,17 @@
     // guarded against nothing. Destructive, whole-match actions (Reset, New game) keep theirs.
     root.querySelectorAll("[data-stat]").forEach((b) => b.addEventListener("click", async () => {
       const stat = b.dataset.stat, d = Number(b.dataset.d);
-      const nm = ($(".short", root).value || side).toUpperCase();
+      const nm = ($(".short", root).value || scr).toUpperCase();
+      const target = side();
       const startsClock = stat === "timeout" && d > 0 && SETTINGS.countdownOnTimeout !== false;
       if (startsClock) {
         // Started at the tap, not after the round trip: the teams are already walking off. The
         // phone shows "TO KSCW" on one line; the board has a separate line for the calling team,
         // so it gets `side` and a bare label.
         startCountdown(SETTINGS.timeoutSeconds || 30, "TO " + nm, null,
-          { content: "full", side, label: "TIME OUT" });
+          { content: "full", side: target, label: "TIME OUT" });
       }
-      const r = await sendAction({ type: stat, side, delta: d }, b);
+      const r = await sendAction({ type: stat, side: target, delta: d }, b);
       const clockUp = () => board.mode === "countdown" && board.cd && board.cd.label === "TIME OUT";
       if (!r) {
         // Not recorded, so there is no timeout to time.
@@ -3418,10 +3637,10 @@
       // value is what used to reach the hall.
       shortEl.value = shortEl.value.toUpperCase();
       dismissKeyboard();
-      sendAction({ type: "team", side, short: shortEl.value });
+      sendAction({ type: "team", side: side(), short: shortEl.value });
     });
     colorEl.addEventListener("change",
-      () => sendAction({ type: "team", side, color: colorEl.value }));
+      () => sendAction({ type: "team", side: side(), color: colorEl.value }));
   });
 
   // Basketball period −/+ (the centre control). `set` is the period in basketball — the board
@@ -3430,8 +3649,9 @@
     () => sendAction({ type: "set", side: "left", delta: Number(b.dataset.period) }, b)));
 
   // serve toggle
+  // [data-serve] is the arrow's SCREEN side — it points at a card — so it is mapped like one.
   $$('[data-serve]').forEach((b) => b.addEventListener("click",
-    () => sendAction({ type: "serve", side: b.dataset.serve }, b)));
+    () => sendAction({ type: "serve", side: panelSide(b.dataset.serve) }, b)));
 
   // global actions
   // Pre-match "names + VS" screen on the board. Any scoring action lifts it automatically.
@@ -3439,9 +3659,9 @@
     try { await postJSON("/api/idle", { on: true }); clearCountdown(); board.mode = "idle"; paintBoardMode(); toast("Idle screen on the board"); }
     catch (e) { toast(e.message); }
   });
-  // Pre-match warm-up: a plain 10-minute clock, no side effects when it ends.
-  $("#warmupBtn").addEventListener("click", () =>
-    startCountdown(SETTINGS.warmupSeconds || 600, "WARM UP", null, { major: true, action: "End warm-up", content: "none" }));
+  // Pre-match warm-up: a plain 10-minute clock, no side effects when it ends — except in a
+  // pre-match, where its end starts the match (startWarmup).
+  $("#warmupBtn").addEventListener("click", startWarmup);
   $("#swapBtn").addEventListener("click", (e) => sendAction({ type: "swap" }, e.currentTarget));
   // Both confirms say what is LOST, in the sport's own words, and name the verb in red — "Reset the
   // board to neutral?" over a blue Confirm read like a display setting, not the end of a match.
@@ -3794,6 +4014,16 @@
   // --- settings -----------------------------------------------------------
   // Persisted on the board, so they follow the scoreboard rather than the phone that set them.
   const setEls = () => $$("[data-set]");
+  // A checkbox with data-on/data-off stands for a two-valued STRING setting (orientation:
+  // "behind"/"front"); every other checkbox is a boolean. One pair of helpers for load, save and
+  // the echo after a save, so the three can't disagree about it.
+  const readSet = (el) => el.type === "checkbox"
+    ? (el.dataset.on ? (el.checked ? el.dataset.on : el.dataset.off) : el.checked)
+    : el.type === "number" ? Number(el.value) : el.value;
+  function writeSet(el, v) {
+    if (el.type === "checkbox") el.checked = el.dataset.on ? v === el.dataset.on : !!v;
+    else el.value = v;
+  }
   // Give every numeric setting a real −/+ stepper. input[type=number] shows no spinner on mobile
   // Chrome or Safari, so on the tablet these were type-only: the operator had to focus the field
   // and use the numeric keyboard to nudge a font size or a timeout by one. Built here rather than
@@ -3882,15 +4112,16 @@
       max: Number(el.max) || FONT_FALLBACK.max,
     };
   }
+  // `side` is a PANEL half; its −/+ live on whichever card shows that half's team (screenSide).
   function renderFontBox(side) {
     if (!side) { renderFontBox("left"); renderFontBox("right"); return; }
-    const out = $(`[data-fontval="${side}"]`);
+    const out = $(`[data-fontval="${screenSide(side)}"]`);
     if (!out) return;
     const n = Number(SETTINGS[fontKey(side)]);
     const { min, max } = fontBounds(side);
     out.textContent = Number.isFinite(n) ? String(n) : "–";
     // Same end-stop treatment the Settings steppers get — a dead button reads as broken.
-    $$(`[data-font="${side}"]`).forEach((b) => {
+    $$(`[data-font="${screenSide(side)}"]`).forEach((b) => {
       const d = Number(b.dataset.d);
       b.disabled = Number.isFinite(n) && (d < 0 ? n <= min : n >= max);
     });
@@ -3909,7 +4140,8 @@
     // the thumb should move NOW. A failed save puts the old value straight back.
     SETTINGS = { ...SETTINGS, [key]: next };
     renderFontBox(side);
-    const out = $(`[data-fontval="${side}"]`);
+    renderPreview(bvLast.s, bvLast.serving);   // the mirror's name follows the tap too
+    const out = $(`[data-fontval="${screenSide(side)}"]`);
     if (out) { out.classList.remove("bump"); void out.offsetWidth; out.classList.add("bump"); }
     try {
       // Patch ONLY this key. Posting the whole form from here would write every other field as
@@ -3921,8 +4153,12 @@
       SETTINGS = saved;
       const el = fontInput(side);               // keep the Settings tab honest
       if (el) { el.value = String(saved[key]); syncStepper(el.closest(".stepper")); }
+      // The size the board ACTUALLY paints comes back on the next status (a long name still shrinks
+      // below the ceiling); ask for it now rather than on the next tick.
+      refreshStatus();
     } catch (e) {
       SETTINGS = { ...SETTINGS, [key]: cur };
+      renderPreview(bvLast.s, bvLast.serving);
       toast(String((e && e.message) || e));
     } finally {
       fontBusy[side] = false;
@@ -3936,11 +4172,12 @@
       for (const el of setEls()) {
         const v = s[el.dataset.set];
         if (v === undefined) continue;
-        if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+        writeSet(el, v);
       }
       // Values just changed under the steppers — re-evaluate which end stops are disabled.
       $$(".stepper").forEach(syncStepper);
       SETTINGS = s;
+      applyOrientation();
       renderFontBox();
       const note = $("#perSportNote");
       if (note && s.sport) note.textContent =
@@ -3951,10 +4188,7 @@
   async function saveSettings(clickedBtn) {
     const patch = {};
     for (const el of setEls()) {
-      patch[el.dataset.set] =
-        el.type === "checkbox" ? el.checked :
-        el.type === "number" ? Number(el.value) :
-        el.value; // text / select stay as strings; the server coerces + clamps
+      patch[el.dataset.set] = readSet(el); // text / select stay as strings; the server coerces + clamps
     }
     // Checked here, before anything is sent, against the same rule the board applies. The tablet's
     // numeric keypad still offers "." "," and "-": "12.34" used to reach the board as 1234 while
@@ -3971,6 +4205,8 @@
     patch.scorerPin = newPin;
     try {
       SETTINGS = await postJSON("/api/settings", patch);
+      orientSavedAt = Date.now();
+      applyOrientation();
       if (newPin) { SCORER_PIN = newPin; try { localStorage.setItem("kscwScorerPin", newPin); } catch {} }
       pinRequired = !!SETTINGS.pinSet; updateLock();
       const st = $("#setStatus");
@@ -3980,7 +4216,7 @@
       for (const el of setEls()) {
         const v = SETTINGS[el.dataset.set];
         if (v === undefined) continue;
-        if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+        writeSet(el, v);
       }
       renderFontBox();   // a Settings save can move the same number the Game tab shows
       // One save persists EVERY field, so every section is now clean.
@@ -4428,8 +4664,9 @@
   const startPolling = () => { if (pollOn) return; pollOn = true; pollTick(); };
   bootLock();
   buildSteppers();
+  // [data-font] is the card's SCREEN side; the setting it moves is the panel half that card shows.
   $$("[data-font]").forEach((b) => b.addEventListener("click",
-    () => nudgeFont(b.dataset.font, Number(b.dataset.d))));
+    () => nudgeFont(panelSide(b.dataset.font), Number(b.dataset.d))));
   loadSettings();
   // Present the sport picker first (landing), with the current sport pre-highlighted.
   loadSportList().then(openSportPicker);

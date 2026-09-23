@@ -120,7 +120,9 @@ export class SimpleSource extends EventEmitter {
         // silently keeping a colour that never reaches the panel would be a lie in /api/status.
         const side = action.side === 'right' ? 'right' : 'left'
         if (action.short != null || action.name != null) {
-          m[side + 'Name'] = String(action.short != null ? action.short : action.name)
+          // `||`, not `!= null`: cleanTeams always passes a short, and an empty one (a schedule
+          // start whose short field was cleared) must fall back to the full name, not blank the side.
+          m[side + 'Name'] = String(action.short || action.name || '')
         }
         break
       }

@@ -45,6 +45,8 @@ const ROUTES = {
   // answered 200 with applied:false and can never move the clock of the machine running the test.
   '/api/clock': { guard: 'pin', body: { epochMs: Date.now() } },
   '/api/game': { guard: 'pin', body: { choice: 'clock' } },
+  // Takes the hall from the pre-match clock to the scoreboard.
+  '/api/prematch': { guard: 'pin', body: { action: 'start' } },
   // Writes three operator-supplied lines onto the scoreboard in the hall — the most public
   // surface this appliance has, so it is PIN-gated like any other paint.
   '/api/result': { guard: 'pin', body: { winner: 'X WINS', score: '3 - 0', history: '25-23' } },
