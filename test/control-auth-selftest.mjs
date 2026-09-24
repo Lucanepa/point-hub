@@ -58,6 +58,12 @@ const ROUTES = {
   '/api/logs/clear': { guard: 'pin', body: {} },
   '/api/shutdown': { guard: 'pin', body: {}, skipAuthed: 'HALTS THE BOARD — never send this a valid PIN' },
   '/api/reboot': { guard: 'pin', body: {}, skipAuthed: 'REBOOTS THE BOARD — never send this a valid PIN' },
+  // The hall Wi-Fi login (hallLogin.js). Gated: it acts on the board's uplink, and /login makes the
+  // portal send an SMS to whatever number it is given. The authed probes reach nothing — the probe
+  // URL below is a closed loopback port, so they answer 200 with the board "offline".
+  '/api/uplink/check': { guard: 'pin', body: {} },
+  '/api/uplink/login': { guard: 'pin', body: { phone: '079 000 00 00' } },
+  '/api/uplink/code': { guard: 'pin', body: { code: '000000' } },
   '/api/logs': { guard: 'open', body: { msg: 'ui event' }, why: 'the console posts its own errors; a spectator hitting a bug is what we want to see' },
   '/api/unlock': { guard: 'unlock', body: { pin: PIN } },
 }
@@ -84,6 +90,8 @@ const app = await startAppliance({
   relayUrl: '', relayHttpUrl: '', matchId: '',
   ledboxAlias: 'test', ledboxApiVersion: 2, reconnectMs: 0,
   mock: true, controlPort: 0, debug: false,
+  // Never the real connectivity check or portal from a test: port 9 on loopback refuses at once.
+  uplinkProbeUrl: 'http://127.0.0.1:9/generate_204', uplinkPortalUrl: 'http://127.0.0.1:9',
 })
 const base = `http://127.0.0.1:${app.server.address().port}`
 await sleep(200)
@@ -121,7 +129,7 @@ try {
   }
 
   console.log('\nreads stay open — a spectator can watch without the PIN:')
-  for (const route of ['/api/status', '/api/board', '/api/sport', '/api/settings', '/api/game', '/api/history']) {
+  for (const route of ['/api/status', '/api/board', '/api/sport', '/api/settings', '/api/game', '/api/history', '/api/uplink']) {
     const res = await fetch(base + route)
     ok(res.status === 200, `GET ${route} -> 200 (got ${res.status})`)
   }

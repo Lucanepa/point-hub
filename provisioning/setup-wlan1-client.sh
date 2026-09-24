@@ -16,6 +16,7 @@
 #   ./setup-wlan1-client.sh --scan           # list visible networks on wlan1
 #   ./setup-wlan1-client.sh --connect "SSID" # join (reads $PASSFILE)
 #   ./setup-wlan1-client.sh --verify         # prove uplink + NTP work without the Pi
+#   ./setup-wlan1-client.sh --hall ["SSID"]  # open hall Wi-Fi (default Free_WLAN_KTZH) + its DNS fix
 set -uo pipefail
 
 CON=ledbox-uplink
@@ -178,6 +179,59 @@ EOF
   verify
 }
 
+# The hall's open Wi-Fi: Free_WLAN_KTZH at the KWI hall, a Swisscom Public WLAN with a Free-SMS
+# login page (the console's Settings ▸ Hall internet does the login; src/hallLogin.js). Idempotent:
+# creates the 'hall-uplink' connection the first time and brings every setting back to this on each
+# later run, so re-running it is how you repair a board someone "fixed" by hand.
+#
+#   priority 5 / metric 60 — below the house network (ledbox-uplink: 10 / 50), so a board that can
+#     see both prefers the one with no login page, and above the Pi's eth0 (100).
+#   dns-options single-request-reopen,timeout:1,attempts:3 — the portal's resolver drops one of the
+#     two queries glibc sends in parallel (A and AAAA, same socket), and the resolver then sits out
+#     its full 5 s default timeout before retrying. Every lookup of the Directus host stalled 5 s,
+#     which is more than livePush's 2 s request timeout: live scoring failed on every point while
+#     `ping` worked fine. A fresh socket per query fixes the drop; timeout:1 caps any that remain.
+#     See provisioning/README.md.
+HALL_CON=hall-uplink
+HALL_METRIC=60
+hall() {
+  local ssid="${1:-Free_WLAN_KTZH}"
+  case "$ssid" in *[[:cntrl:]]*) echo "!! SSID contains a control character — refusing"; exit 1 ;; esac
+  if nmcli -t -f NAME connection show | grep -qxF "$HALL_CON"; then
+    echo "  '$HALL_CON' exists — bringing its settings back to these"
+  else
+    sudo nmcli connection add type wifi ifname wlan1 con-name "$HALL_CON" ssid "$ssid" >/dev/null \
+      || { echo "!! could not create $HALL_CON"; exit 1; }
+    echo "  '$HALL_CON' created"
+  fi
+  # An open network: drop any security block an earlier hand edit left behind (absent is fine).
+  sudo nmcli connection modify "$HALL_CON" remove 802-11-wireless-security >/dev/null 2>&1 || true
+  sudo nmcli connection modify "$HALL_CON" \
+    connection.interface-name wlan1 \
+    connection.autoconnect yes \
+    connection.autoconnect-priority 5 \
+    802-11-wireless.ssid "$ssid" \
+    802-11-wireless.mode infrastructure \
+    ipv4.method auto \
+    ipv4.route-metric "$HALL_METRIC" \
+    ipv4.dns-options "single-request-reopen,timeout:1,attempts:3" \
+    ipv6.method auto \
+    ipv6.route-metric "$HALL_METRIC" \
+    || { echo "!! could not configure $HALL_CON"; exit 1; }
+  echo "  SSID '$ssid', open, priority 5, metric $HALL_METRIC, dns-options single-request-reopen,timeout:1,attempts:3"
+
+  # Settings only reach a live connection when it is brought up again.
+  if nmcli -t -f NAME connection show --active | grep -qxF "$HALL_CON"; then
+    say "re-applying to the active $HALL_CON"
+    sudo nmcli connection up "$HALL_CON" ifname wlan1 >/dev/null || echo "!! could not re-apply (still configured; takes effect on the next connect)"
+    sleep 3
+    say "resolver options now in use"
+    grep -E '^options' /etc/resolv.conf | sed 's/^/  /' || echo "  !! no options line in /etc/resolv.conf — is NetworkManager managing it?"
+  else
+    echo "  not connected now — joins by itself when '$ssid' is in range. Log in from the console: Settings ▸ Hall internet"
+  fi
+}
+
 verify() {
   say "wlan1 state"
   nmcli -f GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS,IP4.GATEWAY device show wlan1 2>/dev/null \
@@ -228,5 +282,6 @@ case "${1:---check}" in
   --scan)    scan ;;
   --connect) connect "${2:-}" "${3:-sae}" "${4:-a}" ;;
   --verify)  verify ;;
-  *) echo "usage: $0 [--check|--scan|--connect \"SSID\" [sae|wpa-psk] [a|bg|auto]|--verify]"; exit 1 ;;
+  --hall)    hall "${2:-}" ;;
+  *) echo "usage: $0 [--check|--scan|--connect \"SSID\" [sae|wpa-psk] [a|bg|auto]|--verify|--hall [\"SSID\"]]"; exit 1 ;;
 esac

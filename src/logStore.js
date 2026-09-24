@@ -15,7 +15,9 @@
 //     you kill it. Lines accumulate and flush on a timer (or when the buffer fills), and the
 //     total on disk is capped by rotation.
 //  3. **It redacts.** The scorer PIN and the Directus token pass through several of the call
-//     sites below; neither may ever reach the log file or the /logs page.
+//     sites below; neither may ever reach the log file or the /logs page. Nor may the scorer's
+//     mobile number, which the hall Wi-Fi login (hallLogin.js) handles for a few seconds: it is
+//     redacted by key AND by shape, since a number is just as likely to arrive inside a message.
 //
 // ONE process-wide instance (`log`), configured at boot by appliance.js. The modules under it
 // import it directly rather than taking a logger param — they are constructed from the bridge,
@@ -47,7 +49,17 @@ const DEFAULTS = {
 }
 
 // Values under these keys never reach the log. Matched on the KEY, at any depth.
-const SECRET_KEY = /(pin|token|secret|password|authorization|cookie|apikey|api_key)/i
+const SECRET_KEY = /(pin|token|secret|password|authorization|cookie|apikey|api_key|phone|msisdn)/i
+
+// …and phone numbers wherever they turn up in a string, whatever the key: a Swiss mobile in any of
+// the shapes a scorer types it ('079 123 45 67', '+41 79 …', '0041…', '+41 (0)79 …'), and any
+// international '+' number. Anchored against neighbouring digits so an epoch in milliseconds or a
+// byte count is never mistaken for one.
+const PHONE_RE = [
+  /(?<![\d+])(?:(?:\+|00)\s?41[\s.\-]?(?:\(0\)\s?)?|0)7\d(?:[\s.\-]?\d){7}(?!\d)/g,
+  /(?<![\w+])\+\d(?:[\s.\-]?\d){7,14}(?!\d)/g,
+]
+const scrubPhones = (s) => (/\d{2}/.test(s) ? PHONE_RE.reduce((out, re) => out.replace(re, '[phone]'), s) : s)
 
 const MAX_STR = 600     // truncate any single string
 const MAX_MSG = 300     // …and the message line itself, whoever the caller is
@@ -71,16 +83,19 @@ function clip(s, max) {
 function safeData(value, depth = 0, seen = new WeakSet()) {
   if (value === null || value === undefined) return value
   const t = typeof value
-  if (t === 'string') return value.length > MAX_STR ? `${value.slice(0, MAX_STR)}…(+${value.length - MAX_STR})` : value
+  if (t === 'string') {
+    const v = scrubPhones(value)
+    return v.length > MAX_STR ? `${v.slice(0, MAX_STR)}…(+${v.length - MAX_STR})` : v
+  }
   if (t === 'number' || t === 'boolean') return value
   if (t === 'bigint') return String(value)
   if (t === 'function') return `[function ${value.name || 'anonymous'}]`
   if (t === 'symbol') return String(value)
   if (value instanceof Error) {
-    const out = { name: value.name, message: value.message }
+    const out = { name: value.name, message: scrubPhones(String(value.message)) }
     if (value.code) out.code = value.code
     // First frames only — a full stack in a ring buffer is mostly node internals.
-    if (value.stack) out.stack = String(value.stack).split('\n').slice(0, 4).join('\n')
+    if (value.stack) out.stack = scrubPhones(String(value.stack).split('\n').slice(0, 4).join('\n'))
     return out
   }
   if (value instanceof Date) return value.toISOString()
@@ -169,7 +184,7 @@ export class LogStore extends EventEmitter {
         scope: String(scope || 'app'),
         // Clipped here as well as at the /api/logs endpoint: this is the choke point every call
         // site goes through, so no future caller can hand the ring an unbounded string.
-        msg: clip(String(msg ?? ''), MAX_MSG),
+        msg: clip(scrubPhones(String(msg ?? '')), MAX_MSG),
       }
       if (data !== undefined) {
         const safe = safeData(data)

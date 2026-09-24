@@ -187,6 +187,10 @@ export async function startAppliance(config = loadConfig()) {
     // boot (loadConfig sets this). A test's hand-built config leaves them off, so no selftest
     // reaches the club's Directus — or has a real 20:00 game set itself up mid-run.
     background: config.scheduleSync === true,
+    // The hall internet watch (hallLogin.js): on for a real boot, off for a hand-built test config.
+    // The URLs default to the real probe and portal; a test points them at its fake.
+    uplinkWatch: config.uplinkWatch === true,
+    uplinkOptions: { probeUrl: config.uplinkProbeUrl || '', portalUrl: config.uplinkPortalUrl || '' },
     // Test hook only: { now, trusted } for the automatic pre-match (test/auto-prepare-selftest.mjs).
     autoPrepare: config.autoPrepare || null,
   })

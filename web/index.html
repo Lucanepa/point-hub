@@ -203,6 +203,17 @@
     font-size:15px;font-weight:800;line-height:1.15;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .prematch .pmbtns button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
   .prematch .pmbtns button:disabled{opacity:.5;cursor:default}
+  /* Hall Wi-Fi needs a login (see #uplinkBanner). Red-edged rather than gold: gold is "the board is
+     waiting on you to start", this is "something the public sees has stopped". One row, so on a
+     phone held sideways it costs the score one line and no more. */
+  .upbanner{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:6px 8px 6px 12px;
+    border:2px solid var(--bad);border-radius:var(--r);background:color-mix(in srgb,var(--bad) 7%,var(--card))}
+  .upbanner > .licon{color:var(--bad);width:20px;height:20px}
+  .upbanner .ubtext{flex:1 1 auto;min-width:0;font-size:15px;line-height:1.25;overflow-wrap:anywhere}
+  .upbanner .ubsub{font-weight:600;color:var(--muted)}
+  .upbanner button{flex:0 0 auto;min-height:var(--tap);min-width:var(--tap);border-radius:var(--r);font-size:15px;font-weight:800;cursor:pointer;
+    border:1.5px solid var(--line);background:var(--card);color:var(--muted)}
+  .upbanner button.primary{padding:0 18px;background:var(--blue);border-color:var(--blue);color:#fff}
   .bvhint{font-weight:700;letter-spacing:0;text-transform:none}
   .gfooter{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
   .setstrip{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto}
@@ -412,6 +423,46 @@
   .setlink{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:6px;padding:13px;font-size:14px;font-weight:800;
     border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);text-decoration:none}
   .setlink:active{background:var(--fill)}
+  /* --- Hall internet card --------------------------------------------------------------------
+     The status line is the answer to "is the /live page getting the score?", so it is the
+     biggest thing in the card and says it in words; the dot only repeats it. */
+  .uplink .upstat{display:flex;align-items:center;gap:9px;padding:8px 0 2px;font-size:17px;font-weight:800;line-height:1.25}
+  .uplink .updot{flex:0 0 auto;width:12px;height:12px;border-radius:50%;background:var(--muted)}
+  .uplink .upstat[data-state="online"] .updot{background:var(--ok)}
+  .uplink .upstat[data-state="online"]{color:var(--ok)}
+  .uplink .upstat[data-state="portal"] .updot{background:var(--bad)}
+  .uplink .upstat[data-state="portal"]{color:var(--bad)}
+  .uplink .upstat[data-state="soon"] .updot{background:var(--gold)}
+  .uplink .upstat[data-state="soon"]{color:var(--gold)}
+  .uplink .upsub{margin:2px 0 0;font-size:13px;color:var(--muted)}
+  .uplink .upsub.warn{color:var(--gold);font-weight:700}
+  .uplink .upform{margin:10px 0 0}
+  .uplink .uplbl{display:block;font-size:13px;font-weight:700;margin:0 0 5px}
+  .uplink .uprow{display:flex;gap:8px;flex-wrap:wrap}
+  /* 16px: iOS zooms the whole page into any field set smaller, and never zooms back out. */
+  .uplink .uprow input{flex:1 1 150px;min-width:0;min-height:var(--tap);padding:8px 12px;font-size:16px;font-family:var(--mono);
+    font-variant-numeric:tabular-nums;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
+  .uplink #upCode{letter-spacing:.2em}
+  .uplink .upbtn{flex:0 0 auto;min-height:var(--tap);padding:0 18px;font-size:14px;font-weight:800;border:1.5px solid var(--line);
+    border-radius:var(--r);background:var(--card);color:var(--blue);cursor:pointer}
+  .uplink .upbtn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .uplink .upbtn:disabled{opacity:.55;cursor:default}
+  .uplink .uplink2{min-height:var(--tap);margin-top:4px;padding:0;border:0;background:transparent;color:var(--blue);
+    font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer}
+  .uplink .uperr{margin:8px 0 0;padding:8px 10px;font-size:13px;font-weight:700;color:var(--bad);
+    border:1.5px solid var(--bad);border-radius:var(--r);background:color-mix(in srgb,var(--bad) 6%,var(--card))}
+  .uplink .upactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .uplink .upactions .upbtn{flex:1 1 0}
+  #uplinkCard.flash{animation:upflash 1.2s ease-out 1}
+  @keyframes upflash{0%{box-shadow:0 0 0 4px var(--blue)}100%{box-shadow:0 0 0 0 transparent}}
+  /* Header chip: the login is about to run out (gold), or has (red) and the Game-tab banner is not
+     on screen to say so. A button, since tapping it goes to the card that fixes it. */
+  .uptag{flex:0 1 auto;min-width:0;display:block;min-height:var(--tap);padding:2px 10px;border-radius:4px;font-size:12px;font-weight:800;line-height:38px;
+    border:1.5px solid var(--gold);background:var(--card);color:var(--gold);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .uptag .licon{margin-right:5px}
+  /* A tablet header has room for about a dozen characters here: the globe says "Wi-Fi" instead. */
+  @media (max-width:900px){ .uptag{padding:2px 8px} .uptag .utw{display:none} }
+  .uptag.bad{border-color:var(--bad);color:var(--bad)}
   #pinClear{cursor:pointer}
   #shutdown{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);color:var(--fg);text-align:center;padding:32px}
   #shutdown.show{display:flex}
@@ -681,6 +732,8 @@
   @media (max-height:500px){
     /* A phone on its side has no height to spare, so while the banner is up it stays one row and
        the cards give back what it takes: no tap hint, shorter ± buttons. */
+    .upbanner{padding:0 4px 0 10px;gap:8px}
+    .upbanner .ubtext{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .prematch{padding:4px 8px;gap:8px;flex-wrap:nowrap}
     .prematch .pmtext{flex:1 1 auto}
     .prematch .pmready{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -833,7 +886,7 @@
   <header class="topbar">
     <span class="brand"><img class="brandmark" src="favicon.svg" alt="" width="20" height="20"> Point Hub</span>
     <span id="dot" title="LedBox connection"><span id="dotIc"><svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg></span><span id="dotTxt">Board …</span></span>
-    <div id="mode"><span id="modeTag" hidden><b id="modeName">…</b><span id="matchTag"></span></span><span id="setNo"></span></div>
+    <div id="mode"><span id="modeTag" hidden><b id="modeName">…</b><span id="matchTag"></span></span><span id="setNo"></span><button type="button" id="uplinkTag" class="uptag" hidden><svg class="licon l-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></svg><span class="utw" id="uplinkTagPre">Wi-Fi </span><span id="uplinkTagTxt"></span></button></div>
     <!-- Portrait-only copies of keep-awake / full screen (the centre column's are hidden there). -->
     <button class="iconbtn hdricon js-awake" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
     <button class="iconbtn hdricon js-fs" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
@@ -863,6 +916,16 @@
   <!-- Pre-match: a game started from tonight's schedule sets the names up at 0–0 but leaves the
        panel on the clock, because the teams are still arriving and a 0–0 scoreboard twenty minutes
        early reads as "the match has started". This says so, and offers the two ways on. -->
+  <!-- The hall's free Wi-Fi has logged the board out (a captive portal: every page is the login
+       page). The panel keeps working — only what needs the internet stops, above all the /live
+       page — so this is one line with the way to fix it, not a wall. Shown ONLY for a portal:
+       "no uplink at all" is the normal case in most halls and is nobody's to-do. -->
+  <div id="uplinkBanner" class="upbanner" hidden role="status" aria-live="polite">
+    <svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg>
+    <span class="ubtext"><b>Hall Wi-Fi needs a login</b> <span class="ubsub" id="ubSub">— live scoring is paused</span></span>
+    <button type="button" id="ubLogin" class="primary">Log in</button>
+    <button type="button" id="ubClose" aria-label="Hide this notice">✕</button>
+  </div>
   <div id="prematch" class="prematch" hidden role="status" aria-live="polite">
     <div class="pmtext">
       <span class="pmready">Ready: <b id="pmTeams"></b> <span class="pmsub" id="pmSub">— board shows the clock</span></span>
@@ -1014,6 +1077,41 @@
     <!-- SETTINGS (Phase 2 placeholder) -->
     <section id="tab-settings" class="tab settings">
       <div class="setgrid">
+        <!-- Hall internet. The KWI hall's uplink is Swisscom's free Wi-Fi, which lets a device out
+             only after an SMS login and forgets it again about a day later. Nothing here has a
+             data-set: no Save button, and the phone number never goes near SETTINGS or
+             localStorage. The scorer changes every match, so the field is empty every time. -->
+        <fieldset id="uplinkCard" class="uplink">
+          <legend><svg class="licon l-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></svg> Hall internet</legend>
+          <div class="upstat" id="upStat" data-state="checking">
+            <span class="updot" aria-hidden="true"></span><span id="upStatTxt">Checking the internet…</span>
+          </div>
+          <p class="upsub" id="upSub" hidden></p>
+          <form id="upPhoneForm" class="upform" autocomplete="off" novalidate hidden>
+            <label class="uplbl" for="upPhone">Your mobile number — the code comes by SMS</label>
+            <div class="uprow">
+              <input id="upPhone" type="tel" inputmode="tel" autocomplete="off" placeholder="079 123 45 67" maxlength="20" spellcheck="false">
+              <button type="submit" id="upSend" class="upbtn primary">Send code</button>
+            </div>
+          </form>
+          <form id="upCodeForm" class="upform" autocomplete="off" novalidate hidden>
+            <label class="uplbl" for="upCode">Code from the SMS</label>
+            <div class="uprow">
+              <input id="upCode" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="8" spellcheck="false">
+              <button type="submit" id="upLogin" class="upbtn primary">Log in</button>
+            </div>
+            <button type="button" id="upRestart" class="uplink2">Use a different number</button>
+          </form>
+          <p class="uperr" id="upErr" role="alert" hidden></p>
+          <div class="upactions">
+            <button type="button" id="upReveal" class="upbtn" hidden>Log in by SMS</button>
+            <button type="button" id="upCheck" class="upbtn">Check again</button>
+          </div>
+          <p class="hint">The hall's free Wi-Fi lets the board onto the internet only after a login
+            with a code by SMS, and the login lasts about a day. Live scoring, the club schedule and
+            the board's clock need it; the scoreboard itself does not. Type your own mobile number —
+            it is used for this login only and is not saved on the board.</p>
+        </fieldset>
         <fieldset>
           <legend><svg class="licon l-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /> <path d="M9 18h6" /> <path d="M10 22h4" /></svg> Board feedback</legend>
           <label class="row"><span>Blink the point on the board</span>
@@ -1157,6 +1255,14 @@
           <p class="hint">This board has no battery clock. If it cannot reach a time server, every
             match in History is stamped with whatever it believes — this has been ~36 h out before,
             with the scoreboard working perfectly the whole time.</p>
+        </div>
+
+        <div class="dcard" id="dcUplink">
+          <h4><svg class="licon l-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></svg> Hall internet</h4>
+          <div class="dbig" id="dUplink">—</div>
+          <div class="dsub" id="dUplinkSub">—</div>
+          <p class="hint">The board's uplink on its second radio. At the hall it is the free Wi-Fi,
+            which needs an SMS login about once a day — Settings ▸ Hall internet.</p>
         </div>
 
         <div class="dcard" id="dcPower">
@@ -1868,6 +1974,7 @@
     $("#matchTag").textContent = st.matchId ? " · match " + st.matchId : "";
     lastState = st.state || lastState;
     renderPrematch(st);
+    renderUplinkBrief(st.uplink);
     renderBoard(sides(st.state));
     renderSetStrip(st.state);
     markLinked();
@@ -3306,6 +3413,9 @@
     if (b.dataset.tab === "link") refreshSchedule(false);   // cheap: the server caches it
     if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
     if (b.dataset.tab === "history") refreshHistory();
+    if (b.dataset.tab === "settings" || b.dataset.tab === "diag") refreshUplink();
+    if (b.dataset.tab !== "settings") { const ph = $("#upPhone"); if (ph) ph.value = ""; }   // asked afresh every time
+    renderUplinkBrief(LAST_STATUS.uplink);   // the header chip stands in for the Game-tab banner elsewhere
     // Diagnostics polls and holds an SSE socket, so it starts on open and stops on leave rather
     // than running for the whole evening behind whatever tab the scorer is actually using.
     if (b.dataset.tab === "diag") startDiag(); else stopDiag();
@@ -4228,6 +4338,299 @@
     $("#shutdown").classList.remove("show");
     startPolling();
   });
+
+  // --- hall internet --------------------------------------------------------
+  // The board's uplink (its second radio). At the KWI hall that is Swisscom's free Wi-Fi: a
+  // captive portal that lets a device out only after an SMS login and forgets it about a day later.
+  // When it does, the scoreboard carries on and the /live page quietly stops — nothing on the
+  // tablet said so. /api/status carries the short form ({status, validUntil}) for the Game-tab
+  // banner and the header; the card reads the whole of /api/uplink.
+  //
+  // The phone number is typed, sent once, and gone: never in SETTINGS, never in localStorage, the
+  // field emptied as soon as the board has it. The scorer changes every match, so it asks every time.
+  let UPLINK = null;              // last /api/uplink reply; null = not read yet, false = this board has no such route
+  let upStep = "idle";            // this tablet's view of the login: "idle" (number) or "code"
+  let upReveal = false;           // "Log in by SMS" tapped with no uplink seen — the board looks again on the way in
+  let upBusy = false;
+  let upBannerDismissed = false;  // ✕ on the Game-tab banner — for this logout only
+  let upBriefKey = "";
+  const UPLINK_SOON_MS = 60 * 60 * 1000;
+  // The board walks the portal's redirects itself, one request after another at up to 10 s each, so
+  // a login can legitimately take far longer than the console's usual 8 s for a write.
+  // A code submit then gives the portal a few seconds and re-probes up to four times before it
+  // answers, so it gets the longest deadline of anything in the console.
+  const UPLINK_LOGIN_TIMEOUT_MS = 90000, UPLINK_CHECK_TIMEOUT_MS = 30000;
+
+  // "17:30", "tomorrow 17:30", or "Sat 26.09. 17:30" — in the hall's time, which is the time the
+  // portal states. The tablet may not know the zone (old WebView): then its own clock, which in a
+  // Zurich hall is the same thing.
+  function uplinkUntil(iso, now = Date.now()) {
+    const t = Date.parse(iso || "");
+    if (!Number.isFinite(t)) return "";
+    let parts;
+    try {
+      const f = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Zurich", weekday: "short", year: "numeric",
+        month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+      parts = (ms) => Object.fromEntries(f.formatToParts(new Date(ms)).map((p) => [p.type, p.value]));
+    } catch {
+      parts = (ms) => { const d = new Date(ms); const p2 = (n) => String(n).padStart(2, "0");
+        return { weekday: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()], year: String(d.getFullYear()),
+          month: p2(d.getMonth() + 1), day: p2(d.getDate()), hour: p2(d.getHours()), minute: p2(d.getMinutes()) }; };
+    }
+    const a = parts(t), today = parts(now), tomorrow = parts(now + 86400000);
+    const hm = a.hour + ":" + a.minute;
+    const same = (x) => x.year === a.year && x.month === a.month && x.day === a.day;
+    if (same(today)) return hm;
+    if (same(tomorrow)) return "tomorrow " + hm;
+    return a.weekday + " " + a.day + "." + a.month + ". " + hm;
+  }
+  // Online, but the login runs out within the hour (or already has and the board hasn't noticed).
+  const uplinkSoon = (u, now = Date.now()) => !!(u && u.status === "online" && u.validUntil
+    && Number.isFinite(Date.parse(u.validUntil)) && Date.parse(u.validUntil) - now < UPLINK_SOON_MS);
+
+  // Everything the card says, from the board's state alone — so it can be checked without a page.
+  function uplinkView(u, now = Date.now()) {
+    if (u === false) return { state: "none", line: "Not available on this board", sub: "Update the appliance to log in to the hall Wi-Fi from here.", warn: false, form: null, reveal: false };
+    if (!u) return { state: "checking", line: "Checking the internet…", sub: "", warn: false, form: null, reveal: false };
+    const until = uplinkUntil(u.validUntil, now);
+    const net = u.ssid ? "Hall Wi-Fi " + u.ssid : "Hall Wi-Fi";
+    if (u.status === "online") {
+      const soon = uplinkSoon(u, now);
+      return {
+        state: soon ? "soon" : "online",
+        line: until ? "Online — logged in until " + until : "Online — the board has internet",
+        // The portal only takes a login once it has let go of the board, so there is nothing to do
+        // early — but whoever is scoring the next match should know it is coming.
+        sub: soon ? "The login runs out at " + (until || "any moment") + ". Live scoring stops then until someone logs in again here — it takes a minute and a phone."
+          : "",
+        warn: soon,
+        form: null,
+        reveal: false,
+      };
+    }
+    if (u.status === "portal") {
+      return { state: "portal", line: net + " needs a login", sub: SETTINGS.liveScoring === "off"
+        ? "The board has no internet until it is logged in."
+        : "Live scoring is paused until the board is logged in.", warn: false, form: "phone", reveal: false };
+    }
+    if (u.status === "checking") return { state: "checking", line: "Checking the internet…", sub: "", warn: false, form: null, reveal: false };
+    return {
+      state: "offline", line: "No internet uplink",
+      sub: "The board is not on any Wi-Fi with internet. The scoreboard works without it; live scoring, the schedule and the clock wait.",
+      warn: false, form: null, reveal: true,
+    };
+  }
+
+  function renderUplink() {
+    const card = $("#uplinkCard");
+    if (!card) return;
+    // Until the card has read /api/uplink, the short form off the last status poll is the best there is.
+    const u = UPLINK === null ? (LAST_STATUS.uplink || null) : UPLINK;
+    const v = uplinkView(u);
+    const st = $("#upStat");
+    st.dataset.state = v.state;
+    $("#upStatTxt").textContent = v.line;
+    const sub = $("#upSub");
+    sub.hidden = !v.sub; sub.textContent = v.sub; sub.classList.toggle("warn", v.warn);
+    // A login already half-way through (the board is holding a session waiting for its code) wins
+    // over whatever the status line says: the SMS is on its way to someone's phone.
+    const serverCode = !!(UPLINK && UPLINK.step === "code");
+    const form = (upStep === "code" || serverCode) ? "code" : (v.form || (upReveal && v.reveal ? "phone" : null));
+    $("#upPhoneForm").hidden = form !== "phone";
+    if (form !== "phone") $("#upPhone").value = "";   // a number left behind in a hidden field is still a number left behind
+    $("#upCodeForm").hidden = form !== "code";
+    $("#upReveal").hidden = !(v.reveal && !form);
+    $("#upCheck").hidden = UPLINK === false;
+    $("#upCheck").disabled = upBusy;
+    $("#upSend").disabled = upBusy;
+    $("#upLogin").disabled = upBusy;
+  }
+  function uplinkError(msg) {
+    const e = $("#upErr");
+    e.hidden = !msg; e.textContent = msg || "";
+  }
+
+  // The short form off /api/status: the Game-tab banner, the header chip, the Diagnostics card.
+  function renderUplinkBrief(b) {
+    const u = b && typeof b === "object" ? b : null;
+    const portal = !!(u && u.status === "portal");
+    if (!portal) upBannerDismissed = false;   // the next logout is news again
+    const banner = $("#uplinkBanner");
+    if (banner) {
+      banner.hidden = !portal || upBannerDismissed;
+      // Only claim live scoring is paused when there is live scoring to pause.
+      $("#ubSub").textContent = SETTINGS.liveScoring === "off" ? "— the board has no internet" : "— live scoring is paused";
+    }
+    const tag = $("#uplinkTag");
+    if (tag) {
+      const onGame = !!$("#tab-manual") && $("#tab-manual").classList.contains("active");
+      const soon = uplinkSoon(u);
+      const show = soon || (portal && (!onGame || upBannerDismissed));
+      tag.hidden = !show;
+      tag.classList.toggle("bad", portal);
+      // Wide: "Wi-Fi until 17:30" / "Wi-Fi login". Narrow: the globe, then "17:30" / "Log in".
+      $("#uplinkTagPre").textContent = portal ? "Wi-Fi " : "Wi-Fi until ";
+      $("#uplinkTagTxt").textContent = portal ? "Log in" : soon ? uplinkUntil(u.validUntil) : "";
+      tag.title = portal ? "The hall Wi-Fi has logged the board out — tap to log in"
+        : soon ? "The hall Wi-Fi login runs out at " + uplinkUntil(u.validUntil) + " — tap to log in again" : "";
+      tag.setAttribute("aria-label", tag.title);
+    }
+    renderUplinkDiag(u ? { ...(UPLINK || {}), ...u } : (UPLINK || null));
+    // The card reads the full state; re-read it whenever the short form moves and someone is looking.
+    const key = u ? u.status + "|" + (u.validUntil || "") : "";
+    if (key !== upBriefKey) {
+      upBriefKey = key;
+      if (u && (settingsOpen() || diagOpen())) refreshUplink();
+    }
+  }
+  function renderUplinkDiag(u) {
+    const big = $("#dUplink"), sub = $("#dUplinkSub"), card = $("#dcUplink");
+    if (!big || !card) return;
+    if (!u) { big.textContent = "—"; sub.textContent = "not reported by this board"; setCard(card, ""); return; }
+    const soon = uplinkSoon(u), until = uplinkUntil(u.validUntil);
+    big.textContent = u.status === "online" ? "online" : u.status === "portal" ? "login needed"
+      : u.status === "checking" ? "checking…" : "no uplink";
+    sub.textContent = [u.ssid || "", u.status === "online" && until ? "logged in until " + until : "",
+      soon ? "runs out within the hour" : ""].filter(Boolean).join(" · ") || (u.status === "offline" ? "not on any Wi-Fi with internet" : "—");
+    setCard(card, u.status === "portal" ? "bad" : soon ? "warn" : "");
+  }
+  const settingsOpen = () => !!$("#tab-settings") && $("#tab-settings").classList.contains("active");
+
+  async function refreshUplink() {
+    try { UPLINK = await api("/api/uplink"); }
+    catch (e) { if (e && e.status === 404) UPLINK = false; /* else keep the last answer */ }
+    // The board dropped a login we were in the middle of (its 10-minute session ran out).
+    if (upStep === "code" && UPLINK && UPLINK.step !== "code" && UPLINK.status !== "online") {
+      upStep = "idle";
+      uplinkError("That login timed out — send a new code.");
+    }
+    renderUplink();
+    renderUplinkDiag(UPLINK || null);
+  }
+  const uplinkPost = (path, obj, ms) => api(path, {
+    method: "POST",
+    headers: { "content-type": "application/json", "X-Scorer-Pin": SCORER_PIN },
+    body: JSON.stringify(obj || {}),
+    signal: deadline(ms),
+  });
+  // api()'s wording blames the board; here the slow part is the hall's login page.
+  const uplinkFail = (e) => {
+    const m = (e && e.message) || "";
+    if (/didn't answer in time/.test(m)) return "The hall Wi-Fi's login page didn't answer in time — try again.";
+    if (e && e.status === 403) return "Unlock scoring first (the padlock at the top), then try again.";
+    return m || "Couldn't reach the board — try again.";
+  };
+  function uplinkBusy(on, btn, label) {
+    upBusy = on;
+    if (btn) { if (on) { btn.dataset.label = btn.textContent; btn.textContent = label; } else if (btn.dataset.label) btn.textContent = btn.dataset.label; }
+    renderUplink();
+  }
+
+  // Both login replies carry the board's view of the uplink as it stands afterwards.
+  function uplinkAdopt(r) { if (r && r.uplink && typeof r.uplink === "object") UPLINK = r.uplink; }
+  async function uplinkSendCode(ev) {
+    if (ev) ev.preventDefault();
+    if (upBusy) return;
+    const input = $("#upPhone");
+    const raw = String(input.value || "").trim();
+    const digits = raw.replace(/\D/g, "");
+    // A light check only — the board normalises the number and the portal has the last word.
+    if (!raw) { uplinkError("Type the mobile number the code should go to."); input.focus(); return; }
+    if (/[^\d\s+()\/.-]/.test(raw) || digits.length < 9 || digits.length > 15) {
+      uplinkError("That doesn't look like a mobile number — e.g. 079 123 45 67."); input.focus(); return;
+    }
+    uplinkError("");
+    const btn = $("#upSend");
+    uplinkBusy(true, btn, "Sending…");
+    try {
+      const r = await uplinkPost("/api/uplink/login", { phone: raw, epochMs: Date.now() }, UPLINK_LOGIN_TIMEOUT_MS);
+      uplinkAdopt(r);
+      if (!r || r.ok === false) { uplinkError((r && r.error) || "The hall Wi-Fi didn't send a code — try again."); renderUplink(); return; }
+      input.value = "";            // the board has it now; nothing of it stays on this tablet
+      upStep = "code";
+      if (UPLINK) UPLINK = { ...UPLINK, step: "code" };
+      const c = $("#upCode"); c.value = "";
+      renderUplink();
+      c.focus();   // straight to the code box, before the number box it replaces goes away under the keyboard
+      toast("Code sent by SMS");
+    } catch (e) {
+      uplinkError(uplinkFail(e));
+    } finally { uplinkBusy(false, btn); }
+  }
+  async function uplinkLogIn(ev) {
+    if (ev) ev.preventDefault();
+    if (upBusy) return;
+    const input = $("#upCode");
+    const code = String(input.value || "").replace(/\s/g, "");
+    if (!/^\d{4,8}$/.test(code)) { uplinkError("Type the code from the SMS — the digits only."); input.focus(); return; }
+    uplinkError("");
+    const btn = $("#upLogin");
+    uplinkBusy(true, btn, "Logging in…");
+    try {
+      const r = await uplinkPost("/api/uplink/code", { code, epochMs: Date.now() }, UPLINK_LOGIN_TIMEOUT_MS);
+      uplinkAdopt(r);
+      if (!r || r.ok === false) {
+        uplinkError((r && r.error) || "That code was not accepted — check the SMS and try again.");
+        // Wrong code: the board keeps the login open, so the code box stays for another go. Anything
+        // that ended it (timed out, or the portal took the code but the internet is not through yet)
+        // goes back to the start, which is where the board now is.
+        if (!(UPLINK && UPLINK.step === "code")) { upStep = "idle"; input.value = ""; dismissKeyboard(); }
+        renderUplink();
+        if (upStep === "code") input.select && input.select();
+        return;
+      }
+      input.value = "";
+      $("#upPhone").value = "";
+      upStep = "idle"; upReveal = false;
+      UPLINK = { ...(UPLINK || {}), status: r.status || "online", validUntil: r.validUntil || null, step: "idle" };
+      dismissKeyboard();   // blur BEFORE the code box is hidden — see dismissKeyboard
+      renderUplink();
+      const until = uplinkUntil(r.validUntil);
+      toast(until ? "Online until " + until : "Online");
+      refreshUplink();
+      refreshStatus();
+    } catch (e) {
+      uplinkError(uplinkFail(e));
+    } finally { uplinkBusy(false, btn); }
+  }
+  async function uplinkCheck() {
+    if (upBusy) return;
+    uplinkError("");
+    const btn = $("#upCheck");
+    uplinkBusy(true, btn, "Checking…");
+    try {
+      const r = await uplinkPost("/api/uplink/check", {}, UPLINK_CHECK_TIMEOUT_MS);
+      if (r && typeof r === "object" && r.status) UPLINK = { ...(UPLINK || {}), ...r };
+      await refreshUplink();
+      refreshStatus();
+    } catch (e) {
+      if (e && e.status === 404) { UPLINK = false; renderUplink(); }
+      else uplinkError(uplinkFail(e));
+    } finally { uplinkBusy(false, btn); }
+  }
+  // From the banner or the header chip: straight to the card, and show where it is.
+  function goToUplink() {
+    goToTab("settings");
+    const card = $("#uplinkCard");
+    if (!card) return;
+    card.scrollIntoView({ block: "start", behavior: "smooth" });
+    card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
+  }
+  $("#upPhoneForm").addEventListener("submit", uplinkSendCode);
+  $("#upCodeForm").addEventListener("submit", uplinkLogIn);
+  $("#upCheck").addEventListener("click", uplinkCheck);
+  $("#upReveal").addEventListener("click", () => { upReveal = true; uplinkError(""); renderUplink(); const i = $("#upPhone"); i.value = ""; i.focus(); });
+  $("#upRestart").addEventListener("click", () => {
+    // Back to the number. The board's half-finished session simply runs out; a new "Send code"
+    // replaces it.
+    upStep = "idle"; if (UPLINK) UPLINK = { ...UPLINK, step: "idle" };
+    uplinkError(""); $("#upCode").value = ""; $("#upPhone").value = "";
+    if (!uplinkView(UPLINK).form) upReveal = true;
+    renderUplink(); $("#upPhone").focus();
+  });
+  $("#ubLogin").addEventListener("click", goToUplink);
+  $("#ubClose").addEventListener("click", () => { upBannerDismissed = true; renderUplinkBrief(LAST_STATUS.uplink); });
+  $("#uplinkTag").addEventListener("click", goToUplink);
 
   // --- settings -----------------------------------------------------------
   // Persisted on the board, so they follow the scoreboard rather than the phone that set them.

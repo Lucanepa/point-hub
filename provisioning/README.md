@@ -74,6 +74,37 @@ do not delete it, because staging and then scanning to pick the right SSID is a 
   gateway IP a few seconds after boot. That rule is matched **per interface name**, so `wlan1` is
   managed automatically and needs no change.
 
+### The hall's open Wi-Fi — `--hall`
+
+```bash
+./setup-wlan1-client.sh --hall                     # Free_WLAN_KTZH, the KWI hall
+./setup-wlan1-client.sh --hall "Some_Other_Open"   # another open network
+```
+
+Creates (or, on every later run, puts back) an NM connection `hall-uplink` for an **open** SSID on
+`wlan1`: autoconnect priority `5`, route metric `60`, and
+`ipv4.dns-options "single-request-reopen,timeout:1,attempts:3"`. No passphrase is involved, so
+nothing is staged. Idempotent — re-running it is also how to repair a board edited by hand.
+
+Free_WLAN_KTZH is a Swisscom Public WLAN: joining is free, but until the board has done a Free-SMS
+login every HTTP request is redirected to `login.pwlan.ch`. That login is done **from the console**
+(Settings ▸ Hall internet: the scorer's mobile number, then the SMS code), because the board walks
+the portal itself — a login done in the tablet's own browser would log in the tablet, which is on
+the board's AP and not on the hall Wi-Fi at all. With automatic login ticked, which the board always
+does, the portal keeps the board's MAC logged in for about 24 h. The number is never stored.
+
+- **Priority 5 / metric 60**, below the house network (`ledbox-uplink`: 10 / 50) and above the Pi's
+  cabled `eth0` (100). A board that can see both joins the one with no login page.
+- **The DNS options are the part that matters.** glibc sends the A and AAAA queries for a name in
+  parallel from one socket, and the portal network's resolver drops one of the pair. The resolver
+  then waits out its full 5 s default before retrying, so *every* name lookup stalled 5 s — longer
+  than livePush's 2 s request timeout. Live scoring failed on every single point while `ping` by
+  address, and even the console, looked perfectly healthy. `single-request-reopen` sends the second
+  query from a fresh socket, which is what gets it answered; `timeout:1,attempts:3` caps whatever
+  stall is left at a second instead of five. Check it took effect with
+  `grep options /etc/resolv.conf` while `hall-uplink` is up (`--hall` prints it when it re-applies
+  to an active connection) — the options only apply if NetworkManager is writing `resolv.conf`.
+
 ### Adapter notes
 
 Tested with a Netgear A6210 (MT7612U, USB `0846:9053`). No driver install: `mt76x2u` is in-kernel

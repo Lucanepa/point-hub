@@ -122,7 +122,9 @@ async function storage() {
 
 // Interface names and state only. The SSID the board is joined to is deliberately absent: this
 // endpoint is reachable by anyone holding the scorer PIN on an open AP, and the hall's network
-// name is not theirs to collect.
+// name is not theirs to collect. (The one exception is GET /api/uplink, which names the hall Wi-Fi
+// only while a public login page is in the way — the scorer has to know which login the console is
+// asking for. A network the board is simply online through is never named.)
 async function net() {
   const addrs = os.networkInterfaces()
   const names = await fs.readdir('/sys/class/net').catch(() => [])

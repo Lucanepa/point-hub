@@ -64,6 +64,12 @@ export function loadConfig(env = process.env) {
     // schedule to on-demand reads from the console. (The auto pre-match also has its own switch
     // in Settings.)
     scheduleSync: bool(env.SCHEDULE_SYNC, true),
+    // Watch the uplink and offer the hall Wi-Fi login in the console (hallLogin.js). On by default;
+    // UPLINK_WATCH=0 stops the probe. The two URLs are for testing against a fake portal and
+    // default to Android's generate_204 and login.pwlan.ch.
+    uplinkWatch: bool(env.UPLINK_WATCH, true),
+    uplinkProbeUrl: env.UPLINK_PROBE_URL || '',
+    uplinkPortalUrl: env.UPLINK_PORTAL_URL || '',
     // OpenVolley relay HTTP base (for /api/match/list). Derived from relayUrl if unset:
     // ws->http, wss->https, and the relay's HTTP port is 5173 (Vite dev server / API host).
     relayHttpUrl: env.RELAY_HTTP_URL || httpFromWs(env.RELAY_URL || 'ws://127.0.0.1:8080'),

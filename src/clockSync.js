@@ -154,7 +154,12 @@ export class ClockSync {
   // Always resolves; never throws. `applied` says whether the clock actually moved and `reason`
   // says why not, because "nothing happened" is the normal outcome and the operator deserves to
   // be told which flavour of nothing it was.
-  async setFromConsole(epochMs) {
+  //
+  // `evenIfBusy` skips gate 4 and nothing else. Only the hall Wi-Fi login asks for it, and only
+  // after the portal's certificate was refused as not-yet-valid or expired: a board whose clock is
+  // behind a freshly renewed certificate cannot log in at all, and a login is worth one jump of a
+  // countdown. NTP, plausibility and "close enough" still decide.
+  async setFromConsole(epochMs, { evenIfBusy = false } = {}) {
     const t = Number(epochMs)
     if (!Number.isFinite(t)) {
       return { ok: false, applied: false, reason: 'invalid', error: 'epochMs must be a finite number' }
@@ -193,13 +198,14 @@ export class ClockSync {
     //    orphan-command TTLs (ledboxClient). Jumping the clock under a running countdown either
     //    expires it instantly or leaves it running for days. Unlock is normally before the first
     //    whistle, so this gate almost never fires — but "almost never" is not "never".
-    if (this.isBusy()) {
+    if (this.isBusy() && !evenIfBusy) {
       cklog.info(`deferred a ${Math.round(offsetMs / 1000)}s correction — match or countdown in flight`, { offsetMs })
       return { ok: true, applied: false, reason: 'busy', offsetMs }
     }
 
     // 5. Set it.
     const before = new Date(this.now()).toISOString()
+    if (evenIfBusy && this.isBusy()) cklog.warn(`moving the clock ${Math.round(offsetMs / 1000)}s during a match — the hall Wi-Fi login needs it`, { offsetMs })
     const out = await this._applyTime(t)
     if (out === null) {
       cklog.error('could not set the clock — `sudo date -s` failed', { offsetMs })

@@ -21,6 +21,7 @@ import { ClockSync } from './clockSync.js'
 import { SeasonSchedule } from './seasonSchedule.js'
 import { AutoPrepare, inWindow } from './autoPrepare.js'
 import { zurichDate } from './schedule.js'
+import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -186,7 +187,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -412,6 +413,20 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (typeof schedule.start === 'function') schedule.start()
     autoPrepare.start()
   }
+  // The hall's internet and its Wi-Fi login (see hallLogin.js). Probed every minute while it is
+  // not online, every ten when it is — only on a real boot, like the schedule: a test's hand-built
+  // config leaves the watch off, and points the probe at a fake portal (or nowhere) when it asks.
+  const uplink = uplinkIn || new Uplink({
+    file: path.resolve(stateHome, 'uplink.json'),
+    probeUrl: uplinkOptions.probeUrl,
+    portalUrl: uplinkOptions.portalUrl,
+  })
+  if (uplinkWatch) uplink.start()
+  // For the hall login routes below.
+  const fixClockFrom = (body) => (body && Number.isFinite(Number(body.epochMs))
+    ? () => clockSync.setFromConsole(Number(body.epochMs), { evenIfBusy: true })
+    : null)
+  const errKey = (msg) => Object.keys(UPLINK_ERR).find((k) => UPLINK_ERR[k] === msg) || 'other'
 
   // Put the wall clock on the panel and keep it there (see LedboxClient.showIdle's `screen`). A
   // running countdown is ended first (quietly, see stopCountdown's `repaint`): left running, its
@@ -569,6 +584,47 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     if (pathname === '/api/system' && req.method === 'GET') {
       return sendJson(res, 200, await systemInfo())
+    }
+    // GET /api/uplink — the hall internet: { status: online|portal|offline|checking, portal, ssid,
+    // validUntil, loggedInAt, step: idle|code, codeExpiresAt, checkedAt }. Open like every read.
+    // `ssid` is named only while the portal is in the way (a public network with a login page),
+    // so the scorer knows which login this is; otherwise null — see systemInfo.js on SSIDs.
+    if (pathname === '/api/uplink' && req.method === 'GET') {
+      return sendJson(res, 200, uplink.view())
+    }
+    // POST /api/uplink/check — look now instead of waiting for the next poll.
+    if (pathname === '/api/uplink/check' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      await readJson(req) // drain
+      return sendJson(res, 200, await uplink.check())
+    }
+    // POST /api/uplink/login { phone } — ask the hall's portal to text a code to this number.
+    // POST /api/uplink/code { code }  — finish the login with it.
+    // Always 200, like /api/schedule: a refusal is `{ ok:false, error }` in words the console shows
+    // as they are. The number goes straight to the portal and nowhere else — it is not logged (the
+    // request line carries no body, and logStore redacts it by key and by shape anyway), not saved,
+    // and not even kept for the code step. The scorer changes every match, so the console asks
+    // every time.
+    //
+    // Both also carry the console's `epochMs`. It is used only when the portal's certificate was
+    // refused for its dates — a board with no RTC whose clock is behind the certificate's renewal
+    // — and then it is adopted even during a match (see clockSync.js `evenIfBusy`): a scorer who
+    // cannot log in has no live scoring at all, which is worse than one jump of a countdown.
+    // The log line names the refusal by its key, not its words: the number example inside
+    // ERR.number would only come out of the redaction as "[phone]".
+    if (pathname === '/api/uplink/login' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req)
+      const r = await uplink.sendCode(body && body.phone, { fixClock: fixClockFrom(body) })
+      alog.info(r.ok ? 'hall Wi-Fi login: code requested' : `hall Wi-Fi login refused: ${errKey(r.error)}`, { ip: clientIp(req), ok: r.ok })
+      return sendJson(res, 200, { ...r, uplink: uplink.view() })
+    }
+    if (pathname === '/api/uplink/code' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req)
+      const r = await uplink.submitCode(body && body.code, { fixClock: fixClockFrom(body) })
+      alog.info(r.ok ? 'hall Wi-Fi login: online' : `hall Wi-Fi login: ${errKey(r.error)}`, { ip: clientIp(req), ok: r.ok, validUntil: r.validUntil || null })
+      return sendJson(res, 200, { ...r, uplink: uplink.view() })
     }
     // POST /api/manual
     if (pathname === '/api/manual' && req.method === 'POST') {
@@ -1315,6 +1371,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // So the console knows whether its clock is wanted. `synchronized:false` is the console's
       // cue to offer one at unlock; `true` means NTP has it and the offer would be ignored anyway.
       clock: clockSync.viewSync(),
+      // The hall internet, for the header: 'portal' means live scoring is paused until someone
+      // logs the board in (Settings ▸ Hall internet); validUntil is when the portal's auto login
+      // lapses. GET /api/uplink has the rest.
+      uplink: { status: uplink.state.status, validUntil: uplink.state.validUntil },
       ledbox: {
         connected: ledbox.ready === true, host: ledbox.host, port: ledbox.port, layout: ledbox.currentLayout,
         // What the idle screen is doing, so the console can show 'Show clock' as the active choice.
@@ -1472,6 +1532,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // appliance calls it on shutdown.
   server.stopBackground = () => {
     autoPrepare.stop()
+    uplink.stop()
+    uplink.login.dropSession()
     if (typeof schedule.stop === 'function') schedule.stop()
     offTrusted()
   }
