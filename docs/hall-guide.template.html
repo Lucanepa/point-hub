@@ -224,6 +224,8 @@
     <td><b>Don't touch the board</b> — it's probably fine. Check the wifi still says <code>ledbox_C0270</code> and mobile data is OFF. Walk closer. The page recovers by itself when the wifi comes back.</td></tr>
   <tr><td>Trouble 3 — Page won't open at all</td><td>Phone isn't on the board's wifi, or slipped to mobile data.</td>
     <td>Check the wifi says <code>ledbox_C0270</code>. Turn <b>mobile data OFF</b>. Reload <code>172.24.1.1:8890</code>. Wifi not listed at all → the board isn't powered / still booting (wait for the crest).</td></tr>
+  <tr><td>Trouble 3b — Club tablet app: "The board didn't answer here", or a connection / certificate error</td><td>The app's secure address can't be reached from this tablet right now. The board is almost certainly fine.</td>
+    <td>Tap <b>Open 172.24.1.1:8890</b> on that page — or open Chrome and type <code>172.24.1.1:8890</code> (SCAN 2 is the same address). Everything works there; the screen-awake tap is one extra step.</td></tr>
   <tr><td>Trouble 4 — Stuck on the PIN screen</td><td>Wrong PIN, or you've tripped the lockout.</td>
     <td>"Too many wrong PINs — try again in Ns" is the lockout: 5 tries, then 30s, doubling to 5 minutes. Wait it out. The PIN <b>cannot be recovered</b> from Settings — it's write-only. See Trouble 8.</td></tr>
   <tr><td>Trouble 5 — Board stuck on an old score</td><td>The link dropped and came back.</td>
@@ -247,7 +249,7 @@
   <li><b>Service on the board</b><span>ledbox-bridge</span></li>
   <li><b>Live log page</b><span>http://172.24.1.1:8890/logs</span></li>
   <li><b>Debug: board on the cable</b><span>192.168.5.1 — plug a laptop into the board's ethernet</span></li>
-  <li><b>Club tablet only</b><span>https://…:8891 — the bookmarked secure address; keeps the screen awake by itself. Ask if you need it.</span></li>
+  <li><b>Club tablet only</b><span>The Point Hub app (https://…:8891) — opens full screen and keeps the screen awake by itself. If it won't open: http://172.24.1.1:8890.</span></li>
 </ul>
 
 <p class="foot">The scoreboard runs its own software and boots to the KSC Wiedikon crest by itself — nothing to launch by hand, no separate box. Tech4Sport C0270, firmware 0.552 (KSCW build). Console: Point Hub.</p>

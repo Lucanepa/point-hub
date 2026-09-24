@@ -61,6 +61,9 @@ const CONTENT_TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  // The install manifest. Chrome accepts it as application/json too, but this is its registered
+  // type, and the one a strict parser (and our selftest) holds it to.
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
 }
 
 // The console, the mirror and the log page are all served from this very origin, so nothing we
@@ -204,6 +207,14 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     return h.digest('hex').slice(0, 12)
   })()
+  // Where the SAME console is served over HTTPS, when the board has a certificate — e.g.
+  // https://ledbox-c0270.noodlefish-pence.ts.net:8891. The appliance sets it from the loaded cert
+  // (see httpsOriginFromCert) and again on every renewal; null means no TLS listener. A console
+  // opened on plain http moves itself there when it can reach it: only a secure context gets the
+  // screen wake lock and can be installed as the tablet's app.
+  // `httpsValidTo` is the cert's expiry: past it the origin is no longer offered, even if the
+  // renewal never arrived to replace it.
+  let httpsOrigin = null, httpsValidTo = null
   // Completed-match log (History tab + CSV/JSON export).
   const history = new HistoryStore({ file: path.resolve(stateHome, 'history.json') })
   // The per-sport "last game" slot behind the New / Continue / Delete menu (see resumeStore.js).
@@ -529,6 +540,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   const server = http.createServer(handler)
   // Handed to the appliance so an optional https.Server can serve the identical implementation.
   server.handler = handler
+  server.setHttpsOrigin = (origin, validTo = null) => { httpsOrigin = origin || null; httpsValidTo = validTo || null }
 
   async function handleApi(req, res, pathname) {
     // Any API traffic means an operator has the control UI open (it polls /api/status every
@@ -1381,6 +1393,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       orientation: settings ? settings.values.orientation : 'behind',
       pinRequired: !!(settings && settings.values.scorerPin),
       build: consoleBuild,
+      httpsOrigin: httpsOrigin && !(httpsValidTo && Date.now() >= httpsValidTo) ? httpsOrigin : null,
       // So the console knows whether its clock is wanted. `synchronized:false` is the console's
       // cue to offer one at unlock; `true` means NTP has it and the offer would be ignored anyway.
       clock: clockSync.viewSync(),

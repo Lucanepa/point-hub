@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import https from 'node:https'
+import { X509Certificate } from 'node:crypto'
 import { loadConfig } from './config.js'
 import { LedboxClient } from './ledboxClient.js'
 import { MockLedbox } from './mockLedbox.js'
@@ -262,7 +263,19 @@ export async function startAppliance(config = loadConfig()) {
         tlsServer.listen(config.httpsPort, '0.0.0.0', resolve)
       })
       if (tlsServer) {
-        log.info(`control UI also on https://0.0.0.0:${config.httpsPort}  (secure context: wake lock, service worker, installable)`, { port: config.httpsPort })
+        const tlsPort = tlsServer.address().port
+        log.info(`control UI also on https://0.0.0.0:${tlsPort}  (secure context: wake lock, installable as the tablet's app)`, { port: tlsPort })
+        // The console's way here: /api/status names this origin, and a tablet that opened the board
+        // on plain http moves itself over (see web/index.html, "Secure address"). Re-derived on
+        // every renewal, so a cert re-issued for a renamed node points the tablets at the new name.
+        // The cert's expiry goes along, so the offer lapses WITH the cert: a renewal that never
+        // came must not keep sending tablets to an address Chrome will only show a warning for.
+        const announce = (cert) => {
+          const origin = httpsOriginFromCert(cert, tlsPort)
+          server.setHttpsOrigin(origin, certValidTo(cert))
+          if (!origin) log.warn('the TLS certificate names no DNS host, or is out of date — tablets on http will not be moved to https', { cert: config.tlsCert })
+        }
+        announce(fs.readFileSync(config.tlsCert))
         // Certs are Let's Encrypt via `tailscale cert`, so they roll every ~90 days. Swapping the
         // secure context in place is what keeps a renewal from needing a restart — restarting the
         // appliance to pick up a cert would mean the scoreboard blinking out mid-match, which is a
@@ -270,7 +283,7 @@ export async function startAppliance(config = loadConfig()) {
         stopCertWatch = watchCertificate({
           files: [config.tlsCert, config.tlsKey],
           read: readCert,
-          apply: (ctx) => tlsServer.setSecureContext(ctx),
+          apply: (ctx) => { tlsServer.setSecureContext(ctx); announce(ctx.cert) },
           log,
         })
       }
@@ -317,6 +330,29 @@ export async function startAppliance(config = loadConfig()) {
   })())
 
   return { server, sourceManager, manualSource, ledbox, livePush, close }
+}
+
+// The https origin a certificate is good for: its first DNS subjectAltName, plus the port unless
+// it is 443. That name is the one thing a tablet can reach the board by with the cert validating —
+// the AP's dnsmasq resolves it to 172.24.1.1, MagicDNS resolves it off-site — whereas the address
+// the tablet happened to use (172.24.1.1, a LAN IP) would fail the name check. A cert with no DNS
+// name (a bare-IP self-signed one), or bytes that do not parse, gives null: better no redirect than
+// one to an origin the browser will refuse. So does a cert outside its validity window at `now`:
+// Chrome would stop on a certificate warning there, which is no better.
+export function httpsOriginFromCert(certPem, port, now = Date.now()) {
+  let x509, san
+  try { x509 = new X509Certificate(certPem); san = x509.subjectAltName || '' } catch { return null }
+  if (!(now >= Date.parse(x509.validFrom) && now < Date.parse(x509.validTo))) return null
+  const dns = san.split(',').map((s) => s.trim()).find((s) => s.startsWith('DNS:'))
+  const host = dns && dns.slice(4).trim()
+  // A wildcard is not a host anyone can be sent to.
+  if (!host || host.includes('*')) return null
+  return `https://${host}${Number(port) === 443 ? '' : ':' + port}`
+}
+
+// When a certificate stops being valid, in ms since the epoch; null if it does not parse.
+export function certValidTo(certPem) {
+  try { return Date.parse(new X509Certificate(certPem).validTo) || null } catch { return null }
 }
 
 // Keep an HTTPS listener's certificate current without a restart. Returns a stop function.

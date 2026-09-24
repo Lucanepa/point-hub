@@ -145,6 +145,28 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   `provisioning/setup-wlan1-client.sh --hall`, which also carries the DNS fix that network needs.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
+- **The tablet's app** — with `TLS_CERT`/`TLS_KEY` set (`provisioning/setup-console-tls.sh`),
+  `/api/status` carries `httpsOrigin` (the cert's first DNS name + `HTTPS_PORT`; `null` without
+  TLS or once the cert has expired), and a console opened on `http://172.24.1.1:8890` moves itself
+  there when it can reach it — between matches, never mid-match (a *Switch* bar until then). From
+  the https address Chrome offers **Install app** (`web/manifest.webmanifest`): full screen,
+  landscape, screen kept awake from launch, no tap-to-start.
+  - **Install it once with internet.** Chrome on Android builds the app (a WebAPK) through
+    Google's servers; on the board's own Wi-Fi, which has none, the install can fail or fall back
+    to a plain shortcut. Install while the tablet has internet *and* reaches the board by its
+    tailnet name (Tailscale on the tablet, or the hall Wi-Fi when the board shares it), then launch
+    it once on the board's Wi-Fi to check it opens full screen, landscape, and stays lit.
+  - **The app is bound to that exact origin.** Renaming the tailnet node or changing
+    `HTTPS_PORT` means uninstalling and installing it again.
+  - **The first move to https asks for the PIN again.** Browser storage is per origin, so the
+    https console starts without what the http one remembered (scorer PIN, keep-awake, the
+    dismissed rotate tip). Once only.
+  - **If the app opens on "The board didn't answer here"**, the tablet could not look the name up
+    or reach it (Private DNS or Chrome Secure DNS set to a provider, mobile data carrying DNS, the
+    tablet on another network). That page is `web/sw.js` — a service worker that caches nothing
+    and only answers a page load that failed — and it links `http://172.24.1.1:8890`, which still
+    works. A lapsed certificate shows Chrome's own warning page instead (no worker runs there):
+    use the same plain address.
 ```bash
 npm run appliance                 # open http://<pi-ip>:8890  (or http://openvolley:8890 over Tailscale)
 MOCK=1 npm run appliance          # in-process mock LedBox, no hardware

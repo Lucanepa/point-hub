@@ -120,6 +120,9 @@ say "result"
 if [ "$RC" = 0 ]; then
   echo "  https://$DOMAIN:8891  — restart the appliance to pick it up:"
   echo "    sudo systemctl restart ledbox-bridge"
+  echo "  then install it on the tablet ONCE, while the tablet has internet and reaches that name"
+  echo "  (Chrome ▸ Install app — it is built through Google's servers). Renaming the node or changing"
+  echo "  HTTPS_PORT means reinstalling. README.md, \"The tablet's app\", has the rest."
 else
   echo "  incomplete — see the !! lines above. HTTP on :8890 is unaffected either way."
 fi

@@ -13,6 +13,14 @@
 <title>Point Hub — KSCW Scoreboard</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<!-- Installable as the tablet's app (Chrome: ⋮ ▸ Add to home screen / Install app) — only from the
+     https address, since a manifest on plain http is ignored. Launched from the home screen it opens
+     full screen, landscape, at /?app=1, with no browser bar to swipe away (see APP_MODE below).
+     There is deliberately NO service worker: Chrome has not required one to install since 108, and
+     one that cached this page would hold the tablet on an old console after a deploy — the thing
+     noteBuild() exists to prevent. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#ffffff">
 <style>
   :root{
     --bg:#ffffff; --card:#ffffff; --fill:#fafafc; --fg:#0A0B0D; --muted:#5a606b;
@@ -366,6 +374,11 @@
   #updateBar{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--blue);color:var(--fg);font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
   #updateBar[hidden]{display:none}
   #updateBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:#fff;font-weight:800;cursor:pointer}
+  /* Same bar, same place: the two never need to be read at once (both wait for a quiet board, and
+     the move to https reloads the page anyway), so the later one simply sits on top. */
+  #secureBar{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:96;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--blue);color:var(--fg);font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+  #secureBar[hidden]{display:none}
+  #secureBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:#fff;font-weight:800;cursor:pointer}
   #rotate{display:none}
   @media (orientation:portrait) and (max-width:600px){
     #rotate{display:flex;flex:0 0 auto;align-items:center;gap:8px;margin:0 8px 4px;padding:4px 4px 4px 10px;font-size:12px;color:var(--muted);
@@ -1329,6 +1342,7 @@
   </main>
 
   <div id="updateBar" role="status" hidden><span>Update ready — it installs itself between matches.</span><button type="button" id="updateNow">Reload now</button></div>
+  <div id="secureBar" role="status" hidden><span>Secure address available — it switches between matches.</span><button type="button" id="secureNow">Switch</button></div>
   <div id="fsGate" role="dialog" aria-modal="true" aria-labelledby="fsGateT">
     <div class="t" id="fsGateT">Point Hub</div>
     <div class="s">Opens full screen, in landscape, and keeps the screen awake for the match.</div>
@@ -1923,6 +1937,56 @@
     if (quietForReload()) { location.reload(); return; }
     if (!updateWaiting) { updateWaiting = true; $("#updateBar").hidden = false; }
   }
+  // ── Secure address ───────────────────────────────────────────────────────────────────────────
+  // The QR on the panel and the hall guide say http://172.24.1.1:8890, and that must keep working —
+  // but plain http is not a secure context, so the tablet gets no screen wake lock and cannot
+  // install the console as its app. When the board has a certificate, /api/status names the https
+  // origin it is valid for (its tailnet name, which the board's own AP resolves to itself), and the
+  // console moves there on its own. Only if it can actually get there: a tablet on the house LAN,
+  // with no tailnet, cannot resolve that name, so the address is probed first and a failed probe
+  // leaves everything on http, silently. The probe is `no-cors` — its answer is opaque and unread;
+  // what matters is that a TLS handshake with a valid cert completed, which is exactly what the
+  // move needs — so the board needs no cross-origin opening for it.
+  //
+  // Never mid-match (the same quiet test as a self-update; a "Switch" bar until then), and never
+  // twice: the tab remembers it went, so coming BACK to http — the back button, or a cert that
+  // fails on the far side — stays on http rather than bouncing. Quiet is not quite enough for a
+  // move made on its own, though: unlike an update, which only waits on a deploy, this one is
+  // waiting on the first match of every http session, and its moment comes just as the next one
+  // is being set up. So it also waits for nothing half-entered on screen — no dialog open, no
+  // number or code typed and not yet sent. A tap on Switch goes regardless.
+  //
+  // What the new origin does not bring along: the browser keeps storage per origin, so the https
+  // console starts without what the http one remembered — the scorer is asked for the PIN once more.
+  let SECURE_ORIGIN = null, secureProbe = null, secureOk = false;
+  function noteSecure(origin) {
+    if (!origin || secureOk || secureProbe || location.protocol !== "http:" || origin === location.origin) return;
+    try { if (sessionStorage.getItem("secureTried") === origin) return; } catch {}
+    SECURE_ORIGIN = origin;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 3000);
+    secureProbe = fetch(origin + "/api/status", { mode: "no-cors", cache: "no-store", signal: ctl.signal })
+      .then(() => { secureOk = true; goSecure(); })
+      .catch(() => { /* not reachable from here: stay on http, and don't ask again this load */ })
+      .finally(() => clearTimeout(timer));
+  }
+  // The sport picker is not on the list: it opens on every load, so the page on the far side opens
+  // on it just the same — unless a switch is already under way (its status line is showing).
+  const onScreen = (el) => !!el && el.getClientRects().length > 0;
+  const nothingHalfEntered = () =>
+    !["#edit", "#serveOrder", "#pinModal", "#confirm", "#gamePicker", "#matchEnd", "#spStatus"].some((q) => onScreen($(q)))
+    && ["#upPhone", "#upCode", "#lgPin"].every((q) => { const el = $(q); return !el || !el.value || !onScreen(el); });
+  function goSecure(now) {
+    if (!secureOk) return;
+    if (!now && !(quietForReload() && nothingHalfEntered())) { $("#secureBar").hidden = false; return; }
+    try { sessionStorage.setItem("secureTried", SECURE_ORIGIN); } catch {}
+    // Same path and query. App mode is carried by hand: it was taken out of the address bar at
+    // load (see APP_QUERY), and the tab's memory of it is per origin and stays behind.
+    const to = new URL(location.pathname + location.search + location.hash, SECURE_ORIGIN);
+    if (APP_QUERY) to.searchParams.set("app", "1");
+    location.replace(to.href);
+  }
+  $("#secureNow").addEventListener("click", () => goSecure(true));
   let LAST_STATUS = {};
   // Replies are applied in the order they were REQUESTED, not the order they arrive. The poll's
   // GET and the POST sendAction makes are in the air at the same time and do not come back in
@@ -1940,6 +2004,8 @@
     renderedSeq = seq;
     st = LAST_STATUS = { ...LAST_STATUS, ...st };
     if (st.build) noteBuild(st.build);
+    // Probed once; after that every quiet poll is a chance to make the move it is waiting for.
+    if (st.httpsOrigin) { if (secureOk) goSecure(); else noteSecure(st.httpsOrigin); }
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
     // Where the scorer sits rides on every poll, so a change made on another tablet lands here too.
@@ -5010,6 +5076,42 @@
   const inFS = () => document.fullscreenElement || document.webkitFullscreenElement;
   const isTouch = () => window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
   const isTablet = () => isTouch() && Math.min(screen.width, screen.height) >= 600;
+  // Launched as the installed app (the manifest's start_url is /?app=1). The app already runs with
+  // no browser bar, in landscape, so the gate's tap-to-go-full-screen has nothing left to do — and
+  // an app that opens on a "Tap to start" screen every morning is not an app. Read once, at load:
+  // Chrome also matches (display-mode: fullscreen) while an ordinary tab is element-full-screen,
+  // which is not the same thing and must not turn the gate off later in the evening.
+  //
+  // ?app=1 is only the backup, for a launcher that does not report display-mode, and it is taken
+  // back out of the address bar as soon as it is read: Chrome's "Open in Chrome" copies the app's
+  // current URL into an ordinary tab, and that tab must not inherit app mode — it would lose its
+  // tap to full screen. The tab keeps it for its own reloads (the self-update reloads) in
+  // sessionStorage, which a newly opened tab does not share.
+  const APP_QUERY = (() => {
+    if (!/(?:^|[?&])app=1(?:&|$)/.test(location.search)) {
+      try { return sessionStorage.getItem("appMode") === "1"; } catch { return false; }
+    }
+    try { sessionStorage.setItem("appMode", "1"); } catch {}
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete("app");
+      history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+    } catch {}
+    return true;
+  })();
+  const APP_MODE = APP_QUERY
+    || !!(window.matchMedia && (matchMedia("(display-mode: fullscreen)").matches || matchMedia("(display-mode: standalone)").matches));
+  // Only in the secure context the app lives in (a worker cannot register on http anyway): the
+  // no-cache worker that answers a failed launch with the way back to the plain address. See sw.js.
+  if ("serviceWorker" in navigator && window.isSecureContext && location.protocol === "https:") {
+    navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => {});
+  }
+  // Landscape, where the platform lets a page ask without a gesture (an installed app may; a tab is
+  // refused unless full screen). The manifest asks for landscape too; this covers a launcher that
+  // ignores it. Never fatal.
+  const lockLandscape = () => {
+    try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(() => {}); } catch {}
+  };
   async function toggleFS() {
     if (inFS()) {
       const exit = document.exitFullscreen || document.webkitExitFullscreen;
@@ -5066,15 +5168,25 @@
   // The gate: shown on touch devices whenever the page is not full screen — on load, and again
   // if full screen is left (swiping the bars away on Android drops it). "Continue without" is
   // remembered for this page load only, so the next evening starts with the gate again.
-  let fsSkipped = false;
+  //
+  // In the installed app it stays away — unless holding the screen on failed at launch (no wake
+  // lock granted, and the silent video refused without a gesture). Then it comes back for the one
+  // tap the video needs, since a tablet that sleeps mid-set is worse than a screen to tap past.
+  let fsSkipped = false, awakeRefused = false;
   const canFS = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
   const syncGate = () => {
-    document.body.classList.toggle("fs-gate", canFS && isTouch() && !inFS() && !fsSkipped);
+    const want = APP_MODE ? awakeRefused : canFS && isTouch() && !inFS();
+    document.body.classList.toggle("fs-gate", want && !fsSkipped);
   };
+  if (APP_MODE) {
+    $("#fsGateT").nextElementSibling.textContent = "Tap once so the screen stays awake for the match.";
+    $("#fsSkip").textContent = "Continue without";
+  }
   $("#fsGo").addEventListener("click", async () => {
-    await toggleFS();
-    // Same tap is the gesture the wake lock / no-sleep video need; the gate promised it.
-    if (!keepAwake) { try { await setKeepAwake(true); } catch {} }
+    if (APP_MODE) lockLandscape(); else await toggleFS();
+    // Same tap is the gesture the wake lock / no-sleep video need; the gate promised it. Asked
+    // again even with the toggle already on: on, but holding nothing, is why the gate is up.
+    if (!keepAwake || !awakeHeld()) { try { awakeRefused = !(await setKeepAwake(true)); } catch {} }
     syncGate();
   });
   $("#fsSkip").addEventListener("click", () => { fsSkipped = true; syncGate(); });
@@ -5137,32 +5249,52 @@
     if (noSleepVideo) { try { noSleepVideo.pause(); } catch {} }
   }
 
-  async function setKeepAwake(on) {
+  const awakeHeld = () => !!(wakeLock || (noSleepVideo && !noSleepVideo.paused));
+  // Resolves to whether the screen is now actually being held on. `quiet` skips the toasts, for the
+  // installed app switching it on by itself at launch — nobody asked, so nobody needs telling.
+  async function setKeepAwake(on, { quiet = false } = {}) {
     keepAwake = on;
     // Every copy, not just the first: a toggle that lights one button and leaves an identical
     // one dark on the next screen reads as two independent settings that disagree.
     $$(".js-awake").forEach((b) => b.classList.toggle("active", on));
     try { localStorage.setItem("keepAwake", on ? "1" : "0"); } catch {} // survive a reload mid-match
-    if (!on) { releaseWakeLock(); return; }
+    if (!on) { releaseWakeLock(); return false; }
     await acquireWakeLock();
-    const playing = noSleepVideo && !noSleepVideo.paused;
-    if (wakeLock) toast("Screen will stay awake");
-    else if (playing) toast("Screen will stay awake");
+    const held = awakeHeld();
+    if (quiet) return held;
+    if (held) toast("Screen will stay awake");
     // Both routes failed: say what the operator can actually do about it, rather than blaming
     // their browser for a restriction the page's own http:// origin imposes.
     else toast("Couldn't hold the screen on — set the tablet's display timeout to Never");
+    return held;
   }
 
   $$(".js-awake").forEach((b) => b.addEventListener("click", () => setKeepAwake(!keepAwake)));
   // A wake lock is dropped whenever the page is hidden (locked/backgrounded), and the video is
   // paused by some browsers too — re-acquire both when the page comes back while the toggle is on.
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && keepAwake) acquireWakeLock();
+  // In the installed app a refusal here brings the gate back, as it does at launch.
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState !== "visible" || !keepAwake) return;
+    await acquireWakeLock();
+    if (APP_MODE && !awakeHeld()) { awakeRefused = true; syncGate(); }
   });
+  // The installed app is the board's control screen and nothing else: keep-awake is simply on, from
+  // launch, with no tap. The wake lock needs a secure context and a visible page but no gesture, and
+  // the app only installs from the https address, so this normally just works; the visibilitychange
+  // handler above takes it again every time the tablet is woken or switched back to. If it is
+  // refused anyway, the gate comes back (see syncGate) for the tap the video fallback needs.
+  if (APP_MODE) {
+    lockLandscape();
+    setKeepAwake(true, { quiet: true }).then((held) => {
+      awakeRefused = !held;
+      syncGate();
+      if (!held) reportUi("app launch: keep-awake refused without a tap", { secure: window.isSecureContext, wakeLockApi: "wakeLock" in navigator }, "info");
+    });
+  }
   // Restore the toggle across a reload. The video needs a user gesture, so this can only light the
   // button and take the wakeLock path; the first tap anywhere on the page starts the video.
   try {
-    if (localStorage.getItem("keepAwake") === "1") {
+    if (!APP_MODE && localStorage.getItem("keepAwake") === "1") {
       setKeepAwake(true);
       document.addEventListener("pointerdown", function once() {
         document.removeEventListener("pointerdown", once);
