@@ -15,7 +15,7 @@
 # --first  the very first release: build VERSION_CODE as it is. Refused once RELEASED_CODE is set.
 set -euo pipefail
 
-NOTES=""
+NOTES=""   # shown to volunteers on the /app page and in the update banner: plain words, no jargon
 VNAME=""
 FIRST=0
 while [[ $# -gt 0 ]]; do

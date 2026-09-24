@@ -1818,9 +1818,11 @@ function appPage(v, ua) {
     <p class="ver" id="ver">Version ${escHtml(v.versionName || '?')} (${escHtml(v.versionCode ?? '?')})${mb}</p>
     ${v.notes ? `<p class="notes">${escHtml(v.notes)}</p>` : ''}
     <ol>
-      <li>Tap <b>Download Point Hub</b>, then open the file when Chrome says it is done.</li>
+      <li>Tap <b>Download Point Hub</b>. Chrome warns that the file might be harmful — every app that
+        does not come from the Play Store gets that warning. Tap <b>Download anyway</b>.</li>
+      <li>When the download finishes, tap <b>Open</b> (or find <b>pointhub.apk</b> in the Downloads).</li>
       <li><b>Only the first time:</b> Android says installing apps from Chrome is blocked. Tap <b>Settings</b>, turn on <b>Allow from this source</b>, go back, and tap <b>Install</b>.</li>
-      <li>Open <b>Point Hub</b>. It asks for the scoreboard Wi-Fi password and an admin PIN once, then opens the console.</li>
+      <li>Open <b>Point Hub</b> from the home screen. It asks for the scoreboard Wi-Fi password and an admin PIN once, then opens the console. Later versions install themselves from the board.</li>
     </ol>`
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">

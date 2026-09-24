@@ -386,6 +386,10 @@
   #secureBar{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:96;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--blue);color:var(--fg);font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
   #secureBar[hidden]{display:none}
   #secureBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:#fff;font-weight:800;cursor:pointer}
+  /* The way to the tablet app, where a volunteer first lands: the Tap-to-start gate and the sport
+     picker. Only in a touch browser — never inside the app itself, never on a laptop. */
+  .getapp{display:none}
+  html:not(.in-app) body.touch .getapp{display:flex;width:fit-content;align-self:center;margin-left:auto;margin-right:auto;align-items:center;justify-content:center;min-height:44px;padding:0 16px;margin-top:6px;border-radius:var(--r);border:1.5px solid var(--blue);color:var(--blue);font-weight:700;font-size:15px;text-decoration:none}
   #rotate{display:none}
   @media (orientation:portrait) and (max-width:600px){
     #rotate{display:flex;flex:0 0 auto;align-items:center;gap:8px;margin:0 8px 4px;padding:4px 4px 4px 10px;font-size:12px;color:var(--muted);
@@ -1362,6 +1366,7 @@
     <div class="s">Opens full screen, in landscape, and keeps the screen awake for the match.</div>
     <button type="button" id="fsGo">Tap to start</button>
     <button type="button" id="fsSkip">Continue without full screen</button>
+    <a class="getapp" href="/app">Get the Point Hub app for this tablet</a>
   </div>
   <!-- Portrait tip: one line, dismissible, remembered. Not a wall — see the #rotate CSS. -->
   <div id="rotate" role="note">
@@ -1466,6 +1471,7 @@
       <button type="button" id="spDiag" aria-label="Open diagnostics and the live log"><svg class="licon l-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg><span>Diagnostics</span></button>
     </div>
     <button class="spcancel" id="spCancel">Keep current sport</button>
+    <a class="getapp" id="spGetApp" href="/app">Get the Point Hub app for this tablet</a>
   </div>
 </div>
 
@@ -1585,6 +1591,8 @@
     location.reload();
   }
   if (IN_APP) document.documentElement.classList.add("in-app");
+  // A finger-driven browser (the tablet before it has the app): shows the "Get the app" links.
+  try { if (matchMedia("(pointer: coarse)").matches) document.body.classList.add("touch"); } catch {}
 
   // --- multi-sport --------------------------------------------------------
   // Three sports share ONE set of action verbs (see PROTOCOL.md); only the labels, the score
