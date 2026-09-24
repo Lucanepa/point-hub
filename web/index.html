@@ -363,6 +363,9 @@
   #fsGate .s{font-size:15px;color:var(--muted);max-width:420px}
   #fsGate #fsGo{font-size:22px;font-weight:800;min-height:72px;padding:0 40px;border-radius:var(--r);border:0;background:var(--blue);color:#fff;cursor:pointer}
   #fsGate #fsSkip{font-size:14px;min-height:44px;padding:0 16px;border:0;background:transparent;color:var(--muted);text-decoration:underline;cursor:pointer}
+  #updateBar{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--blue);color:var(--fg);font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+  #updateBar[hidden]{display:none}
+  #updateBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:#fff;font-weight:800;cursor:pointer}
   #rotate{display:none}
   @media (orientation:portrait) and (max-width:600px){
     #rotate{display:flex;flex:0 0 auto;align-items:center;gap:8px;margin:0 8px 4px;padding:4px 4px 4px 10px;font-size:12px;color:var(--muted);
@@ -1325,6 +1328,7 @@
     </div>
   </main>
 
+  <div id="updateBar" role="status" hidden><span>Update ready — it installs itself between matches.</span><button type="button" id="updateNow">Reload now</button></div>
   <div id="fsGate" role="dialog" aria-modal="true" aria-labelledby="fsGateT">
     <div class="t" id="fsGateT">Point Hub</div>
     <div class="s">Opens full screen, in landscape, and keeps the screen awake for the match.</div>
@@ -1901,6 +1905,24 @@
   // (state + ledbox); merging them over this keeps sport / pinRequired / matchId / mode intact.
   // Without it every click rendered `pinRequired: undefined` -> the lock dropped and the header
   // cleared, then the next poll put them back — the top bar visibly flickering on each action.
+  // ── Updates ──────────────────────────────────────────────────────────────────────────────────
+  // The tablet is the board's control screen and stays open for days. After a deploy the board
+  // reports a new build; the page reloads itself — but only at a quiet moment (no score on the
+  // board, no countdown running, nobody typing), never mid-rally. Until then a small banner says an
+  // update is waiting and offers to reload now.
+  let BOOT_BUILD = null, updateWaiting = false;
+  function quietForReload() {
+    const st = (LAST_STATUS && LAST_STATUS.state) || {};
+    const blank = !num(st.points_a) && !num(st.points_b) && !num(st.sets_won_a) && !num(st.sets_won_b);
+    const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    return (blank || LAST_STATUS.prematch) && !cdTimer && !typing;
+  }
+  function noteBuild(build) {
+    if (!BOOT_BUILD) { BOOT_BUILD = build; return; }
+    if (build === BOOT_BUILD) return;
+    if (quietForReload()) { location.reload(); return; }
+    if (!updateWaiting) { updateWaiting = true; $("#updateBar").hidden = false; }
+  }
   let LAST_STATUS = {};
   // Replies are applied in the order they were REQUESTED, not the order they arrive. The poll's
   // GET and the POST sendAction makes are in the air at the same time and do not come back in
@@ -1917,6 +1939,7 @@
     if (seq < renderedSeq) return;
     renderedSeq = seq;
     st = LAST_STATUS = { ...LAST_STATUS, ...st };
+    if (st.build) noteBuild(st.build);
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
     // Where the scorer sits rides on every poll, so a change made on another tablet lands here too.
@@ -5304,6 +5327,7 @@
     finally { if (pollOn) pollTimer = setTimeout(pollTick, 1500); }
   }
   const startPolling = () => { if (pollOn) return; pollOn = true; pollTick(); };
+  $("#updateNow").addEventListener("click", () => location.reload());
   bootLock();
   buildSteppers();
   // [data-font] is the card's SCREEN side; the setting it moves is the panel half that card shows.

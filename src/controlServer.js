@@ -10,6 +10,7 @@ import { LanSource } from './lanSource.js'
 import { toLeftRight } from './volleyballMapper.js'
 import { hexToRgb } from './ledboxProtocol.js'
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { HistoryStore } from './historyStore.js'
 import { ResumeStore } from './resumeStore.js'
 import { SPORT_LIST, getSport } from './sports.js'
@@ -192,6 +193,17 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
   const stateHome = dataDir ? path.resolve(dataDir) : path.resolve(webDir, '..', 'data')
+  // Which console this board serves. The tablet keeps the page open for days, so after a deploy it
+  // would go on running the old page against the new server; it compares this with the build it
+  // loaded and reloads itself at the next quiet moment. A hash of the files it loads, not a version
+  // number someone has to remember to bump. Computed once: a deploy restarts the bridge.
+  const consoleBuild = (() => {
+    const h = createHash('sha1')
+    for (const f of ['index.html', 'logs.html']) {
+      try { h.update(fs.readFileSync(path.join(webDir, f))) } catch {}
+    }
+    return h.digest('hex').slice(0, 12)
+  })()
   // Completed-match log (History tab + CSV/JSON export).
   const history = new HistoryStore({ file: path.resolve(stateHome, 'history.json') })
   // The per-sport "last game" slot behind the New / Continue / Delete menu (see resumeStore.js).
@@ -1368,6 +1380,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // the server side changes with it.
       orientation: settings ? settings.values.orientation : 'behind',
       pinRequired: !!(settings && settings.values.scorerPin),
+      build: consoleBuild,
       // So the console knows whether its clock is wanted. `synchronized:false` is the console's
       // cue to offer one at unlock; `true` means NTP has it and the offer would be ignored anyway.
       clock: clockSync.viewSync(),
