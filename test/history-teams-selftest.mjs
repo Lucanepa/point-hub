@@ -213,5 +213,25 @@ for (const Source of [ManualSource, BeachSource, BasketballSource]) {
   eq(emitted, 1, `${Source.name}: and the state event still fires`)
 }
 
+console.log('[10] set durations reach the saved match and its set-end lines, by team')
+{
+  let t = 0
+  const src = new ManualSource({ now: () => t })
+  const h = new HistoryStore()
+  const act = (a) => { src.apply(a); h.record(a, src.getState(), src.lastEvent, DATE, '19:00:00') }
+  act({ type: 'team', side: 'left', short: 'AAA' })
+  act({ type: 'team', side: 'right', short: 'BBB' })
+  const secs = [1500, 1320, 1410]
+  for (let set = 0; set < 3; set++) {
+    const side = src.getState().ends_swapped ? 'right' : 'left' // AAA, wherever it stands
+    act({ type: 'point', side, delta: 1 }); t += secs[set] * 1000
+    for (let i = 1; i < 25; i++) act({ type: 'point', side, delta: 1 })
+    if (set < 2) act({ type: 'next-set' })
+  }
+  const m = last(h)
+  eq(m && m.sets.map((r) => `${r.a}-${r.b}/${r.dur}`).join(','), '25-0/1500,25-0/1320,25-0/1410', 'every set keeps its dur, credited to the team that won it')
+  eq(m && m.events.filter((e) => e.type === 'set-end').map((e) => e.dur).join(','), '1500,1320,1410', 'the set-end lines carry it too')
+}
+
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)
 process.exit(fail === 0 ? 0 : 1)

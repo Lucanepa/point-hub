@@ -30,6 +30,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { BEACH } from './beachSource.js'
+import { setDur, durField } from './manualSource.js'
 import { BASKETBALL } from './basketballSource.js'
 import { log as logStore } from './logStore.js'
 
@@ -64,10 +65,13 @@ const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
 const SETS_TO_WIN = { volleyball: 3, beach: BEACH.setsToWin }
 
 // Is the match on this board finished? From MATCH STATE only — see toRow() for why not the event.
+// The manual and beach sources report the format the operator actually picked (`sets_to_win`); the
+// constant is only the fallback for a state that doesn't carry it (a linked OpenVolley match).
 function isOver(state, sport) {
-  return sport === 'basketball'
-    ? !!state.over
-    : num(state.sets_won_a) >= SETS_TO_WIN[sport] || num(state.sets_won_b) >= SETS_TO_WIN[sport]
+  if (sport === 'basketball') return !!state.over
+  const reported = Number(state.sets_to_win)
+  const toWin = Number.isInteger(reported) && reported > 0 ? reported : SETS_TO_WIN[sport]
+  return num(state.sets_won_a) >= toWin || num(state.sets_won_b) >= toWin
 }
 
 const otherSide = (s) => (s === 'left' ? 'right' : s === 'right' ? 'left' : s)
@@ -124,7 +128,11 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
     // volleyball/beach the app shows the set being played — counted from set_results where the
     // source keeps them, else OpenVolley's 1-based `current_set` (a relay liveState carries no
     // set_results at all, so counting alone pinned every linked match at "Set 1").
-    period: isBasketball ? num(state.period) : (setResults.length ? setResults.length + 1 : num(state.current_set) || 1),
+    // Once the match is final there is no next set: report the last one played, or /live shows
+    // "Set 4" under a 3:0 result.
+    period: isBasketball ? num(state.period)
+      : setResults.length ? setResults.length + (status === 'final' ? 0 : 1)
+      : num(state.current_set) || 1,
     side_a: 'left',
     team_a_name: state.team_a_name ?? '',
     team_a_short: state.team_a_short ?? '',
@@ -146,7 +154,11 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
     // Volleyball/beach: who serves. Basketball: the possession arrow — the board
     // uses the same left/right field, and so does the app.
     serving_team: (aOnRight ? otherSide(state.serving_team) : state.serving_team) ?? null,
-    set_results: setResults.map((r) => ({ a: num(r.a), b: num(r.b) })),
+    // `dur` (the set's playing time in whole seconds, see manualSource) rides along where the source
+    // timed the set, and is simply absent where it didn't — a set resumed mid-play after a restart,
+    // a linked OpenVolley match, a hand-typed result. The app sums them into the match time only
+    // when every set has one, so a guessed value here would be worse than none.
+    set_results: setResults.map((r) => ({ a: num(r.a), b: num(r.b), ...durField(setDur(r)) })),
   }
 }
 

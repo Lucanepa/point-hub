@@ -23,7 +23,7 @@
 
 import { EventEmitter } from 'node:events'
 import { formatRules } from './settings.js'
-import { UndoJournal, undoLabel } from './manualSource.js'
+import { UndoJournal, undoLabel, monoNow, setDur, durField, elapsedSecs, keepsSetStart } from './manualSource.js'
 
 // Beach rule constants — the only knobs that differ from the indoor model. bestOf/setsToWin are
 // the DEFAULT format only: the operator can pick one in Settings ▸ Match format, so the live
@@ -65,6 +65,7 @@ export class BeachSource extends EventEmitter {
     this.lastEvent = null // transient: notable event from the last apply() (set-end / match-end / switch-due / tech-timeout / set-closed / undo)
     this.lastJournaled = false // transient: did the last apply() add an undo step? (see manualSource)
     this.journal = new UndoJournal()
+    this._now = typeof opts?.now === 'function' ? opts.now : monoNow // see manualSource
     this.bestOf = BEACH.bestOf
     this.setFormat(opts)
     this._fromLiveState(NEUTRAL)
@@ -126,7 +127,7 @@ export class BeachSource extends EventEmitter {
     // model had already changed, leaving the source half-loaded and out of step with the board.
     const results = (Array.isArray(s.set_results) ? s.set_results : [])
       .filter((r) => r && typeof r === 'object')
-      .map((r) => ({ left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)) }))
+      .map((r) => ({ left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)), ...durField(setDur(r)) }))
     this.m = {
       leftName: pick(s.team_a_name, s.team_b_name) ?? '',
       leftShort: pick(s.team_a_short, s.team_b_short) ?? '',
@@ -147,6 +148,8 @@ export class BeachSource extends EventEmitter {
       // Serve player (1|2) per pair, honouring side_a like every other field.
       leftServer: player(pick(s.server_a, s.server_b)),
       rightServer: player(pick(s.server_b, s.server_a)),
+      // The current set's start on the monotonic clock — never from a state (see manualSource).
+      setStart: null,
     }
     // "Has this pair served yet" flags. Use them if the state carried them; otherwise seed from
     // the serving side (so a bare set-state still tracks flips correctly from that point on).
@@ -234,7 +237,8 @@ export class BeachSource extends EventEmitter {
       served_a: m.leftServed, served_b: m.rightServed,
       serve_player: m.serving === 'left' ? m.leftServer : m.serving === 'right' ? m.rightServer : 0,
       ends_swapped: m.endsSwapped, // see manualSource.getState()
-      set_results: this.results.map((r) => ({ a: r.left, b: r.right })),
+      set_results: this.results.map((r) => ({ a: r.left, b: r.right, ...durField(r.dur) })),
+      sets_to_win: this._rules().toWin, // see manualSource.getState()
     }
   }
 
@@ -296,6 +300,8 @@ export class BeachSource extends EventEmitter {
           }
           // Rally scoring: the side that wins the point serves next.
           m.serving = side
+          // The set's clock starts at its first rally, from 0-0 only (see manualSource).
+          if (before + m[other + 'Points'] === 0) m.setStart = this._now()
           if (!wonBefore && wonNow && !this.setClosed) {
             // Set win: first to 21 (15 in the deciding set) by >=2, uncapped. Fires once, on the
             // transition — and `setClosed` keeps it to once per set. The SET ENDED prompt is not
@@ -303,7 +309,8 @@ export class BeachSource extends EventEmitter {
             // correcting; at 21-23 that used to award a second set and the board read 1-1 on a set
             // only one pair had won.
             m[side + 'Sets'] = clamp0(m[side + 'Sets'] + 1)
-            this.results.push({ left: m.leftPoints, right: m.rightPoints })
+            // setStart stays: a "−" that takes this set back leaves it running from the same rally.
+            this.results.push({ left: m.leftPoints, right: m.rightPoints, ...durField(elapsedSecs(m.setStart, this._now())) })
             this.setClosed = true
             this.lastEvent = m[side + 'Sets'] >= toWin ? 'match-end' : 'set-end'
           } else if (!wonNow) {
@@ -400,6 +407,7 @@ export class BeachSource extends EventEmitter {
         // other has yet to serve. The operator can re-declare the whole order via `serve-order`.
         m.leftServed = m.serving === 'left'
         m.rightServed = m.serving === 'right'
+        m.setStart = null // its clock starts at its first rally, not at the interval
         this.setClosed = false // a fresh set can be won again
         break
       }
@@ -416,9 +424,12 @@ export class BeachSource extends EventEmitter {
       case 'reset':
         this._fromLiveState(NEUTRAL)
         break
-      case 'set-state':
+      case 'set-state': {
+        const prevM = this.m, prevResults = this.results
         this._fromLiveState(action.state || NEUTRAL)
+        if (keepsSetStart(prevM, prevResults, this.m, this.results)) this.m.setStart = prevM.setStart
         break
+      }
       default:
         return // unknown action (incl. indoor-only 'sub'): no-op
     }
@@ -702,6 +713,27 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     s.apply({ type: 'undo' })
     ok(s.lastEvent === 'undo' && s.getState().server_a === 1 && s.getState().serving_team === 'right', 'undo restores the server and the serve')
     ok(s.undoLabel === 'Point B/B', 'the next undo is labelled with the pair')
+  }
+
+  // Set durations, as indoors: first rally to set point, monotonic, whole seconds, undo-safe, and
+  // never guessed for a set resumed mid-play.
+  {
+    let t = 0
+    const s = new BeachSource({ now: () => t })
+    pt(s, 'left'); t += 1080000
+    let e = null
+    for (let i = 1; i < 21; i++) e = pt(s, 'left') // 21-0
+    ok(e === 'set-end' && s.getState().set_results[0].dur === 1080, 'a beach set records its playing time (18:00 → 1080 s)')
+    s.apply({ type: 'undo' })
+    ok(s.getState().set_results.length === 0 && s.m.setStart === 0, 'undoing the set point removes the dur and keeps the running start')
+    pt(s, 'left')
+    s.apply({ type: 'next-set' })
+    ok(s.m.setStart === null, 'next-set clears the start')
+    const r = new BeachSource({ now: () => t })
+    r.apply({ type: 'set-state', state: { ...s.getState(), points_a: 12, points_b: 3 } })
+    for (let i = 0; i < 9; i++) pt(r, 'left') // 21-3
+    const res = r.getState().set_results
+    ok(res[0].dur === 1080 && res.length === 2 && !('dur' in res[1]), 'after a restore the finished set keeps its dur, the resumed one gets none')
   }
 
   console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

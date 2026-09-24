@@ -83,6 +83,48 @@ export function undoLabel(action, m, words = {}) {
   }
 }
 
+// Set durations — shared by the volleyball and beach sources (beach imports these from here). A
+// set's `dur` is its playing time in whole seconds, from the first scored rally to the set-winning
+// point, read off the MONOTONIC clock: the board has no RTC, so its wall clock can jump by hours
+// when NTP finally lands mid-match, and a set that "took" -3 h is worse than one with no time. The
+// start (`m.setStart`) lives on the model so the undo journal's snapshots carry it — undoing a set
+// point takes the dur off with the result and leaves the set running from the same first rally.
+// It is NEVER restored from a saved state: monotonic time does not survive a restart, so a set
+// resumed mid-play has no start and records no dur (omitted, not guessed). Sets already finished
+// keep the dur they were saved with. (The one exception is this same process reloading the board
+// it already holds, unchanged — see keepsSetStart below.)
+// By definition the clock starts ON the first point, so the first rally's own playing time is not
+// in the dur: a set is short by one rally (typically 20-40 s). The board has no reliable rally-start
+// signal (the serve tap is optional and often skipped), and a guessed allowance would be worse.
+export const monoNow = () => performance.now()
+
+// A result entry's dur, if it carries a believable one; undefined otherwise (absent, junk, negative).
+export function setDur(r) {
+  const d = r && r.dur != null ? Number(r.dur) : NaN
+  return Number.isFinite(d) && d >= 0 ? Math.round(d) : undefined
+}
+
+// `{ dur }` for a result entry or getState(), or nothing — so an untimed set carries no key at all
+// rather than a null the app would have to tell apart from 0.
+export const durField = (d) => (d != null ? { dur: d } : {})
+
+// Whole seconds from `start` to `now` on the monotonic clock, or undefined when the set had no start.
+export const elapsedSecs = (start, now) =>
+  (start == null ? undefined : Math.max(0, Math.round((now - start) / 1000)))
+
+// A set-state that reloads the very board this source already holds — same names, same score, same
+// finished sets, in the same physical places (the console's Continue after "Just show the clock",
+// which never touched the score) — is not a restart: the monotonic start this process took is still
+// valid, so the set in play keeps it instead of losing its dur. Anything that differs (a typed
+// score, another match) is a board edit and the set goes untimed, as documented above.
+export function keepsSetStart(prevM, prevResults, m, results) {
+  if (!prevM || prevM.setStart == null) return false
+  const same = (k) => prevM[k] === m[k]
+  if (!['leftName', 'rightName', 'leftPoints', 'rightPoints', 'leftSets', 'rightSets'].every(same)) return false
+  if (prevResults.length !== results.length) return false
+  return prevResults.every((r, i) => r.left === results[i].left && r.right === results[i].right)
+}
+
 // Indoor volleyball is best-of-5 by default: 3 sets take the match, and the 5th is the deciding
 // set. The operator can pick best-of-3 (Settings ▸ Match format), so the numbers are NOT constants
 // here — they come from settings.formatRules(), the one place that turns `bestOf` into sets-to-win
@@ -98,6 +140,9 @@ export class ManualSource extends EventEmitter {
     this.lastEvent = null // transient: the notable event from the last apply() (set-end / match-end / switch-due / set-closed / undo)
     this.lastJournaled = false // transient: did the last apply() add an undo step? (the history keeps its own in step)
     this.journal = new UndoJournal()
+    // The monotonic clock set durations are measured on. Injectable only so the selftests can play
+    // a set in no time; the appliance always gets performance.now().
+    this._now = typeof opts?.now === 'function' ? opts.now : monoNow
     this.bestOf = DEFAULT_BEST_OF
     this.setFormat(opts)
     this._fromLiveState(NEUTRAL)
@@ -150,7 +195,7 @@ export class ManualSource extends EventEmitter {
     // source that no longer matched the board until the next action.
     const results = (Array.isArray(s.set_results) ? s.set_results : [])
       .filter((r) => r && typeof r === 'object')
-      .map((r) => ({ left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)) }))
+      .map((r) => ({ left: num(pick(r.a, r.b)), right: num(pick(r.b, r.a)), ...durField(setDur(r)) }))
     this.m = {
       leftName: pick(s.team_a_name, s.team_b_name) ?? '',
       leftShort: pick(s.team_a_short, s.team_b_short) ?? '',
@@ -171,6 +216,9 @@ export class ManualSource extends EventEmitter {
       // every other field here, so it does not care about side_a. Taken from the state when it
       // carries it (the resume slot does); a state that doesn't say keeps what we had.
       endsSwapped: s.ends_swapped != null ? !!s.ends_swapped : !!(this.m && this.m.endsSwapped),
+      // When the set on the board started, on the monotonic clock. Never taken from a state — see
+      // setDur above: whatever started before this load was on a clock that may no longer exist.
+      setStart: null,
     }
     this.results = results
     this._syncClosed()
@@ -259,7 +307,11 @@ export class ManualSource extends EventEmitter {
       // where they started. The match history needs it to keep crediting a point to the TEAM that
       // scored it rather than to whoever happens to be standing on the left after a change of ends.
       ends_swapped: m.endsSwapped,
-      set_results: this.results.map((r) => ({ a: r.left, b: r.right })),
+      set_results: this.results.map((r) => ({ a: r.left, b: r.right, ...durField(r.dur) })),
+      // The format the operator picked, as sets-to-win. livePush decides 'final' from this; without
+      // it a best-of-3 won 2:0 read 'final' only on the push carrying the match-end event, and the
+      // next tap (serve, re-attach, restore) published it as 'live' again, in 'Set 3'.
+      sets_to_win: formatRules(this.bestOf, 0, 0).toWin,
     }
   }
 
@@ -314,6 +366,9 @@ export class ManualSource extends EventEmitter {
           m.serving = side
           // Record who opened the set — the next set's first serve alternates off it (FIVB 12.1.2).
           if (m.firstServer == null && m.leftPoints + m.rightPoints === 1) m.firstServer = wasServing
+          // The first rally of the set starts its clock. Keyed on the board having been at 0-0, so a
+          // set resumed or typed in mid-play never starts one and its dur is left out.
+          if (before + m[other + 'Points'] === 0) m.setStart = this._now()
           if (!wonBefore && wonNow && !this.setClosed) {
             // Set win: first to 25 (15 in the deciding set) by >=2, uncapped. Fires once, on the
             // transition — and `setClosed` keeps it to once per set. The SET ENDED prompt is not
@@ -321,7 +376,8 @@ export class ManualSource extends EventEmitter {
             // correcting; at 25-27 that used to award a second set and the board read 1-1 on a set
             // only one team had won.
             m[side + 'Sets'] = clamp0(m[side + 'Sets'] + 1)
-            this.results.push({ left: m.leftPoints, right: m.rightPoints })
+            // setStart stays: a "−" that takes this set back leaves it running from the same rally.
+            this.results.push({ left: m.leftPoints, right: m.rightPoints, ...durField(elapsedSecs(m.setStart, this._now())) })
             this.setClosed = true
             this.lastEvent = m[side + 'Sets'] >= toWin ? 'match-end' : 'set-end'
           } else if (deciding && before < DECIDER_SWITCH_AT && m[other + 'Points'] < DECIDER_SWITCH_AT && m[side + 'Points'] >= DECIDER_SWITCH_AT) {
@@ -404,6 +460,7 @@ export class ManualSource extends EventEmitter {
         if (!intoDeciding) this._swap()
         // Whoever opens the new set is its first server (the swap above has already moved sides).
         m.firstServer = m.serving
+        m.setStart = null // its clock starts at its first rally, not at the interval
         this.setClosed = false // a fresh set can be won again
         break
       }
@@ -420,9 +477,12 @@ export class ManualSource extends EventEmitter {
       case 'reset':
         this._fromLiveState(NEUTRAL)
         break
-      case 'set-state':
+      case 'set-state': {
+        const prevM = this.m, prevResults = this.results
         this._fromLiveState(action.state || NEUTRAL)
+        if (keepsSetStart(prevM, prevResults, this.m, this.results)) this.m.setStart = prevM.setStart
         break
+      }
       default:
         return // unknown action: no-op (server validates before calling)
     }
@@ -747,6 +807,70 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     r.apply({ type: 'reset' })
     r.apply({ type: 'undo' })
     ok(r.getState().points_a === 2, 'undo brings a reset match back')
+  }
+
+  // Set durations: first rally to set point on the monotonic clock, in whole seconds, on the result.
+  {
+    let t = 5000 // the monotonic clock's origin is arbitrary; a set is timed from its own first rally
+    const s = new ManualSource({ now: () => t })
+    t += 60000 // the warm-up, before the first rally, is not part of the set
+    pt(s, 'left')
+    t += 1499400
+    for (let i = 1; i < 24; i++) pt(s, 'left') // 24-0
+    t += 600
+    ok(pt(s, 'left') === 'set-end' && s.getState().set_results[0].dur === 1500, 'a set records its playing time (25:00 → 1500 s)')
+    // Undo of the set point takes the dur off with the result and leaves the set running.
+    s.apply({ type: 'undo' })
+    ok(s.getState().set_results.length === 0 && s.m.setStart === 65000, 'undoing the set point removes the dur and keeps the running start')
+    t += 30000
+    pt(s, 'left')
+    ok(s.getState().set_results[0].dur === 1530, 'and the real set point is timed from the same first rally')
+    // So does the "−" that takes a mis-tapped set back.
+    s.apply({ type: 'point', side: 'left', delta: -1 })
+    ok(s.getState().set_results.length === 0 && s.m.setStart === 65000, 'the "−" on a set point also keeps the set running')
+    pt(s, 'left')
+    // The interval between sets is not part of the next one either.
+    s.apply({ type: 'next-set' })
+    ok(s.m.setStart === null, 'next-set clears the start: the new set has not begun yet')
+    t += 180000
+    pt(s, 'right')
+    t += 900000
+    for (let i = 1; i < 25; i++) pt(s, 'right')
+    const st = s.getState()
+    ok(st.set_results.map((r) => r.dur).join(',') === '1530,900', 'set 2 is timed from its own first rally')
+    ok(st.set_results[0].b === 25 && st.set_results[0].dur === 1530, 'the dur travels with its set across the change of ends')
+    // Restarted mid-set: finished sets keep their dur, the set in play gets none — never a guess.
+    const r = new ManualSource({ now: () => t })
+    r.apply({ type: 'set-state', state: { ...st, points_a: 10, points_b: 12, set_results: st.set_results } })
+    ok(r.getState().set_results.map((x) => x.dur).join(',') === '1530,900', 'restored sets keep the dur they were saved with')
+    t += 5000
+    for (let i = 0; i < 15; i++) pt(r, 'left') // 25-12
+    ok(r.getState().set_results.length === 3 && !('dur' in r.getState().set_results[2]), 'a set resumed mid-play records no dur')
+    // Restored at 0-0 between sets: nothing was missed, so the next set is timed normally.
+    const z = new ManualSource({ now: () => t })
+    z.apply({ type: 'set-state', state: { ...st, points_a: 0, points_b: 0 } })
+    pt(z, 'left'); t += 700000
+    for (let i = 1; i < 25; i++) pt(z, 'left')
+    ok(z.getState().set_results[2]?.dur === 700, 'a set that starts after the restore is timed')
+    // A result typed or pushed without a believable dur carries none.
+    const j = mk()
+    j.apply({ type: 'set-state', state: { sets_won_a: 1, set_results: [{ a: 25, b: 20, dur: -1 }, { a: 1, b: 2, dur: 'x' }] } })
+    ok(j.getState().set_results.every((x) => !('dur' in x)), 'a junk dur in a loaded state is dropped')
+    // Same process reloads its own board unchanged (Continue after "Just show the clock"): the set
+    // in play keeps its start. A board that differs is an edit and goes untimed.
+    const c = new ManualSource({ now: () => t })
+    pt(c, 'left'); const began = c.m.setStart
+    t += 400000
+    for (let i = 0; i < 9; i++) pt(c, 'right') // 1-9
+    c.apply({ type: 'set-state', state: c.getState() })
+    ok(c.m.setStart === began, 'an unchanged same-process reload keeps the running set start')
+    t += 200000
+    for (let i = 0; i < 16; i++) pt(c, 'right') // 1-25
+    ok(c.getState().set_results[0].dur === 600, 'and the set is timed from its real first rally')
+    const e = new ManualSource({ now: () => t })
+    pt(e, 'left')
+    e.apply({ type: 'set-state', state: { ...e.getState(), points_a: 7 } })
+    ok(e.m.setStart === null, 'a reload that changes the score drops the start (board edit)')
   }
 
   // A null options blob must not take the source down at construction.

@@ -6,6 +6,7 @@
 
 import { createLivePush, toRow } from '../src/livePush.js'
 import { ManualSource } from '../src/manualSource.js'
+import { BeachSource } from '../src/beachSource.js'
 import { BasketballSource } from '../src/basketballSource.js'
 import { SourceManager } from '../src/sourceManager.js'
 
@@ -43,6 +44,98 @@ console.log('\ntoRow — volleyball')
   assert(row.fouls_a === 0, 'volleyball reports no fouls')
   assert(row.period === 1, 'period is the set being played')
   assert(row.over === false, 'not over at 0 sets')
+}
+
+// ── 1b. a finished match reports the last set played, not a set 4 that never happened ──
+console.log('\ntoRow — volleyball final')
+{
+  const vb = new ManualSource({ bestOf: 5 })
+  for (let set = 0; set < 3; set++) {
+    // Scored on whichever side team A stands after the change of ends, so this really is 3:0.
+    const side = vb.getState().ends_swapped ? 'right' : 'left'
+    for (let p = 0; p < 25; p++) vb.apply({ type: 'point', side, delta: 1 })
+    if (set < 2) vb.apply({ type: 'next-set' })
+  }
+  const st = vb.getState()
+  const mid = toRow({ ...st, set_results: st.set_results.slice(0, 2), sets_won_a: 2 }, null, 'volleyball')
+  assert(mid.period === 3, 'mid-match the set being played is results + 1')
+  const row = toRow(st, 'match-end', 'volleyball')
+  assert(row.status === 'final' && toRow(st, null, 'volleyball').status === 'final', '3:0 is final (from the state, not only the event)')
+  assert(row.period === 3, 'a 3:0 final reports set 3, not set 4')
+}
+
+// ── 1b'. 'final' follows the format the operator picked, not a fixed best-of-5 / best-of-3 ──
+console.log('\ntoRow — final in the picked format')
+{
+  // Plays `sets` sets to team A, scoring on whichever side it stands after each change of ends.
+  const win = (src, sets, target) => {
+    for (let set = 0; set < sets; set++) {
+      const side = src.getState().ends_swapped ? 'right' : 'left'
+      for (let p = 0; p < target; p++) src.apply({ type: 'point', side, delta: 1 })
+      if (set < sets - 1) src.apply({ type: 'next-set' })
+    }
+    return src.getState()
+  }
+  const vb3 = win(new ManualSource({ bestOf: 3 }), 2, 25)
+  assert(vb3.sets_to_win === 2, 'a best-of-3 indoor board reports sets_to_win 2')
+  const later = toRow(vb3, null, 'volleyball')
+  assert(toRow(vb3, 'match-end', 'volleyball').status === 'final' && later.status === 'final',
+    'best-of-3 indoor won 2:0 stays final on a later emit with no event')
+  assert(later.period === 2, 'and reports set 2, not a set 3 that never happened')
+
+  const bh5 = new BeachSource({ bestOf: 5 })
+  const two = win(bh5, 2, 21)
+  assert(two.sets_to_win === 3 && toRow(two, null, 'beach').status === 'live',
+    'a best-of-5 beach board at 2:0 is still live (not final at the beach default of 2)')
+  bh5.apply({ type: 'next-set' })
+  const side = bh5.getState().ends_swapped ? 'right' : 'left'
+  for (let p = 0; p < 21; p++) bh5.apply({ type: 'point', side, delta: 1 })
+  const three = bh5.getState()
+  assert(three.sets_won_a + three.sets_won_b === 3 && toRow(three, null, 'beach').status === 'final',
+    'and final once a pair takes 3 sets')
+
+  assert(toRow({ sets_won_a: 3, set_results: [{ a: 25, b: 1 }, { a: 25, b: 1 }, { a: 25, b: 1 }] }, null, 'volleyball').status === 'final',
+    'a state without sets_to_win (linked match) still falls back to the sport default')
+}
+
+// ── 1c. set durations ride along in set_results, and only where the board timed the set ──
+console.log('\ntoRow — set durations')
+{
+  let t = 0
+  const vb = new ManualSource({ now: () => t })
+  // Team A takes every set — scored on whichever side it stands after the change of ends.
+  const pointA = (delta = 1) => vb.apply({ type: 'point', side: vb.getState().ends_swapped ? 'right' : 'left', delta })
+  const playSet = (secs) => {
+    pointA() // the first rally starts the clock
+    t += secs * 1000
+    for (let p = 1; p < 25; p++) pointA()
+  }
+  playSet(1500); vb.apply({ type: 'next-set' })
+  playSet(1320)
+  const mid = toRow(vb.getState(), 'set-end', 'volleyball')
+  assert(mid.set_results.length === 2 && mid.set_results[0].dur === 1500 && mid.set_results[1].dur === 1320,
+    'each timed set carries its dur in seconds')
+  const junk = toRow({ sets_won_a: 1, set_results: [{ a: 25, b: 20, dur: -4 }, { a: 20, b: 25, dur: 'x' }, { a: 25, b: 1 }] }, null, 'volleyball')
+  assert(junk.set_results.every((r) => !('dur' in r)), 'a missing, negative or junk dur is left out, not sent as null')
+  assert(junk.set_results[0].a === 25 && junk.set_results[0].b === 20, 'and the score is carried regardless')
+
+  // The archive row is the final live row: the durations and the last set played go to history too.
+  stubFetch()
+  const lp = createLivePush(CFG)
+  vb.apply({ type: 'next-set' })
+  pointA()
+  lp.push(vb.getState()) // the match is live on this publisher before it finishes
+  await wait(30)
+  pointA(-1)
+  playSet(1410)
+  lp.push(vb.getState(), vb.lastEvent)
+  await wait(40)
+  const arch = calls.filter((c) => c.url.includes('live_history'))
+  assert(arch.length === 1, 'the finished match is archived')
+  assert(arch[0] && arch[0].body.set_results.map((r) => r.dur).join(',') === '1500,1320,1410',
+    'the live_history row carries every set\'s dur')
+  assert(arch[0] && arch[0].body.period === 3, 'and reports the last set played as its period')
+  lp.detach?.()
 }
 
 // ── 2. toRow: basketball reuses subs_* for team fouls ────────────────────────

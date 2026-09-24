@@ -6,6 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { log } from './logStore.js'
+import { setDur, durField } from './manualSource.js'
 
 const hlog = log.child('history')
 
@@ -71,7 +72,7 @@ export class HistoryStore {
       sets: ab(num(state.sets_won_a), num(state.sets_won_b)),
       results: (Array.isArray(state.set_results) ? state.set_results : [])
         .filter((r) => r && typeof r === 'object')
-        .map((r) => { const [a, b] = ab(num(r.a), num(r.b)); return { a, b } }),
+        .map((r) => { const [a, b] = ab(num(r.a), num(r.b)); return { a, b, ...durField(setDur(r)) } }),
       // A physical side ('left'|'right') -> the team standing there right now.
       team: (side) => ((side === 'right') !== sw ? 'b' : 'a'),
     }
@@ -163,7 +164,7 @@ export class HistoryStore {
     // The set that just closed, by team like everything else in the log.
     const closingSet = () => {
       const r = v.results.slice(-1)[0] || { a: v.score[0], b: v.score[1] }
-      return { ...at(), type: 'set-end', set: v.sets[0] + v.sets[1], score: [r.a, r.b] }
+      return { ...at(), type: 'set-end', set: v.sets[0] + v.sets[1], score: [r.a, r.b], ...durField(r.dur) }
     }
     // Basketball's period boundary. `period` is the one just played: a period-end has already
     // moved the board on to the next one, a game-end leaves it where it was.
