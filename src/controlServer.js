@@ -191,7 +191,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -216,7 +216,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // renewal never arrived to replace it.
   let httpsOrigin = null, httpsValidTo = null
   // Completed-match log (History tab + CSV/JSON export).
-  const history = new HistoryStore({ file: path.resolve(stateHome, 'history.json') })
+  const history = new HistoryStore({ file: path.resolve(stateHome, 'history.json'), sport: () => activeSport() })
+  // Each finished match's play-by-play goes to wiedisync for the club's stats (matchUpload.js):
+  // store-and-forward from this log, so a hall with no uplink uploads it the next time there is one.
+  if (matchUpload) matchUpload.attach(history)
   // The per-sport "last game" slot behind the New / Continue / Delete menu (see resumeStore.js).
   const resume = new ResumeStore({ file: path.resolve(stateHome, 'resume.json') })
   const activeSport = () => (settings ? settings.values.sport : 'volleyball')
@@ -244,6 +247,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   const persist = (action, state, event, { undoable = !!(manualSource && manualSource.lastJournaled), label = '' } = {}) => {
     touchedSinceStart = true
     if (keepsHistory()) try { history.record(action, state, event, nowStamp(), nowClock(), { undoable, label }) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+    if (matchUpload && (event === 'match-end' || event === 'game-end')) matchUpload.matchFinished()
     try {
       if (event === 'match-end' || event === 'game-end') resume.clear(activeSport())
       else resume.save(activeSport(), state, nowStamp(), { prematch, gameId: prematch ? prematchGameId : null })
@@ -1297,6 +1301,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // back after the scorer has moved on from it.
     if (gameId != null) autoPrepare.markPrepared(gameId)
     if (keepsHistory()) try { history.record({ type: 'reset' }, state, null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
+    // File the match about to be played against its fixture, so its uploaded log links to the game.
+    history.setGame(gameId)
     try { resume.save(sport, state, nowStamp(), { prematch: pre, gameId: pre ? gameId : null }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
     touchedSinceStart = false
     // One paint, of the new state. Lifting idle repaints from the state the client now holds;
@@ -1557,6 +1563,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // Stop the schedule's timers and the auto-prepare ticker, and abort a fetch in flight. The
   // appliance calls it on shutdown.
   server.stopBackground = () => {
+    if (matchUpload) matchUpload.stop()
     autoPrepare.stop()
     uplink.stop()
     uplink.login.dropSession()

@@ -16,6 +16,7 @@ import { LedboxClient } from './ledboxClient.js'
 import { MockLedbox } from './mockLedbox.js'
 import { getSport, DEFAULT_SPORT } from './sports.js'
 import { livePushFromEnv } from './livePush.js'
+import { matchUploadFromEnv } from './matchUpload.js'
 import { SourceManager } from './sourceManager.js'
 import { createControlServer } from './controlServer.js'
 import { Settings } from './settings.js'
@@ -159,6 +160,12 @@ export async function startAppliance(config = loadConfig()) {
     ? `configured → ${process.env.DIRECTUS_URL} (${sport.key}); publishing ${livePush.isLive() ? 'ON' : publishes ? 'OFF — flip Settings ▸ Connect to live scoring' : `OFF — ${sport.label} is never published`}`
     : 'disabled (no DIRECTUS_URL / LIVE_PUBLISH_TOKEN)',
   { enabled: livePush.enabled, publishing: livePush.isLive(), url: process.env.DIRECTUS_URL || null, sport: sport.key })
+  // The match logs for the club's stats: same token, same toggle, uploaded after each match (and
+  // whenever the board next has an uplink). Only for a sport that publishes at all.
+  const matchUpload = matchUploadFromEnv(process.env, {
+    isLive: () => publishes && settings.values.liveScoring === 'kscw',
+    file: path.resolve(dataDir, 'match-uploads.json'),
+  })
 
   // The full preference set at boot: nearly every "why did the board do that?" question
   // (blink off, wrong allowance, horn silent) is answered by this one line. The PIN is
@@ -194,6 +201,7 @@ export async function startAppliance(config = loadConfig()) {
     uplinkOptions: { probeUrl: config.uplinkProbeUrl || '', portalUrl: config.uplinkPortalUrl || '' },
     // Test hook only: { now, trusted } for the automatic pre-match (test/auto-prepare-selftest.mjs).
     autoPrepare: config.autoPrepare || null,
+    matchUpload,
   })
 
   // The default screen on a fresh boot (the KSC Wiedikon crest) is asserted by the client

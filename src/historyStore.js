@@ -1,10 +1,11 @@
-// Records completed matches for the History tab + CSV/JSON export (and, later, a
-// live-scoring feed for wiedisync). Deliberately isolated: a fault in here must NEVER
+// Records completed matches for the History tab + CSV/JSON export, and the play-by-play that
+// matchUpload.js sends to wiedisync after each match (live_match_logs) for the club's stats. Deliberately isolated: a fault in here must NEVER
 // affect scoring, so controlServer wraps record() in try/catch. Persisted to a JSON
 // file so the log survives a bridge restart.
 
 import fs from 'node:fs'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { log } from './logStore.js'
 import { setDur, durField } from './manualSource.js'
 
@@ -15,10 +16,19 @@ const MAX_EVENTS = 4000 // per-match event cap (a long 5-setter is ~250 rallies)
 const MAX_UNDO = 30 // matches the sources' undo journal (UNDO_MAX in manualSource.js)
 
 const num = (v) => (Array.isArray(v) ? v.length : Number(v) || 0)
+const monotonicMs = () => performance.now()
 
 export class HistoryStore {
-  constructor({ file } = {}) {
+  // `sport` names the active sport (the upload files it, and basketball's serving arrow is a
+  // possession arrow, not a serve). `mono` is a monotonic ms clock for the `el` stamp; injectable
+  // so a test can drive it.
+  constructor({ file, sport = () => 'volleyball', mono = monotonicMs } = {}) {
     this.file = file || null
+    this.sport = sport
+    this.mono = mono
+    this._game = null // games.id of the fixture the board was set up for (setGame), until the next reset
+    this._finishedAt = new WeakMap() // match -> mono() when it was archived (see isSettled)
+    this._elBase = null // mono() at el = 0 for the match in the buffer
     this.matches = [] // completed matches, oldest-first on disk; API returns newest-first
     this.current = null // in-progress match buffer
     this._lastFinished = null // { match, kind } for the match just archived, while its end can still be undone
@@ -110,7 +120,7 @@ export class HistoryStore {
     // A new match begins on reset, or on the first scoring action when nothing is buffered.
     if (t === 'reset') {
       if (this._step) this._step.reset = true // prevCurrent/prevFinished already hold the way back
-      this.current = null; this._lastFinished = null; return
+      this.current = null; this._lastFinished = null; this._game = null; return
     }
     // The engines let "−" (or the trash icon) take back the point that ENDED the match — a mis-tap
     // at 24-23 in the decider is as undoable as any other set point. The history used to have no
@@ -124,7 +134,12 @@ export class HistoryStore {
     }
     const scoring = t === 'point' || t === 'set' || t === 'timeout' || t === 'sub' || t === 'serve'
     if (!this.current && scoring) {
-      this.current = { date: now, team_a: v.names.a, team_b: v.names.b, events: [] }
+      this.current = {
+        id: crypto.randomUUID(), date: now, sport: String(this.sport() || 'volleyball'),
+        ...(this._game != null ? { game_id: this._game } : {}),
+        team_a: v.names.a, team_b: v.names.b, events: [],
+      }
+      this._elBase = this.mono()
       if (this._step) this._step.started = true
       this._lastFinished = null // a new match has begun; the previous one is final now
       hlog.info(`match started: ${v.names.a} vs ${v.names.b}`, { team_a: v.names.a, team_b: v.names.b, at: now })
@@ -137,7 +152,7 @@ export class HistoryStore {
     // The running score and set tally at the moment the action landed, on EVERY event. That is
     // what makes the log answer the question people actually bring to it afterwards — "what was
     // the score when that happened" — without replaying the whole list to find out.
-    const at = () => ({ t: clock || now, score: v.score.slice(), sets: v.sets.slice() })
+    const at = () => ({ t: clock || now, el: this._el(), score: v.score.slice(), sets: v.sets.slice(), ...this._srv(state, v) })
     const side = v.team(action.side)
 
     // Everything the operator did, not just the points that went up. A correction, a timeout, a
@@ -212,12 +227,57 @@ export class HistoryStore {
     // correction that undid it — the same trail an undone set leaves in the middle of a match.
     const events = match.events.slice()
     if (events.length && events[events.length - 1].type === 'match-end') events.pop()
-    this.current = { date: match.date, team_a: match.team_a, team_b: match.team_b, events }
+    this.current = { ...this._carry(match), events }
     this._lastFinished = null
     hlog.info(`match reopened: ${match.team_a} vs ${match.team_b} (the match point was taken back)`, {
       team_a: match.team_a, team_b: match.team_b, events: events.length,
     })
     this._save()
+  }
+
+  // What a match keeps across being archived and reopened: its identity, fixture and sport. A match
+  // logged before those existed has none, and stays that way (matchUpload skips it).
+  _carry(m) {
+    const out = { date: m.date, team_a: m.team_a, team_b: m.team_b }
+    for (const k of ['id', 'sport', 'game_id']) if (m[k] != null) out[k] = m[k]
+    return out
+  }
+
+  // Seconds since the match started, on the monotonic clock: the board has no RTC and NTP can step
+  // the wall clock mid-match, which would make `t` lie about how long a rally took. A match reopened
+  // after a restart carries on from its last stamp rather than going back to 0.
+  _el() {
+    if (this._elBase == null) {
+      const last = this.current && [...this.current.events].reverse().find((e) => Number.isFinite(e.el))
+      this._elBase = this.mono() - (last ? last.el * 1000 : 0)
+    }
+    return Math.round((this.mono() - this._elBase) / 100) / 10
+  }
+
+  // The team serving AFTER the action, by team like everything else. Rally N was served by the
+  // `srv` of the entry before it, which is what the stats need (sideout vs break point). Not for
+  // basketball: its serving_team is the possession arrow.
+  _srv(state, v) {
+    if (this.sport() === 'basketball') return {}
+    const s = state.serving_team
+    return s === 'left' || s === 'right' ? { srv: v.team(s) } : {}
+  }
+
+  // The fixture the next match is for — the schedule start calls this right after its reset. Cleared
+  // by the next reset, so a hand-started game after it is not filed against the scheduled one.
+  setGame(gameId) {
+    const n = Number(gameId)
+    this._game = Number.isInteger(n) && n > 0 ? n : null
+    if (this.current && this._game != null && this.current.game_id == null && !this.current.events.length) this.current.game_id = this._game
+  }
+
+  // Whether an archived match can be uploaded: its result can no longer be taken back. While it is
+  // the match just finished, a "−" on the match point reopens it (see _reopen); give the scorer
+  // `graceMs` to notice before the log leaves the board. A new match (or a restart) settles it.
+  isSettled(match, graceMs = 10 * 60 * 1000) {
+    if (!this._lastFinished || this._lastFinished.match !== match) return true
+    const at = this._finishedAt.get(match)
+    return at == null || this.mono() - at >= graceMs
   }
 
   _push(ev) {
@@ -247,7 +307,7 @@ export class HistoryStore {
         if (i !== -1) {
           const m = e.finished.match
           this.matches.splice(i, 1)
-          this.current = { date: m.date, team_a: m.team_a, team_b: m.team_b, events: m.events }
+          this.current = { ...this._carry(m), events: m.events }
           this._lastFinished = null
           hlog.info(`match reopened: ${m.team_a} vs ${m.team_b} (its last action was undone)`, { team_a: m.team_a, team_b: m.team_b })
         }
@@ -271,7 +331,7 @@ export class HistoryStore {
     }
     if (this.current) {
       const v = this._view(state)
-      this._push({ t: clock || now, score: v.score.slice(), sets: v.sets.slice(), type: 'undo', ...(label ? { what: String(label) } : {}) })
+      this._push({ t: clock || now, el: this._el(), score: v.score.slice(), sets: v.sets.slice(), ...this._srv(state, v), type: 'undo', ...(label ? { what: String(label) } : {}) })
     }
   }
 
@@ -286,12 +346,13 @@ export class HistoryStore {
       sets_a: ra, sets_b: rb, sets, events: this.current.events.length,
     })
     const match = {
+      ...this._carry(this.current),
       date: this.current.date || now,
-      team_a: this.current.team_a, team_b: this.current.team_b,
       sets_a: ra, sets_b: rb,
       sets, events: this.current.events,
     }
     this.matches.push(match)
+    this._finishedAt.set(match, this.mono())
     if (this.matches.length > MAX_MATCHES) this.matches = this.matches.slice(-MAX_MATCHES)
     this.current = null
     this._lastFinished = { match, kind }
