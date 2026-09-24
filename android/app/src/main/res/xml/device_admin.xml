@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No legacy policies: lock task, status bar, keyguard and silent installs are device-owner powers. -->
+<device-admin>
+    <uses-policies />
+</device-admin>

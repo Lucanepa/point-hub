@@ -365,6 +365,13 @@
   /* Full-screen gate: a touch device opens on one big "Tap to start". The tap is the user
      gesture the browser demands before it will go full screen — and only in full screen will
      Android lock the orientation, which is what keeps a tablet out of portrait. */
+  /* Inside the tablet app the WebView is full screen already and element full screen does not
+     exist there, so the full-screen buttons have nothing to do. */
+  html.in-app .js-fs{display:none!important}
+  /* Keep-awake is held by the app for as long as it runs (BRIDGE.md); a toggle there could only
+     turn it off by mistake mid-match, so it is not offered. */
+  html.in-app .js-awake{display:none!important}
+  #appCard .appver{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800}
   #fsGate{position:fixed;inset:0;z-index:120;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg);color:var(--fg);text-align:center;padding:24px}
   body.fs-gate #fsGate{display:flex}
   #fsGate .t{font-size:26px;font-weight:800}
@@ -1236,6 +1243,13 @@
             when something looks wrong; it is also what to send with a bug report.</p>
           <a class="setlink" href="/logs" target="_blank" rel="noopener"><svg class="licon l-scroll-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 12h-5" /> <path d="M15 8h-5" /> <path d="M19 17V5a2 2 0 0 0-2-2H4" /> <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></svg> Open the log viewer</a>
           <a class="setlink" href="/mockledbox" target="_blank" rel="noopener"><svg class="licon l-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2" /> <path d="M8 21h8" /> <path d="M12 17v4" /></svg> Open the virtual board</a>
+          <!-- The tablet app (android/). In the app: its version and the way to get the match
+               backups it keeps off the tablet. In a browser: where to install it from. -->
+          <div id="appCard" hidden>
+            <p class="hint">Tablet app <span class="appver" id="appVer">—</span> · <span id="appBackups">no backups yet</span>. The app keeps a copy of every set and match on the tablet, so a board failure loses nothing.</p>
+            <button type="button" id="appExportBtn" class="setlink"><svg class="licon l-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></svg> Export backups to the tablet</button>
+          </div>
+          <a class="setlink" id="getAppLink" href="/app"><svg class="licon l-tablet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2" ry="2" /> <line x1="12" x2="12.01" y1="18" y2="18" /></svg> Get the tablet app</a>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10" /> <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg> Power</legend>
@@ -1549,6 +1563,28 @@
   const num = (x) => Array.isArray(x) ? x.length : (Number(x) || 0);
   const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
   const roman = (n) => ROMAN[n] || String(n);
+
+  // --- the tablet app (android/, contract in android/BRIDGE.md) -----------
+  // Inside the Point Hub app the console gets `window.PointHubApp`. Feature-detected, never read
+  // off the User-Agent alone: the UA says which app loaded the page, the object says the bridge is
+  // actually there for this origin. Every call goes through appCall: the bridge is synchronous
+  // Java, and any throw from it (a denied origin, an app older than the method) must cost nothing
+  // more than the feature it was for.
+  const APP_BRIDGE = (() => { try { return window.PointHubApp || null; } catch { return null; } })();
+  const IN_APP = !!APP_BRIDGE;
+  function appCall(method, ...args) {
+    if (!APP_BRIDGE) return undefined;
+    try { return typeof APP_BRIDGE[method] === "function" ? APP_BRIDGE[method](...args) : undefined; }
+    catch { return undefined; }
+  }
+  const appJson = (method, fallback) => { try { const r = appCall(method); return r ? JSON.parse(r) : fallback; } catch { return fallback; } };
+  // A new console build: in the app, reload through it (discovery runs again and it loads the
+  // console fresh, see reloadConsole); anywhere else, an ordinary reload.
+  function reloadForUpdate() {
+    if (IN_APP) { try { APP_BRIDGE.reloadConsole(); return; } catch {} }
+    location.reload();
+  }
+  if (IN_APP) document.documentElement.classList.add("in-app");
 
   // --- multi-sport --------------------------------------------------------
   // Three sports share ONE set of action verbs (see PROTOCOL.md); only the labels, the score
@@ -1934,7 +1970,7 @@
   function noteBuild(build) {
     if (!BOOT_BUILD) { BOOT_BUILD = build; return; }
     if (build === BOOT_BUILD) return;
-    if (quietForReload()) { location.reload(); return; }
+    if (quietForReload()) { reloadForUpdate(); return; }
     if (!updateWaiting) { updateWaiting = true; $("#updateBar").hidden = false; }
   }
   // ── Secure address ───────────────────────────────────────────────────────────────────────────
@@ -1960,6 +1996,10 @@
   // console starts without what the http one remembered — the scorer is asked for the PIN once more.
   let SECURE_ORIGIN = null, secureProbe = null, secureOk = false;
   function noteSecure(origin) {
+    // Never inside the tablet app: it picks the board's origin itself (https first, the AP and cable
+    // addresses when that fails, e.g. on a wrong tablet clock) and only lets the bridge work on the
+    // origin it chose. A move of our own would only fight its discovery.
+    if (IN_APP) return;
     if (!origin || secureOk || secureProbe || location.protocol !== "http:" || origin === location.origin) return;
     try { if (sessionStorage.getItem("secureTried") === origin) return; } catch {}
     SECURE_ORIGIN = origin;
@@ -2004,6 +2044,7 @@
     renderedSeq = seq;
     st = LAST_STATUS = { ...LAST_STATUS, ...st };
     if (st.build) noteBuild(st.build);
+    appBackupTick(st);
     // Probed once; after that every quiet poll is a chance to make the move it is waiting for.
     if (st.httpsOrigin) { if (secureOk) goSecure(); else noteSecure(st.httpsOrigin); }
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
@@ -3157,6 +3198,8 @@
       r = await api("/api/schedule?range=season" + (force ? "&refresh=1" : ""));
       // An older board ignores ?range and answers today's shape — that is still today's list.
       if (r && r.ok !== false && !Array.isArray(r.today) && Array.isArray(r.games)) r = { ...r, today: r.games };
+      // The tablet app keeps one offline copy of the season (BRIDGE.md, saveSchedule).
+      if (IN_APP && r && r.ok !== false) appSaveSchedule(r);
     }
     catch (e) { failed = "Couldn't load today's games from the board."; }
     finally { schedLoading = false; if (btn) btn.disabled = false; }
@@ -3492,6 +3535,128 @@
     else if (diagOpen()) startDiag();
   });
 
+  // --- the tablet app: backups, the schedule copy, the Settings card -------
+  // After every change of match — a set ending, the match ending — and, while points are being
+  // played, at most once a minute, the app is handed the current state and the match history to
+  // keep on the tablet (BRIDGE.md, Backups). The board's SD card is the one copy otherwise; this
+  // is the second, and it survives a board that never comes back. The `summary` is what the app's
+  // own offline screen shows, since it knows nothing of this data model.
+  const BACKUP_EVERY_MS = 60000;
+  // The app's limits are in UTF-8 bytes (5 MiB a backup, 2 MiB the schedule), not JSON characters:
+  // an umlaut in a team name repeated through every event counts twice there.
+  const BACKUP_MAX = 4500000, SCHEDULE_MAX = 2000000;
+  const utf8Len = (str) => { try { return new TextEncoder().encode(str).length; } catch { return str.length * 3; } };
+  let bkSig = null, bkScore = null, bkAt = 0, bkTimer = null, bkHist = null;
+  const bkSets = (s) => SPORT === "basketball" ? num(s.period) + (s.over ? 1 : 0) : num(s.sets_won_a) + num(s.sets_won_b);
+  const bkBlank = (s) => !num(s.points_a) && !num(s.points_b) && !num(s.sets_won_a) && !num(s.sets_won_b);
+  function appBackupTick(st) {
+    if (!IN_APP || !st || !st.state) return;
+    const s = st.state;
+    const over = matchOver(s), sets = bkSets(s);
+    // "The same match" is the board's match id when it has one, else the two names in either order:
+    // the board swaps them at next-set and at the change of ends, often in the very status update
+    // that also carries the new set count.
+    const id = st.matchId != null ? String(st.matchId) : null;
+    const sig = { id, teams: [s.team_a_name || "", s.team_b_name || ""].sort().join("|"), sets, over, sport: SPORT };
+    const score = num(s.points_a) + ":" + num(s.points_b);
+    const prev = bkSig;
+    bkSig = sig;
+    if (!prev) { bkScore = score; return; }   // the first status after a load is the baseline
+    // Same match, one more set (or period) behind it, or the match just ended: save now.
+    const sameMatch = prev.sport === sig.sport && (prev.id && sig.id ? prev.id === sig.id : prev.teams === sig.teams);
+    if (sameMatch && ((over && !prev.over) || sets > prev.sets)) {
+      bkScore = score;
+      appSaveBackup(over && !prev.over ? "match-end" : "set-end", { refreshHistory: true });
+      return;
+    }
+    if (score === bkScore) return;
+    bkScore = score;
+    if (bkBlank(s)) return;   // a reset or a fresh match: nothing worth a file yet
+    // Play: at most once a minute, and the last points before a pause are not left out — the
+    // save that was due waits for the minute rather than being dropped.
+    const wait = bkAt + BACKUP_EVERY_MS - Date.now();
+    if (wait <= 0) { appSaveBackup("live"); return; }
+    if (!bkTimer) bkTimer = setTimeout(() => { bkTimer = null; appSaveBackup("live"); }, wait);
+  }
+  const bkName = (reason, s) => (reason + "_" + [s.team_a_short || s.team_a_name, s.team_b_short || s.team_b_name]
+    .map((x) => String(x || "").trim()).filter(Boolean).join("-")).replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 80);
+  function backupSummary(s, reason) {
+    const a = s.team_a_name || s.team_a_short || "", b = s.team_b_name || s.team_b_short || "";
+    const sets = Array.isArray(s.set_results) ? s.set_results.map((r) => num(r.a) + ":" + num(r.b)).join(" ") : "";
+    const bySets = SPORT === "volleyball" || SPORT === "beach";
+    return {
+      title: a && b ? a + " – " + b : (a || b || "Match"),
+      home: a, away: b,
+      sets,
+      score: bySets ? num(s.sets_won_a) + ":" + num(s.sets_won_b) : num(s.points_a) + ":" + num(s.points_b),
+      state: matchOver(s) ? "final" : "live",
+      at: new Date().toISOString(),
+      ...(reason === "shutdown" ? { note: "board shut down" } : {}),
+    };
+  }
+  async function appSaveBackup(reason, { refreshHistory: fresh = false } = {}) {
+    if (!IN_APP) return false;
+    if (bkTimer) { clearTimeout(bkTimer); bkTimer = null; }
+    bkAt = Date.now();
+    const st = LAST_STATUS || {};
+    const s = st.state || {};
+    // The completed matches, newest first. Re-read at a set or match end (the one just finished is
+    // in it from then on); the minute saves reuse the last copy rather than poll the board for it.
+    if (fresh || !bkHist) {
+      try { const r = await api("/api/history"); if (r && Array.isArray(r.matches)) bkHist = r.matches; } catch {}
+    }
+    const payload = {
+      summary: backupSummary(s, reason),
+      kind: "pointhub-console-backup", v: 1, reason,
+      savedAt: new Date().toISOString(),
+      origin: location.origin, build: st.build || null,
+      status: { sport: SPORT || st.sport || null, mode: st.mode || null, matchId: st.matchId || null, prematch: st.prematch || null, state: s },
+      history: (bkHist || []).slice(0, 30),
+    };
+    let json = JSON.stringify(payload);
+    while (utf8Len(json) > BACKUP_MAX && payload.history.length) {
+      payload.history = payload.history.slice(0, Math.floor(payload.history.length / 2));
+      json = JSON.stringify(payload);
+    }
+    const ok = appCall("saveBackup", bkName(reason, s), json) === true;
+    if (!ok) reportUi("app backup refused", { reason, bytes: utf8Len(json) }, "warn");
+    return ok;
+  }
+  function appSaveSchedule(r) {
+    try {
+      const json = JSON.stringify({ ...r, savedAt: new Date().toISOString() });
+      if (utf8Len(json) <= SCHEDULE_MAX) appCall("saveSchedule", json);
+    } catch {}
+  }
+  function renderAppCard() {
+    const card = $("#appCard"), link = $("#getAppLink");
+    if (link) link.hidden = IN_APP;
+    if (!card) return;
+    card.hidden = !IN_APP;
+    if (!IN_APP) return;
+    const info = appJson("getInfo", {}) || {};
+    $("#appVer").textContent = info.versionName ? info.versionName + " (" + (info.versionCode != null ? info.versionCode : "?") + ")" : "—";
+    const list = appJson("listBackups", []);
+    const n = Array.isArray(list) ? list.length : 0;
+    $("#appBackups").textContent = n ? (n === 1 ? "1 backup" : n + " backups") + " on this tablet" : "no backups yet";
+  }
+  $("#appExportBtn").addEventListener("click", () => {
+    const opened = appCall("exportBackups") === true;
+    if (!opened) toast("Nothing to export yet — or an export is already open");
+  });
+  // The export's outcome arrives later, as an event from the app.
+  window.addEventListener("pointhubapp", (e) => {
+    const d = (e && e.detail) || {};
+    if (d.type !== "export") return;
+    if (d.ok) toast("Backups saved (" + (d.files || 0) + " files) — Downloads on the tablet");
+    else if (d.reason !== "cancelled") toast("The backups could not be written — try again");
+    renderAppCard();
+  });
+  renderAppCard();
+  // The offline copy of the season only exists once the schedule has been loaded; in the app, load
+  // it once shortly after start instead of waiting for someone to open the Match tab.
+  if (IN_APP) setTimeout(() => { try { refreshSchedule(false); } catch {} }, 4000);
+
   // --- wiring -------------------------------------------------------------
   // tabs / nav — [data-tab] only: the nav also holds the fullscreen button, and letting
   // that through would match no tab and blank the whole page.
@@ -3503,6 +3668,7 @@
     if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
     if (b.dataset.tab === "history") refreshHistory();
     if (b.dataset.tab === "settings" || b.dataset.tab === "diag") refreshUplink();
+    if (b.dataset.tab === "settings") renderAppCard();
     if (b.dataset.tab !== "settings") { const ph = $("#upPhone"); if (ph) ph.value = ""; }   // asked afresh every time
     renderUplinkBrief(LAST_STATUS.uplink);   // the header chip stands in for the Game-tab banner elsewhere
     // Diagnostics polls and holds an SSE socket, so it starts on open and stops on leave rather
@@ -4370,6 +4536,8 @@
     if (!await askConfirm("Shut down the scoreboard?", { yes: "Shut down", danger: true })) return;
     try {
       await postJSON("/api/shutdown");
+      appSaveBackup("shutdown");
+      appCall("keepAwake", false);   // the board is going away: the tablet may sleep now
       stopPolling();
       $("#shutdownBack").hidden = true;
       $("#shutdown").classList.add("show");
@@ -4425,6 +4593,7 @@
     clearInterval(shutdownWatch); shutdownWatch = null;
     shutdownBackBtn.hidden = true;
     $("#shutdown").classList.remove("show");
+    appCall("keepAwake", true);
     startPolling();
   });
 
@@ -5099,16 +5268,17 @@
     } catch {}
     return true;
   })();
-  const APP_MODE = APP_QUERY
+  const APP_MODE = IN_APP || APP_QUERY
     || !!(window.matchMedia && (matchMedia("(display-mode: fullscreen)").matches || matchMedia("(display-mode: standalone)").matches));
   // Only in the secure context the app lives in (a worker cannot register on http anyway): the
   // no-cache worker that answers a failed launch with the way back to the plain address. See sw.js.
-  if ("serviceWorker" in navigator && window.isSecureContext && location.protocol === "https:") {
+  if (!IN_APP && "serviceWorker" in navigator && window.isSecureContext && location.protocol === "https:") {
     navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => {});
   }
   // Landscape, where the platform lets a page ask without a gesture (an installed app may; a tab is
   // refused unless full screen). The manifest asks for landscape too; this covers a launcher that
   // ignores it. Never fatal.
+  if (IN_APP) { const mf = document.querySelector('link[rel="manifest"]'); if (mf) mf.remove(); }
   const lockLandscape = () => {
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(() => {}); } catch {}
   };
@@ -5175,7 +5345,9 @@
   let fsSkipped = false, awakeRefused = false;
   const canFS = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
   const syncGate = () => {
-    const want = APP_MODE ? awakeRefused : canFS && isTouch() && !inFS();
+    // The tablet app: never. Its WebView is full screen already, element full screen does not exist
+    // there, and the app holds the screen on itself — the gate could never be satisfied.
+    const want = IN_APP ? false : APP_MODE ? awakeRefused : canFS && isTouch() && !inFS();
     document.body.classList.toggle("fs-gate", want && !fsSkipped);
   };
   if (APP_MODE) {
@@ -5233,6 +5405,8 @@
 
   async function acquireWakeLock() {
     if (!keepAwake) return;
+    // The tablet app keeps the screen on itself (FLAG_KEEP_SCREEN_ON); no wake lock, no video.
+    if (IN_APP) { appCall("keepAwake", true); return; }
     if ("wakeLock" in navigator) {
       try {
         wakeLock = await navigator.wakeLock.request("screen");
@@ -5245,11 +5419,12 @@
   }
 
   function releaseWakeLock() {
+    if (IN_APP) { appCall("keepAwake", false); return; }
     if (wakeLock) { try { wakeLock.release(); } catch {} wakeLock = null; }
     if (noSleepVideo) { try { noSleepVideo.pause(); } catch {} }
   }
 
-  const awakeHeld = () => !!(wakeLock || (noSleepVideo && !noSleepVideo.paused));
+  const awakeHeld = () => IN_APP ? keepAwake : !!(wakeLock || (noSleepVideo && !noSleepVideo.paused));
   // Resolves to whether the screen is now actually being held on. `quiet` skips the toasts, for the
   // installed app switching it on by itself at launch — nobody asked, so nobody needs telling.
   async function setKeepAwake(on, { quiet = false } = {}) {
@@ -5269,7 +5444,7 @@
     return held;
   }
 
-  $$(".js-awake").forEach((b) => b.addEventListener("click", () => setKeepAwake(!keepAwake)));
+  $$(".js-awake").forEach((b) => b.addEventListener("click", () => { if (!IN_APP) setKeepAwake(!keepAwake); }));
   // A wake lock is dropped whenever the page is hidden (locked/backgrounded), and the video is
   // paused by some browsers too — re-acquire both when the page comes back while the toggle is on.
   // In the installed app a refusal here brings the gate back, as it does at launch.
@@ -5459,7 +5634,7 @@
     finally { if (pollOn) pollTimer = setTimeout(pollTick, 1500); }
   }
   const startPolling = () => { if (pollOn) return; pollOn = true; pollTick(); };
-  $("#updateNow").addEventListener("click", () => location.reload());
+  $("#updateNow").addEventListener("click", reloadForUpdate);
   bootLock();
   buildSteppers();
   // [data-font] is the card's SCREEN side; the setting it moves is the panel half that card shows.

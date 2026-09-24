@@ -58,6 +58,8 @@ console.log('\n[1] Today at the hall: rows, empty and offline')
   // selftest is season-schedule-ui-selftest.mjs.
   const make = new Function('$', 'api', 'document', 'startScheduled',
     'let schedLoading = false, schedShowAll = false, schedDays = [], schedToday = "";\nconst SCHED_OPEN_DAYS = 14, SCHED_TZ = "Europe/Zurich";\n' +
+    // Outside the tablet app: the offline schedule copy (android/BRIDGE.md) is not taken.
+    'const IN_APP = false, appSaveSchedule = () => {};\n' +
     ['fmtSchedDate', 'schedAddDays', 'schedLocal', 'schedOff', 'schedStatusText', 'schedRow', 'schedDay', 'renderUpcoming'].map((n) => lift(js, n)).join('\n') + '\n' +
     'const schedShort = ' + lift(js, 'schedShort').replace(/^const schedShort = /, '') + ';\n' +
     lift(js, 'refreshSchedule') + '\nreturn refreshSchedule;')

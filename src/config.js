@@ -70,6 +70,10 @@ export function loadConfig(env = process.env) {
     uplinkWatch: bool(env.UPLINK_WATCH, true),
     uplinkProbeUrl: env.UPLINK_PROBE_URL || '',
     uplinkPortalUrl: env.UPLINK_PORTAL_URL || '',
+    // Where the tablet app's release lives (android/build-release.sh writes pointhub.apk and
+    // version.json there). Served at /app/pointhub.apk and /app/version.json. Empty = the repo's
+    // own android/dist beside web/ (see createControlServer).
+    appDistDir: env.APP_DIST_DIR || '',
     // OpenVolley relay HTTP base (for /api/match/list). Derived from relayUrl if unset:
     // ws->http, wss->https, and the relay's HTTP port is 5173 (Vite dev server / API host).
     relayHttpUrl: env.RELAY_HTTP_URL || httpFromWs(env.RELAY_URL || 'ws://127.0.0.1:8080'),

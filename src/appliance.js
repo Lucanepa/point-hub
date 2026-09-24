@@ -191,6 +191,8 @@ export async function startAppliance(config = loadConfig()) {
     settings,
     webDir,
     dataDir,
+    // The tablet app's release (/app/…). Unset = <repo>/android/dist.
+    appDistDir: config.appDistDir || null,
     // The season schedule's downloads and the automatic pre-match run on their own only on a real
     // boot (loadConfig sets this). A test's hand-built config leaves them off, so no selftest
     // reaches the club's Directus — or has a real 20:00 game set itself up mid-run.

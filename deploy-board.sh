@@ -23,6 +23,10 @@
 # ledboxClient.js) would deploy "successfully" while the actual fix never reached the board. The
 # same trap caught web/ when logs.html arrived, so both are now synced wholesale.
 #
+# Also ships the tablet app's release (android/dist/pointhub.apk + version.json, written by
+# android/build-release.sh) when there is one, to $DEST/android/dist — where the bridge serves it at
+# /app/pointhub.apk and /app/version.json, and the tablets update themselves from it.
+#
 # NOT shipped: the firmware's crest+QR idle screen (lives on the board's own disk and survives
 # power cycles — see firmware/idle-crest-qr/), settings.json (the board's operator preferences)
 # and data/ (its match history).
@@ -68,6 +72,19 @@ scp "${J[@]}" "$REPO"/src/*.js "$BOARD:$DEST/src/"
 # references — favicon.svg, apple-touch-icon.png — simply never arrived, and the board answered
 # 404 for both while the repo looked correct. Anything the page asks for has to ship with it.
 scp "${J[@]}" -r "$REPO"/web/. "$BOARD:$DEST/web/"
+# The tablet app's release, when this checkout has one. Both files or neither: a version.json that
+# names an APK the board does not have would offer every tablet an update that cannot download. The
+# APK goes first and version.json last, so a tablet polling mid-copy never sees the new version
+# before its APK is complete.
+APP_DIST="$REPO/android/dist"
+if [ -f "$APP_DIST/pointhub.apk" ] && [ -f "$APP_DIST/version.json" ]; then
+  ssh "${J[@]}" "$BOARD" "mkdir -p $DEST/android/dist"
+  scp "${J[@]}" "$APP_DIST/pointhub.apk" "$BOARD:$DEST/android/dist/pointhub.apk"
+  scp "${J[@]}" "$APP_DIST/version.json" "$BOARD:$DEST/android/dist/version.json"
+  echo "  tablet app: $(sed -n 's/.*"versionName": *"\([^"]*\)".*/\1/p' "$APP_DIST/version.json") shipped"
+else
+  echo "  tablet app: no android/dist/pointhub.apk + version.json here — the board keeps whatever it has"
+fi
 # Layouts the panel reads off the card. They live in the VENDOR's folder, not under $DEST, and
 # the panel process re-lists that folder on every SetLayout — so a new screen is a file drop and
 # needs no restart. Nothing was copying these at all, which is how 33_kscw_clock.xml came to exist
@@ -103,6 +120,8 @@ ssh "${J[@]}" "$BOARD" "
   grep -q sport-switch     $DEST/src/appliance.js;    chk \$? 'sport-switch marker'
   grep -q LAST_STATUS      $DEST/web/index.html;      chk \$? 'UI status-merge'
   test -f $DEST/web/logs.html;                        chk \$? '/logs viewer'
+  # The tablet app, as the board actually serves it (informational: a board without one is fine).
+  \$N -e 'fetch(\"http://127.0.0.1:8890/app/version.json\").then(async r=>{if(r.status===404){console.log(\"  tablet app: none on the board\");return}if(!r.ok)throw new Error(\"HTTP \"+r.status);const v=await r.json();const a=await fetch(\"http://127.0.0.1:8890/app/pointhub.apk\",{method:\"HEAD\"});if(!a.ok||a.headers.get(\"content-type\")!==\"application/vnd.android.package-archive\")throw new Error(\"apk \"+a.status);console.log(\"  tablet app: \"+v.versionName+\" (\"+v.versionCode+\"), \"+a.headers.get(\"content-length\")+\" bytes\")}).catch(e=>{console.log(\"  tablet app ERR\",e.message);process.exit(1)})' || rc=1
   grep -q logStore         $DEST/src/appliance.js;    chk \$? 'structured logging'
   exit \$rc"
 VERIFY=$?

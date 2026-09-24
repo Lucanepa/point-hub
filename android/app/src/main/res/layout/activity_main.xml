@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The update banner sits BELOW the console and takes its own space: it never covers a console
+     control. Only its explicit buttons react to touch. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <FrameLayout
+            android:id="@+id/webHolder"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Board link lost while a console page is alive: a small note, not a cover. Not
+             clickable, so touches go through to the console under it. -->
+        <TextView
+            android:id="@+id/netPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="8dp"
+            android:background="@color/panel"
+            android:clickable="false"
+            android:focusable="false"
+            android:importantForAccessibility="yes"
+            android:paddingStart="14dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="6dp"
+            android:text="@string/net_lost_pill"
+            android:textColor="@color/gold"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/offline"
+            layout="@layout/view_offline" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/updateBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/gold"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="4dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/updateText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:textColor="@color/ink"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/updateInstall"
+            style="@android:style/Widget.Material.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/install"
+            android:textAllCaps="false"
+            android:textColor="@color/ink"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/updateDismiss"
+            style="@android:style/Widget.Material.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dismiss"
+            android:textAllCaps="false"
+            android:textColor="@color/ink" />
+    </LinearLayout>
+</LinearLayout>

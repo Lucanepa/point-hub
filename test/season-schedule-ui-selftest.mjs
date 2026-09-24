@@ -59,6 +59,8 @@ function page() {
   const api = async (p) => { io.asked = p; if (io.reply instanceof Error) throw io.reply; return io.reply }
   const make = new Function('$', 'api', 'document', 'startScheduled',
     'let schedLoading = false, schedShowAll = false, schedDays = [], schedToday = "";\nconst SCHED_OPEN_DAYS = 14, SCHED_TZ = "Europe/Zurich";\n' +
+    // Outside the tablet app: the offline schedule copy (android/BRIDGE.md) is not taken.
+    'const IN_APP = false, appSaveSchedule = () => {};\n' +
     NAMES.map((n) => lift(js, n)).join('\n') + '\n' +
     'const schedShort = ' + lift(js, 'schedShort').replace(/^const schedShort = /, '') + ';\n' +
     'return { refreshSchedule, schedStatusText, schedLocal, showAll: () => { schedShowAll = true; renderUpcoming(); }, today: () => schedToday };')

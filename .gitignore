@@ -43,3 +43,18 @@ firmware/nota-emilio-*.md
 # Playwright MCP scratch output (page snapshots + console logs from UI verification runs).
 # Not source, and the snapshots carry whatever the console was showing at the time.
 .playwright-mcp/
+
+# Android app (android/): build outputs and local secrets. The release keystore lives OUTSIDE
+# the repo (~/.config/pointhub-android/); these rules are the second line of defence.
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/dist/
+android/local.properties
+android/keystore.properties
+android/.idea/
+android/*.iml
+android/captures/
+*.jks
+*.keystore

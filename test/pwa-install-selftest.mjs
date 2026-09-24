@@ -122,11 +122,11 @@ try {
   }
 
   console.log('\n[4] the console')
-  ok(/const APP_MODE = APP_QUERY\s*\|\|/.test(html) && /display-mode: fullscreen/.test(html) && /display-mode: standalone/.test(html),
-    'app mode = ?app=1 or an installed display mode')
+  ok(/const APP_MODE = IN_APP \|\| APP_QUERY\s*\|\|/.test(html) && /display-mode: fullscreen/.test(html) && /display-mode: standalone/.test(html),
+    'app mode = the tablet app\'s bridge, ?app=1 or an installed display mode')
   ok(/u\.searchParams\.delete\("app"\);\s*history\.replaceState/.test(html) && /sessionStorage\.setItem\("appMode", "1"\)/.test(html),
     '?app=1 is taken out of the address bar once read ("Open in Chrome" must not carry it), kept for the tab\'s own reloads')
-  ok(/const want = APP_MODE \? awakeRefused : canFS && isTouch\(\) && !inFS\(\)/.test(html), 'the installed app skips the full-screen gate unless keep-awake was refused')
+  ok(/const want = IN_APP \? false : APP_MODE \? awakeRefused : canFS && isTouch\(\) && !inFS\(\)/.test(html), 'the installed app skips the full-screen gate unless keep-awake was refused (the tablet app: always)')
   ok(/if \(APP_MODE\) \{\s*lockLandscape\(\);\s*setKeepAwake\(true, \{ quiet: true \}\)/.test(html), 'and switches keep-awake on at launch, landscape-locked, with no tap')
   ok(/awakeRefused = !held;\s*syncGate\(\);/.test(html), 'a refused wake lock brings the gate back for the video fallback\'s tap')
   ok(/if \(APP_MODE && !awakeHeld\(\)\) \{ awakeRefused = true; syncGate\(\); \}/.test(html), 'and is re-taken on every return to the page')

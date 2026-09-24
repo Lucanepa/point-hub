@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cleartext ONLY to the two board IPs (AP and cable). Everything else must be https, trusted by
+     the system store only (no user CAs). The ts.net origin has a real Let's Encrypt certificate;
+     no pinning, because renewals would break it. A new board IP needs a new build. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">172.24.1.1</domain>
+        <domain includeSubdomains="false">192.168.5.1</domain>
+    </domain-config>
+</network-security-config>

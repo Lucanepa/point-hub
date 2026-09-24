@@ -191,11 +191,14 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
   const stateHome = dataDir ? path.resolve(dataDir) : path.resolve(webDir, '..', 'data')
+  // The tablet app's release, as android/build-release.sh leaves it: pointhub.apk + version.json.
+  // Read per request (no caching), so dropping a new build in needs no restart.
+  const appDist = appDistDir ? path.resolve(appDistDir) : path.resolve(webDir, '..', 'android', 'dist')
   // Which console this board serves. The tablet keeps the page open for days, so after a deploy it
   // would go on running the old page against the new server; it compares this with the build it
   // loaded and reloads itself at the next quiet moment. A hash of the files it loads, not a version
@@ -516,6 +519,18 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
 
       // Pretty route for the log viewer.
       if (pathname === '/logs') return serveStatic(res, '/logs.html', webDir)
+
+      // The tablet app (android/). Open like every read, and deliberately no PIN: /app is what a
+      // fresh tablet opens in Chrome to install the app at all, and the app's self-update fetches
+      // the other two with no scorer PIN to send. Nothing here is secret — the APK is signed, and
+      // the app checks the signature and the sha256 before it installs anything.
+      if (pathname === '/app' || pathname === '/app/' || APP_FILES[pathname]) {
+        if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed', { 'Content-Type': 'text/plain; charset=utf-8', Allow: 'GET, HEAD' })
+        if (APP_FILES[pathname]) return serveAppFile(res, appDist, APP_FILES[pathname])
+        return send(res, 200, appPage(readAppVersion(appDist), String(req.headers['user-agent'] || '')), {
+          'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+        })
+      }
 
       // Static web UI.
       return serveStatic(res, pathname, webDir)
@@ -1758,6 +1773,83 @@ function sectionsToScreen(sections) {
     }
   }
   return screen
+}
+
+// ── The tablet app's release (/app/…) ─────────────────────────────────────────────────────────
+// A fixed map, never a path taken from the URL: only these two files are ever read from the dist
+// directory. no-store on both, because the app decides whether to update from version.json and a
+// cached copy would hide a release (or offer one that is gone).
+const APP_FILES = {
+  '/app/version.json': { file: 'version.json', type: 'application/json; charset=utf-8' },
+  '/app/pointhub.apk': { file: 'pointhub.apk', type: 'application/vnd.android.package-archive', download: 'pointhub.apk' },
+}
+
+function serveAppFile(res, dir, { file, type, download }) {
+  fs.readFile(path.join(dir, file), (err, buf) => {
+    if (err) return send(res, 404, 'not found', { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' })
+    const headers = { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Length': buf.length }
+    if (download) headers['Content-Disposition'] = `attachment; filename="${download}"`
+    send(res, 200, buf, headers)
+  })
+}
+
+// version.json, or null when there is no release (or it does not parse).
+function readAppVersion(dir) {
+  try {
+    const v = JSON.parse(fs.readFileSync(path.join(dir, 'version.json'), 'utf8'))
+    if (!v || typeof v !== 'object' || !fs.existsSync(path.join(dir, 'pointhub.apk'))) return null
+    return v
+  } catch { return null }
+}
+
+const escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
+// GET /app — what a volunteer opens in Chrome on a fresh tablet: one button, and the one Android
+// prompt they will meet. Self-contained (the board has no internet), light and dark.
+function appPage(v, ua) {
+  const inApp = /\bPointHubApp\/(\S+)/.exec(ua)
+  const mb = v && Number(v.size) > 0 ? ` · ${(Number(v.size) / 1048576).toFixed(1)} MB` : ''
+  const body = !v
+    ? `<p class="lead">This board has no copy of the tablet app yet.</p>
+    <p class="hint">It is built on the club laptop (<code>android/build-release.sh</code>) and shipped with the next board update. The console still works in Chrome: <a href="/">open it</a>.</p>`
+    : `<p class="lead">The board's own control screen: full screen, always awake, and it finds the scoreboard by itself.</p>
+    ${inApp ? `<p class="note">You are already in the app (version ${escHtml(inApp[1])}). Updates install from its admin menu.</p>` : ''}
+    <a class="btn" id="download" href="/app/pointhub.apk" download="pointhub.apk">Download Point Hub</a>
+    <p class="ver" id="ver">Version ${escHtml(v.versionName || '?')} (${escHtml(v.versionCode ?? '?')})${mb}</p>
+    ${v.notes ? `<p class="notes">${escHtml(v.notes)}</p>` : ''}
+    <ol>
+      <li>Tap <b>Download Point Hub</b>, then open the file when Chrome says it is done.</li>
+      <li><b>Only the first time:</b> Android says installing apps from Chrome is blocked. Tap <b>Settings</b>, turn on <b>Allow from this source</b>, go back, and tap <b>Install</b>.</li>
+      <li>Open <b>Point Hub</b>. It asks for the scoreboard Wi-Fi password and an admin PIN once, then opens the console.</li>
+    </ol>`
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Point Hub app</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root{--bg:#ffffff;--fg:#0A0B0D;--muted:#5a606b;--line:#e3e5ea;--blue:#0A34D6;--card:#fafafc}
+  @media (prefers-color-scheme: dark){:root{--bg:#0d0f13;--fg:#eef0f4;--muted:#a1a7b3;--line:#2a2e36;--blue:#4d74ff;--card:#161920}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:560px;margin:0 auto;padding:32px 16px 48px}
+  h1{font-size:26px;line-height:1.2;margin:0 0 8px}
+  .lead{color:var(--muted);margin:0 0 24px}
+  .btn{display:flex;align-items:center;justify-content:center;min-height:64px;border-radius:12px;background:var(--blue);color:#fff;font-weight:800;font-size:20px;text-decoration:none}
+  .ver{color:var(--muted);font-size:14px;margin:10px 0 0;text-align:center;font-variant-numeric:tabular-nums}
+  .notes{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  ol{padding-left:20px;margin:24px 0 0}
+  li{margin:0 0 10px}
+  .hint{color:var(--muted)}
+  a{color:var(--blue)}
+  code{font-size:14px}
+</style></head>
+<body><main>
+  <h1>Install Point Hub on this tablet</h1>
+  ${body}
+</main></body></html>
+`
 }
 
 // Serve a file from webDir (or index.html for "/"), rejecting any path escaping webDir.

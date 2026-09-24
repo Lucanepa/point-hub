@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Point Hub</string>
+    <string name="offline_title">Looking for the scoreboard…</string>
+    <string name="offline_body">Is it switched on? Is this tablet on %1$s?</string>
+    <string name="offline_retry">Retry</string>
+    <string name="offline_connect_wifi">Connect to scoreboard Wi-Fi</string>
+    <string name="offline_last_match">Last known match (read-only)</string>
+    <string name="update_available">App update available (%1$s)</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="install">Install…</string>
+    <string name="net_lost_pill">Scoreboard connection lost. Reconnecting…</string>
+    <string name="setup_title">Point Hub setup</string>
+    <string name="setup_intro">This tablet is the scoreboard\'s control screen. Enter the scoreboard Wi-Fi (printed on the hall card) and an admin PIN for the hidden admin menu (5 taps in the top-left corner).</string>
+    <string name="setup_ssid">Scoreboard Wi-Fi name (SSID)</string>
+    <string name="setup_pass">Wi-Fi password</string>
+    <string name="setup_show_pass">Show password</string>
+    <string name="setup_pin">Admin PIN (4–8 digits)</string>
+    <string name="setup_pin2">Admin PIN again</string>
+    <string name="setup_save">Save and connect</string>
+    <string name="setup_skip">Skip Wi-Fi (cable / Tailscale only)</string>
+    <string name="admin_title">Point Hub admin</string>
+    <string name="pin_title">Admin PIN</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+</resources>
