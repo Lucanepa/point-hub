@@ -51,6 +51,8 @@ export function toSheet(data) {
       licence: str(p.licence) || null,
       captain: p.is_captain === true, libero: p.is_libero === true,
     }))
+    // Jersey order, as the scorer reads them off the sheet; unnumbered last.
+    .sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity))
   const officials = (Array.isArray(d.coaches) ? d.coaches : [])
     .filter((c) => c && typeof c === 'object')
     .map((c) => ({ role: str(c.role) || null, lastName: str(c.last_name), initial: str(c.first_initial), birthdate: str(c.birthdate).slice(0, 10) || null }))

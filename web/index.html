@@ -315,25 +315,43 @@
   .upday .schedrow .steams{font-size:15px}
   .seasonmore{margin-top:10px;width:100%;min-height:var(--tap);padding:10px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   #upcomingWrap{margin-top:14px} #upcomingWrap + .linkhead{margin-top:14px}
-  /* The match sheet for the game on the board: Game info + the KSCW roster, for the scorer to copy
-     into the eScoresheet. Every row is a tap target that copies its own value. */
+  /* The match sheet for the game on the board, laid out like the Swiss Volley Matchblatt so the
+     scorer copies box for box: Game info is the sheet's ruled header (German labels, its order),
+     the roster is wiedisync's (Geb. · Nr. · Name, F.), Liberos written a second time, then the
+     Offizielle. Every box / row is a tap target that copies its own value. */
   #sheetWrap{margin-top:14px}
   .sheetcard{border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);margin-bottom:10px;overflow:hidden}
-  .sheetcard h3{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);border-bottom:1px solid var(--line-soft)}
+  .sheetcard h3{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);border-bottom:1.5px solid var(--line)}
   .sheetcard h3 span{flex:1;min-width:0}
   .sheetcard h3 button{min-height:36px;padding:6px 12px;font-size:13px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer;text-transform:none;letter-spacing:0}
-  .sheetrow{width:100%;display:flex;align-items:baseline;gap:12px;min-height:44px;padding:8px 12px;border:0;border-top:1px solid var(--line-soft);background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
-  .sheetcard h3 + .sheetrow,.sheetcard h3 + div > .sheetrow:first-child{border-top:0}
-  .sheetrow:active{background:var(--fill)}
-  .sheetrow .sk{flex:0 0 7.5em;font-size:12px;font-weight:700;color:var(--muted)}
-  .sheetrow .sv{flex:1;min-width:0;font-size:15px;font-weight:700;overflow-wrap:anywhere}
-  .sheetrow .sno{flex:0 0 2.2em;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:17px;font-weight:800;text-align:right}
-  .sheetrow .sdob,.sheetrow .slic{flex:0 0 auto;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
-  .sheetrow .sflag{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--blue);border:1.5px solid var(--blue);border-radius:6px;padding:1px 5px}
-  .sheetsub{padding:8px 12px 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line-soft)}
-  .sheetcard .note{padding:10px 12px}
+  /* The ruled header: boxes on a grid, hairlines between them like the printed sheet. */
+  .mb{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line-soft)}
+  .mbf{grid-column:span 2;display:flex;flex-direction:column;gap:2px;min-height:58px;padding:7px 10px;border:0;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;min-width:0}
+  .mbf:active{background:var(--fill)}
+  .mbf.w3{grid-column:span 3} .mbf.w6{grid-column:span 6} .mbf.w1{grid-column:span 1}
+  .mbf .ml{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .mbf .mv{font-size:16px;font-weight:800;overflow-wrap:anywhere}
+  .mbf .mv.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .mbf .ms{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+  .mbsec{grid-column:span 6;padding:6px 10px 4px;background:var(--fill);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  @media (max-width:560px){ .mb{grid-template-columns:repeat(2,minmax(0,1fr))} .mbf,.mbf.w3,.mbf.w1{grid-column:span 1} .mbf.w6,.mbf.pw,.mbsec{grid-column:span 2} }
+  /* The roster: Geb. · Nr. · Name, F. — the columns wiedisync's sheet uses. */
+  .rtab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .rtab th{padding:6px 12px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;background:var(--fill);border-top:1px solid var(--line-soft)}
+  .rtab td{padding:0;border-top:1px solid var(--line-soft)}
+  .rtab tr{cursor:pointer} .rtab tr:active td{background:var(--fill)}
+  .rtab td > span{display:block;padding:10px 12px;min-height:44px}
+  .rtab .cdob{width:1%;white-space:nowrap;font-family:var(--mono);font-size:14px;color:var(--muted)}
+  .rtab .cno{width:1%;white-space:nowrap;text-align:right;font-family:var(--mono);font-size:17px;font-weight:800}
+  .rtab .cname{font-size:16px;font-weight:700;overflow-wrap:anywhere}
+  .rtab .cname .cap{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:7px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:800;vertical-align:2px}
+  .rtab .crole{width:1%;white-space:nowrap;font-family:var(--mono);font-size:14px;font-weight:800;color:var(--blue)}
+  .rsec{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1.5px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+  .rsec span{flex:1}
+  .rsec button{min-height:32px;padding:4px 10px;font-size:12px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer;text-transform:none;letter-spacing:0}
+  .sheetcard .note{padding:10px 12px;border-top:1px solid var(--line-soft)}
+  .sheetcard h3 + .note{border-top:0}
   .sheetcard .seasonmore{display:block;width:calc(100% - 24px);margin:0 12px 12px}
-  @media (max-width:420px){ .sheetrow .sk{flex-basis:6em} .sheetrow .slic{display:none} }
   .note{color:var(--muted);font-size:13px;padding:8px 2px} .err{color:var(--bad);font-size:13px;padding:6px 2px}
 
   /* ---- SETTINGS ---- */
@@ -3324,18 +3342,6 @@
     }
     toast(ok ? "Copied " + what : "Couldn't copy — long-press the text instead");
   }
-  function sheetRow(cells, copy, what) {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "sheetrow";
-    for (const [cls, text] of cells) {
-      if (text == null || text === "") continue;
-      const s = document.createElement("span"); s.className = cls; s.textContent = String(text);
-      b.appendChild(s);
-    }
-    b.setAttribute("aria-label", "Copy " + copy);
-    b.addEventListener("click", () => copyText(copy, what));
-    return b;
-  }
   function sheetCard(title, copyAll) {
     const card = document.createElement("div"); card.className = "sheetcard";
     const h = document.createElement("h3");
@@ -3350,6 +3356,20 @@
     return card;
   }
   function sheetNote(card, text) { const p = document.createElement("p"); p.className = "note"; p.textContent = text; card.appendChild(p); }
+  // What the Matchblatt's header asks for, derived from the club's league name where it can be:
+  // "Frauen 5. Liga Gruppe D" → Typ Frauen, Liga D5D (the sheet's own abbreviation, "D3A" = Damen
+  // 3. Liga Gruppe A). Anything it cannot read stays as the club wrote it.
+  function matchblattHead(g) {
+    const lg = String(g.league || "");
+    const typ = /^(männer|herren)\b/i.test(lg) ? "Männer" : /^(frauen|damen)\b/i.test(lg) ? "Frauen" : /\bU\s?\d{2}\b|junior/i.test(lg) ? "Junioren" : "";
+    const m = /(\d)\.\s*Liga(?:\s+Gruppe\s+([A-Z]))?/i.exec(lg);
+    const abbr = typ && m ? (typ === "Frauen" ? "D" : "H") + m[1] + (m[2] ? m[2].toUpperCase() : "") : "";
+    const level = /\b(NLA|NLB|1\.\s*Liga)\b/i.test(lg) ? "National" : lg ? "Regional" : "";
+    return { comp: /cup/i.test(lg) ? "Cup" : "Meisterschaft", level, typ, abbr };
+  }
+  const OFFICIAL_CODE = { coach: "C", assistant_coach_1: "AC1", assistant_coach_2: "AC2", physio: "P", doctor: "M" };
+  const OFFICIAL_ORDER = ["coach", "assistant_coach_1", "assistant_coach_2", "physio", "doctor"];
+  const fmtName = (p) => String(p.lastName || "") + (p.initial ? ", " + p.initial : "");
   function renderSheet(r) {
     const box = $("#sheet");
     box.innerHTML = "";
@@ -3360,14 +3380,37 @@
       return;
     }
     const g = r.info || {};
+    const head = matchblattHead(g);
     const refs = Array.isArray(g.referees) ? g.referees : [];
-    const info = [
-      ["Match no.", g.number], ["Date", fmtSchedDate(g.date).replace(/^\w+ /, "") + (g.date ? String(g.date).slice(0, 4) : "")],
-      ["Time", g.time], ["Home", g.home], ["Away", g.away], ["League", g.league], ["Round", g.round && g.round !== g.league ? g.round : ""], ["Hall", g.hall],
-      ...(refs.length ? refs.map((n, i) => [refs.length > 1 ? "Referee " + (i + 1) : "Referee", n]) : [["Referees", "not published yet"]]),
-    ].filter(([, v]) => v != null && v !== "");
-    const ic = sheetCard("Game info", info.map(([k, v]) => k + "\t" + v).join("\n"));
-    for (const [k, v] of info) ic.appendChild(sheetRow([["sk", k], ["sv", v]], String(v), k.toLowerCase()));
+    const date = fmtDob(g.date);
+    // [label, value, width, extra, mono, full width on a phone] in the Matchblatt's order; width in
+    // sixths of the row (a phone has two columns, so a box that would sit alone takes both).
+    const fields = [
+      ["Wettbewerb", head.comp, 2], ["Niveau", head.level, 2], ["Typ", head.typ, 2],
+      ["Liga", head.abbr || g.league, 3, head.abbr ? g.league : ""], ["Spielnummer", g.number, 3, "", true, true],
+      ["sec", "Mannschaften"],
+      ["Heim", g.home, 3], ["Gast", g.away, 3],
+      ["sec", "Ort und Zeit"],
+      ["Halle", g.hall, 2, "", false, true], ["Datum", date, 2, "", true], ["Zeit", g.time, 2, "", true],
+      ["sec", "Schiedsrichter"],
+      ["1. Schiedsrichter", refs[0] || "", 3, refs[0] ? "" : "noch nicht aufgeboten"], ["2. Schiedsrichter", refs[1] || "", 3, refs[1] ? "" : "—"],
+    ];
+    const copyAll = fields.filter((f) => f[0] !== "sec" && f[1]).map((f) => f[0] + "\t" + f[1]).join("\n");
+    const ic = sheetCard("Game info", copyAll);
+    const grid = document.createElement("div"); grid.className = "mb";
+    for (const [label, value, w, sub, num, phoneWide] of fields) {
+      if (label === "sec") { const d = document.createElement("div"); d.className = "mbsec"; d.textContent = value; grid.appendChild(d); continue; }
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "mbf w" + w + (phoneWide ? " pw" : "");
+      const l = document.createElement("span"); l.className = "ml"; l.textContent = label;
+      const v = document.createElement("span"); v.className = num ? "mv num" : "mv"; v.textContent = value || "—";
+      b.append(l, v);
+      if (sub) { const x = document.createElement("span"); x.className = "ms"; x.textContent = sub; b.appendChild(x); }
+      if (value) { b.setAttribute("aria-label", "Copy " + label + ": " + value); b.addEventListener("click", () => copyText(String(value), label)); }
+      else b.disabled = true;
+      grid.appendChild(b);
+    }
+    ic.appendChild(grid);
     box.appendChild(ic);
 
     if (g.kscwIsHome === false) return;
@@ -3383,28 +3426,59 @@
       return;
     }
     const players = Array.isArray(ro.players) ? ro.players : [];
-    const officials = Array.isArray(ro.officials) ? ro.officials : [];
-    const flags = (p) => [p.captain ? "C" : "", p.libero ? "L" : ""].filter(Boolean).join(" ");
-    const pLine = (p) => [p.number == null ? "" : p.number, p.lastName, p.initial, fmtDob(p.birthdate), p.licence || "", flags(p)].join("\t");
-    const oLine = (o) => [o.role || "", o.lastName, o.initial, fmtDob(o.birthdate)].join("\t");
-    const all = players.map(pLine).concat(officials.length ? ["", ...officials.map(oLine)] : []).join("\n");
-    const title = "KSCW roster" + (players.length ? " · " + players.length : "");
-    const rc = sheetCard(title, players.length ? all : "");
+    const liberos = players.filter((p) => p.libero);
+    const staff = (Array.isArray(ro.officials) ? ro.officials : []).slice()
+      .sort((a, b) => (OFFICIAL_ORDER.indexOf(a.role) + 1 || 99) - (OFFICIAL_ORDER.indexOf(b.role) + 1 || 99));
+    const pLine = (p) => [fmtDob(p.birthdate), p.number == null ? "" : p.number, fmtName(p) + (p.captain ? " (C)" : "")].join("\t");
+    const sLine = (o) => [OFFICIAL_CODE[o.role] || "", fmtDob(o.birthdate), fmtName(o)].join("\t");
+    const all = [...players.map(pLine), ...(liberos.length ? ["", "Liberos", ...liberos.map(pLine)] : []), ...(staff.length ? ["", "Offizielle", ...staff.map(sLine)] : [])].join("\n");
+    const rc = sheetCard("KSCW roster" + (players.length ? " · " + players.length : ""), players.length ? all : "");
     if (!players.length) sheetNote(rc, "No players on the sheet yet.");
-    for (const p of players) {
-      const f = flags(p);
-      const row = sheetRow([["sno", p.number == null ? "–" : p.number], ["sv", p.lastName + " " + p.initial], ["sdob", fmtDob(p.birthdate)], ["slic", p.licence]],
-        pLine(p), (p.lastName || "player"));
-      if (f) { const s = document.createElement("span"); s.className = "sflag"; s.textContent = f; row.appendChild(s); }
-      rc.appendChild(row);
+    // One table per block; each row copies its own line.
+    const table = (heads, rows) => {
+      const t = document.createElement("table"); t.className = "rtab";
+      const tr0 = document.createElement("tr");
+      for (const [cls, h] of heads) { const th = document.createElement("th"); th.textContent = h; if (cls === "cno") th.style.textAlign = "right"; tr0.appendChild(th); }
+      t.appendChild(tr0);
+      for (const { cells, copy, what } of rows) {
+        const tr = document.createElement("tr");
+        tr.tabIndex = 0; tr.setAttribute("role", "button"); tr.setAttribute("aria-label", "Copy " + what);
+        for (const [cls, text, cap] of cells) {
+          const td = document.createElement("td"); td.className = cls;
+          const sp = document.createElement("span"); sp.textContent = text;
+          if (cap) { const c = document.createElement("span"); c.className = "cap"; c.title = "Captain"; c.textContent = "C"; sp.appendChild(c); }
+          td.appendChild(sp); tr.appendChild(td);
+        }
+        const go = () => copyText(copy, what);
+        tr.addEventListener("click", go);
+        tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+        t.appendChild(tr);
+      }
+      return t;
+    };
+    const pRow = (p) => ({ cells: [["cdob", fmtDob(p.birthdate) || "—"], ["cno", p.number == null ? "—" : String(p.number)], ["cname", fmtName(p), p.captain]], copy: pLine(p), what: p.lastName || "player" });
+    const heads = [["cdob", "Geb."], ["cno", "Nr."], ["cname", "Name"]];
+    const section = (title, copy) => {
+      const d = document.createElement("div"); d.className = "rsec";
+      const t = document.createElement("span"); t.textContent = title; d.appendChild(t);
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "Copy";
+      b.addEventListener("click", () => copyText(copy, title.toLowerCase())); d.appendChild(b);
+      return d;
+    };
+    if (players.length) rc.appendChild(table(heads, players.map(pRow)));
+    if (liberos.length) {
+      rc.appendChild(section("Liberos", liberos.map(pLine).join("\n")));
+      rc.appendChild(table(heads, liberos.map(pRow)));
     }
-    if (officials.length) {
-      const sub = document.createElement("div"); sub.className = "sheetsub"; sub.textContent = "Officials";
-      rc.appendChild(sub);
-      for (const o of officials) rc.appendChild(sheetRow([["sk", o.role ? o.role.charAt(0).toUpperCase() + o.role.slice(1) : "Official"], ["sv", o.lastName + " " + o.initial], ["sdob", fmtDob(o.birthdate)]], oLine(o), o.lastName || "official"));
+    if (staff.length) {
+      rc.appendChild(section("Offizielle", staff.map(sLine).join("\n")));
+      rc.appendChild(table([["crole", "Funktion"], ["cdob", "Geb."], ["cname", "Name"]], staff.map((o) => ({
+        cells: [["crole", OFFICIAL_CODE[o.role] || "—"], ["cdob", fmtDob(o.birthdate) || "—"], ["cname", fmtName(o)]],
+        copy: sLine(o), what: o.lastName || "official",
+      }))));
     }
     const at = schedLocal(ro.fetchedAt);
-    const src = ro.source === "vm" ? "Einsatzliste (Volleymanager)" : ro.source === "rsvp" ? "confirmed RSVPs — no Einsatzliste yet" : ro.source === "saved" || ro.edited ? "corrected by the coach" : "";
+    const src = ro.source === "vm" ? "Einsatzliste (Volleymanager)" : ro.source === "rsvp" ? "confirmed RSVPs, no Einsatzliste yet" : ro.source === "saved" || ro.edited ? "corrected by the coach" : "";
     sheetNote(rc, [src ? "From " + src : "", at ? "loaded " + at.dm + " " + at.hm : "", ro.warning || ""].filter(Boolean).join(" · "));
     box.appendChild(rc);
   }
