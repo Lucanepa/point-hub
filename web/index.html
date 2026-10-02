@@ -1712,6 +1712,7 @@
   let SCORER_PIN = ""; try { SCORER_PIN = localStorage.getItem("kscwScorerPin") || ""; } catch {}
   let pinRequired = false;
   let sheetLoading = false, sheetGameId = null;   // the match-sheet card (refreshSheet); renderStatus reads it
+  let sheetDone = false, sheetAt = 0;             // …whether it has the whole answer, and when it last asked
   // The board's rule for a PIN, checked before anything is sent so the two can never disagree.
   const PIN_RE = /^\d{1,8}$/;
 
@@ -2088,7 +2089,9 @@
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
     // Another game on the board (a schedule tap, the automatic pre-match, a reset): the card follows.
-    if ((st.gameId ?? null) !== sheetGameId && $("#tab-link").classList.contains("active")) refreshSheet(false);
+    // Until it has the whole answer (roster not open yet, no internet, schedule still loading) it
+    // asks again every 20 s while the tab is open, so it fills in by itself.
+    if ($("#tab-link").classList.contains("active") && ((st.gameId ?? null) !== sheetGameId || (!sheetDone && Date.now() - sheetAt > 20000))) refreshSheet(false);
     // Where the scorer sits rides on every poll, so a change made on another tablet lands here too.
     // Not in the few seconds after this tablet saved it: a poll already in the air says the old one.
     if ((st.orientation === "behind" || st.orientation === "front") && st.orientation !== SETTINGS.orientation
@@ -3398,7 +3401,7 @@
     if (officials.length) {
       const sub = document.createElement("div"); sub.className = "sheetsub"; sub.textContent = "Officials";
       rc.appendChild(sub);
-      for (const o of officials) rc.appendChild(sheetRow([["sk", o.role || "Official"], ["sv", o.lastName + " " + o.initial], ["sdob", fmtDob(o.birthdate)]], oLine(o), o.lastName || "official"));
+      for (const o of officials) rc.appendChild(sheetRow([["sk", o.role ? o.role.charAt(0).toUpperCase() + o.role.slice(1) : "Official"], ["sv", o.lastName + " " + o.initial], ["sdob", fmtDob(o.birthdate)]], oLine(o), o.lastName || "official"));
     }
     const at = schedLocal(ro.fetchedAt);
     const src = ro.source === "vm" ? "Einsatzliste (Volleymanager)" : ro.source === "rsvp" ? "confirmed RSVPs — no Einsatzliste yet" : ro.source === "saved" || ro.edited ? "corrected by the coach" : "";
@@ -3413,7 +3416,7 @@
     const on = SETTINGS.liveScoring === "kscw" && id != null;
     wrap.hidden = !on;
     if (!on || sheetLoading) return;
-    sheetLoading = true;
+    sheetLoading = true; sheetAt = Date.now();
     const btn = $("#sheetRefreshBtn"); if (btn) btn.disabled = true;
     try {
       // Always 200 (a locked tablet gets a "PIN" button in the card, not the PIN pad popping up);
@@ -3423,7 +3426,9 @@
       const r = await api("/api/gamesheet", { method: "POST", headers, body: JSON.stringify({ refresh: !!force }),
         signal: deadline(force ? 20000 : API_POST_TIMEOUT_MS) });
       renderSheet(r);
+      sheetDone = !!(r && r.ok && r.roster && (r.roster.ok || r.roster.locked || (r.info && r.info.kscwIsHome === false)));
     } catch (e) {
+      sheetDone = false;
       renderSheet({ ok: false, error: "Couldn't load the game from the board." });
     } finally { sheetLoading = false; if (btn) btn.disabled = false; }
   }
