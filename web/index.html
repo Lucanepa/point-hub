@@ -342,9 +342,11 @@
   .rtab tr{cursor:pointer} .rtab tr:active td{background:var(--fill)}
   .rtab td > span{display:block;padding:10px 12px;min-height:44px}
   .rtab .cdob{width:1%;white-space:nowrap;font-family:var(--mono);font-size:14px;color:var(--muted)}
-  .rtab .cno{width:1%;white-space:nowrap;text-align:right;font-family:var(--mono);font-size:17px;font-weight:800}
+  .rtab .cno{width:1%;min-width:3.4em;white-space:nowrap;text-align:center;font-family:var(--mono);font-size:17px;font-weight:800}
+  .rtab th.hno{text-align:center}
+  /* The captain's number is circled, as on the paper Matchblatt. */
+  .rtab .cno .cap{display:inline-flex;align-items:center;justify-content:center;min-width:1.9em;height:1.9em;margin:-.3em 0;padding:0 .2em;border:2px solid var(--blue);border-radius:999px;box-sizing:border-box}
   .rtab .cname{font-size:16px;font-weight:700;overflow-wrap:anywhere}
-  .rtab .cname .cap{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:7px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:800;vertical-align:2px}
   .rtab .crole{width:1%;white-space:nowrap;font-family:var(--mono);font-size:14px;font-weight:800;color:var(--blue)}
   .rsec{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1.5px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
   .rsec span{flex:1}
@@ -3438,15 +3440,16 @@
     const table = (heads, rows) => {
       const t = document.createElement("table"); t.className = "rtab";
       const tr0 = document.createElement("tr");
-      for (const [cls, h] of heads) { const th = document.createElement("th"); th.textContent = h; if (cls === "cno") th.style.textAlign = "right"; tr0.appendChild(th); }
+      for (const [cls, h] of heads) { const th = document.createElement("th"); th.textContent = h; if (cls === "cno") th.className = "hno"; tr0.appendChild(th); }
       t.appendChild(tr0);
       for (const { cells, copy, what } of rows) {
         const tr = document.createElement("tr");
         tr.tabIndex = 0; tr.setAttribute("role", "button"); tr.setAttribute("aria-label", "Copy " + what);
         for (const [cls, text, cap] of cells) {
           const td = document.createElement("td"); td.className = cls;
-          const sp = document.createElement("span"); sp.textContent = text;
-          if (cap) { const c = document.createElement("span"); c.className = "cap"; c.title = "Captain"; c.textContent = "C"; sp.appendChild(c); }
+          const sp = document.createElement("span");
+          if (cap) { const c = document.createElement("span"); c.className = "cap"; c.title = "Captain"; c.textContent = text; sp.appendChild(c); }
+          else sp.textContent = text;
           td.appendChild(sp); tr.appendChild(td);
         }
         const go = () => copyText(copy, what);
@@ -3456,7 +3459,7 @@
       }
       return t;
     };
-    const pRow = (p) => ({ cells: [["cdob", fmtDob(p.birthdate) || "—"], ["cno", p.number == null ? "—" : String(p.number)], ["cname", fmtName(p), p.captain]], copy: pLine(p), what: p.lastName || "player" });
+    const pRow = (p) => ({ cells: [["cdob", fmtDob(p.birthdate) || "—"], ["cno", p.number == null ? "—" : String(p.number), p.captain], ["cname", fmtName(p)]], copy: pLine(p), what: p.lastName || "player" });
     const heads = [["cdob", "Geb."], ["cno", "Nr."], ["cname", "Name"]];
     const section = (title, copy) => {
       const d = document.createElement("div"); d.className = "rsec";
