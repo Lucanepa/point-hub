@@ -1183,6 +1183,7 @@
           <p class="uperr" id="upErr" role="alert" hidden></p>
           <div class="upactions">
             <button type="button" id="upReveal" class="upbtn" hidden>Log in by SMS</button>
+            <button type="button" id="upPortal" class="upbtn" hidden>Open the login page</button>
             <button type="button" id="upCheck" class="upbtn">Check again</button>
           </div>
           <p class="hint">The hall's free Wi-Fi lets the board onto the internet only after a login
@@ -4887,6 +4888,13 @@
         : "Live scoring is paused until the board is logged in.", warn: false, form: "phone", reveal: false };
     }
     if (u.status === "checking") return { state: "checking", line: "Checking the internet…", sub: "", warn: false, form: null, reveal: false };
+    // On a Wi-Fi, but nothing answered: the hall's login page is slow or not the one the board
+    // knows. Not "no Wi-Fi" — the way through is its page, filled in by hand.
+    if (u.ssid) return {
+      state: "offline", line: net + " — its login page is not answering",
+      sub: "The board is on the hall Wi-Fi but cannot reach the internet. Try the SMS login, or open the hall's own login page — the board walks it for you.",
+      warn: false, form: null, reveal: true,
+    };
     return {
       state: "offline", line: "No internet uplink",
       sub: "The board is not on any Wi-Fi with internet. The scoreboard works without it; live scoring, the schedule and the clock wait.",
@@ -4913,6 +4921,10 @@
     if (form !== "phone") $("#upPhone").value = "";   // a number left behind in a hidden field is still a number left behind
     $("#upCodeForm").hidden = form !== "code";
     $("#upReveal").hidden = !(v.reveal && !form);
+    // The hall's own page, walked by the board: whenever the board is on a Wi-Fi that is not
+    // letting it out. Only boards that report the Wi-Fi's name have the route behind it.
+    $("#upPortal").hidden = !(u && u.ssid && (u.status === "portal" || u.status === "offline"));
+    $("#upPortal").disabled = upBusy;
     $("#upCheck").hidden = UPLINK === false;
     $("#upCheck").disabled = upBusy;
     $("#upSend").disabled = upBusy;
@@ -5092,6 +5104,25 @@
   $("#upPhoneForm").addEventListener("submit", uplinkSendCode);
   $("#upCodeForm").addEventListener("submit", uplinkLogIn);
   $("#upCheck").addEventListener("click", uplinkCheck);
+  // The hall's own login page, through the board (portalProxy.js). Same tab: the tablet app has no
+  // second window, and the page's bar leads back here — to Settings, via #settings below.
+  $("#upPortal").addEventListener("click", async () => {
+    if (upBusy) return;
+    uplinkError("");
+    const btn = $("#upPortal");
+    uplinkBusy(true, btn, "Opening…");
+    try {
+      const r = await uplinkPost("/api/uplink/portal", {}, UPLINK_CHECK_TIMEOUT_MS);
+      if (!r || !r.url) { uplinkError("The board could not open the login page — try again."); return; }
+      location.assign(r.url);
+    } catch (e) {
+      uplinkError(e && e.status === 404 ? "This board cannot open the login page yet — it needs an update." : uplinkFail(e));
+    } finally { uplinkBusy(false, btn); }
+  });
+  // Back from the login page: land on Settings, where the card says whether it worked.
+  if (typeof location !== "undefined" && location.hash === "#settings") setTimeout(() => {
+    try { $("#tabSettingsBtn").click(); history.replaceState(null, "", location.pathname + location.search); } catch {}
+  }, 0);
   $("#upReveal").addEventListener("click", () => { upReveal = true; uplinkError(""); renderUplink(); const i = $("#upPhone"); i.value = ""; i.focus(); });
   $("#upRestart").addEventListener("click", () => {
     // Back to the number. The board's half-finished session simply runs out; a new "Send code"

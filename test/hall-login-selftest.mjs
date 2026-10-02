@@ -19,12 +19,16 @@
 //   [8] when things go wrong at the hall: a probe the portal lets through (the second look), a
 //       certificate refused for its dates (the board's clock — fixed from the console's, even
 //       mid-match, and tried again), and a failure's real cause in the log
+//   [9] when the login page does not answer the board's own walk (2 Oct 2026): the reason in the
+//       log, the hall Wi-Fi still named, and the portal's own page opened through the board —
+//       PIN-gated, for the asking tablet only, sandboxed, cookies kept on the board
 import http from 'node:http'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { HallLogin, Uplink, CookieJar, normalizePhone, formToken, pageError, parseValidUntil, ERR } from '../src/hallLogin.js'
+import { PortalProxy, rewrite } from '../src/portalProxy.js'
 import { startAppliance } from '../src/appliance.js'
 import { log } from '../src/logStore.js'
 import { ClockSync } from '../src/clockSync.js'
@@ -227,7 +231,7 @@ try {
     ok((await hl.detect()).status === 'offline', 'a 200 page that is not this portal → offline')
     portal.probeMode = 'hang'
     const t0 = Date.now()
-    ok((await new HallLogin({ probeUrl, portalUrl: portalBase, timeoutMs: 300 }).detect()).status === 'offline' && Date.now() - t0 < 2000, 'a probe that never answers times out → offline')
+    ok((await new HallLogin({ probeUrl, portalUrl: portalBase, probeTimeoutMs: 300 }).detect()).status === 'offline' && Date.now() - t0 < 2000, 'a probe that never answers times out → offline')
     portal.probeMode = 'portal'
     portal.loggedIn = true
     ok((await hl.detect()).status === 'online', '204 → online')
@@ -431,6 +435,91 @@ try {
     const noFix = await new Uplink({ login: new HallLogin({ probeUrl, portalUrl: portalBase, fetchImpl: tlsFetch }), ssid: async () => null })
       .sendCode(PHONE_TYPED, { fixClock: () => ntp.setFromConsole(Date.now(), { evenIfBusy: true }) })
     ok(noFix.ok === false && noFix.error === ERR.clock, 'an NTP-synced clock is never moved: the scorer is told the clock is the problem')
+  }
+
+  console.log('\n[9] the login page, through the board')
+  {
+    portal.loggedIn = false
+    portal.probeMode = 'portal'
+    // Why a look failed: the host, what happened, and how the name lookup went.
+    const dead = await new HallLogin({ probeUrl: deadProbe, fallbackProbeUrl: deadProbe, portalUrl: portalBase }).detect()
+    ok(dead.status === 'offline' && /^127\.0\.0\.1: bad port \(name lookup [\d.]+ s → 127\.0\.0\.1\)$/.test(dead.why || ''), `offline says why: "${dead.why}"`)
+    portal.probeMode = 'hang'
+    const t0 = Date.now()
+    const hung = await new HallLogin({ probeUrl, fallbackProbeUrl: probeUrl.replace('/generate_204', '/neverssl'), portalUrl: portalBase, probeTimeoutMs: 300 }).detect()
+    ok(hung.status === 'offline' && /no answer in 0 s/.test(hung.why) && Date.now() - t0 < 1500, 'both looks run side by side: two hung probes cost one wait, not two')
+    portal.probeMode = 'portal'
+
+    // On the hall Wi-Fi, nothing answering: named, and the scorer told the page is the problem.
+    const lost = new Uplink({ login: new HallLogin({ probeUrl: deadProbe, portalUrl: portalBase }), ssid: async () => 'Free_WLAN_KTZH' })
+    const v = await lost.check()
+    ok(v.status === 'offline' && v.ssid === 'Free_WLAN_KTZH' && /bad port/.test(v.why || ''), 'offline on a Wi-Fi: the SSID and the reason are in the view')
+    ok((await lost.sendCode(PHONE_TYPED)).error === ERR.noAnswer, `and the SMS login says "${ERR.noAnswer}"`)
+    const nowhere = new Uplink({ login: new HallLogin({ probeUrl: deadProbe, portalUrl: portalBase }), ssid: async () => null })
+    ok((await nowhere.sendCode(PHONE_TYPED)).error === ERR.offline, 'on no Wi-Fi at all it still says so')
+
+    // Rewriting, on its own.
+    const host = new URL(portalBase).host
+    const src = `<a href="${portalBase}/Partner/X">a</a><form action="/Partner/Y"></form><img src="//${host}/i.png"><style>b{background:url('/c.png')}</style><script>var u="http:\\/\\/${host}\\/z"</script><a href="//elsewhere.example/q">e</a>`
+    const once = rewrite(src, portalBase)
+    ok(once.includes('href="/hall-login/Partner/X"') && once.includes('action="/hall-login/Partner/Y"') && once.includes('src="/hall-login/i.png"')
+      && once.includes("url('/hall-login/c.png')") && once.includes('"\\/hall-login\\/z"') && once.includes('//elsewhere.example/q'), 'portal URLs in every shape point at the proxy; other sites are left alone')
+    ok(rewrite(once, portalBase) === once, 'and rewriting twice changes nothing')
+
+    // Only for the tablet that opened it, only for ten minutes.
+    let t = 1_000_000
+    const px = new PortalProxy({ portalUrl: portalBase, now: () => t })
+    ok(!px.allowed('172.24.1.35'), 'closed until opened')
+    px.open('172.24.1.35')
+    ok(px.allowed('172.24.1.35') && !px.allowed('172.24.1.50'), 'open for the tablet that asked, not for another')
+    t += 10 * 60_000 + 1
+    ok(!px.allowed('172.24.1.35'), 'and closed again after ten minutes')
+
+    // The whole login, through the appliance, as the tablet's browser would walk it.
+    const base = `http://127.0.0.1:${app.server.address().port}`
+    const PIN = '5151'
+    const post = (p, pin) => fetch(base + p, { method: 'POST', headers: { 'content-type': 'application/json', origin: base, ...(pin ? { 'X-Scorer-Pin': pin } : {}) }, body: '{}' })
+    ok((await fetch(`${base}/hall-login/`, { redirect: 'manual' })).status === 403, 'GET /hall-login/ before it is opened → 403')
+    ok((await post('/api/uplink/portal')).status === 403, 'POST /api/uplink/portal without the PIN → 403')
+    const opened = await (await post('/api/uplink/portal', PIN)).json()
+    ok(opened.ok === true && opened.url === '/hall-login/', 'with the PIN → { ok, url: /hall-login/ }')
+
+    let res = await fetch(`${base}/hall-login/`, { redirect: 'manual' })
+    let at = res.headers.get('location') || ''
+    ok(res.status === 302 && at.startsWith('/hall-login/?sub-id='), `the start goes where the portal sends the board, sub-id and all (${at})`)
+    let hops = 0
+    while (res.status === 302 && hops++ < 6) {
+      res = await fetch(base + at, { redirect: 'manual', headers: { Referer: `${base}/hall-login/` } })
+      if (res.status === 302) at = res.headers.get('location')
+    }
+    const form = await res.text()
+    ok(res.status === 200 && form.includes('action="/hall-login/Partner/FreeSmsEnterMsisdn"'), 'the cookie check and the redirects are walked → the number form, its action pointing at the proxy')
+    ok(/^sandbox allow-scripts allow-forms$/.test(res.headers.get('content-security-policy') || ''), 'served sandboxed: no portal script runs in the console\'s origin')
+    ok(!res.headers.get('set-cookie') && form.includes('Back to Point Hub') && form.includes('XMLHttpRequest.prototype.open'), 'no portal cookie reaches the tablet; the page gets the way back and the XHR shim')
+
+    const token = formToken(form, 'FreeSmsEnterMsisdnForm')
+    const xhr = { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', Referer: `${base}${at}`, Origin: 'null' }
+    const body1 = new URLSearchParams([['Msisdn', PHONE_SENT], ['Autologin', 'true'], ['AcceptTerms', 'true'], ['__RequestVerificationToken', token], ['Autologin', 'false'], ['AcceptTerms', 'false']])
+    res = await fetch(`${base}/hall-login/Partner/FreeSmsEnterMsisdn`, { method: 'POST', redirect: 'manual', headers: xhr, body: body1.toString() })
+    ok(res.status === 302 && res.headers.get('location') === '/hall-login/Partner/FreeSmsEnterPassword' && res.headers.get('access-control-allow-origin') === 'null', 'the number, posted by the page → on to the code form (and readable by the sandboxed page)')
+    const pre = await fetch(`${base}/hall-login/Partner/FreeSmsEnterPassword`, { method: 'OPTIONS', headers: { Origin: 'null', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'x-requested-with' } })
+    ok(pre.status === 204 && /X-Requested-With/i.test(pre.headers.get('access-control-allow-headers') || ''), 'its XHR preflight is answered by the proxy')
+    res = await fetch(`${base}/hall-login/Partner/FreeSmsEnterPassword`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    const pw = await res.text()
+    const body2 = new URLSearchParams([['Password', CODE], ['__RequestVerificationToken', formToken(pw, 'FreeSmsEnterPasswordForm')]])
+    res = await fetch(`${base}/hall-login/Partner/FreeSmsEnterPassword`, { method: 'POST', redirect: 'manual', headers: xhr, body: body2.toString() })
+    ok(res.status === 302 && res.headers.get('location') === '/hall-login/Partner/ShowQuota', 'the code → the quota page')
+    res = await fetch(`${base}/hall-login/Partner/ShowQuota`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    ok(res.status === 200 && (await res.text()).includes('Auto login is valid until') && portal.loggedIn, 'the portal logged in the device that walked it — the board')
+    let view = null
+    for (let i = 0; i < 20; i++) { view = await (await fetch(`${base}/api/uplink`)).json(); if (view.status === 'online') break; await sleep(25) }
+    ok(view.status === 'online' && view.validUntil === QUOTA_ISO, 'and the card says online until the quota page\'s date')
+
+    // A page the portal sends by script to "/Partner/…" lands back under the proxy.
+    res = await fetch(`${base}/Partner/Somewhere?x=1`, { redirect: 'manual', headers: { Referer: `${base}/hall-login/Partner/FreeSmsEnterMsisdn` } })
+    ok(res.status === 302 && res.headers.get('location') === '/hall-login/Partner/Somewhere?x=1', 'a stray /Partner/… from a proxied page is sent back under /hall-login')
+    ok((await fetch(`${base}/Partner/Somewhere`, { redirect: 'manual' })).status === 404, 'without that referer it is just a missing page')
+    portal.loggedIn = false
   }
 } catch (err) {
   fail++

@@ -24,6 +24,7 @@ import { SeasonSchedule } from './seasonSchedule.js'
 import { AutoPrepare, inWindow } from './autoPrepare.js'
 import { zurichDate } from './schedule.js'
 import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
+import { PortalProxy } from './portalProxy.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -466,6 +467,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     portalUrl: uplinkOptions.portalUrl,
   })
   if (uplinkWatch) uplink.start()
+  // The hall's login page itself, opened on the tablet and walked by the board (portalProxy.js):
+  // the way through when the scripted login above cannot get the portal to answer.
+  const portalProxy = new PortalProxy({ uplink, portalUrl: uplinkOptions.portalUrl })
   // For the hall login routes below.
   const fixClockFrom = (body) => (body && Number.isFinite(Number(body.epochMs))
     ? () => clockSync.setFromConsole(Number(body.epochMs), { evenIfBusy: true })
@@ -503,6 +507,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     try {
       const url = new URL(req.url, 'http://localhost')
       const { pathname } = url
+
+      // Before the generic OPTIONS: the login page's own preflights are answered by the proxy.
+      if (portalProxy.owns(pathname)) return await portalProxy.handle(req, res, url, clientIp(req))
+      const strayTo = portalProxy.stray(req, pathname, clientIp(req))
+      if (strayTo) { res.writeHead(302, { Location: strayTo + url.search, 'Cache-Control': 'no-store' }); return res.end() }
 
       if (req.method === 'OPTIONS') return send(res, 204, null)
 
@@ -682,6 +691,15 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       const r = await uplink.submitCode(body && body.code, { fixClock: fixClockFrom(body) })
       alog.info(r.ok ? 'hall Wi-Fi login: online' : `hall Wi-Fi login: ${errKey(r.error)}`, { ip: clientIp(req), ok: r.ok, validUntil: r.validUntil || null })
       return sendJson(res, 200, { ...r, uplink: uplink.view() })
+    }
+    // POST /api/uplink/portal — open the hall's login page through the board, for this tablet,
+    // for ten minutes: { ok, url }. PIN-gated like the scripted login it stands in for.
+    if (pathname === '/api/uplink/portal' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      await readJson(req) // drain
+      const r = portalProxy.open(clientIp(req))
+      alog.info('hall Wi-Fi login page opened', { ip: clientIp(req) })
+      return sendJson(res, 200, { ok: true, ...r })
     }
     // POST /api/manual
     if (pathname === '/api/manual' && req.method === 'POST') {

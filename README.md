@@ -143,6 +143,11 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   portal's (freshly renewed) certificate the HTTPS login fails, so it adopts the console's time —
   even mid-match — and tries once more. `/api/status` carries `uplink: { status, validUntil }`. The Wi-Fi itself is set up by
   `provisioning/setup-wlan1-client.sh --hall`, which also carries the DNS fix that network needs.
+  When the scripted login cannot get through (the portal slow or changed), **Open the login page**
+  shows the hall's own page on the tablet, fetched by the board (`src/portalProxy.js`, under
+  `/hall-login/`), so it is still the board that logs in: `POST /api/uplink/portal` (PIN) opens it
+  for that tablet for ten minutes, its scripts run sandboxed away from the console's storage, and
+  its cookies stay on the board. An offline `/api/uplink` also names the Wi-Fi and says `why`.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
 - **The tablet's app** — with `TLS_CERT`/`TLS_KEY` set (`provisioning/setup-console-tls.sh`),

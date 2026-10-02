@@ -30,6 +30,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
+import dns from 'node:dns'
 import { log } from './logStore.js'
 import { zurichEpoch } from './schedule.js'
 
@@ -46,6 +47,12 @@ export const PORTAL_URL = 'https://login.pwlan.ch'
 export const FALLBACK_PROBE_URL = 'http://neverssl.com/'
 
 const TIMEOUT_MS = 10_000
+// The probes get longer. Before a login the hall's DNS can take most of ten seconds on its own
+// (see the single-request-reopen note in setup-wlan1-client.sh), and on 2 Oct 2026 both probes
+// gave up at exactly 10 s while a browser through the board reached the portal fine — so the
+// card said "not on the hall Wi-Fi" to a board that was on it. Both probes run side by side, so
+// the console waits this long once, not twice.
+const PROBE_TIMEOUT_MS = 25_000
 const SESSION_MS = 10 * 60_000        // how long an SMS code stays usable on our side
 const MAX_HOPS = 10                   // the real chain is 4 redirects
 const MAX_BODY = 512 * 1024           // a portal page is ~15 KB
@@ -69,6 +76,7 @@ export const ERR = {
   noCode: 'Send a code first',
   online: 'The hall internet already works — no login needed',
   offline: 'No internet uplink — the board is not on the hall Wi-Fi',
+  noAnswer: 'The board is on the hall Wi-Fi, but its login page did not answer — try again, or tap Open the login page',
   unreachable: 'The hall login page did not answer — try again in a moment',
   clock: "The board's clock is wrong, so it cannot trust the hall login page — open the console on a tablet with the right time, unlock it, and try again",
   unexpected: 'The hall login page looked different than expected — try again, or log in from a phone on the hall Wi-Fi',
@@ -237,14 +245,16 @@ export class HallLogin {
   // fake portal) and default to the real ones. `now` drives the 10-minute session.
   // A test that injects its own probe gets no second look unless it asks for one, so no test
   // ever reaches neverssl.com.
-  constructor({ probeUrl, fallbackProbeUrl, portalUrl, now = () => Date.now(), timeoutMs = TIMEOUT_MS, sessionMs = SESSION_MS, fetchImpl = null } = {}) {
+  constructor({ probeUrl, fallbackProbeUrl, portalUrl, now = () => Date.now(), timeoutMs = TIMEOUT_MS, probeTimeoutMs = PROBE_TIMEOUT_MS, sessionMs = SESSION_MS, fetchImpl = null, lookup = null } = {}) {
     this.probeUrl = probeUrl || PROBE_URL
     this.fallbackProbeUrl = fallbackProbeUrl !== undefined ? (fallbackProbeUrl || null) : (probeUrl ? null : FALLBACK_PROBE_URL)
     this.portalUrl = portalUrl || PORTAL_URL
     this.portalHost = new URL(this.portalUrl).host.toLowerCase()
     this.now = now
     this.timeoutMs = timeoutMs
+    this.probeTimeoutMs = probeTimeoutMs
     this.sessionMs = sessionMs
+    this._lookup = lookup || ((host) => dns.promises.lookup(host, { all: true }))
     this._fetch = fetchImpl || ((...a) => fetch(...a))
     this._session = null // { jar, token, referer, expiresAt }
     this._lapsed = false
@@ -255,9 +265,9 @@ export class HallLogin {
   }
 
   // One request, body included, inside one hard deadline. Never follows a redirect by itself.
-  async _request(url, { method = 'GET', jar = null, headers = {}, body = null } = {}) {
+  async _request(url, { method = 'GET', jar = null, headers = {}, body = null, timeoutMs = this.timeoutMs } = {}) {
     const ac = new AbortController()
-    const timer = setTimeout(() => ac.abort(), this.timeoutMs)
+    const timer = setTimeout(() => ac.abort(), timeoutMs)
     if (timer.unref) timer.unref()
     try {
       const h = { 'User-Agent': UA, 'Accept-Language': LANG, Accept: 'text/html,application/xhtml+xml,*/*;q=0.8', ...headers }
@@ -303,22 +313,29 @@ export class HallLogin {
 
   // online | portal | offline. `entryUrl` is where the probe was sent — it carries the portal's
   // sub-id for this device, so a login must start from it rather than from the portal's front page.
+  // `why` (offline only) is what each probe ran into, for the log: the next time the hall says no,
+  // the line says whether it was the name lookup, the connection, or the wait.
   async detect() {
-    const first = await this._probe(this.probeUrl)
-    if (first.status !== 'offline' || !this.fallbackProbeUrl) return first
-    // Not online and no portal in sight. Before telling the scorer there is no uplink, ask the way
-    // the hall's portal is known to answer. Only a portal counts from this look: "online" stays
-    // the 204's call, so a network that mangles the probe is not mistaken for a working one.
-    const second = await this._probe(this.fallbackProbeUrl)
-    return second.status === 'portal' ? second : first
+    // Both looks at once. Only a portal counts from the second: "online" stays the 204's call, so
+    // a network that mangles the probe is not mistaken for a working one. The second look is the
+    // way the hall's portal is known to answer (the capture started there).
+    const looks = [this._probe(this.probeUrl)]
+    if (this.fallbackProbeUrl) looks.push(this._probe(this.fallbackProbeUrl))
+    const first = await looks[0]
+    if (first.status !== 'offline') return first
+    const second = looks[1] ? await looks[1] : null
+    if (second && second.status === 'portal') return second
+    const why = [...new Set([first, second].filter(Boolean).map((r) => r.why).filter(Boolean))].join('; ') || null
+    return { status: 'offline', portal: null, entryUrl: null, why }
   }
 
   async _probe(url) {
+    const t0 = this.now()
     let r
     try {
-      r = await this._request(url, { headers: { Accept: '*/*' } })
-    } catch {
-      return { status: 'offline', portal: null, entryUrl: null }
+      r = await this._request(url, { headers: { Accept: '*/*' }, timeoutMs: this.probeTimeoutMs })
+    } catch (err) {
+      return { status: 'offline', portal: null, entryUrl: null, why: await this._why(url, err, this.now() - t0) }
     }
     if (r.status === 204) return { status: 'online', portal: null, entryUrl: null }
     if (r.status >= 300 && r.status < 400 && r.location && this.isPortal(r.location)) {
@@ -331,7 +348,30 @@ export class HallLogin {
       const m = r.text.match(new RegExp(`${esc}[^"'\\s<>]*`, 'i'))
       if (m) return { status: 'portal', portal: 'pwlan', entryUrl: decode(m[0]) }
     }
-    return { status: 'offline', portal: null, entryUrl: null }
+    const host = (() => { try { return new URL(url).host } catch { return url } })()
+    return { status: 'offline', portal: null, entryUrl: null, why: `${host}: HTTP ${r.status}${r.location ? ' → ' + r.location : ''}` }
+  }
+
+  // "connectivitycheck.gstatic.com: no answer in 25 s (name lookup 7.1 s → 74.125.29.94)". The
+  // lookup is timed again separately because fetch folds it into one deadline with the connection.
+  async _why(url, err, ms) {
+    let host
+    try { host = new URL(url).hostname } catch { host = url }
+    const what = err && err.name === 'AbortError' ? `no answer in ${Math.round(ms / 1000)} s`
+      : (err && err.cause && (err.cause.code || err.cause.message)) || (err && err.message) || String(err)
+    let dnsNote = ''
+    const t0 = this.now()
+    try {
+      const addrs = await Promise.race([
+        this._lookup(host),
+        new Promise((_, rej) => { const t = setTimeout(() => rej(new Error('no answer in 15 s')), 15_000); if (t.unref) t.unref() }),
+      ])
+      const list = (Array.isArray(addrs) ? addrs : [addrs]).map((a) => (a && a.address) || a).filter(Boolean)
+      dnsNote = ` (name lookup ${((this.now() - t0) / 1000).toFixed(1)} s → ${list.slice(0, 3).join(', ') || 'nothing'})`
+    } catch (e) {
+      dnsNote = ` (name lookup failed after ${((this.now() - t0) / 1000).toFixed(1)} s: ${(e && e.code) || (e && e.message) || e})`
+    }
+    return `${host}: ${what}${dnsNote}`
   }
 
   get session() {
@@ -490,7 +530,7 @@ export class Uplink {
     this.pollOnlineMs = pollOnlineMs
     this.pollOfflineMs = pollOfflineMs
     this.settleMs = settleMs
-    this.state = { status: 'checking', portal: null, ssid: null, validUntil: null, loggedInAt: null, checkedAt: null }
+    this.state = { status: 'checking', portal: null, ssid: null, why: null, validUntil: null, loggedInAt: null, checkedAt: null }
     this._timer = null
     this._running = false
     this._checking = null
@@ -519,20 +559,26 @@ export class Uplink {
     this._checking = (async () => {
       try {
         const d = await this.login.detect()
-        // The Wi-Fi's name only while its login page is in the way — that is when the scorer needs
-        // it ("Hall Wi-Fi Free_WLAN_KTZH needs a login"), and a public login page means a public
-        // network. A private network the board is simply online through is never named here.
-        const ssid = d.status === 'portal' ? await Promise.resolve().then(() => this._ssid()).catch(() => null) : null
+        // The Wi-Fi's name only while the board is NOT online through it: behind its login page
+        // that is what the scorer needs ("Hall Wi-Fi Free_WLAN_KTZH needs a login"), and with no
+        // answer at all it is the difference between "not on any Wi-Fi" and "on the hall Wi-Fi,
+        // whose login page is not answering" — which on 2 Oct 2026 the card got wrong. A private
+        // network the board is simply online through is never named here.
+        const ssid = d.status !== 'online' ? await Promise.resolve().then(() => this._ssid()).catch(() => null) : null
         const was = this.state.status
+        const wasWhy = this.state.why
         this.state.status = d.status
         this.state.portal = d.portal
         this.state.ssid = ssid || null
+        this.state.why = d.status === 'offline' ? d.why || null : null
         this.state.checkedAt = new Date(this.now()).toISOString()
         if (was !== d.status) {
           const say = { online: 'online', portal: 'the hall Wi-Fi needs a login — live scoring is paused', offline: 'no internet uplink' }[d.status]
           const line = `uplink ${say}`
-          if (d.status === 'online' || was === 'checking') ulog.info(line, { status: d.status, ssid: this.state.ssid })
-          else ulog.warn(line, { status: d.status, ssid: this.state.ssid, was })
+          if (d.status === 'online' || was === 'checking') ulog.info(line, { status: d.status, ssid: this.state.ssid, why: this.state.why })
+          else ulog.warn(line, { status: d.status, ssid: this.state.ssid, was, why: this.state.why })
+        } else if (d.status === 'offline' && this.state.why !== wasWhy) {
+          ulog.info('uplink still offline', { ssid: this.state.ssid, why: this.state.why })
         }
         return this.view()
       } finally {
@@ -572,6 +618,12 @@ export class Uplink {
         this.state.status = r.status
         if (r.status !== 'portal') this.state.portal = null
       }
+      // No answer, but on a Wi-Fi: that is the hall's login page being slow or different, not a
+      // board with no network — say so, and point at the page the scorer can fill in by hand.
+      if (!r.ok && r.status === 'offline') {
+        const ssid = await Promise.resolve().then(() => this._ssid()).catch(() => null)
+        if (ssid) { this.state.ssid = ssid; return { ok: false, error: ERR.noAnswer } }
+      }
       return r.ok ? { ok: true, step: 'code', codeExpiresAt: this.login.sessionExpiresAt() } : { ok: false, error: r.error }
     } finally {
       this._busy = false
@@ -596,6 +648,13 @@ export class Uplink {
     } finally {
       this._busy = false
     }
+  }
+
+  // The portal's own page said the login is done (the login page opened through the board,
+  // portalProxy.js): keep its date like a scripted login's, and look again.
+  async noteLogin(validUntil) {
+    this._record({ validUntil: validUntil || null, loggedInAt: new Date(this.now()).toISOString() })
+    return this.check()
   }
 
   _load() {
