@@ -318,7 +318,7 @@
   /* The match sheet for the game on the board, laid out like the Swiss Volley Matchblatt so the
      scorer copies box for box: Game info is the sheet's ruled header (German labels, its order),
      the roster is wiedisync's (Geb. · Nr. · Name, F.), Liberos written a second time, then the
-     Offizielle. Every box / row is a tap target that copies its own value. */
+     Offizielle. The scorer reads it off the tablet and types it into the eScoresheet. */
   #sheetWrap{margin-top:14px}
   .sheetcard{border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);margin-bottom:10px;overflow:hidden}
   .sheetcard h3{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);border-bottom:1.5px solid var(--line)}
@@ -326,8 +326,7 @@
   .sheetcard h3 button{min-height:36px;padding:6px 12px;font-size:13px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer;text-transform:none;letter-spacing:0}
   /* The ruled header: boxes on a grid, hairlines between them like the printed sheet. */
   .mb{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line-soft)}
-  .mbf{grid-column:span 2;display:flex;flex-direction:column;gap:2px;min-height:58px;padding:7px 10px;border:0;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;min-width:0}
-  .mbf:active{background:var(--fill)}
+  .mbf{grid-column:span 2;display:flex;flex-direction:column;gap:2px;min-height:58px;padding:7px 10px;border:0;background:var(--card);color:var(--fg);min-width:0}
   .mbf.w3{grid-column:span 3} .mbf.w6{grid-column:span 6} .mbf.w1{grid-column:span 1}
   .mbf .ml{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .mbf .mv{font-size:19px;font-weight:800;overflow-wrap:anywhere}
@@ -341,7 +340,6 @@
   .rtab{width:100%;max-width:760px;margin:0 auto;border-collapse:collapse;font-variant-numeric:tabular-nums}
   .rtab th{padding:8px 14px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;background:var(--fill);border-top:1px solid var(--line-soft)}
   .rtab td{padding:0;border-top:1px solid var(--line-soft)}
-  .rtab tr{cursor:pointer} .rtab tr:active td{background:var(--fill)}
   .rtab td > span{display:flex;align-items:center;padding:12px 14px;min-height:56px}
   .rtab td.cno > span{justify-content:center}
   .rtab .cdob{width:1%;white-space:nowrap;font-family:var(--mono);font-size:19px;font-weight:600}
@@ -352,8 +350,6 @@
   .rtab .cname{font-size:22px;font-weight:700;overflow-wrap:break-word;hyphens:auto}
   .rtab .crole{width:1%;white-space:nowrap;font-family:var(--mono);font-size:19px;font-weight:800;color:var(--blue)}
   .rsec{display:flex;align-items:center;gap:10px;padding:9px max(12px, calc((100% - 760px) / 2 + 14px));border-top:1.5px solid var(--line);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
-  .rsec span{flex:1}
-  .rsec button{min-height:32px;padding:4px 10px;font-size:12px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer;text-transform:none;letter-spacing:0}
   .sheetcard .note{padding:10px 12px;border-top:1px solid var(--line-soft)}
   .sheetcard h3 + .note{border-top:0}
   .sheetcard .seasonmore{display:block;width:calc(100% - 24px);margin:0 12px 12px}
@@ -3333,33 +3329,14 @@
 
   // --- the match sheet (POST /api/gamesheet) ---------------------------------
   // Game info and the KSCW roster of the game on the board, shown under the schedule while the
-  // board is connected to live scoring, so the scorer can copy them into the eScoresheet. Each row
-  // copies itself when tapped; "Copy all" takes the whole block. Everything came from the club's
-  // API via the board: textContent only.
+  // board is connected to live scoring, for the scorer to read off and type into the eScoresheet.
+  // Everything came from the club's API via the board: textContent only.
   const fmtDob = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "")); return m ? m[3] + "." + m[2] + "." + m[1] : ""; };
-  async function copyText(text, what) {
-    let ok = false;
-    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); ok = true; } } catch {}
-    if (!ok) {
-      // Plain HTTP on the hall network has no Clipboard API; the old way still works there.
-      const ta = document.createElement("textarea");
-      ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.appendChild(ta); ta.select();
-      try { ok = document.execCommand("copy"); } catch {}
-      ta.remove();
-    }
-    toast(ok ? "Copied " + what : "Couldn't copy — long-press the text instead");
-  }
-  function sheetCard(title, copyAll) {
+  function sheetCard(title) {
     const card = document.createElement("div"); card.className = "sheetcard";
     const h = document.createElement("h3");
     const t = document.createElement("span"); t.textContent = title;
     h.appendChild(t);
-    if (copyAll) {
-      const b = document.createElement("button"); b.type = "button"; b.textContent = "Copy all";
-      b.addEventListener("click", () => copyText(copyAll, title.toLowerCase()));
-      h.appendChild(b);
-    }
     card.appendChild(h);
     return card;
   }
@@ -3403,19 +3380,16 @@
       ["sec", "Schiedsrichter"],
       ["1. Schiedsrichter", refs[0] || "", 3, refs[0] ? "" : "noch nicht aufgeboten"], ["2. Schiedsrichter", refs[1] || "", 3, refs[1] ? "" : "—"],
     ];
-    const copyAll = fields.filter((f) => f[0] !== "sec" && f[1]).map((f) => f[0] + "\t" + f[1]).join("\n");
-    const ic = sheetCard("Game info", copyAll);
+    const ic = sheetCard("Game info");
     const grid = document.createElement("div"); grid.className = "mb";
     for (const [label, value, w, sub, num, phoneWide] of fields) {
       if (label === "sec") { const d = document.createElement("div"); d.className = "mbsec"; d.textContent = value; grid.appendChild(d); continue; }
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "mbf w" + w + (phoneWide ? " pw" : "");
+      const b = document.createElement("div");
+      b.className = "mbf w" + w + (phoneWide ? " pw" : "");
       const l = document.createElement("span"); l.className = "ml"; l.textContent = label;
       const v = document.createElement("span"); v.className = num ? "mv num" : "mv"; v.textContent = value || "—";
       b.append(l, v);
       if (sub) { const x = document.createElement("span"); x.className = "ms"; x.textContent = sub; b.appendChild(x); }
-      if (value) { b.setAttribute("aria-label", "Copy " + label + ": " + value); b.addEventListener("click", () => copyText(String(value), label)); }
-      else b.disabled = true;
       grid.appendChild(b);
     }
     ic.appendChild(grid);
@@ -3437,20 +3411,16 @@
     const liberos = players.filter((p) => p.libero);
     const staff = (Array.isArray(ro.officials) ? ro.officials : []).slice()
       .sort((a, b) => (OFFICIAL_ORDER.indexOf(a.role) + 1 || 99) - (OFFICIAL_ORDER.indexOf(b.role) + 1 || 99));
-    const pLine = (p) => [fmtDob(p.birthdate), p.number == null ? "" : p.number, fmtName(p) + (p.captain ? " (C)" : "")].join("\t");
-    const sLine = (o) => [OFFICIAL_CODE[o.role] || "", fmtDob(o.birthdate), fmtName(o)].join("\t");
-    const all = [...players.map(pLine), ...(liberos.length ? ["", "Liberos", ...liberos.map(pLine)] : []), ...(staff.length ? ["", "Offizielle", ...staff.map(sLine)] : [])].join("\n");
-    const rc = sheetCard("KSCW roster" + (players.length ? " · " + players.length : ""), players.length ? all : "");
+    const rc = sheetCard("KSCW roster" + (players.length ? " · " + players.length : ""));
     if (!players.length) sheetNote(rc, "No players on the sheet yet.");
-    // One table per block; each row copies its own line.
+    // One table per block.
     const table = (heads, rows) => {
       const t = document.createElement("table"); t.className = "rtab";
       const tr0 = document.createElement("tr");
       for (const [cls, h] of heads) { const th = document.createElement("th"); th.textContent = h; if (cls === "cno") th.className = "hno"; tr0.appendChild(th); }
       t.appendChild(tr0);
-      for (const { cells, copy, what } of rows) {
+      for (const cells of rows) {
         const tr = document.createElement("tr");
-        tr.tabIndex = 0; tr.setAttribute("role", "button"); tr.setAttribute("aria-label", "Copy " + what);
         for (const [cls, text, cap] of cells) {
           const td = document.createElement("td"); td.className = cls;
           const sp = document.createElement("span");
@@ -3458,33 +3428,22 @@
           else sp.textContent = text;
           td.appendChild(sp); tr.appendChild(td);
         }
-        const go = () => copyText(copy, what);
-        tr.addEventListener("click", go);
-        tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
         t.appendChild(tr);
       }
       return t;
     };
-    const pRow = (p) => ({ cells: [["cdob", fmtDob(p.birthdate) || "—"], ["cno", p.number == null ? "—" : String(p.number), p.captain], ["cname", fmtName(p)]], copy: pLine(p), what: p.lastName || "player" });
+    const pRow = (p) => [["cdob", fmtDob(p.birthdate) || "—"], ["cno", p.number == null ? "—" : String(p.number), p.captain], ["cname", fmtName(p)]];
     const heads = [["cdob", "Geb."], ["cno", "Nr."], ["cname", "Name"]];
-    const section = (title, copy) => {
-      const d = document.createElement("div"); d.className = "rsec";
-      const t = document.createElement("span"); t.textContent = title; d.appendChild(t);
-      const b = document.createElement("button"); b.type = "button"; b.textContent = "Copy";
-      b.addEventListener("click", () => copyText(copy, title.toLowerCase())); d.appendChild(b);
-      return d;
-    };
+    const section = (title) => { const d = document.createElement("div"); d.className = "rsec"; d.textContent = title; return d; };
     if (players.length) rc.appendChild(table(heads, players.map(pRow)));
     if (liberos.length) {
-      rc.appendChild(section("Liberos", liberos.map(pLine).join("\n")));
+      rc.appendChild(section("Liberos"));
       rc.appendChild(table(heads, liberos.map(pRow)));
     }
     if (staff.length) {
-      rc.appendChild(section("Offizielle", staff.map(sLine).join("\n")));
-      rc.appendChild(table([["crole", "Funktion"], ["cdob", "Geb."], ["cname", "Name"]], staff.map((o) => ({
-        cells: [["crole", OFFICIAL_CODE[o.role] || "—"], ["cdob", fmtDob(o.birthdate) || "—"], ["cname", fmtName(o)]],
-        copy: sLine(o), what: o.lastName || "official",
-      }))));
+      rc.appendChild(section("Offizielle"));
+      rc.appendChild(table([["crole", "Funktion"], ["cdob", "Geb."], ["cname", "Name"]], staff.map((o) =>
+        [["crole", OFFICIAL_CODE[o.role] || "—"], ["cdob", fmtDob(o.birthdate) || "—"], ["cname", fmtName(o)]])));
     }
     const at = schedLocal(ro.fetchedAt);
     const src = ro.source === "vm" ? "Einsatzliste (Volleymanager)" : ro.source === "rsvp" ? "confirmed RSVPs, no Einsatzliste yet" : ro.source === "saved" || ro.edited ? "corrected by the coach" : "";
