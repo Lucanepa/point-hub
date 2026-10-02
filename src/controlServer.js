@@ -18,6 +18,7 @@ import { PER_SPORT_KEYS, PIN_RE } from './settings.js'
 import { log, LEVELS } from './logStore.js'
 import { systemInfo } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
+import { GameSheet } from './gameSheet.js'
 import { ClockSync } from './clockSync.js'
 import { SeasonSchedule } from './seasonSchedule.js'
 import { AutoPrepare, inWindow } from './autoPrepare.js'
@@ -191,7 +192,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -439,9 +440,22 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     prepare: (game) => setupScheduledGame(activeSport(), teamsOf(game), { prematch: true, gameId: game.id, why: 'automatic' }),
     tickMs: autoOpts.tickMs,
   })
+  // The KSCW match sheet for the game on the board (gameSheet.js) — roster for the scorer to copy.
+  const currentGameId = () => history.gameId ?? (prematch ? prematchGameId : null)
+  const gameSheet = gameSheetIn || new GameSheet({
+    file: path.resolve(stateHome, 'gamesheet.json'),
+    trusted: clockTrusted,
+    // No PIN on the board = the roster could never be shown, so it is never fetched either.
+    enabled: () => opt('liveScoring') === 'kscw' && !!(settings && settings.values.scorerPin),
+    currentGame: () => {
+      const id = currentGameId()
+      return id != null && typeof schedule.game === 'function' ? schedule.game(id) : null
+    },
+  })
   if (background) {
     if (typeof schedule.start === 'function') schedule.start()
     autoPrepare.start()
+    gameSheet.start()
   }
   // The hall's internet and its Wi-Fi login (see hallLogin.js). Probed every minute while it is
   // not online, every ten when it is — only on a real boot, like the schedule: a test's hand-built
@@ -951,6 +965,34 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (was) alog.info('start match now', { ip: clientIp(req) })
       return sendJson(res, 200, { ok: true, started, ...status() })
     }
+    // POST /api/gamesheet { refresh? } — Game info + the KSCW roster for the game on the board, so
+    // the scorer can copy them into the eScoresheet. Game info is the public schedule. The roster
+    // holds birthdates (minors included), so unlike every other read it needs the scorer PIN, and a
+    // board with no PIN set refuses rather than show it to the whole hall Wi-Fi. A POST because it
+    // carries the PIN. Always 200: { ok, live, info, roster:{ ok, players, officials, … | error, locked? } }.
+    if (pathname === '/api/gamesheet' && req.method === 'POST') {
+      const body = await readJson(req)
+      const live = opt('liveScoring') === 'kscw'
+      const id = currentGameId()
+      const g = id != null && typeof schedule.game === 'function' ? schedule.game(id) : null
+      if (!g) return sendJson(res, 200, { ok: false, live, error: 'Start a game from the schedule first — the sheet belongs to the game on the board.' })
+      const info = {
+        id: g.id, number: g.number || null, date: g.date, time: g.time, home: g.home, away: g.away,
+        league: g.league, round: g.round || null, hall: g.hall, referees: Array.isArray(g.referees) ? g.referees : [],
+        kscwIsHome: g.kscwIsHome,
+      }
+      let roster
+      if (!live) roster = { ok: false, error: 'Turn on Settings ▸ Connect to live scoring to load the roster.' }
+      else if (!(settings && settings.values.scorerPin)) roster = { ok: false, error: 'Set a scorer PIN first (Settings) — the roster holds birthdates, so the board only shows it behind the PIN.' }
+      // No PIN sent = a locked tablet asking for the card, not a guess: it must not count towards
+      // the lock-out, or a tablet left on this tab would lock itself out by polling.
+      else if (!req.headers['x-scorer-pin']) roster = { ok: false, locked: true, error: 'The roster holds birthdates — enter the scorer PIN to see it.' }
+      else if (!pinOk(req)) {
+        const d = req._pinDenial || {}
+        roster = { ok: false, locked: true, error: d.locked ? `Too many wrong PINs — try again in ${Math.ceil(d.retryAfterMs / 1000)}s.` : 'Wrong scorer PIN — enter it again to see the roster.' }
+      } else roster = await gameSheet.view({ refresh: !!(body && body.refresh) })
+      return sendJson(res, 200, { ok: true, live, info, roster })
+    }
     // POST /api/unlock { pin } — verify a scorer PIN without performing an action.
     if (pathname === '/api/unlock' && req.method === 'POST') {
       const body = await readJson(req)
@@ -1318,6 +1360,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (keepsHistory()) try { history.record({ type: 'reset' }, state, null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
     // File the match about to be played against its fixture, so its uploaded log links to the game.
     history.setGame(gameId)
+    // A new game on the board: fetch its sheet now, while there may be an uplink.
+    gameSheet.refresh().catch(() => {})
     try { resume.save(sport, state, nowStamp(), { prematch: pre, gameId: pre ? gameId : null }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
     touchedSinceStart = false
     // One paint, of the new state. Lifting idle repaints from the state the client now holds;
@@ -1409,6 +1453,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       prematch,
       // Which of today's games that pre-match is (a Directus id), when the board knows; else null.
       prematchGameId: prematch ? prematchGameId : null,
+      // The schedule game the board is set up for (a Directus id), pre-match or not; null = a hand-
+      // typed game. The console's match-sheet card follows it.
+      gameId: currentGameId(),
       // Where the scorer sits (settings.js). The console mirrors its team cards by it; nothing on
       // the server side changes with it.
       orientation: settings ? settings.values.orientation : 'behind',
@@ -1579,6 +1626,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // appliance calls it on shutdown.
   server.stopBackground = () => {
     if (matchUpload) matchUpload.stop()
+    gameSheet.stop()
     autoPrepare.stop()
     uplink.stop()
     uplink.login.dropSession()

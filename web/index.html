@@ -315,6 +315,25 @@
   .upday .schedrow .steams{font-size:15px}
   .seasonmore{margin-top:10px;width:100%;min-height:var(--tap);padding:10px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   #upcomingWrap{margin-top:14px} #upcomingWrap + .linkhead{margin-top:14px}
+  /* The match sheet for the game on the board: Game info + the KSCW roster, for the scorer to copy
+     into the eScoresheet. Every row is a tap target that copies its own value. */
+  #sheetWrap{margin-top:14px}
+  .sheetcard{border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);margin-bottom:10px;overflow:hidden}
+  .sheetcard h3{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);border-bottom:1px solid var(--line-soft)}
+  .sheetcard h3 span{flex:1;min-width:0}
+  .sheetcard h3 button{min-height:36px;padding:6px 12px;font-size:13px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer;text-transform:none;letter-spacing:0}
+  .sheetrow{width:100%;display:flex;align-items:baseline;gap:12px;min-height:44px;padding:8px 12px;border:0;border-top:1px solid var(--line-soft);background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+  .sheetcard h3 + .sheetrow,.sheetcard h3 + div > .sheetrow:first-child{border-top:0}
+  .sheetrow:active{background:var(--fill)}
+  .sheetrow .sk{flex:0 0 7.5em;font-size:12px;font-weight:700;color:var(--muted)}
+  .sheetrow .sv{flex:1;min-width:0;font-size:15px;font-weight:700;overflow-wrap:anywhere}
+  .sheetrow .sno{flex:0 0 2.2em;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:17px;font-weight:800;text-align:right}
+  .sheetrow .sdob,.sheetrow .slic{flex:0 0 auto;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+  .sheetrow .sflag{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--blue);border:1.5px solid var(--blue);border-radius:6px;padding:1px 5px}
+  .sheetsub{padding:8px 12px 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line-soft)}
+  .sheetcard .note{padding:10px 12px}
+  .sheetcard .seasonmore{display:block;width:calc(100% - 24px);margin:0 12px 12px}
+  @media (max-width:420px){ .sheetrow .sk{flex-basis:6em} .sheetrow .slic{display:none} }
   .note{color:var(--muted);font-size:13px;padding:8px 2px} .err{color:var(--bad);font-size:13px;padding:6px 2px}
 
   /* ---- SETTINGS ---- */
@@ -1082,6 +1101,16 @@
       <p class="schedstat" id="schedStatus" hidden></p>
       <ul id="schedule" class="schedlist"></ul>
       <p class="note" id="schedNote">Loading today's games…</p>
+      <!-- The game on the board, while it is connected to live scoring: what the scorer copies into
+           the eScoresheet. Game info is the public schedule; the roster comes from wiedisync and
+           holds birthdates, so it is only fetched behind the scorer PIN. -->
+      <div id="sheetWrap" hidden>
+        <div class="linkhead">
+          <h2 class="linkh">This game</h2>
+          <button id="sheetRefreshBtn" type="button">↻ Refresh</button>
+        </div>
+        <div id="sheet"></div>
+      </div>
       <!-- The rest of the season's home games, a day per group. Tap one to set it up in advance
            (same pre-match as tonight's). Built lazily: a season is a few hundred rows, and a
            collapsed day costs nothing until someone opens it. -->
@@ -1682,6 +1711,7 @@
   // Scorer lock: a PIN (when the board has one set) gates all scoring; stored per-device.
   let SCORER_PIN = ""; try { SCORER_PIN = localStorage.getItem("kscwScorerPin") || ""; } catch {}
   let pinRequired = false;
+  let sheetLoading = false, sheetGameId = null;   // the match-sheet card (refreshSheet); renderStatus reads it
   // The board's rule for a PIN, checked before anything is sent so the two can never disagree.
   const PIN_RE = /^\d{1,8}$/;
 
@@ -2057,6 +2087,8 @@
     if (st.httpsOrigin) { if (secureOk) goSecure(); else noteSecure(st.httpsOrigin); }
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
     if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
+    // Another game on the board (a schedule tap, the automatic pre-match, a reset): the card follows.
+    if ((st.gameId ?? null) !== sheetGameId && $("#tab-link").classList.contains("active")) refreshSheet(false);
     // Where the scorer sits rides on every poll, so a change made on another tablet lands here too.
     // Not in the few seconds after this tablet saved it: a poll already in the air says the old one.
     if ((st.orientation === "behind" || st.orientation === "front") && st.orientation !== SETTINGS.orientation
@@ -3270,6 +3302,133 @@
   }
   $("#schedRefreshBtn").addEventListener("click", () => refreshSchedule(true));
 
+  // --- the match sheet (POST /api/gamesheet) ---------------------------------
+  // Game info and the KSCW roster of the game on the board, shown under the schedule while the
+  // board is connected to live scoring, so the scorer can copy them into the eScoresheet. Each row
+  // copies itself when tapped; "Copy all" takes the whole block. Everything came from the club's
+  // API via the board: textContent only.
+  const fmtDob = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "")); return m ? m[3] + "." + m[2] + "." + m[1] : ""; };
+  async function copyText(text, what) {
+    let ok = false;
+    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); ok = true; } } catch {}
+    if (!ok) {
+      // Plain HTTP on the hall network has no Clipboard API; the old way still works there.
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand("copy"); } catch {}
+      ta.remove();
+    }
+    toast(ok ? "Copied " + what : "Couldn't copy — long-press the text instead");
+  }
+  function sheetRow(cells, copy, what) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "sheetrow";
+    for (const [cls, text] of cells) {
+      if (text == null || text === "") continue;
+      const s = document.createElement("span"); s.className = cls; s.textContent = String(text);
+      b.appendChild(s);
+    }
+    b.setAttribute("aria-label", "Copy " + copy);
+    b.addEventListener("click", () => copyText(copy, what));
+    return b;
+  }
+  function sheetCard(title, copyAll) {
+    const card = document.createElement("div"); card.className = "sheetcard";
+    const h = document.createElement("h3");
+    const t = document.createElement("span"); t.textContent = title;
+    h.appendChild(t);
+    if (copyAll) {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "Copy all";
+      b.addEventListener("click", () => copyText(copyAll, title.toLowerCase()));
+      h.appendChild(b);
+    }
+    card.appendChild(h);
+    return card;
+  }
+  function sheetNote(card, text) { const p = document.createElement("p"); p.className = "note"; p.textContent = text; card.appendChild(p); }
+  function renderSheet(r) {
+    const box = $("#sheet");
+    box.innerHTML = "";
+    if (!r || r.ok === false) {
+      const card = sheetCard("Game info");
+      sheetNote(card, (r && r.error) || "Couldn't load the game.");
+      box.appendChild(card);
+      return;
+    }
+    const g = r.info || {};
+    const refs = Array.isArray(g.referees) ? g.referees : [];
+    const info = [
+      ["Match no.", g.number], ["Date", fmtSchedDate(g.date).replace(/^\w+ /, "") + (g.date ? String(g.date).slice(0, 4) : "")],
+      ["Time", g.time], ["Home", g.home], ["Away", g.away], ["League", g.league], ["Round", g.round && g.round !== g.league ? g.round : ""], ["Hall", g.hall],
+      ...(refs.length ? refs.map((n, i) => [refs.length > 1 ? "Referee " + (i + 1) : "Referee", n]) : [["Referees", "not published yet"]]),
+    ].filter(([, v]) => v != null && v !== "");
+    const ic = sheetCard("Game info", info.map(([k, v]) => k + "\t" + v).join("\n"));
+    for (const [k, v] of info) ic.appendChild(sheetRow([["sk", k], ["sv", v]], String(v), k.toLowerCase()));
+    box.appendChild(ic);
+
+    if (g.kscwIsHome === false) return;
+    const ro = r.roster || {};
+    if (!ro.ok) {
+      const rc = sheetCard("KSCW roster");
+      sheetNote(rc, ro.error || "No roster yet.");
+      if (ro.locked) {
+        const b = document.createElement("button"); b.type = "button"; b.className = "seasonmore"; b.textContent = "Enter scorer PIN";
+        b.addEventListener("click", openPinModal); rc.appendChild(b);
+      }
+      box.appendChild(rc);
+      return;
+    }
+    const players = Array.isArray(ro.players) ? ro.players : [];
+    const officials = Array.isArray(ro.officials) ? ro.officials : [];
+    const flags = (p) => [p.captain ? "C" : "", p.libero ? "L" : ""].filter(Boolean).join(" ");
+    const pLine = (p) => [p.number == null ? "" : p.number, p.lastName, p.initial, fmtDob(p.birthdate), p.licence || "", flags(p)].join("\t");
+    const oLine = (o) => [o.role || "", o.lastName, o.initial, fmtDob(o.birthdate)].join("\t");
+    const all = players.map(pLine).concat(officials.length ? ["", ...officials.map(oLine)] : []).join("\n");
+    const title = "KSCW roster" + (players.length ? " · " + players.length : "");
+    const rc = sheetCard(title, players.length ? all : "");
+    if (!players.length) sheetNote(rc, "No players on the sheet yet.");
+    for (const p of players) {
+      const f = flags(p);
+      const row = sheetRow([["sno", p.number == null ? "–" : p.number], ["sv", p.lastName + " " + p.initial], ["sdob", fmtDob(p.birthdate)], ["slic", p.licence]],
+        pLine(p), (p.lastName || "player"));
+      if (f) { const s = document.createElement("span"); s.className = "sflag"; s.textContent = f; row.appendChild(s); }
+      rc.appendChild(row);
+    }
+    if (officials.length) {
+      const sub = document.createElement("div"); sub.className = "sheetsub"; sub.textContent = "Officials";
+      rc.appendChild(sub);
+      for (const o of officials) rc.appendChild(sheetRow([["sk", o.role || "Official"], ["sv", o.lastName + " " + o.initial], ["sdob", fmtDob(o.birthdate)]], oLine(o), o.lastName || "official"));
+    }
+    const at = schedLocal(ro.fetchedAt);
+    const src = ro.source === "vm" ? "Einsatzliste (Volleymanager)" : ro.source === "rsvp" ? "confirmed RSVPs — no Einsatzliste yet" : ro.source === "saved" || ro.edited ? "corrected by the coach" : "";
+    sheetNote(rc, [src ? "From " + src : "", at ? "loaded " + at.dm + " " + at.hm : "", ro.warning || ""].filter(Boolean).join(" · "));
+    box.appendChild(rc);
+  }
+  // Shown only while the board is connected to live scoring AND set up for a schedule game.
+  async function refreshSheet(force) {
+    const wrap = $("#sheetWrap");
+    const id = LAST_STATUS && LAST_STATUS.gameId != null ? LAST_STATUS.gameId : null;
+    sheetGameId = id;
+    const on = SETTINGS.liveScoring === "kscw" && id != null;
+    wrap.hidden = !on;
+    if (!on || sheetLoading) return;
+    sheetLoading = true;
+    const btn = $("#sheetRefreshBtn"); if (btn) btn.disabled = true;
+    try {
+      // Always 200 (a locked tablet gets a "PIN" button in the card, not the PIN pad popping up);
+      // the header goes only when this tablet holds a PIN, so a locked one never counts as a guess.
+      const headers = { "content-type": "application/json" };
+      if (SCORER_PIN) headers["X-Scorer-Pin"] = SCORER_PIN;
+      const r = await api("/api/gamesheet", { method: "POST", headers, body: JSON.stringify({ refresh: !!force }),
+        signal: deadline(force ? 20000 : API_POST_TIMEOUT_MS) });
+      renderSheet(r);
+    } catch (e) {
+      renderSheet({ ok: false, error: "Couldn't load the game from the board." });
+    } finally { sheetLoading = false; if (btn) btn.disabled = false; }
+  }
+  $("#sheetRefreshBtn").addEventListener("click", () => refreshSheet(true));
+
   function markLinked() {
     $$("#matches li").forEach((li) => {
       const on = linkedMatchId != null && li.dataset.id === linkedMatchId;
@@ -3673,6 +3832,7 @@
     $$(".tab").forEach((t) => t.classList.toggle(
       "active", t.id === "tab-" + b.dataset.tab));
     if (b.dataset.tab === "link") refreshSchedule(false);   // cheap: the server caches it
+    if (b.dataset.tab === "link") refreshSheet(false);      // …and the match sheet, under it
     if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
     if (b.dataset.tab === "history") refreshHistory();
     if (b.dataset.tab === "settings" || b.dataset.tab === "diag") refreshUplink();
@@ -5218,6 +5378,7 @@
       if (r && r.ok) {
         SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
         closePinModal(); updateLock(); toast("Unlocked — you can score");
+        if ($("#tab-link").classList.contains("active")) refreshSheet(false);
         offerClock();
       } else { const i = $("#pinInput"); i.value = ""; i.focus(); toast("Wrong PIN"); }
     } catch (e) { toast(e.message); }

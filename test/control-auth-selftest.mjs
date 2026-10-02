@@ -64,6 +64,9 @@ const ROUTES = {
   '/api/uplink/check': { guard: 'pin', body: {} },
   '/api/uplink/login': { guard: 'pin', body: { phone: '079 000 00 00' } },
   '/api/uplink/code': { guard: 'pin', body: { code: '000000' } },
+  // Game info is the public schedule; the roster inside the answer is PIN-gated in the body, and a
+  // missing PIN must NOT count as a guess (a locked tablet polls it) — test/gamesheet-selftest.mjs.
+  '/api/gamesheet': { guard: 'open', body: {}, why: 'game info is public; the roster in it needs the PIN (gamesheet-selftest)' },
   '/api/logs': { guard: 'open', body: { msg: 'ui event' }, why: 'the console posts its own errors; a spectator hitting a bug is what we want to see' },
   '/api/unlock': { guard: 'unlock', body: { pin: PIN } },
 }

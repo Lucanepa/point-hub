@@ -107,7 +107,7 @@ try {
     ok(q.pathname === '/items/games', '/items/games')
     ok(q.searchParams.get('filter') === JSON.stringify({ date: { _gte: D }, type: { _eq: 'home' } }), `home games from today (${q.searchParams.get('filter')})`)
     ok(q.searchParams.get('sort') === 'date,time' && q.searchParams.get('limit') === '-1', 'sorted by date,time, no limit')
-    ok(q.searchParams.get('fields') === 'id,date,time,home_team,away_team,status,league,kscw_team.sport,hall.name', 'the contract\'s fields')
+    ok(q.searchParams.get('fields') === 'id,game_id,date,time,home_team,away_team,status,league,round,referees_json,kscw_team.sport,hall.name', 'the contract\'s fields')
     const disk = read(file)
     ok(disk.fetchedAt === new Date(NOW).toISOString() && disk.clockSynced === true, `on disk with fetchedAt ${disk.fetchedAt}`)
     ok(!disk.games.some((g) => g.id === 1) && disk.games.length === 6, `yesterday's game pruned on a trusted clock (${disk.games.length} kept)`)

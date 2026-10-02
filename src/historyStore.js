@@ -265,6 +265,11 @@ export class HistoryStore {
 
   // The fixture the next match is for — the schedule start calls this right after its reset. Cleared
   // by the next reset, so a hand-started game after it is not filed against the scheduled one.
+  // The fixture the board is set up for (setGame), or the one the match in progress was filed against.
+  get gameId() {
+    return this._game ?? (this.current && this.current.game_id != null ? this.current.game_id : null)
+  }
+
   setGame(gameId) {
     const n = Number(gameId)
     this._game = Number.isInteger(n) && n > 0 ? n : null

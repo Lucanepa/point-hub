@@ -48,7 +48,9 @@ const MIN_REFRESH_MS = 5000
 const RESAVE_MS = 6 * 60 * 60 * 1000
 // With an untrusted clock, ask from this many days before what we think today is.
 const UNTRUSTED_MARGIN_DAYS = 2
-const FIELDS = 'id,date,time,home_team,away_team,status,league,kscw_team.sport,hall.name'
+// game_id / round / referees_json are only for the console's Game info card (GET /api/gamesheet);
+// all three are on the public games read, like the rest.
+const FIELDS = 'id,game_id,date,time,home_team,away_team,status,league,round,referees_json,kscw_team.sport,hall.name'
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 const NO_CACHE = 'No schedule yet — the board downloads it as soon as it has internet. Type the team names instead.'
@@ -72,6 +74,8 @@ export function toSeasonGames(rows) {
     if (seen.has(key)) continue
     seen.add(key)
     const status = String(g.status || '').toLowerCase()
+    const referees = (Array.isArray(g.referees_json) ? g.referees_json : [])
+      .map((r) => String((r && typeof r === 'object' ? r.name : r) || '').trim()).filter(Boolean)
     games.push({
       id: g.id, date, time, home, away,
       homeShort: shortName(home), awayShort: shortName(away),
@@ -79,6 +83,10 @@ export function toSeasonGames(rows) {
       kscwIsHome: /^KSC\s*Wiedikon\b/i.test(home),
       sport: String((g.kscw_team && g.kscw_team.sport) || '').toLowerCase(),
       status, cancelled: status === 'cancelled' || status === 'postponed',
+      // The federation's match number without our source prefix ("vb_406300" → "406300"): it is
+      // what the scorer types into the eScoresheet.
+      number: String(g.game_id || '').replace(/^[a-z]+_/i, ''),
+      round: String(g.round || ''), referees,
     })
   }
   return games.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
@@ -305,6 +313,12 @@ export class SeasonSchedule {
     const list = this.games || []
     const wanted = familyFilter(list, sport, (g) => String(g.sport || ''))
     return list.filter((g) => wanted(g) && (!this.halls || this.halls.has(String(g.hall).trim().toLowerCase())))
+  }
+
+  // One game from the copy, by its Directus id — the Game info card. null when the copy has none.
+  game(id) {
+    const n = Number(id)
+    return (this.games || []).find((g) => Number(g.id) === n) || null
   }
 
   // GET /api/schedule — today's playable games in the shape the console has always had.
