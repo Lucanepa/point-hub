@@ -675,7 +675,8 @@
     border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   .sptitle{font-size:20px;font-weight:800;text-align:center;color:var(--fg)}
   .spsub{font-size:13px;color:var(--muted);text-align:center;margin:6px 0 18px}
-  .splist{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px}
+  /* All four sports on one row: auto-fit made it 3 + 1, a whole tile row spent on "Simple". */
+  .splist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
   .spopt{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:110px;padding:18px 12px;border:1.5px solid var(--line);border-radius:var(--r);
     background:var(--card);color:var(--fg);font-size:15px;font-weight:800;cursor:pointer;position:relative}
   .spopt:disabled{opacity:.5;cursor:default} .spopt .spico .licon{width:34px;height:34px}
@@ -685,6 +686,12 @@
   .spcancel{display:block;margin:18px auto 0;min-height:44px;padding:0 22px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);
     font-size:14px;font-weight:800;cursor:pointer}
   .spcancel:disabled{opacity:.5;cursor:default}
+  .spfoot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;margin-top:18px}
+  .spfoot .spcancel{margin:0}
+  html:not(.in-app) body.touch .spfoot .getapp{margin:0}
+  @media (max-width:560px){ .splist{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  /* A phone on its side: no room in the actions row for the label, so the clock icon alone. */
+  @media (max-width:720px) and (max-height:500px){ #clockBtn .cbtxt{display:none} }
   /* Utility row on the landing dialogs. Full screen and keep-awake used to live only in the Game
      tab's centre column, which is behind these two screens — so the one moment you actually want
      them (setting the tablet down on the table before the match) was the one moment they were
@@ -852,11 +859,12 @@
     .sptitle{font-size:18px}
     .spsub{margin:2px 0 10px}
     .splist{gap:8px}
-    .spopt{min-height:0;flex-direction:row;justify-content:center;gap:10px;padding:10px 12px}
+    .spopt{min-height:0;gap:4px;padding:8px 6px;font-size:14px}
     .spopt .spico .licon{width:26px;height:26px}
     .spstatus{margin:8px 0 0}
     .sputil{margin:10px 0 0}
     .spcancel{margin:10px auto 0}
+    .spfoot{margin-top:10px}
     .gplist{gap:8px}
     .gpopt{min-height:0;padding:8px 14px}
     /* No wider than the centre column (plus a little), so it covers the serve controls rather
@@ -937,7 +945,7 @@
        full-width flex item: the one way to force a line break in a flex row, and it doubles as the
        divider. Same row count as before, so the footer still fits a 390x844 screen. */
     .gfooter::after{content:"";order:1;flex:1 1 100%;height:0;border-top:1.5px solid var(--line-soft)}
-    #idleBtn,#warmupBtn,#resetBtn{order:2}
+    #idleBtn,#clockBtn,#warmupBtn,#resetBtn{order:2}
     #resetBtn{margin-left:10px}
     /* Grow to fill each wrapped row, so a short last row reads as intended, not as spill-over. */
     .actions button,#undoBtn{flex:1 1 auto;justify-content:center;padding:0 10px}
@@ -1097,6 +1105,9 @@
     </div>
     <div class="actions">
       <button id="idleBtn" title="Show team names + VS on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
+      <!-- The board back on the crest and clock mid-evening (between matches, a long break) without
+           going through the game menu. The score underneath is kept; the next point lifts it. -->
+      <button id="clockBtn" title="Show the clock on the board (the score is kept)" aria-label="Show clock"><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="cbtxt"> Show clock</span></button>
       <button id="warmupBtn" title="Pre-match warm-up countdown"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Warm-up</button>
       <button id="nextPeriodBtn" hidden title="End the quarter / period"><svg class="licon l-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /> <line x1="4" x2="4" y1="22" y2="15" /></svg> End period</button>
       <button id="swapBtn" class="switch" title="Teams change ends"><svg class="licon l-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></svg> Switch sides</button>
@@ -1522,8 +1533,12 @@
            why must not require dismissing this dialog and knowing which tab to hunt for. -->
       <button type="button" id="spDiag" aria-label="Open diagnostics and the live log"><svg class="licon l-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg><span>Diagnostics</span></button>
     </div>
-    <button class="spcancel" id="spCancel">Keep current sport</button>
-    <a class="getapp" id="spGetApp" href="/app">Get the Point Hub app for this tablet</a>
+    <!-- One row for the way out and the app link: stacked, the link fell below the fold of the box
+         on every landscape tablet (1024x600 and down) and only showed after a scroll. -->
+    <div class="spfoot">
+      <button class="spcancel" id="spCancel">Keep current sport</button>
+      <a class="getapp" id="spGetApp" href="/app">Get the Point Hub app</a>
+    </div>
   </div>
 </div>
 
@@ -2110,7 +2125,10 @@
     // Probed once; after that every quiet poll is a chance to make the move it is waiting for.
     if (st.httpsOrigin) { if (secureOk) goSecure(); else noteSecure(st.httpsOrigin); }
     // A sport change (fresh boot, or after a switch completes) reshapes the Game tab + mirror once.
-    if (st.sport && st.sport !== SPORT) { SPORT = st.sport; applySportUI(); }
+    // The new sport's own limits too: a switch made on another tablet, or one that outlasted
+    // chooseSport's wait, used to leave the OUTGOING sport's settings here — beach's single
+    // timeout turned a volleyball T/O counter red at 1.
+    if (st.sport && st.sport !== SPORT) { const had = SPORT; SPORT = st.sport; applySportUI(); if (had) loadSettings(); }
     // Another game on the board (a schedule tap, the automatic pre-match, a reset): the card follows.
     // Until it has the whole answer (roster not open yet, no internet, schedule still loading) it
     // asks again every 20 s while the tab is open, so it fills in by itself.
@@ -4460,6 +4478,7 @@
   });
   // Pre-match warm-up: a plain 10-minute clock, no side effects when it ends — except in a
   // pre-match, where its end starts the match (startWarmup).
+  $("#clockBtn").addEventListener("click", async () => { if (await showClock()) toast("Clock on the board"); });
   $("#warmupBtn").addEventListener("click", startWarmup);
   $("#swapBtn").addEventListener("click", (e) => sendAction({ type: "swap" }, e.currentTarget));
   // Both confirms say what is LOST, in the sport's own words, and name the verb in red — "Reset the
