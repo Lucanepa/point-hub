@@ -365,6 +365,14 @@ export class HistoryStore {
     this._save()
   }
 
+  // The match the Game tab's live log shows: the one in progress, or — once the match point has
+  // archived it — that match, until the next one starts or a reset clears the board. The scorer's
+  // "when did that timeout happen?" doesn't stop being asked at the final whistle.
+  live() {
+    if (this.current) return this.current
+    return this._lastFinished ? this._lastFinished.match : null
+  }
+
   // API view — newest match first.
   list() { return { matches: this.matches.slice().reverse() } }
 

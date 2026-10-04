@@ -755,7 +755,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         alog.info(event === 'set-closed'
           ? `point ${action.side === 'right' ? 'right' : 'left'} refused — the set is already won`
           : 'undo — nothing to undo', { ...action, event, ip: clientIp(req) })
-        return sendJson(res, 200, { ok: true, state: newState, event, ...undoView() })
+        return sendJson(res, 200, { ok: true, state: newState, event, ...undoView(), ...logView() })
       }
       if (event === 'undo') {
         alog.info(`undo: ${undoing || 'last action'} → ${count(newState.points_a)}-${count(newState.points_b)}`, {
@@ -771,7 +771,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           if (typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
         }
         persist(action, newState, 'undo', { undoable: false, label: undoing })
-        return sendJson(res, 200, { ok: true, state: newState, event, ...undoView() })
+        return sendJson(res, 200, { ok: true, state: newState, event, ...undoView(), ...logView() })
       }
       // The scoring trail: every hand-entered action with the score it produced. This is what
       // answers "the away team says the score was wrong at 18-17" after the fact.
@@ -785,7 +785,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       pulseForAction(ledbox, action, settings, newState)
       // Match history + resume slot, so a power cut mid-set loses nothing (see persist()).
       persist(action, newState, manualSource.lastEvent)
-      return sendJson(res, 200, { ok: true, state: newState, event: manualSource.lastEvent, ...undoView() })
+      return sendJson(res, 200, { ok: true, state: newState, event: manualSource.lastEvent, ...undoView(), ...logView() })
     }
     // GET /api/settings — operator preferences (persisted on the Pi)
     if (pathname === '/api/settings' && req.method === 'GET') {
@@ -1180,6 +1180,12 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/history' && req.method === 'GET') {
       return sendJson(res, 200, history.list())
     }
+    // GET /api/history/current — the play-by-play of the match on the board (or the one it just
+    // finished), for the Game tab's log: { match: { team_a, team_b, events:[…] } | null }.
+    if (pathname === '/api/history/current' && req.method === 'GET') {
+      const m = keepsHistory() ? history.live() : null
+      return sendJson(res, 200, { match: m ? { team_a: m.team_a, team_b: m.team_b, events: m.events || [] } : null })
+    }
     // POST /api/history/clear — wipe the log
     if (pathname === '/api/history/clear' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
@@ -1498,7 +1504,19 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       board: { fontsize: matchFontsize() },
       state: sourceManager.getState(),
       ...undoView(),
+      ...logView(),
     }
+  }
+
+  // The Game tab's live log line: how many entries the match in progress has, and the newest one
+  // with the team names it is worded in. The whole list is GET /api/history/current, fetched only
+  // when the scorer opens it — a five-setter's ~300 entries have no business on every poll.
+  function logView() {
+    if (!keepsHistory()) return { log: null }
+    let m = null
+    try { m = history.live() } catch { /* the log must never break the status */ }
+    if (!m || !Array.isArray(m.events) || !m.events.length) return { log: null }
+    return { log: { n: m.events.length, last: m.events[m.events.length - 1], team_a: m.team_a, team_b: m.team_b } }
   }
 
   // What the console's Undo button needs: whether there is anything to take back, and in words what

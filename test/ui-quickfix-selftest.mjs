@@ -72,7 +72,10 @@ console.log('\n[3] a phone on its side keeps every scoring control on screen')
   ok(/#serveOrder \.editbox\{[^}]*grid-template-columns:repeat\(3/.test(short), 'the beach serve order lays its three questions side by side')
   // One deliberate exception: only the LATEST set pill shows here, so the strip keeps room for the
   // remove-last-set trash (from the third set on it scrolled off the end). No control is hidden.
-  ok(!/display:none/.test(short.replace('.setpill:not(:last-of-type){display:none}', '')), 'no control is hidden to make it fit')
+  // Likewise the match-log button keeps its place but drops its words to the icon (the tap opens
+  // the full log) — its text spans are hidden, never the button.
+  ok(!/display:none/.test(short.replace('.setpill:not(:last-of-type){display:none}', '')
+    .replace('#logBtn .lltime,#logBtn .lltext,#logBtn .llscore{display:none}', '')), 'no control is hidden to make it fit')
   ok(/\.setpill:not\(:last-of-type\)\{display:none\}/.test(short) && !/\.setundo\{[^}]*display:none/.test(short),
     'the set strip shows the latest pill and always the remove-last-set trash')
   ok(/#serveOrder \.editbox,#edit \.editbox,#confirm \.editbox,#pinModal \.editbox\{max-height:calc\(100dvh - 24px\);overflow-y:auto\}/.test(css),

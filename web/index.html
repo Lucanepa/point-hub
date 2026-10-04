@@ -566,6 +566,25 @@
   /* The turning points read differently from the rallies between them. */
   .logrow.set-end,.logrow.match-end{color:var(--gold);font-weight:800}
   .logrow.swap,.logrow.switch-due{color:var(--blue)}
+  /* Game tab: the newest match-log entry, and the whole log behind it. */
+  #logBtn{flex:1 1 auto;display:inline-flex;align-items:center;gap:8px;min-width:0;min-height:var(--tap);padding:0 12px;
+    font-size:13.5px;justify-content:flex-start;text-align:left}
+  #logBtn{overflow:hidden}
+  #logBtn .licon{flex:none}
+  #logBtn .lltime{font-family:var(--mono);color:var(--muted);font-size:12px;flex:none}
+  #logBtn .lltext{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  #logBtn .llscore{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;flex:none}
+  #liveLog{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;
+    background:color-mix(in srgb,var(--bg) 82%,transparent)}
+  #liveLog[hidden]{display:none}
+  #liveLog .logrows{margin-top:6px;max-height:min(60vh,calc(100dvh - 220px));overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+  #liveLog .logrow{font-size:14px;padding:5px 6px}
+  #liveLog .logrow:nth-child(odd){background:color-mix(in srgb,var(--line) 14%,transparent)}
+  #liveLog .logrow .lt{font-size:12.5px}
+  .llhead{display:flex;gap:10px;padding:0 6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .llhead .lt{min-width:8ch}.llhead .lw{flex:1}
+  .logrow.timeout{font-weight:700}
+  .logrow.undo{color:var(--muted);font-style:italic}
   /* confirm modal (T/O + subs) */
   /* Above serveOrder (76) and sportPicker (78): this is the shared yes/no primitive, so it must
      be able to open ON TOP of any other dialog. Below shutdown (90), which is terminal. */
@@ -846,6 +865,9 @@
     .striprow{flex:0 1 auto;min-width:0}
     .setstrip{flex:0 1 auto;min-width:0}
     #undoBtn{max-width:170px}
+    /* No width to spare beside the actions: the log is just its icon here; the tap still opens it all. */
+    #logBtn{flex:0 0 auto;padding:0 12px}
+    #logBtn .lltime,#logBtn .lltext,#logBtn .llscore{display:none}
     /* Only the latest set's pill here. The strip shares its row with Undo and the actions, so from
        the third set on it overflowed into a sideways scroll nobody would guess at — and the
        remove-last-set trash, the one control in it, went off the end. The set count is on the
@@ -949,6 +971,10 @@
     #resetBtn{margin-left:10px}
     /* Grow to fill each wrapped row, so a short last row reads as intended, not as spill-over. */
     .actions button,#undoBtn{flex:1 1 auto;justify-content:center;padding:0 10px}
+    /* The log line on a row of its own, above Undo and Switch sides — one row, which still fits a
+       390x844 screen. It drops the time to keep the entry readable; the full log has every time. */
+    #logBtn{order:-1;flex:1 1 100%;justify-content:flex-start;padding:0 10px;gap:6px}
+    #logBtn .lltime{display:none}
     /* Between the − and + columns (they sit ~100 px in from each edge), so neither team's
        correction buttons are under it. */
     #cd.major{padding:12px 14px;gap:8px;max-width:calc(100% - 200px)}
@@ -1102,6 +1128,10 @@
       <!-- General undo: takes back the last thing entered (a point, a timeout, a sub, the serve, a
            swap, a new set…). The label says what that is, so the tap is never a guess. -->
       <button id="undoBtn" type="button" disabled title="Nothing to undo yet"><svg class="licon l-undo-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5" /> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></svg><span>Undo</span><span class="ulabel" id="undoLabel"></span></button>
+      <!-- The match log, live: the newest entry ("19:42:05 · Point · KSCW · 12–10") so the scorer
+           can see the last thing that went in, and a tap opens the whole play-by-play with times —
+           "when was that timeout?", "how many points since the switch?" — without leaving the game. -->
+      <button id="logBtn" type="button" hidden title="Match log — every point, timeout and sub with its time"><svg class="licon l-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg><span class="lltime" id="logTime"></span><span class="lltext" id="logText"></span><span class="llscore" id="logScore"></span></button>
     </div>
     <div class="actions">
       <button id="idleBtn" title="Show team names + VS on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
@@ -1599,6 +1629,17 @@
     </div>
     <p class="spstatus" id="meStatus" hidden role="status" aria-live="polite"></p>
     <button class="spcancel" id="meClose">Close</button>
+  </div>
+</div>
+
+<!-- The whole match log, newest first, opened from #logBtn. Refreshed while open as entries land. -->
+<div id="liveLog" hidden role="dialog" aria-modal="true" aria-labelledby="llTitle">
+  <div class="spbox">
+    <div class="sptitle" id="llTitle">Match log</div>
+    <p class="spsub" id="llSub"></p>
+    <div class="llhead"><span class="lt">Time</span><span class="lw">What</span><span class="ls" id="llCols"></span></div>
+    <div class="logrows" id="llRows"></div>
+    <button class="spcancel" id="llClose">Close</button>
   </div>
 </div>
 
@@ -2177,6 +2218,7 @@
     $("#modeName").textContent = MODE_LABELS[st.mode]
       || (st.mode ? st.mode[0].toUpperCase() + st.mode.slice(1) : "Idle");
     renderUndo(st);
+    renderLog(st);
     const setNo = $("#setNo");
     setNo.textContent = setLabel(st.state);
     // Once it reads "Final" the chip becomes the way back into the result — otherwise declining
@@ -2837,6 +2879,52 @@
     b.setAttribute("aria-label", b.title);
   }
 
+  // The live match log. `log` rides on /api/status and every /api/action reply as
+  // { n, last, team_a, team_b } — the entry count and the newest entry — or null when no match is
+  // being logged. The button shows that newest entry; the dialog fetches the whole list, and
+  // fetches it again whenever the count moves while it is open.
+  const logScore = (e) => (e && e.score ? e.score[0] + "–" + e.score[1] : "");
+  let logShownN = -1;
+  function renderLog(st) {
+    const b = $("#logBtn");
+    if (!b) return;
+    const L = st.log;
+    const e = L && L.last;
+    b.hidden = !e;
+    if (!e) { if (!$("#liveLog").hidden) closeLiveLog(); return; }
+    const m = { team_a: L.team_a, team_b: L.team_b };
+    $("#logTime").textContent = e.t || "";
+    $("#logText").textContent = eventText(e, m);
+    $("#logScore").textContent = logScore(e);
+    b.setAttribute("aria-label", "Match log, " + L.n + " entries. Last: " + (e.t || "") + " " + eventText(e, m) + " " + logScore(e));
+    if (!$("#liveLog").hidden && L.n !== logShownN) refreshLiveLog();
+  }
+  async function refreshLiveLog() {
+    let m = null;
+    try { const r = await api("/api/history/current"); m = r && r.match; } catch {}
+    const rows = $("#llRows");
+    rows.innerHTML = "";
+    const evs = (m && m.events) || [];
+    logShownN = evs.length;
+    $("#llCols").textContent = m ? (m.team_a || "A") + " – " + (m.team_b || "B") : "";
+    if (!m || !evs.length) { $("#llSub").textContent = "Nothing logged yet."; return; }
+    $("#llSub").textContent = (m.team_a || "A") + " vs " + (m.team_b || "B") + " · " + evs.length + " entries · started " + (evs[0].t || "");
+    // Newest first: during a match the question is almost always about the last few minutes.
+    for (let i = evs.length - 1; i >= 0; i--) {
+      const e = evs[i];
+      const row = document.createElement("div"); row.className = "logrow " + (e.type || "");
+      const tm = document.createElement("span"); tm.className = "lt"; tm.textContent = e.t || "";
+      const what = document.createElement("span"); what.className = "lw"; what.textContent = eventText(e, m);
+      const sc = document.createElement("span"); sc.className = "ls"; sc.textContent = logScore(e);
+      row.append(tm, what, sc);
+      rows.appendChild(row);
+    }
+  }
+  function closeLiveLog() { $("#liveLog").hidden = true; logShownN = -1; }
+  $("#logBtn").addEventListener("click", () => { $("#liveLog").hidden = false; $("#llRows").scrollTop = 0; refreshLiveLog(); });
+  $("#llClose").addEventListener("click", closeLiveLog);
+  $("#liveLog").addEventListener("click", (e) => { if (e.target.id === "liveLog") closeLiveLog(); });
+
   let statusInFlight = false, statusAgain = false;
   async function refreshStatus() {
     // Some browser extensions (mobile simulators, readers) replace the document body and
@@ -2918,6 +3006,7 @@
       const patch = { ledbox: lastLedbox, state: s };
       if (prematchOn && !keepsPre) patch.prematch = false;
       if (r && "canUndo" in r) { patch.canUndo = r.canUndo; patch.undoLabel = r.undoLabel; }
+      if (r && "log" in r) patch.log = r.log;
       if (s) renderStatus(patch, seq);
       handleEvent(r && r.event, s);
       refreshStatus();
@@ -4078,7 +4167,7 @@
   // a new dialog only needs an entry here. Value = the button Escape presses (null: no Escape).
   const MODALS = {
     confirm: "#confirmNo", edit: "#editCancel", pinModal: "#pinCancel", serveOrder: "#ordCancel",
-    matchEnd: "#meClose", gamePicker: "#gpCancel", sportPicker: "#spCancel", lockGate: null,
+    matchEnd: "#meClose", liveLog: "#llClose", gamePicker: "#gpCancel", sportPicker: "#spCancel", lockGate: null,
   };
   const modalEls = () => Object.keys(MODALS).map((id) => document.getElementById(id)).filter(Boolean);
   const isShown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;

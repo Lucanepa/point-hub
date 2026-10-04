@@ -128,6 +128,24 @@ console.log('\n[5] the turning points still land, and the match still archives')
     'the deciding set is closed BEFORE the match is — the log does not end mid-set')
 }
 
+console.log('\n[5b] the Game tab\'s live log: the match on the board, then the one it just finished')
+{
+  const src = new ManualSource()
+  const h = new HistoryStore()
+  const go = (a) => { src.apply(a); h.record(a, src.getState(), src.lastEvent, DATE, '19:50:00') }
+  eq(h.live(), null, 'nothing to show before the first point')
+  go({ type: 'point', side: 'left', delta: 1 })
+  ok(h.live() === h.current && h.live().events.length === 1, 'the match in progress, entry by entry')
+  let side = 'left'
+  for (let set = 0; set < 3; set++) {
+    for (let i = set ? 0 : 1; i < 25; i++) go({ type: 'point', side, delta: 1 })
+    if (set < 2) { go({ type: 'next-set' }); side = side === 'left' ? 'right' : 'left' }
+  }
+  ok(h.current === null && h.live() === h.matches.slice(-1)[0], 'after the match point: still the finished match, not an empty log')
+  go({ type: 'reset' })
+  eq(h.live(), null, 'and a reset clears it')
+}
+
 console.log('\n[6] end to end: the log comes back out of /api/history')
 {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-matchlog-'))
@@ -149,6 +167,12 @@ console.log('\n[6] end to end: the log comes back out of /api/history')
     await post('/api/action', { action: { type: 'point', side: 'left', delta: 1 } })
     await post('/api/action', { action: { type: 'point', side: 'left', delta: -1 } })
     await post('/api/action', { action: { type: 'timeout', side: 'left', delta: 1 } })
+    {
+      const st = await (await fetch(base + '/api/status')).json()
+      ok(st.log && st.log.n === 3 && st.log.last.type === 'timeout' && st.log.team_a === 'KSCW', '/api/status carries the newest log entry')
+      const cur = await (await fetch(base + '/api/history/current')).json()
+      eq(cur.match && cur.match.events.length, 3, '/api/history/current serves the whole live log')
+    }
     // Finish it so the buffer is archived and reachable through the API. Following the winning
     // team across the change of ends, as in [5].
     let side = 'right'
