@@ -3,6 +3,8 @@
 //   - the match list is found on the relay's own port (it used to be forced to :5173)
 //   - a relay that does not answer is named in the error, with every URL tried
 //   - a laptop found by the network search is listed and linked with nothing typed
+//   - a link goes to the laptop that listed the match (the list is open, the link needs the PIN)
+//   - a desktop app (Tauri / Electron reply shapes: `running: true`, WS-only port) is found too
 //   - the scorer ending the match puts the result up; undoing the end brings the score back;
 //     deleting the match unlinks the board instead of freezing the last score
 // Needs the `ws` devDependency (npm install).
@@ -226,6 +228,62 @@ try {
     ok(r.relay.ok === false && /no scorer laptop found on 10\.9\.8\.x/.test(r.errors[0] || ''), `error: ${r.errors[0]}`)
     const l = await post('/api/link', { source: 'lan', matchId: SEED })
     ok(l.status === 409 && /Settings/.test(l.json?.error || ''), `link without any relay -> 409 (${l.json?.error})`)
+  }
+  console.log('\n[11] a desktop app (Tauri / Electron) — found, listed and linked through its real reply shapes')
+  {
+    // The Tauri relay (relay.rs) as it answers today: HTTP on one port (status `running: true`,
+    // match list with the team NAMES and numeric ids, only the newest refereeable match), and a
+    // WS-only port where /api/server/status and /api/match/list are a bare 404.
+    const wsOnly = http.createServer((req, res) => { res.writeHead(404, { 'content-length': '0' }); res.end() })
+    const desk = new WebSocketServer({ server: wsOnly })
+    desk.on('connection', (ws) => ws.on('message', (buf) => {
+      const msg = JSON.parse(String(buf))
+      if (msg.type === 'subscribe-match') ws.send(JSON.stringify({ type: 'match-full-data', matchId: msg.matchId, access: 'summary', data: { liveState: { team_a_short: 'KSC', team_b_short: 'VBC', points_a: 2, points_b: 2, side_a: 'left', match_status: 'in_progress' } } }))
+    }))
+    await new Promise((r) => wsOnly.listen(0, '127.0.0.1', r))
+    const wsPort = wsOnly.address().port
+    const httpSide = http.createServer((req, res) => {
+      res.setHeader('content-type', 'application/json')
+      if (req.url === '/api/server/status') return res.end(JSON.stringify({ running: true, mainInstanceId: null, hasMainInstance: false, protocol: 'http', wsProtocol: 'ws', hostname: 'localhost', localIP: '127.0.0.1', port: httpSide.address().port, wsPort, urls: {} }))
+      if (req.url === '/api/match/list') return res.end(JSON.stringify({ success: true, matches: [{ id: 42, gameNumber: 4711, homeTeam: 'KSC Wiedikon', awayTeam: 'VBC Züri', scheduledAt: null, status: 'live', refereeConnectionEnabled: true }] }))
+      res.writeHead(404); res.end('{}')
+    })
+    await new Promise((r) => httpSide.listen(0, '127.0.0.1', r))
+    const { probeRelay } = await import('../src/relayAddress.js')
+    const dDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-link-desk-'))
+    const mock2 = new MockLedbox()
+    const a2 = await mock2.listen(0, '127.0.0.1')
+    const app2 = await startAppliance({
+      stateDir: dDir, relayUrl: '', relayHttpUrl: '', matchId: '',
+      relayDesktopPort: httpSide.address().port,
+      relayDiscover: async () => {
+        const f = await probeRelay('127.0.0.1', { relayPort: wsPort, desktopPort: httpSide.address().port })
+        return { found: f ? [f] : [], subnets: ['127.0.0'], ms: 0 }
+      },
+      ledboxHost: '127.0.0.1', ledboxPort: a2.port, ledboxLayout: 'volleyball_matchscore_02',
+      ledboxAlias: 'desk', ledboxApiVersion: 2, reconnectMs: 200, mock: false, controlPort: 0, debug: false,
+    })
+    const b2 = `http://127.0.0.1:${app2.server.address().port}`
+    try {
+      const r = await (await fetch(b2 + '/api/matches')).json()
+      ok(r.relay.ok && r.relay.source === 'discovered' && r.relay.address === `127.0.0.1:${wsPort}`, `nothing typed: the desktop app is found (${JSON.stringify(r.relay)})`)
+      ok(r.matches.length === 1 && r.matches[0].id === '42' && r.matches[0].label === '4711 KSC Wiedikon-VBC Züri' && r.matches[0].live, `its match is listed (${JSON.stringify(r.matches)})`)
+      await fetch(b2 + '/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ relayAddress: `127.0.0.1:${wsPort}` }) })
+      const r2 = await (await fetch(b2 + '/api/matches')).json()
+      ok(r2.relay.ok && r2.relay.source === 'settings' && r2.relay.tried.length === 1 && /answered HTTP 404/.test(r2.relay.tried[0]), `typed address: the WS port's 404, then the HTTP port (${JSON.stringify(r2.relay.tried)})`)
+      const l = await fetch(b2 + '/api/link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'lan', matchId: r2.matches[0].id, relay: r2.matches[0].relay }) })
+      ok(l.status === 200, `linked (${l.status})`)
+      await sleep(400)
+      ok(mock2.text('score1') === '2' && mock2.text('team1') === 'KSC', `the desktop relay's live state is on the panel (${mock2.text('team1')} ${mock2.text('score1')}:${mock2.text('score2')})`)
+    } finally {
+      await app2.close()
+      await mock2.close()
+      for (const ws of desk.clients) ws.terminate()
+      desk.close()
+      wsOnly.closeAllConnections?.(); httpSide.closeAllConnections?.()
+      await new Promise((r) => wsOnly.close(r)); await new Promise((r) => httpSide.close(r))
+      fs.rmSync(dDir, { recursive: true, force: true })
+    }
   }
 } finally {
   await app.close()

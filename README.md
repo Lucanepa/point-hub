@@ -51,7 +51,7 @@ boots a working board on the defaults below (`src/config.js` is the source of tr
 | `LEDBOX_PORT` | `8889` | |
 | `CONTROL_PORT` | `8890` | The console. The QR on the panel and the hall guide point here. |
 | `RELAY_URL` / `RELAY_HTTP_URL` | `ws://127.0.0.1:8080` / derived | OpenVolley relay for **Link** mode — only a fallback on the appliance: **Settings ▸ Scorer laptop address** wins (below). The match list (`/api/match/list`) is tried at the relay's own origin first (the standalone `backend/server.js` and the cloud serve HTTP and WS on one port), then on `:5173` of the same host (the desktop app, `frontend/server.js`). Set `RELAY_HTTP_URL` only to pin one URL. |
-| `RELAY_DISCOVERY` | `own` | When the configured address does not answer, look for the scorer laptop: one `GET :8080/api/server/status` per address of the networks the board **runs** (its own address ends in `.1` — its Wi-Fi `172.24.1.x` and the bench cable `192.168.5.x`), at most 6 s, only on a match-list refresh. `all` = every private /24 the board is on (a hall network it is a guest on included); `0` = off. |
+| `RELAY_DISCOVERY` | `own` | When the configured address does not answer, look for the scorer laptop: one `GET :8080/api/server/status` per address of the networks the board **runs** (its own address ends in `.1` — its Wi-Fi `172.24.1.x` and the bench cable `192.168.5.x`), then `:5173/api/server/status` where 8080 is WS-only, at most 6 s, only on a match-list refresh. Finds both relay families: the standalone `backend/server.js` (`status: 'online'` on 8080) and the desktop app — Tauri, Electron, `frontend/server.js` (`running: true` on 5173). `all` = every private /24 the board is on (a hall network it is a guest on included); `0` = off. A laptop the search found is used for a link only when the operator links a match it listed (each listed match names its laptop, and `POST /api/link` must name a relay the board knows); the Link tab warns when the saved address was silent and another laptop is listing. |
 | `TLS_CERT`, `TLS_KEY`, `HTTPS_PORT` | empty, empty, `8891` | Both paths set = an HTTPS listener alongside HTTP (wake lock, installable app). Written by `provisioning/setup-console-tls.sh`. |
 | `DIRECTUS_URL`, `LIVE_PUBLISH_TOKEN` | empty | Live publishing to wiedisync, below. The same token lets the board fetch the **match sheet** of the game on it (Link tab ▸ This game: Game info + KSCW roster, for the scorer to read off into the eScoresheet) — only with live scoring on, only behind the scorer PIN, and never on a board with no PIN set, because the roster holds birthdates. The copy in `data/gamesheet.json` is deleted once the game is off the board or 3 h past kickoff. Needs the `board` audience in wiedisync's `scorer-roster.js`. |
 | `DIRECTUS_URL` (schedule) | `https://directus.kscw.ch` when unset | Where the **season's home games** come from (`GET /api/schedule`, the console's "start from the schedule" list). A public, token-free read of `/items/games`, so it works without `LIVE_PUBLISH_TOKEN`. The board downloads every remaining home game whenever it has an uplink (at boot, every 30 min, retrying 1→5 min after a failure, and as soon as NTP syncs) and keeps them in `data/schedule.json`, so a hall with no uplink still gets the list — marked stale. No copy at all = a plain "type the names instead" message, never an error. |
@@ -106,10 +106,14 @@ npm run test:mapper
 # integration tests: mock relay → bridge / appliance → mock LedBox (needs devDeps)
 npm install && npm run test:relay
 
-# end to end against the CURRENT OpenVolley relay (manual: needs an OpenVolley checkout with
-# backend/node_modules; boots backend/server.js --local on a free port, drives the real appliance
-# through Settings, /api/matches and /api/link, asserts the panel at every step, exits 1 on any miss)
+# end to end against the CURRENT OpenVolley relays (manual: needs an OpenVolley checkout with
+# backend/ and frontend/ node_modules). Runs one match against each relay family on free ports —
+# backend/server.js --local, frontend/server.js (the desktop Node relay, same core as Electron) and
+# the Tauri relay (--server-only, when a build exists; skipped otherwise) — and drives the real
+# appliance through the network search (the real /api/server/status), Settings, /api/matches and
+# /api/link, asserts the panel at every step, exits 1 on any miss
 npm run test:e2e                                   # OPENVOLLEY_DIR defaults to ../openvolley/escoresheet
+E2E_RELAYS=backend,desktop npm run test:e2e        # a subset; OPENVOLLEY_TAURI_BIN = a Tauri build
 
 # run for real against the built-in mock (no hardware):
 MOCK=1 MATCH_ID=match_1759750000000_ab12cd RELAY_URL=ws://127.0.0.1:8080 node src/bridge.js

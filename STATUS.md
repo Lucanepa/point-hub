@@ -56,7 +56,11 @@ Verified on the real panel:
 - **Scorer laptop** — Settings ▸ Scorer laptop address (host[:port]) for Link mode, or found by a
   short search of the board's Wi-Fi and cable; the match list is read from the relay's own port,
   then :5173. A linked match that the scorer ends shows the result; a deleted one unlinks the board.
-  `npm run test:e2e` runs the whole chain against OpenVolley's `backend/server.js --local`.
+  The search finds the standalone server and the desktop app (Tauri / Electron answer
+  `running: true` on :5173; until 2026-10-06 only `status: 'online'` was accepted, so a desktop
+  laptop was never found). A link goes to the laptop that listed the match, never to whatever the
+  open match list found last. `npm run test:e2e` runs the whole chain against OpenVolley's
+  `backend/server.js --local`, `frontend/server.js` and the Tauri relay (`--server-only`).
 - **systemd** — `ledbox-bridge.service` enabled; survives reboot; no MOCK in the unit.
 - **Venue networking** — board's own Wi-Fi `ledbox_C0270` carries phone+Pi+board with no cable
   (verified). Fallback Pi hotspot profile `openvolley-ap` exists (autoconnect off).

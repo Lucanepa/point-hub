@@ -35,7 +35,8 @@ Everything downstream of a `liveState` is done. The appliance is a new **front e
 3. **HTTP server + control API** on the Pi (e.g. `:8890`):
    - `GET  /api/status`   → `{ mode, source, matchId, ledbox:{connected}, lastState }`
    - `GET  /api/matches`  → `[{ source:'lan'|'cloud', id, label, teams, live }]`
-   - `POST /api/link`     `{ source, matchId }` → attach to that live match
+   - `POST /api/link`     `{ source, matchId, relay? }` → attach to that live match, on the
+     laptop (`relay`, host:port) that listed it in `/api/matches`
    - `POST /api/manual`   → switch to manual mode
    - `POST /api/state`    `{ …partial liveState | action }` → manual: set/patch/±point
    - `POST /api/blank`    → clear the LedBox
