@@ -27,7 +27,9 @@ Everything downstream of a `liveState` is done. The appliance is a new **front e
    - `cloud` — Supabase realtime on `match_live_state` (online). ✨ new
    - `manual` — the UI sets `liveState` directly. ✨ new
 2. **Match discovery**
-   - LAN: `GET http://<relay>:5173/api/match/list` (already exists in `server.js`).
+   - LAN: `GET <relay>/api/match/list` — the relay's own origin first (standalone server), then
+     `:5173` (desktop app); the relay is Settings ▸ Scorer laptop address, else `RELAY_URL`, else a
+     search of the board's own networks (`src/relayAddress.js`).
    - Cloud: Supabase query for live matches (needs URL + anon key + internet).
    - Merge, label by source, present in the picker.
 3. **HTTP server + control API** on the Pi (e.g. `:8890`):

@@ -50,7 +50,8 @@ boots a working board on the defaults below (`src/config.js` is the source of tr
 | `LEDBOX_HOST` | `172.24.1.1,192.168.5.1` | Comma-separated, tried in turn: the board's own AP, then the bench cable. Pinning ONE address loses the failover — leave it unset unless the board lives elsewhere. |
 | `LEDBOX_PORT` | `8889` | |
 | `CONTROL_PORT` | `8890` | The console. The QR on the panel and the hall guide point here. |
-| `RELAY_URL` / `RELAY_HTTP_URL` | `ws://127.0.0.1:8080` / derived (`:5173`) | OpenVolley LAN relay for **Link** mode. |
+| `RELAY_URL` / `RELAY_HTTP_URL` | `ws://127.0.0.1:8080` / derived | OpenVolley relay for **Link** mode — only a fallback on the appliance: **Settings ▸ Scorer laptop address** wins (below). The match list (`/api/match/list`) is tried at the relay's own origin first (the standalone `backend/server.js` and the cloud serve HTTP and WS on one port), then on `:5173` of the same host (the desktop app, `frontend/server.js`). Set `RELAY_HTTP_URL` only to pin one URL. |
+| `RELAY_DISCOVERY` | `own` | When the configured address does not answer, look for the scorer laptop: one `GET :8080/api/server/status` per address of the networks the board **runs** (its own address ends in `.1` — its Wi-Fi `172.24.1.x` and the bench cable `192.168.5.x`), at most 6 s, only on a match-list refresh. `all` = every private /24 the board is on (a hall network it is a guest on included); `0` = off. |
 | `TLS_CERT`, `TLS_KEY`, `HTTPS_PORT` | empty, empty, `8891` | Both paths set = an HTTPS listener alongside HTTP (wake lock, installable app). Written by `provisioning/setup-console-tls.sh`. |
 | `DIRECTUS_URL`, `LIVE_PUBLISH_TOKEN` | empty | Live publishing to wiedisync, below. The same token lets the board fetch the **match sheet** of the game on it (Link tab ▸ This game: Game info + KSCW roster, for the scorer to read off into the eScoresheet) — only with live scoring on, only behind the scorer PIN, and never on a board with no PIN set, because the roster holds birthdates. The copy in `data/gamesheet.json` is deleted once the game is off the board or 3 h past kickoff. Needs the `board` audience in wiedisync's `scorer-roster.js`. |
 | `DIRECTUS_URL` (schedule) | `https://directus.kscw.ch` when unset | Where the **season's home games** come from (`GET /api/schedule`, the console's "start from the schedule" list). A public, token-free read of `/items/games`, so it works without `LIVE_PUBLISH_TOKEN`. The board downloads every remaining home game whenever it has an uplink (at boot, every 30 min, retrying 1→5 min after a failure, and as soon as NTP syncs) and keeps them in `data/schedule.json`, so a hall with no uplink still gets the list — marked stale. No copy at all = a plain "type the names instead" message, never an error. |
@@ -59,7 +60,7 @@ boots a working board on the defaults below (`src/config.js` is the source of tr
 | `UPLINK_WATCH` | on | Watch the board's internet and offer the **hall Wi-Fi login** (below). `0` = no background probe. `UPLINK_PROBE_URL` / `UPLINK_PORTAL_URL` point it at a fake portal for testing; they default to Android's `generate_204` and `https://login.pwlan.ch`. |
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error`; `DEBUG=1` is shorthand for `debug`. |
 | `MOCK` | off | `1` = in-process mock LedBox, no hardware. |
-| `MATCH_ID` | — | Only the headless `src/bridge.js` needs it; the appliance picks matches in the UI. |
+| `MATCH_ID` | — | Only the headless `src/bridge.js` needs it; the appliance picks matches in the UI. It is the match's **seed key** (`match_…`, the `id` in the relay's `/api/match/list`, also in the scorer's QR code) — the relay keys rooms by it. The scorer's local numeric match id receives nothing. |
 
 `LEDBOX_LAYOUT` is read by the headless bridge only — the appliance takes its layouts from the
 active sport (`src/sports.js`).
@@ -102,14 +103,19 @@ npm test
 # unit test: mapper → client → mock LedBox (no deps, no hardware) — the on-Pi smoke test
 npm run test:mapper
 
-# integration test: mock relay → bridge → mock LedBox (needs devDeps)
+# integration tests: mock relay → bridge / appliance → mock LedBox (needs devDeps)
 npm install && npm run test:relay
 
-# run for real against the built-in mock (no hardware):
-MOCK=1 MATCH_ID=123 RELAY_URL=ws://127.0.0.1:8080 node src/bridge.js
+# end to end against the CURRENT OpenVolley relay (manual: needs an OpenVolley checkout with
+# backend/node_modules; boots backend/server.js --local on a free port, drives the real appliance
+# through Settings, /api/matches and /api/link, asserts the panel at every step, exits 1 on any miss)
+npm run test:e2e                                   # OPENVOLLEY_DIR defaults to ../openvolley/escoresheet
 
-# run against a real LedBox:
-MATCH_ID=123 LEDBOX_HOST=172.24.1.1 node src/bridge.js
+# run for real against the built-in mock (no hardware):
+MOCK=1 MATCH_ID=match_1759750000000_ab12cd RELAY_URL=ws://127.0.0.1:8080 node src/bridge.js
+
+# run against a real LedBox (MATCH_ID = the seed key, see Configure):
+MATCH_ID=match_1759750000000_ab12cd LEDBOX_HOST=172.24.1.1 node src/bridge.js
 ```
 
 ## Appliance — web control UI (manual + link)
@@ -117,6 +123,22 @@ Instead of the headless bridge, run the **appliance**: a phone-friendly control 
 served by the Pi (`CONTROL_PORT`, default 8890) with two modes — **Manual** (drive the
 board by hand: names, ±points, sets, timeouts, subs, serve, swap) and **Link** (list LAN
 matches from the relay and mirror one live). Cloud/Supabase source is a stub.
+
+- **Scorer laptop** — the relay Link mode reads from is the scorer's OpenVolley laptop, whose
+  address changes from hall to hall. **Settings ▸ Scorer laptop address** takes `host[:port]`
+  (`172.24.1.23`, `172.24.1.23:9000`; port 8080 when left out; a pasted `ws://…`/`http://…` URL is
+  fine, `wss://host` for a relay on the internet), refused with the reason when malformed and kept
+  with the other settings. **Check** saves it and asks the laptop for its matches. Empty (the
+  default) = `RELAY_URL` if set, else the board itself, and when nothing answers the board searches
+  its own Wi-Fi and cable for a laptop (`RELAY_DISCOVERY`, `src/relayAddress.js`). The Link tab
+  names the laptop that answered — or the address it tried and why it failed — and a link
+  subscribes to the relay that listed the match. A match is listed by the relay only once the
+  scorer has synced it (today's relays also want the referee connection on).
+- **End of a linked match** — when the scorer ends the match (`match_status: 'ended'` in the live
+  state), the panel shows the result screen (winner, sets; the clock on a board without
+  `kscw_result`); an undo of the end brings the score back. When the scorer deletes the match
+  (`match-deleted`), the board unlinks (mode `idle`) and holds the clock — or keeps the result if
+  it is already up — instead of freezing the last score. Relay `error` frames are logged.
 
 - **Undo** — one button beside the set strip takes back the last action, whatever it was
   (point, timeout, sub, swap, next set, reset), up to 30 steps; it reads what it will undo

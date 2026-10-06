@@ -53,6 +53,10 @@ Verified on the real panel:
   board is marked "Not sent" on the control that was tapped.
 - **Board auto-discovery** — finds the board on its Wi-Fi (`172.24.1.1`) or the cable
   (`192.168.5.1`), whichever answers; fails over in ~8s.
+- **Scorer laptop** — Settings ▸ Scorer laptop address (host[:port]) for Link mode, or found by a
+  short search of the board's Wi-Fi and cable; the match list is read from the relay's own port,
+  then :5173. A linked match that the scorer ends shows the result; a deleted one unlinks the board.
+  `npm run test:e2e` runs the whole chain against OpenVolley's `backend/server.js --local`.
 - **systemd** — `ledbox-bridge.service` enabled; survives reboot; no MOCK in the unit.
 - **Venue networking** — board's own Wi-Fi `ledbox_C0270` carries phone+Pi+board with no cable
   (verified). Fallback Pi hotspot profile `openvolley-ap` exists (autoconnect off).
