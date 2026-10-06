@@ -500,8 +500,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   const SCAN_REUSE_MS = 20000
   // The desktop relay's HTTP port (5173); a test moves it off whatever this machine runs there.
   const httpOpts = relayDesktopPort ? { desktopPort: relayDesktopPort } : {}
-  const discoverImpl = typeof relayDiscover === 'function' ? relayDiscover : discoverRelays
-  const discoveryOn = relayDiscovery === true || typeof relayDiscover === 'function'
+  const discoverImpl = typeof relayDiscover === 'function' ? relayDiscover
+    : () => discoverRelays({ own: relayDiscovery !== 'all' })
+  const discoveryOn = ['own', 'all', true].includes(relayDiscovery) || typeof relayDiscover === 'function'
   const configuredRelay = () => {
     const addr = opt('relayAddress')
     if (addr) return { wsUrl: relayWsUrl(addr), httpOverride: '', source: 'settings' }
@@ -1728,7 +1729,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         // Nothing was set up, so nothing was expected: the board itself and the search came up empty.
         const at = conf ? ` at ${configured.address}` : ''
         errors.push(scan
-          ? `lan: no scorer laptop found${nets ? ` on ${nets}` : ' (the board is on no private network)'}${tried.length ? `; nothing answered${at}` : ''}`
+          ? `lan: no scorer laptop found${nets ? ` on ${nets}` : ' (the board runs no network to search)'}${tried.length ? `; nothing answered${at}` : ''}`
           : `lan: no OpenVolley relay answered${at} — ${tried.map((t) => t.error).join('; ') || 'nothing to try'}`)
       } else {
         errors.push(`lan: no OpenVolley relay answered at ${configured.address} — ${tried.slice(0, 2).map((t) => `${t.url}: ${t.error}`).join('; ')}${scan ? (nets ? `; searched ${nets}: no other scorer laptop found` : '') : ''}`)

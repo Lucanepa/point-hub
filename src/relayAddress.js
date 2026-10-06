@@ -91,7 +91,12 @@ export function relayHttpCandidates(wsUrl, override = '', { desktopPort = DESKTO
 // Private IPv4 /24s the board itself sits on — where a scorer laptop could be. Loopback, link-local,
 // the tailnet (100.64/10) and public addresses are never scanned. A wider netmask is still searched
 // as the /24 around the board's own address: a hall network is small, and a /16 would take minutes.
-export function localSubnets(interfaces = os.networkInterfaces(), { max = 3 } = {}) {
+//
+// `own` (the default) keeps only the networks the board RUNS — where its address ends in .1: its
+// own Wi-Fi (172.24.1.1) and the bench cable (192.168.5.1), the two places a scorer laptop joins
+// it. A network the board is merely a guest on (the hall's Wi-Fi, a club LAN) is someone else's,
+// and probing every address on it is not the board's business; type the address there instead.
+export function localSubnets(interfaces = os.networkInterfaces(), { max = 3, own = true } = {}) {
   const out = []
   for (const [name, addrs] of Object.entries(interfaces || {})) {
     for (const a of addrs || []) {
@@ -100,6 +105,7 @@ export function localSubnets(interfaces = os.networkInterfaces(), { max = 3 } = 
       const [o1, o2] = a.address.split('.').map(Number)
       const priv = o1 === 10 || (o1 === 172 && o2 >= 16 && o2 <= 31) || (o1 === 192 && o2 === 168)
       if (!priv) continue
+      if (own && !a.address.endsWith('.1')) continue
       const prefix = a.address.split('.').slice(0, 3).join('.')
       if (out.some((s) => s.prefix === prefix)) continue
       out.push({ iface: name, prefix, self: a.address })
@@ -144,14 +150,15 @@ export async function probeRelay(host, { fetchImpl = fetch, timeoutMs = 700, sig
 
 // Look for scorer laptops on the board's own networks: one GET per address of each private /24,
 // at most `concurrency` at a time, each given `timeoutMs`. Worst case (every address silent) is
-// about ceil(253 / concurrency) * timeoutMs per subnet — 2.8 s for a /24 at the defaults. Read-only
-// (GET /api/server/status) and only ever started by the operator refreshing the Link tab.
+// about ceil(253 / concurrency) * timeoutMs per subnet — 2.8 s for a /24 at the defaults — and
+// never more than `budgetMs` in all. Read-only (GET /api/server/status) and only ever started by
+// someone refreshing the match list.
 // Resolves { found: [{ host, wsUrl, httpUrl }], subnets: ['172.24.1'], ms }.
 export async function discoverRelays({
-  interfaces, fetchImpl = fetch, timeoutMs = 700, concurrency = 64, subnets, skip = [],
+  interfaces, fetchImpl = fetch, timeoutMs = 700, concurrency = 64, subnets, skip = [], own = true, budgetMs = 6000,
 } = {}) {
   const t0 = Date.now()
-  const nets = subnets || localSubnets(interfaces)
+  const nets = subnets || localSubnets(interfaces, { own })
   const hosts = []
   for (const n of nets) {
     for (let i = 1; i <= 254; i++) {
@@ -161,8 +168,10 @@ export async function discoverRelays({
   }
   const found = []
   let next = 0
+  // A hard ceiling on the whole search, whatever the number of networks: no new probe starts after
+  // it, so the console's Refresh always gets its answer.
   const worker = async () => {
-    while (next < hosts.length) {
+    while (next < hosts.length && Date.now() - t0 < budgetMs) {
       const h = hosts[next++]
       const r = await probeRelay(h, { fetchImpl, timeoutMs })
       if (r) found.push(r)

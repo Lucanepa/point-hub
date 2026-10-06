@@ -54,7 +54,8 @@ console.log('\n[3] config: the match-list URL is derived, not forced to :5173')
   const c = loadConfig({})
   eq(c.relayHttpUrl, '', 'RELAY_HTTP_URL unset -> empty (derive per relay)')
   eq(c.relayUrlExplicit, false, 'the default relay URL is marked as the default')
-  eq(c.relayDiscovery, true, 'the network search is on for a real boot')
+  eq(c.relayDiscovery, 'own', "the network search is on for a real boot, on the board's own networks")
+  eq(loadConfig({ RELAY_DISCOVERY: 'all' }).relayDiscovery, 'all', "RELAY_DISCOVERY=all searches every private /24")
   eq(loadConfig({ RELAY_URL: 'ws://10.1.1.1:8080' }).relayUrlExplicit, true, 'RELAY_URL set -> explicit')
   eq(loadConfig({ RELAY_DISCOVERY: '0' }).relayDiscovery, false, 'RELAY_DISCOVERY=0 turns the search off')
 }
@@ -87,8 +88,9 @@ console.log('\n[5] which networks the search covers')
     eth1: [{ address: '10.0.7.33', family: 4, internal: false }],
     eth2: [{ address: '172.24.1.9', family: 'IPv4', internal: false }],
   }
-  eq(localSubnets(ifs).map((n) => n.prefix), ['172.24.1', '192.168.5', '10.0.7'], 'private /24s only — no loopback, tailnet or public; one entry per /24')
-  eq(localSubnets(ifs, { max: 1 }).length, 1, 'capped')
+  eq(localSubnets(ifs).map((n) => n.prefix), ['172.24.1', '192.168.5'], 'default: only the networks the board runs (its address .1) — its Wi-Fi and the bench cable')
+  eq(localSubnets(ifs, { own: false }).map((n) => n.prefix), ['172.24.1', '192.168.5', '10.0.7'], "'all': every private /24 — still no loopback, tailnet or public; one entry per /24")
+  eq(localSubnets(ifs, { own: false, max: 1 }).length, 1, 'capped')
 }
 
 console.log('\n[6] probing one host, with a stand-in fetch')
@@ -136,8 +138,13 @@ console.log('\n[7] the search: bounded, every host once, stable order')
   const slow = await discoverRelays({ subnets: [{ prefix: '10.9.9', self: '10.9.9.1' }], timeoutMs: 50, concurrency: 64,
     fetchImpl: (url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => rej(signal.reason))) })
   const ms = Date.now() - t0
-  clearInterval(keep)
   ok(slow.found.length === 0 && ms < 1500, `a silent /24 ends on the timeout, not never (${ms} ms)`)
+  const t1 = Date.now()
+  const capped = await discoverRelays({ subnets: [{ prefix: '10.9.9', self: '10.9.9.1' }, { prefix: '10.9.10', self: '10.9.10.1' }], timeoutMs: 100, concurrency: 8, budgetMs: 300,
+    fetchImpl: (url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => rej(signal.reason))) })
+  const ms2 = Date.now() - t1
+  ok(capped.found.length === 0 && ms2 < 700, `the whole search stops at its budget (${ms2} ms for 506 slow addresses)`)
+  clearInterval(keep)
 }
 
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

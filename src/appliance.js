@@ -192,7 +192,7 @@ export async function startAppliance(config = loadConfig()) {
     relayUrlExplicit: config.relayUrlExplicit ?? !!config.relayUrl,
     // Looking for the scorer laptop on the board's networks: a real boot only, like the schedule
     // sync — a selftest must never scan whatever network it happens to run on.
-    relayDiscovery: config.relayDiscovery === true,
+    relayDiscovery: ['own', 'all'].includes(config.relayDiscovery) ? config.relayDiscovery : false,
     // Test hook only: a stand-in for the network search (relayAddress.js discoverRelays).
     relayDiscover: typeof config.relayDiscover === 'function' ? config.relayDiscover : null,
     relayDesktopPort: config.relayDesktopPort || undefined, // test hook: the desktop relay's HTTP port

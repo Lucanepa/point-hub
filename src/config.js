@@ -20,10 +20,12 @@ export function loadConfig(env = process.env) {
     relayUrl: env.RELAY_URL || 'ws://127.0.0.1:8080',
     // Whether RELAY_URL was actually set, as opposed to the default above (which is the board itself).
     relayUrlExplicit: !!env.RELAY_URL,
-    // Look for the scorer laptop on the board's networks when the configured address does not
-    // answer (one GET /api/server/status per address of each private /24, on a Link-tab refresh).
+    // Look for the scorer laptop when the configured address does not answer: one
+    // GET /api/server/status per address, on a Link-tab refresh. 'own' (default) searches only the
+    // networks the board runs (its Wi-Fi and the bench cable); 'all' every private /24 it is on;
     // RELAY_DISCOVERY=0 turns it off.
-    relayDiscovery: bool(env.RELAY_DISCOVERY, true),
+    relayDiscovery: /^(0|false|no|off)$/i.test(String(env.RELAY_DISCOVERY ?? '').trim()) ? false
+      : String(env.RELAY_DISCOVERY ?? '').trim().toLowerCase() === 'all' ? 'all' : 'own',
     // Which match the headless bridge mirrors: the match's seed key (the relay room key — the
     // `id` in the relay's /api/match/list, also in the scorer's QR code). Not the scorer's local
     // numeric id: the relay keys rooms by seed key, and a numeric id receives nothing.
