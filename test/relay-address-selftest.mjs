@@ -57,6 +57,7 @@ console.log('\n[3] config: the match-list URL is derived, not forced to :5173')
   eq(c.relayDiscovery, 'own', "the network search is on for a real boot, on the board's own networks")
   eq(loadConfig({ RELAY_DISCOVERY: 'all' }).relayDiscovery, 'all', "RELAY_DISCOVERY=all searches every private /24")
   eq(loadConfig({ RELAY_URL: 'ws://10.1.1.1:8080' }).relayUrlExplicit, true, 'RELAY_URL set -> explicit')
+  eq(loadConfig({ RELAY_URL: 'ws://127.0.0.1:8080' }).relayUrlExplicit, false, 'the default spelled out in .env is still the default')
   eq(loadConfig({ RELAY_DISCOVERY: '0' }).relayDiscovery, false, 'RELAY_DISCOVERY=0 turns the search off')
 }
 

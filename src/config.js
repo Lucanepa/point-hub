@@ -19,7 +19,8 @@ export function loadConfig(env = process.env) {
     // laptop on its own networks (relayAddress.js). The headless bridge (bridge.js) uses it as is.
     relayUrl: env.RELAY_URL || 'ws://127.0.0.1:8080',
     // Whether RELAY_URL was actually set, as opposed to the default above (which is the board itself).
-    relayUrlExplicit: !!env.RELAY_URL,
+    // (Spelling the default out in .env, as an old .env.example did, still counts as the default.)
+    relayUrlExplicit: !!env.RELAY_URL && env.RELAY_URL !== 'ws://127.0.0.1:8080',
     // Look for the scorer laptop when the configured address does not answer: one
     // GET /api/server/status per address, on a Link-tab refresh. 'own' (default) searches only the
     // networks the board runs (its Wi-Fi and the bench cable); 'all' every private /24 it is on;
