@@ -14,9 +14,20 @@ export function loadConfig(env = process.env) {
     return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : d
   }
   return {
-    // OpenVolley LAN relay (the eScoresheet server) WebSocket endpoint to subscribe to.
+    // OpenVolley relay WebSocket to subscribe to. On the appliance this is only the FALLBACK: the
+    // console's Settings ▸ Scorer laptop address wins, and with neither set the board looks for the
+    // laptop on its own networks (relayAddress.js). The headless bridge (bridge.js) uses it as is.
     relayUrl: env.RELAY_URL || 'ws://127.0.0.1:8080',
-    // Which match to mirror onto the LedBox (the numeric match id). Required unless MOCK.
+    // Whether RELAY_URL was actually set, as opposed to the default above (which is the board itself).
+    relayUrlExplicit: !!env.RELAY_URL,
+    // Look for the scorer laptop on the board's networks when the configured address does not
+    // answer (one GET /api/server/status per address of each private /24, on a Link-tab refresh).
+    // RELAY_DISCOVERY=0 turns it off.
+    relayDiscovery: bool(env.RELAY_DISCOVERY, true),
+    // Which match the headless bridge mirrors: the match's seed key (the relay room key — the
+    // `id` in the relay's /api/match/list, also in the scorer's QR code). Not the scorer's local
+    // numeric id: the relay keys rooms by seed key, and a numeric id receives nothing.
+    // Required for bridge.js unless MOCK; the appliance picks the match on its Link tab instead.
     matchId: env.MATCH_ID || null,
     // Physical Tech4Sport LedBox. The board answers on a DIFFERENT address depending on
     // how you reached it — 172.24.1.1 when everyone is on the board's own Wi-Fi (the
@@ -74,20 +85,9 @@ export function loadConfig(env = process.env) {
     // version.json there). Served at /app/pointhub.apk and /app/version.json. Empty = the repo's
     // own android/dist beside web/ (see createControlServer).
     appDistDir: env.APP_DIST_DIR || '',
-    // OpenVolley relay HTTP base (for /api/match/list). Derived from relayUrl if unset:
-    // ws->http, wss->https, and the relay's HTTP port is 5173 (Vite dev server / API host).
-    relayHttpUrl: env.RELAY_HTTP_URL || httpFromWs(env.RELAY_URL || 'ws://127.0.0.1:8080'),
-  }
-}
-
-// Derive the relay HTTP base from its WS url: swap scheme and force port 5173.
-function httpFromWs(wsUrl) {
-  try {
-    const u = new URL(wsUrl)
-    u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:'
-    u.port = '5173'
-    return u.origin
-  } catch {
-    return 'http://127.0.0.1:5173'
+    // OpenVolley relay HTTP base for /api/match/list. Unset (the normal case) = derived from the
+    // relay address: its own origin first (the standalone server and the cloud serve HTTP and WS on
+    // one port), then port 5173 on the same host (the desktop app). See relayHttpCandidates.
+    relayHttpUrl: env.RELAY_HTTP_URL || '',
   }
 }
