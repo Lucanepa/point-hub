@@ -187,6 +187,15 @@ export async function startAppliance(config = loadConfig()) {
     ledbox,
     relayHttpUrl: config.relayHttpUrl,
     relayUrl: config.relayUrl,
+    // A hand-built test config that names a relay means it; only loadConfig can tell the default
+    // (the board itself) from a RELAY_URL somebody set.
+    relayUrlExplicit: config.relayUrlExplicit ?? !!config.relayUrl,
+    // Looking for the scorer laptop on the board's networks: a real boot only, like the schedule
+    // sync — a selftest must never scan whatever network it happens to run on.
+    relayDiscovery: config.relayDiscovery === true,
+    // Test hook only: a stand-in for the network search (relayAddress.js discoverRelays).
+    relayDiscover: typeof config.relayDiscover === 'function' ? config.relayDiscover : null,
+    relayDesktopPort: config.relayDesktopPort || undefined, // test hook: the desktop relay's HTTP port
     reconnectMs: config.reconnectMs,
     settings,
     webDir,

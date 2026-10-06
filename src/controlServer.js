@@ -6,7 +6,8 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
-import { LanSource } from './lanSource.js'
+import { LanSource, resultFromLiveState } from './lanSource.js'
+import { parseRelayAddress, relayWsUrl, relayHttpCandidates, relayHostLabel, discoverRelays } from './relayAddress.js'
 import { toLeftRight } from './volleyballMapper.js'
 import { hexToRgb } from './ledboxProtocol.js'
 import { execFile } from 'node:child_process'
@@ -193,7 +194,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -482,6 +483,90 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   const holdClock = async () => {
     await stopCountdown({ expired: false, repaint: false })
     if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true, { screen: 'clock' })
+  }
+
+  // --- the scorer laptop's relay ------------------------------------------------------------
+  // Where the Link tab's match list comes from, and what /api/link subscribes to. In order:
+  //   1. Settings ▸ Scorer laptop address (`relayAddress`) — what the operator typed tonight
+  //   2. RELAY_URL / RELAY_HTTP_URL from .env — a per-board deploy default
+  //   3. the default ws://127.0.0.1:8080 (the board itself — a relay running on the same box)
+  // and when none of those answers, a short search of the board's own networks (relayAddress.js
+  // discoverRelays), if this boot allows it. The relay that answered the list is the one a link
+  // subscribes to, so a laptop found by the search is linked without anyone typing its address.
+  const rlog = log.child('relay')
+  let activeRelay = null // { wsUrl, httpUrl, source } — the relay that last answered the list
+  let scanning = null    // the discovery in flight, shared by concurrent refreshes
+  let lastScan = null    // { at, found, subnets, ms } — reused for SCAN_REUSE_MS
+  const SCAN_REUSE_MS = 20000
+  // The desktop relay's HTTP port (5173); a test moves it off whatever this machine runs there.
+  const httpOpts = relayDesktopPort ? { desktopPort: relayDesktopPort } : {}
+  const discoverImpl = typeof relayDiscover === 'function' ? relayDiscover : discoverRelays
+  const discoveryOn = relayDiscovery === true || typeof relayDiscover === 'function'
+  const configuredRelay = () => {
+    const addr = opt('relayAddress')
+    if (addr) return { wsUrl: relayWsUrl(addr), httpOverride: '', source: 'settings' }
+    if (relayUrl || relayHttpUrl) return { wsUrl: relayUrl || '', httpOverride: relayHttpUrl || '', source: relayUrlExplicit ? 'env' : 'default' }
+    return null
+  }
+  const discover = () => {
+    if (scanning) return scanning
+    if (lastScan && Date.now() - lastScan.at < SCAN_REUSE_MS) return Promise.resolve(lastScan)
+    rlog.info('looking for the scorer laptop on this board\'s networks')
+    scanning = Promise.resolve()
+      .then(() => discoverImpl())
+      .then((r) => {
+        lastScan = { at: Date.now(), found: (r && r.found) || [], subnets: (r && r.subnets) || [], ms: (r && r.ms) || 0 }
+        const where = lastScan.subnets.map((p) => `${p}.x`).join(', ') || 'no private network'
+        if (lastScan.found.length) rlog.info(`found ${lastScan.found.length} scorer laptop(s) on ${where}: ${lastScan.found.map((f) => relayHostLabel(f.wsUrl)).join(', ')}`, { found: lastScan.found, ms: lastScan.ms })
+        else rlog.warn(`no scorer laptop answered on ${where}`, { subnets: lastScan.subnets, ms: lastScan.ms })
+        return lastScan
+      })
+      .catch((err) => {
+        rlog.error(`the network search failed: ${err.message}`, { error: err.message })
+        lastScan = { at: Date.now(), found: [], subnets: [], ms: 0, error: err.message }
+        return lastScan
+      })
+      .finally(() => { scanning = null })
+    return scanning
+  }
+  // A changed address makes everything learned about the old one meaningless.
+  const forgetRelay = () => { activeRelay = null; lastScan = null }
+  // The relay a link subscribes to: the one that listed the match, else the configured one.
+  const linkRelayUrl = () => (activeRelay && activeRelay.wsUrl) || (configuredRelay() || {}).wsUrl || ''
+
+  // A linked match's end, deletion and un-end, on the panel. Before this the board stayed on the
+  // linked match's last score whatever the scorer did, with the console still reporting 'lan'.
+  //   ended   -> the result screen (winner, sets); the clock when the board has no result layout
+  //   resumed -> the scorer undid the end: back to the live scoreboard
+  //   gone    -> unlinked; the clock, unless the result is already up (ending a match and then
+  //              deleting it is the normal order, and the result should outlast the delete)
+  const watchLinkedMatch = (lan, matchId) => {
+    const mine = () => sourceManager.active === lan
+    lan.on('match-ended', async (state) => {
+      if (!mine()) return
+      const lines = resultFromLiveState(state)
+      const clean = lines && { winner: resultLine(lines.winner, 24), score: resultLine(lines.score, 24), history: resultLine(lines.history, 60) }
+      let shown = false
+      try { shown = !!(clean && ledbox && typeof ledbox.showResult === 'function' && await ledbox.showResult(clean)) } catch { shown = false }
+      if (!shown) { try { await holdClock() } catch { /* the log has it */ } }
+      clog.info(`linked match ${matchId} ended — ${shown ? `result screen: ${clean.winner} ${clean.score}` : 'board on the clock (no result screen)'}`, { matchId, result: clean || null, shown })
+    })
+    lan.on('match-resumed', async () => {
+      if (!mine()) return
+      clog.info(`linked match ${matchId} is live again (the scorer undid the end)`, { matchId })
+      try {
+        if (ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
+        // Lifting idle repaints the scoreboard from the client's last state (the live one).
+        if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+      } catch (err) { clog.warn(`could not put the live score back: ${err.message}`, { matchId, error: err.message }) }
+    })
+    lan.on('match-gone', async () => {
+      if (!mine()) return
+      const resultUp = !!(ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout)
+      clog.warn(`linked match ${matchId} was deleted by the scorer — unlinked, board ${resultUp ? 'keeps the result' : 'on the clock'}`, { matchId, resultUp })
+      sourceManager.clear('the linked match was deleted')
+      if (!resultUp) { try { await holdClock() } catch { /* the log has it */ } }
+    })
   }
 
   // Named rather than inline so the appliance can hand the SAME handler to an https.Server and
@@ -816,9 +901,19 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (pin) patch.scorerPin = pin
       else delete patch.scorerPin
       if (clearPin) patch.scorerPin = ''
+      // Same rule as the PIN: refused with the reason, never quietly repaired into some other host.
+      if ('relayAddress' in patch) {
+        const r = parseRelayAddress(patch.relayAddress)
+        if (!r.ok) {
+          clog.warn(`rejected a malformed scorer laptop address: ${r.error}`, { ip: clientIp(req) })
+          return sendJson(res, 400, { error: r.error })
+        }
+        patch.relayAddress = r.value
+      }
       const before = { ...settings.values }
       const prevBrightness = settings.values.brightness
       const updated = settings.update(patch)
+      if (before.relayAddress !== updated.relayAddress) forgetRelay()
       if (clearPin) clog.warn('scorer PIN removed — scoring is open to anyone on the network', { ip: clientIp(req) })
       // The match format is read live by the scoring engine, not just by the console header. Without
       // this a "Best of 3" save changed the header's idea of the deciding set while the engine kept
@@ -905,12 +1000,19 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (source === 'cloud') return sendJson(res, 501, { error: 'cloud not implemented' })
       if (source !== 'lan') return sendJson(res, 400, { error: 'unknown source' })
       if (body.matchId == null) return sendJson(res, 400, { error: 'matchId required' })
+      const wsUrl = linkRelayUrl()
+      if (!wsUrl) return sendJson(res, 409, { error: 'No scorer laptop to link to — refresh the match list, or set its address in Settings' })
+      // A result left up from the previous match would hold the panel: pushState will not paint
+      // over another layout.
+      if (ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout && typeof ledbox.clearResult === 'function') await ledbox.clearResult().catch(() => {})
       // Linking a live match leaves the crest/idle screen so the scoreboard paints.
-      if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+      if (ledbox && (ledbox._idle || (ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout)) && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
       dropPrematch('linked a LAN match')
-      clog.info(`linking to LAN match ${body.matchId}`, { matchId: String(body.matchId), relayUrl, ip: clientIp(req) })
-      const lan = new LanSource({ relayUrl, matchId: String(body.matchId), reconnectMs })
-      sourceManager.setSource(lan, { mode: 'lan', matchId: String(body.matchId) })
+      const matchId = safeMatchId(body.matchId)
+      clog.info(`linking to LAN match ${matchId}`, { matchId, relayUrl: wsUrl, ip: clientIp(req) })
+      const lan = new LanSource({ relayUrl: wsUrl, matchId, reconnectMs })
+      watchLinkedMatch(lan, matchId)
+      sourceManager.setSource(lan, { mode: 'lan', matchId })
       return sendJson(res, 200, status())
     }
     // POST /api/countdown { seconds, label, content, swapFirst } — start the shared timer.
@@ -1165,7 +1267,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // (ARIAL.TTF: äöüÄÖÜéèàçñÉÈÀ). ASCII-only silently ate them — "ZÜRICH WINS" reached the
       // hall as "ZRICH WINS", and it only became reachable once team names started being
       // upper-cased for the board. Anything outside both sets is still dropped.
-      const line = (v, max) => String(v == null ? '' : v).replace(/[^\x20-\x7EÀ-ÿ]/g, '').slice(0, max)
+      const line = resultLine
       const color = HEX_COLOR.test(String(body.color || '')) ? hexToRgb(body.color) : undefined
       const ok = ledbox && typeof ledbox.showResult === 'function'
         ? await ledbox.showResult({
@@ -1568,48 +1670,109 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     } catch { return { left: null, right: null } }
   }
 
-  // Query the OpenVolley relay for its match list; never throws (failures land in errors[]).
+  // Query the scorer laptop's relay for its match list; never throws (failures land in errors[]).
+  // Tries the configured relay (see configuredRelay) at each of its HTTP bases — its own origin,
+  // then :5173 — then a laptop found earlier this session, then, if nothing answered and this boot
+  // allows it, searches the board's networks. Answers { matches, errors, relay } where `relay` says
+  // which address answered or what was tried, so the Link tab can show it instead of an empty list.
   async function listMatches() {
     const errors = []
     const matches = []
-    // No relay configured at all (RELAY_HTTP_URL= empty). Without this the template below builds
-    // the bare path "/api/match/list", and Node's fetch — unlike a browser's — has no base URL to
-    // resolve it against, so it throws "Failed to parse URL from /api/match/list". That reads like
-    // a bug in the request rather than a missing setting, which is exactly the wrong hint.
-    if (!relayHttpUrl) {
-      clog.debug('no relay configured — match list is empty by design', { relayHttpUrl })
-      return { matches, errors: ['lan: no relay configured (RELAY_HTTP_URL is empty)'] }
+    const tried = []
+    const conf = configuredRelay()
+    const label = (wsUrl, http) => (wsUrl ? relayHostLabel(wsUrl) : relayHostLabel(http))
+    const candidates = []
+    if (conf) candidates.push({ wsUrl: conf.wsUrl, source: conf.source, httpUrls: relayHttpCandidates(conf.wsUrl, conf.httpOverride, httpOpts) })
+    if (activeRelay && activeRelay.source === 'discovered' && !candidates.some((c) => c.wsUrl === activeRelay.wsUrl)) {
+      candidates.push({ wsUrl: activeRelay.wsUrl, source: 'discovered', httpUrls: uniq([activeRelay.httpUrl, ...relayHttpCandidates(activeRelay.wsUrl, '', httpOpts)]) })
     }
-    try {
-      const ctrl = new AbortController()
-      const timer = setTimeout(() => ctrl.abort(), 2000)
-      let data
-      try {
-        const resp = await fetch(`${relayHttpUrl}/api/match/list`, { signal: ctrl.signal })
-        if (!resp.ok) throw new Error(`relay responded ${resp.status}`)
-        data = await resp.json()
-      } finally {
-        clearTimeout(timer)
+    let hit = null
+    for (const c of candidates) {
+      const r = await listFrom(c.httpUrls, tried)
+      if (r) { hit = { ...c, ...r }; break }
+    }
+    let scan = null
+    if (!hit && discoveryOn) {
+      scan = await discover()
+      for (const f of scan.found) {
+        if (candidates.some((c) => c.wsUrl === f.wsUrl)) continue
+        const r = await listFrom(uniq([f.httpUrl, ...relayHttpCandidates(f.wsUrl, '', httpOpts)]), tried)
+        if (r) { hit = { wsUrl: f.wsUrl, source: 'discovered', ...r }; break }
       }
-      const list = Array.isArray(data) ? data : (data.matches || data.list || [])
-      for (const m of list) {
+    }
+    const configured = conf ? { address: label(conf.wsUrl, conf.httpOverride), source: conf.source } : null
+    const searched = scan ? scan.subnets : null
+    if (hit) {
+      activeRelay = { wsUrl: hit.wsUrl, httpUrl: hit.httpUrl, source: hit.source }
+      for (const m of hit.list) {
+        if (!m || typeof m !== 'object') continue
         const num = m.gameNumber || m.game_n || m.id
         const home = m.homeShort || m.home_short || m.homeTeam || m.home || ''
         const away = m.awayShort || m.away_short || m.awayTeam || m.away || ''
         const teams = home || away ? ` ${home}-${away}` : ''
         // Clamped rather than passed through: this id is rendered by the console's match list
-        // and posted straight back to /api/link, so whatever occupies RELAY_HTTP_URL gets a say
-        // in what lands there. An id can only ever be word characters, a dot or a dash.
+        // and posted straight back to /api/link, so whatever answers at the relay address gets a
+        // say in what lands there. An id can only ever be word characters, a dot or a dash.
         matches.push({ source: 'lan', id: safeMatchId(m.id), label: `${num}${teams}`, live: m.status === 'live' })
       }
-      clog.debug(`relay listed ${matches.length} match(es)`, { count: matches.length, relayHttpUrl })
-    } catch (err) {
-      // The Link tab shows "no matches" either way; only the log distinguishes "the relay is
-      // unreachable" from "the relay has nothing".
-      clog.warn(`could not list matches from the relay: ${err.message}`, { relayHttpUrl, error: err.message })
-      errors.push(`lan: ${err.message}`)
+      clog.debug(`relay ${label(hit.wsUrl, hit.httpUrl)} listed ${matches.length} match(es)`, { count: matches.length, httpUrl: hit.httpUrl, source: hit.source })
+      if (hit.source === 'discovered' && conf && conf.source !== 'default') {
+        clog.warn(`the scorer laptop address ${configured.address} did not answer; using ${label(hit.wsUrl)}, found on the network`, { configured, found: hit.wsUrl })
+      }
+    } else {
+      activeRelay = null
+      const nets = searched && searched.length ? searched.map((p) => `${p}.x`).join(', ') : ''
+      if (!conf && !discoveryOn) {
+        errors.push('lan: no relay configured (no scorer laptop address set)')
+      } else if (!conf || conf.source === 'default') {
+        // Nothing was set up, so nothing was expected: the board itself and the search came up empty.
+        const at = conf ? ` at ${configured.address}` : ''
+        errors.push(scan
+          ? `lan: no scorer laptop found${nets ? ` on ${nets}` : ' (the board is on no private network)'}${tried.length ? `; nothing answered${at}` : ''}`
+          : `lan: no OpenVolley relay answered${at} — ${tried.map((t) => t.error).join('; ') || 'nothing to try'}`)
+      } else {
+        errors.push(`lan: no OpenVolley relay answered at ${configured.address} — ${tried.slice(0, 2).map((t) => `${t.url}: ${t.error}`).join('; ')}${scan ? (nets ? `; searched ${nets}: no other scorer laptop found` : '') : ''}`)
+      }
+      clog.warn(`could not list matches: ${errors[errors.length - 1].replace(/^lan: /, '')}`, { configured, tried, searched })
     }
-    return { matches, errors }
+    return {
+      matches,
+      errors,
+      relay: {
+        ok: !!hit,
+        address: hit ? label(hit.wsUrl, hit.httpUrl) : (configured && configured.address) || null,
+        source: hit ? hit.source : (conf ? conf.source : null),
+        configured,
+        tried: tried.map((t) => `${t.url} — ${t.error}`),
+        searched,
+        found: scan ? scan.found.length : null,
+      },
+    }
+  }
+
+  // GET <base>/api/match/list for each base in turn; the first real match list wins. Every failure
+  // is recorded in `tried` with the URL, so the console can say WHERE it looked.
+  async function listFrom(httpUrls, tried) {
+    for (const httpUrl of httpUrls) {
+      const url = `${httpUrl}/api/match/list`
+      try {
+        const resp = await fetch(url, { signal: AbortSignal.timeout(2000), headers: { accept: 'application/json' } })
+        if (!resp.ok) {
+          try { await resp.body?.cancel() } catch { /* already gone */ }
+          throw new Error(`answered HTTP ${resp.status}`)
+        }
+        const data = await resp.json().catch(() => null)
+        const list = Array.isArray(data) ? data : (data && typeof data === 'object' ? (data.matches || data.list) : null)
+        if (!Array.isArray(list)) throw new Error('answered, but not with a match list')
+        return { list, httpUrl }
+      } catch (err) {
+        const why = err && err.name === 'TimeoutError' ? 'timed out'
+          : (err && err.cause && (err.cause.code || err.cause.message)) || (err && err.message) || String(err)
+        tried.push({ url, error: why })
+        clog.debug(`no match list at ${url}: ${why}`, { url, error: why })
+      }
+    }
+    return null
   }
 
   // Boot recovery after a crash. The unit is Restart=always, and until this existed a bridge that
@@ -1771,6 +1934,10 @@ function sameBoard(a, b) {
 }
 
 // A relay-supplied match id, clamped to something that can only ever be an id.
+// One line of the result screen: printable ASCII plus the accented Latin-1 letters the panel font
+// carries, clamped to the box. Shared by POST /api/result and a linked match's end.
+const uniq = (arr) => [...new Set(arr.filter(Boolean))]
+const resultLine = (v, max) => String(v == null ? '' : v).replace(/[^\x20-\x7EÀ-ÿ]/g, '').slice(0, max)
 const safeMatchId = (v) => String(v).replace(/[^\w.-]/g, '').slice(0, 64)
 // A Directus game id from the console (a number today), clamped the same way; null when absent.
 const cleanGameId = (v) => (v == null || v === '' ? null : String(v).replace(/[^\w.-]/g, '').slice(0, 64) || null)
