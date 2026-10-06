@@ -3234,7 +3234,13 @@
     if (!rl) return { tone: "", text: "" };
     if (rl.ok) {
       const how = rl.source === "discovered" ? " (found on the network)" : rl.source === "env" ? " (from the board's setup)" : rl.source === "default" ? " (on the board itself)" : "";
-      return { tone: "ok", text: "Scorer laptop at " + rl.address + how + " — " + (n ? n + (n === 1 ? " match" : " matches") + " listed." : "no match listed yet.") };
+      const listed = n ? n + (n === 1 ? " match" : " matches") + " listed." : "no match listed yet.";
+      // A saved address that did not answer, and another laptop that did: say so before anyone
+      // links to it — it may be a second laptop, not tonight's scorer.
+      if (rl.source === "discovered" && rl.configured && rl.configured.source !== "default" && rl.configured.address) {
+        return { tone: "bad", text: "The saved address " + rl.configured.address + " didn't answer. Listing from " + rl.address + ", found on the network — " + listed + " Check it is the scorer's laptop before you link." };
+      }
+      return { tone: "ok", text: "Scorer laptop at " + rl.address + how + " — " + listed };
     }
     const errs = (r && r.errors) || [];
     return { tone: rl.configured && rl.configured.source !== "default" ? "bad" : "", text: errs.length ? linkErrorText(errs[0]) : "No scorer laptop answered." };
@@ -3247,7 +3253,11 @@
       // laptop on its own Wi-Fi before it replies (a few seconds, bounded on the board).
       const r = await api("/api/matches", { signal: deadline(20000) });
       const v = relayView(r);
-      if (v.tone === "ok") { line.textContent = v.text; line.hidden = false; }
+      if (r && r.relay && r.relay.ok) {
+        line.textContent = v.text; line.hidden = false;
+        // A stand-in laptop (the saved one did not answer) is a warning, not a plain note.
+        line.className = v.tone === "bad" ? "relaystat bad" : "note";
+      }
       const matches = (r && r.matches) || [];
       const errors = (r && r.errors) || [];
       errors.forEach((m) => {
@@ -3272,7 +3282,7 @@
         const label = document.createElement("div"); label.className = "label";
         label.textContent = m.label || String(m.id);
         const sub = document.createElement("div"); sub.className = "sub";
-        sub.textContent = (m.source || "lan").toUpperCase() + " · id " + m.id;
+        sub.textContent = (m.source || "lan").toUpperCase() + (m.relay ? " · " + m.relay : "") + " · id " + m.id;
         info.append(label, sub);
         li.appendChild(info);
         if (m.live) { const lv = document.createElement("span"); lv.className = "live"; lv.textContent = "LIVE"; li.appendChild(lv); }
@@ -3656,8 +3666,11 @@
 
   async function linkMatch(m) {
     try {
-      await postJSON("/api/link", { source: m.source || "lan", matchId: m.id });
-      toast("Linked to " + (m.label || m.id));
+      // `relay` binds the link to the laptop that listed this row, not to whatever the board
+      // found last (the list is open to anyone on the Wi-Fi; the link needs the PIN).
+      const r = await postJSON("/api/link", { source: m.source || "lan", matchId: m.id, relay: m.relay || undefined });
+      const at = r && r.relay && r.relay.address;
+      toast("Linked to " + (m.label || m.id) + (at ? " on " + at + (r.relay.source === "discovered" ? " (found on the network)" : "") : ""));
       refreshStatus();
     } catch (e) { toast(e.message); }
   }

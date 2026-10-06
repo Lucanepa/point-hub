@@ -532,8 +532,28 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   }
   // A changed address makes everything learned about the old one meaningless.
   const forgetRelay = () => { activeRelay = null; lastScan = null }
-  // The relay a link subscribes to: the one that listed the match, else the configured one.
-  const linkRelayUrl = () => (activeRelay && activeRelay.wsUrl) || (configuredRelay() || {}).wsUrl || ''
+  // The relay a link subscribes to. GET /api/matches needs no PIN, so whatever it last found must
+  // not decide on its own where a PIN-guarded link goes. Each listed match carries `relay` (the
+  // host:port that listed it); the console sends it back with the link, and it must name a relay
+  // the board knows — the configured one or the one that answered the list — or the link is
+  // refused with "refresh". A caller that sends no `relay` gets the address the operator set
+  // (Settings, or RELAY_URL in .env), and a laptop found by the search only when nothing was set.
+  // Resolves { wsUrl, source } or { error }.
+  const linkRelay = (wanted) => {
+    const conf = configuredRelay()
+    const known = []
+    if (conf && conf.wsUrl) known.push({ wsUrl: conf.wsUrl, source: conf.source })
+    if (activeRelay && activeRelay.wsUrl && !known.some((k) => k.wsUrl === activeRelay.wsUrl)) known.push({ wsUrl: activeRelay.wsUrl, source: activeRelay.source })
+    if (wanted != null && wanted !== '') {
+      const w = String(wanted).slice(0, 300)
+      const hit = known.find((k) => relayHostLabel(k.wsUrl) === w)
+      return hit || { error: `The scorer laptop at ${w.replace(/[^\w.:-]/g, '').slice(0, 80)} is no longer the one this board is listing from — tap Refresh and link again` }
+    }
+    if (conf && conf.wsUrl && conf.source !== 'default') return { wsUrl: conf.wsUrl, source: conf.source }
+    if (activeRelay && activeRelay.wsUrl) return { wsUrl: activeRelay.wsUrl, source: activeRelay.source }
+    if (conf && conf.wsUrl) return { wsUrl: conf.wsUrl, source: conf.source }
+    return { error: 'No scorer laptop to link to — refresh the match list, or set its address in Settings' }
+  }
 
   // A linked match's end, deletion and un-end, on the panel. Before this the board stayed on the
   // linked match's last score whatever the scorer did, with the console still reporting 'lan'.
@@ -993,7 +1013,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (changed) setTimeout(() => { execFile('sudo', ['systemctl', 'restart', 'ledbox-bridge'], () => {}) }, 700)
       return
     }
-    // POST /api/link { source, matchId }
+    // POST /api/link { source, matchId, relay? } — relay: the host:port /api/matches listed it under
     if (pathname === '/api/link' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
@@ -1001,8 +1021,13 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (source === 'cloud') return sendJson(res, 501, { error: 'cloud not implemented' })
       if (source !== 'lan') return sendJson(res, 400, { error: 'unknown source' })
       if (body.matchId == null) return sendJson(res, 400, { error: 'matchId required' })
-      const wsUrl = linkRelayUrl()
-      if (!wsUrl) return sendJson(res, 409, { error: 'No scorer laptop to link to — refresh the match list, or set its address in Settings' })
+      const target = linkRelay(body.relay)
+      if (target.error) return sendJson(res, 409, { error: target.error })
+      const wsUrl = target.wsUrl
+      const conf = configuredRelay()
+      if (target.source === 'discovered' && conf && conf.source !== 'default') {
+        clog.warn(`linking to ${relayHostLabel(wsUrl)}, found on the network — not the saved scorer laptop address ${relayHostLabel(conf.wsUrl)}`, { relayUrl: wsUrl, configured: conf.wsUrl, ip: clientIp(req) })
+      }
       // A result left up from the previous match would hold the panel: pushState will not paint
       // over another layout.
       if (ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout && typeof ledbox.clearResult === 'function') await ledbox.clearResult().catch(() => {})
@@ -1010,11 +1035,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (ledbox && (ledbox._idle || (ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout)) && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
       dropPrematch('linked a LAN match')
       const matchId = safeMatchId(body.matchId)
-      clog.info(`linking to LAN match ${matchId}`, { matchId, relayUrl: wsUrl, ip: clientIp(req) })
+      clog.info(`linking to LAN match ${matchId} at ${relayHostLabel(wsUrl)} (${target.source})`, { matchId, relayUrl: wsUrl, source: target.source, ip: clientIp(req) })
       const lan = new LanSource({ relayUrl: wsUrl, matchId, reconnectMs })
       watchLinkedMatch(lan, matchId)
       sourceManager.setSource(lan, { mode: 'lan', matchId })
-      return sendJson(res, 200, status())
+      return sendJson(res, 200, { ...status(), relay: { address: relayHostLabel(wsUrl), source: target.source } })
     }
     // POST /api/countdown { seconds, label, content, swapFirst } — start the shared timer.
     // swapFirst (the set interval) applies next-set FIRST — swap ends + reset points — with the
@@ -1714,7 +1739,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         // Clamped rather than passed through: this id is rendered by the console's match list
         // and posted straight back to /api/link, so whatever answers at the relay address gets a
         // say in what lands there. An id can only ever be word characters, a dot or a dash.
-        matches.push({ source: 'lan', id: safeMatchId(m.id), label: `${num}${teams}`, live: m.status === 'live' })
+        // `relay` names the laptop that listed it; POST /api/link sends it back (see linkRelay).
+        matches.push({ source: 'lan', id: safeMatchId(m.id), label: `${num}${teams}`, live: m.status === 'live', relay: relayHostLabel(hit.wsUrl) })
       }
       clog.debug(`relay ${label(hit.wsUrl, hit.httpUrl)} listed ${matches.length} match(es)`, { count: matches.length, httpUrl: hit.httpUrl, source: hit.source })
       if (hit.source === 'discovered' && conf && conf.source !== 'default') {

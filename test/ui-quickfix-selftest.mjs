@@ -203,6 +203,16 @@ console.log('\n[9] the Link tab speaks plainly; Diagnostics hides container plum
   const wrong = linkErrorText('lan: no OpenVolley relay answered at 10.0.0.9:8080 — http://10.0.0.9:8080/api/match/list: answered HTTP 404')
   ok(/Something at 10\.0\.0\.9:8080 answered, but not as an OpenVolley/.test(wrong), `something else at the address → "${wrong}"`)
   ok(/data-set="relayAddress"/.test(index) && /id="relayCheck"/.test(index), 'Settings has the Scorer laptop address field and its Check button')
+  // Where the list came from, and a warning when the saved laptop was replaced by a found one.
+  const relayView = new Function('linkErrorText', lift(index, 'relayView') + '\nreturn relayView;')(linkErrorText)
+  const one = [{ id: 'm1', relay: '172.24.1.40:8080' }]
+  const saved = relayView({ matches: one, errors: [], relay: { ok: true, address: '172.24.1.23:8080', source: 'settings', configured: { address: '172.24.1.23:8080', source: 'settings' } } })
+  ok(saved.tone === 'ok' && /Scorer laptop at 172\.24\.1\.23:8080 — 1 match listed/.test(saved.text), `saved address answered → "${saved.text}"`)
+  const found = relayView({ matches: one, errors: [], relay: { ok: true, address: '172.24.1.40:8080', source: 'discovered', configured: null } })
+  ok(found.tone === 'ok' && /found on the network/.test(found.text), `nothing typed, laptop found → "${found.text}"`)
+  const swap = relayView({ matches: one, errors: [], relay: { ok: true, address: '172.24.1.40:8080', source: 'discovered', configured: { address: '172.24.1.23:8080', source: 'settings' } } })
+  ok(swap.tone === 'bad' && /saved address 172\.24\.1\.23:8080 didn't answer/.test(swap.text) && /172\.24\.1\.40:8080/.test(swap.text), `saved laptop silent, another found → a warning: "${swap.text}"`)
+  ok(/relay: m\.relay \|\| undefined/.test(index), 'Link sends back the relay that listed the match')
   ok(/api\("\/api\/matches", \{ signal: deadline\(20000\) \}\)/.test(index), 'the match list waits long enough for the board to search')
   const re = eval((index.match(/const VIRTUAL_IFACE = (\/.*\/);/) || [])[1])
   for (const n of ['lo', 'docker0', 'veth1a2b', 'br-0f3c9', 'virbr0']) ok(re.test(n), `${n} is hidden`)

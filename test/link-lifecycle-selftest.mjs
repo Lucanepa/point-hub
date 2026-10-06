@@ -192,6 +192,30 @@ try {
     ok(searches === n, 'a found laptop is asked first next time, without another search')
   }
 
+  console.log('\n[9b] the link goes to the laptop that listed the match, not to whatever the open list found last')
+  {
+    const r = await get('/api/matches')
+    ok(r.matches[0]?.relay === `127.0.0.1:${RELAY_PORT}`, `each match names the laptop that listed it (${r.matches[0]?.relay})`)
+    const stale = await post('/api/link', { source: 'lan', matchId: SEED, relay: '10.6.6.6:8080' })
+    ok(stale.status === 409 && /Refresh/.test(stale.json?.error || ''), `a relay the board does not know is refused (${stale.status} ${stale.json?.error})`)
+    const l = await post('/api/link', { source: 'lan', matchId: SEED, relay: r.matches[0].relay })
+    ok(l.status === 200 && l.json.relay?.address === `127.0.0.1:${RELAY_PORT}` && l.json.relay.source === 'discovered', `linked where the list came from: ${JSON.stringify(l.json?.relay)}`)
+
+    // The saved laptop is silent and the search finds another one. GET /api/matches needs no PIN,
+    // so it must not be able to move a link that does not name the found relay away from the
+    // address the operator saved.
+    await post('/api/settings', { relayAddress: `127.0.0.1:${deadPort}` })
+    const r2 = await get('/api/matches')
+    ok(r2.relay.ok && r2.relay.source === 'discovered' && r2.relay.configured?.address === `127.0.0.1:${deadPort}`, `listed from the found laptop, and says the saved one was silent: ${JSON.stringify(r2.relay)}`)
+    const plain = await post('/api/link', { source: 'lan', matchId: SEED })
+    ok(plain.status === 200 && plain.json.relay?.address === `127.0.0.1:${deadPort}` && plain.json.relay.source === 'settings', `a link without "relay" stays on the saved address (${JSON.stringify(plain.json?.relay)})`)
+    const chosen = await post('/api/link', { source: 'lan', matchId: SEED, relay: r2.matches[0].relay })
+    ok(chosen.status === 200 && chosen.json.relay?.source === 'discovered', 'the found one only when the operator linked a match it listed')
+    const logs = await get('/api/logs?q=not%20the%20saved&limit=20')
+    ok((logs.entries || []).some((e) => e.level === 'warn' && /not the saved scorer laptop address/.test(e.msg || e.message || '')), 'and the log warns that the link left the saved address')
+    await post('/api/settings', { relayAddress: '' })
+  }
+
   console.log('\n[10] nothing typed and nothing found: a plain note, not a fault')
   {
     searchFinds = []
