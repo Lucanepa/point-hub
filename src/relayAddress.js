@@ -115,12 +115,26 @@ export function localSubnets(interfaces = os.networkInterfaces(), { max = 3, own
   return out
 }
 
+// What /api/server/status says when an OpenVolley relay is behind it. The two families answer
+// differently, and both must count:
+//   backend/server.js --local                     { status: 'online', mode: 'local', wsPort, ... }
+//   desktop: Tauri relay.rs, Electron relayServer, { running: true, wsPort, port, urls, ... }
+//            frontend/server.js
+// Anything else (another web server, a router's admin page) is not a scorer laptop.
+export function isRelayStatus(j) {
+  return !!j && typeof j === 'object' && !Array.isArray(j) && (j.status === 'online' || j.running === true)
+}
+
 // One host: is an OpenVolley relay listening on it?
-//   :8080/api/server/status answers JSON -> the standalone server (HTTP and WS on 8080)
-//   :8080 answers anything else (the desktop relay's WS port says 426 "WebSocket only")
+//   :8080/api/server/status answers a relay status -> the standalone server (HTTP and WS on 8080)
+//   :8080 answers anything else (the desktop relays' WS-only port: Tauri 404, Electron and
+//         frontend/server.js 426 "WebSocket only")
 //       -> confirm on :5173/api/server/status (the desktop app's HTTP port)
-// Resolves { host, wsUrl, httpUrl } or null. Never throws.
-export async function probeRelay(host, { fetchImpl = fetch, timeoutMs = 700, signal } = {}) {
+// Resolves { host, wsUrl, httpUrl } or null. Never throws. `relayPort` / `desktopPort` move the
+// two ports (tests run the real relays on free ports).
+export async function probeRelay(host, {
+  fetchImpl = fetch, timeoutMs = 700, signal, relayPort = DEFAULT_RELAY_PORT, desktopPort = DESKTOP_HTTP_PORT,
+} = {}) {
   const get = async (url) => {
     const sigs = [AbortSignal.timeout(timeoutMs)]
     if (signal) sigs.push(signal)
@@ -130,21 +144,21 @@ export async function probeRelay(host, { fetchImpl = fetch, timeoutMs = 700, sig
     // Drain what we will not read, or the socket stays parked in fetch's pool.
     if (!res.ok) { try { await res.body?.cancel() } catch { /* already gone */ } return null }
     const j = await res.json().catch(() => null)
-    return j && typeof j === 'object' && j.status === 'online' ? j : null
+    return isRelayStatus(j) ? j : null
   }
   const wsPortOf = (j) => {
     const n = Number(j && j.wsPort)
-    return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : DEFAULT_RELAY_PORT
+    return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : relayPort
   }
   let res
-  try { res = await get(`http://${host}:${DEFAULT_RELAY_PORT}/api/server/status`) } catch { return null }
+  try { res = await get(`http://${host}:${relayPort}/api/server/status`) } catch { return null }
   const j = await status(res).catch(() => null)
-  if (j) return { host, wsUrl: `ws://${host}:${wsPortOf(j)}`, httpUrl: `http://${host}:${DEFAULT_RELAY_PORT}` }
+  if (j) return { host, wsUrl: `ws://${host}:${wsPortOf(j)}`, httpUrl: `http://${host}:${relayPort}` }
   try {
-    const r2 = await get(`http://${host}:${DESKTOP_HTTP_PORT}/api/server/status`)
+    const r2 = await get(`http://${host}:${desktopPort}/api/server/status`)
     const j2 = await status(r2)
-    if (j2) return { host, wsUrl: `ws://${host}:${wsPortOf(j2)}`, httpUrl: `http://${host}:${DESKTOP_HTTP_PORT}` }
-  } catch { /* nothing on 5173 */ }
+    if (j2) return { host, wsUrl: `ws://${host}:${wsPortOf(j2)}`, httpUrl: `http://${host}:${desktopPort}` }
+  } catch { /* nothing on the desktop HTTP port */ }
   return null
 }
 
@@ -156,6 +170,7 @@ export async function probeRelay(host, { fetchImpl = fetch, timeoutMs = 700, sig
 // Resolves { found: [{ host, wsUrl, httpUrl }], subnets: ['172.24.1'], ms }.
 export async function discoverRelays({
   interfaces, fetchImpl = fetch, timeoutMs = 700, concurrency = 64, subnets, skip = [], own = true, budgetMs = 6000,
+  relayPort, desktopPort,
 } = {}) {
   const t0 = Date.now()
   const nets = subnets || localSubnets(interfaces, { own })
@@ -173,7 +188,7 @@ export async function discoverRelays({
   const worker = async () => {
     while (next < hosts.length && Date.now() - t0 < budgetMs) {
       const h = hosts[next++]
-      const r = await probeRelay(h, { fetchImpl, timeoutMs })
+      const r = await probeRelay(h, { fetchImpl, timeoutMs, ...(relayPort ? { relayPort } : {}), ...(desktopPort ? { desktopPort } : {}) })
       if (r) found.push(r)
     }
   }

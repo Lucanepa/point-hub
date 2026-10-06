@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {
-  parseRelayAddress, relayWsUrl, relayHttpCandidates, relayHostLabel, localSubnets, probeRelay, discoverRelays,
+  parseRelayAddress, relayWsUrl, relayHttpCandidates, relayHostLabel, localSubnets, probeRelay, discoverRelays, isRelayStatus,
 } from '../src/relayAddress.js'
 import { Settings } from '../src/settings.js'
 import { loadConfig } from '../src/config.js'
@@ -103,13 +103,39 @@ console.log('\n[6] probing one host, with a stand-in fetch')
     throw new TypeError('fetch failed')
   }
   eq(await probeRelay('10.0.0.5', { fetchImpl: backend }), { host: '10.0.0.5', wsUrl: 'ws://10.0.0.5:8080', httpUrl: 'http://10.0.0.5:8080' }, 'standalone server found on :8080')
-  // desktop: 8080 says 426 WebSocket only, 5173 has the status
-  const desktop = async (url) => {
-    if (url.startsWith('http://10.0.0.6:8080/')) return new Response('WebSocket only', { status: 426 })
-    if (url === 'http://10.0.0.6:5173/api/server/status') return json({ status: 'online', wsPort: 8080 })
+  // The desktop relays, with the replies they really send (copied from the sources, see
+  // DESKTOP_STATUS): /api/server/status says `running: true`, never `status: 'online'`. The selftest
+  // used to stub `{status:'online'}` here, a reply no desktop relay sends, and so passed while the
+  // search could never find the usual scorer-table setup.
+  const DESKTOP_STATUS = (ip, wsPort = 8080, port = 5173) => ({
+    running: true, mainInstanceId: null, hasMainInstance: false, protocol: 'http', wsProtocol: 'ws',
+    hostname: 'localhost', localIP: ip, port, wsPort,
+    urls: { main: `http://${ip}:${port}/`, websocket: `ws://${ip}:${wsPort}` },
+  })
+  // Electron relayServer.js and frontend/server.js: 8080 is WS-only and says 426.
+  const electron = async (url) => {
+    if (url.startsWith('http://10.0.0.6:8080/')) return new Response('WebSocket only', { status: 426, headers: { 'content-type': 'text/plain' } })
+    if (url === 'http://10.0.0.6:5173/api/server/status') return json(DESKTOP_STATUS('10.0.0.6'))
     throw new TypeError('fetch failed')
   }
-  eq(await probeRelay('10.0.0.6', { fetchImpl: desktop }), { host: '10.0.0.6', wsUrl: 'ws://10.0.0.6:8080', httpUrl: 'http://10.0.0.6:5173' }, 'desktop app found through :5173')
+  eq(await probeRelay('10.0.0.6', { fetchImpl: electron }), { host: '10.0.0.6', wsUrl: 'ws://10.0.0.6:8080', httpUrl: 'http://10.0.0.6:5173' }, 'Electron / frontend/server.js found through :5173 (8080 says 426)')
+  // Tauri relay.rs: 8080 routes only "/", so /api/server/status there is a bare 404.
+  const tauri = async (url) => {
+    if (url.startsWith('http://10.0.0.9:8080/')) return new Response(null, { status: 404 })
+    if (url === 'http://10.0.0.9:5173/api/server/status') return json(DESKTOP_STATUS('10.0.0.9'))
+    throw new TypeError('fetch failed')
+  }
+  eq(await probeRelay('10.0.0.9', { fetchImpl: tauri }), { host: '10.0.0.9', wsUrl: 'ws://10.0.0.9:8080', httpUrl: 'http://10.0.0.9:5173' }, 'Tauri found through :5173 (8080 says 404)')
+  // A desktop relay started with another WS port advertises it; the board follows.
+  const moved = async (url) => {
+    if (url.startsWith('http://10.0.0.10:8080/')) return new Response(null, { status: 404 })
+    if (url === 'http://10.0.0.10:5173/api/server/status') return json(DESKTOP_STATUS('10.0.0.10', '9090'))
+    throw new TypeError('fetch failed')
+  }
+  eq((await probeRelay('10.0.0.10', { fetchImpl: moved })).wsUrl, 'ws://10.0.0.10:9090', 'the advertised wsPort is used (even as a string, as frontend/server.js sends WS_PORT from the env)')
+  eq(isRelayStatus({ status: 'ok' }), false, "Tauri's /health shape alone is not enough")
+  eq(isRelayStatus({ running: 'yes' }), false, 'running must be true, not truthy')
+  eq(isRelayStatus([]), false, 'an array is not a status')
   eq(await probeRelay('10.0.0.7', { fetchImpl: async () => { throw new TypeError('fetch failed') } }), null, 'nothing listening -> null')
   eq(await probeRelay('10.0.0.8', { fetchImpl: async () => json({ hello: 'world' }) }), null, 'something else on 8080 -> not a relay')
 }
@@ -123,12 +149,15 @@ console.log('\n[7] the search: bounded, every host once, stable order')
     inflight++; peak = Math.max(peak, inflight)
     await new Promise((r) => setTimeout(r, 2))
     inflight--
-    if (url === 'http://172.24.1.40:8080/api/server/status') return new Response(JSON.stringify({ status: 'online', wsPort: 8080 }), { status: 200 })
+    // .40 is a Tauri desktop app (404 on 8080, `running: true` on 5173), .7 the standalone server.
+    if (url === 'http://172.24.1.40:8080/api/server/status') return new Response(null, { status: 404 })
+    if (url === 'http://172.24.1.40:5173/api/server/status') return new Response(JSON.stringify({ running: true, wsPort: 8080, port: 5173 }), { status: 200 })
     if (url === 'http://172.24.1.7:8080/api/server/status') return new Response(JSON.stringify({ status: 'online', wsPort: 8080 }), { status: 200 })
     throw new TypeError('fetch failed')
   }
   const r = await discoverRelays({ subnets: [{ prefix: '172.24.1', self: '172.24.1.1' }], fetchImpl: fake, concurrency: 16 })
-  eq(r.found.map((f) => f.host), ['172.24.1.7', '172.24.1.40'], 'both laptops found, in address order')
+  eq(r.found.map((f) => f.host), ['172.24.1.7', '172.24.1.40'], 'both laptops found (standalone and desktop app), in address order')
+  eq(r.found[1].httpUrl, 'http://172.24.1.40:5173', 'the desktop app is listed through :5173')
   eq(r.subnets, ['172.24.1'], 'reports what it searched')
   ok(!seen.some((u) => u.includes('//172.24.1.1:')), 'never probes the board itself')
   ok(seen.filter((u) => u.includes(':8080/')).length === 253, `one :8080 probe per address (${seen.filter((u) => u.includes(':8080/')).length})`)
