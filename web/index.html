@@ -522,6 +522,18 @@
   .uplink .upactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .uplink .upactions .upbtn{flex:1 1 0}
   #uplinkCard.flash{animation:upflash 1.2s ease-out 1}
+  /* Scorer laptop: the same field + button row as the hall login, and a status line that says in
+     words (and colour) what the board found there. */
+  .relaycard .rlbl{display:block;font-size:13px;font-weight:700;margin:2px 0 5px}
+  .relaycard .rrow{display:flex;gap:8px;flex-wrap:wrap}
+  .relaycard .rrow input{flex:1 1 170px;min-width:0;min-height:var(--tap);padding:8px 12px;font-size:16px;font-family:var(--mono);
+    border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
+  .relaycard .rbtn{flex:0 0 auto;min-height:var(--tap);padding:0 18px;font-size:14px;font-weight:800;border:1.5px solid var(--line);
+    border-radius:var(--r);background:var(--card);color:var(--blue);cursor:pointer}
+  .relaycard .rbtn:disabled{opacity:.55;cursor:default}
+  .relaystat{margin:8px 0 0;font-size:13px;color:var(--muted)}
+  .relaystat.ok{color:var(--ok);font-weight:700} .relaystat.bad{color:var(--bad);font-weight:700}
+  #relayLine{padding:0 2px 8px}
   @keyframes upflash{0%{box-shadow:0 0 0 4px var(--blue)}100%{box-shadow:0 0 0 0 transparent}}
   /* Header chip: the login is about to run out (gold), or has (red) and the Game-tab banner is not
      on screen to say so. A button, since tapping it goes to the card that fixes it. */
@@ -1188,6 +1200,7 @@
         <h2 class="linkh">Live matches on this network</h2>
         <button id="refreshBtn" type="button">↻ Refresh matches</button>
       </div>
+      <p class="note" id="relayLine" hidden></p>
       <div id="linkErrs"></div>
       <ul id="matches"></ul>
       <p class="note" id="matchesNote">Tap “Refresh matches” to find a match an OpenVolley laptop is scoring on this network.</p>
@@ -1231,6 +1244,22 @@
             with a code by SMS, and the login lasts about a day. Live scoring, the club schedule and
             the board's clock need it; the scoreboard itself does not. Type your own mobile number —
             it is used for this login only and is not saved on the board.</p>
+        </fieldset>
+        <!-- Where the scorer laptop is. Saved with the other settings (data-set); Check asks the board
+             to look there right away, the same lookup as Refresh on the Link tab. -->
+        <fieldset id="relayCard" class="relaycard">
+          <legend><svg class="licon l-laptop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z" /> <path d="M20.054 15.987H3.946" /></svg> Scorer laptop</legend>
+          <label class="rlbl" for="relayAddr">Scorer laptop address</label>
+          <div class="rrow">
+            <input id="relayAddr" type="text" data-set="relayAddress" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100" placeholder="Find it automatically">
+            <button type="button" id="relayCheck" class="rbtn">Check</button>
+          </div>
+          <p class="relaystat" id="relayStat" role="status" hidden></p>
+          <p class="hint">The laptop scoring the match in OpenVolley, by its address on the board's
+            Wi-Fi: <code>172.24.1.23</code>, or <code>172.24.1.23:9000</code> when its relay is not on
+            port 8080. Leave it empty and the board looks for the laptop on its own Wi-Fi and cable
+            whenever the match list is refreshed. Check saves the address and asks the laptop for
+            its matches.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /> <path d="M9 18h6" /> <path d="M10 22h4" /></svg> Board feedback</legend>
@@ -3171,7 +3200,22 @@
   function linkErrorText(raw) {
     const m = String(raw || "");
     if (/no relay configured|RELAY_HTTP_URL is empty/i.test(m)) {
-      return "Live match linking isn't set up on this board. Scoring by hand on the Game tab works as normal.";
+      return "Live match linking isn't set up on this board — type the scorer laptop's address in Settings. Scoring by hand on the Game tab works as normal.";
+    }
+    // The board searched its own Wi-Fi and cable and nobody answered: most evenings, not a fault.
+    const none = /no scorer laptop found(?: on ([\d.x, ]+))?/i.exec(m);
+    if (none) {
+      return "The OpenVolley laptop isn't on this network" + (none[1] ? " (searched " + none[1].trim() + ")" : "") +
+        ". Connect it to the board's Wi-Fi, or type its address in Settings. Scoring by hand on the Game tab works as normal.";
+    }
+    // An address was set (Settings or the board's setup) and it did not answer: say which one.
+    const at = /no OpenVolley relay answered at (\S+)/i.exec(m);
+    if (at) {
+      const where = at[1];
+      if (/answered HTTP|not with a match list/i.test(m)) {
+        return "Something at " + where + " answered, but not as an OpenVolley scorer laptop. Check the address in Settings ▸ Scorer laptop. Scoring by hand still works.";
+      }
+      return "The OpenVolley laptop isn't answering at " + where + ". Check it is on the board's Wi-Fi with OpenVolley open, and the address in Settings ▸ Scorer laptop. Scoring by hand still works.";
     }
     if (/fetch failed|ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN|timed? ?out|abort|socket|network/i.test(m)) {
       // The "lan" source IS the OpenVolley laptop's relay, so an unreachable one almost always
@@ -3182,23 +3226,40 @@
     if (/\b(4\d\d|5\d\d)\b/.test(m)) return "The scoresheet server answered with an error. Try Refresh in a minute — scoring by hand still works.";
     return "Couldn't load the match list (" + m.replace(/^\w+:\s*/, "") + "). Scoring by hand still works.";
   }
+  // One sentence on where the match list came from (or did not), for the Link tab and for
+  // Settings ▸ Scorer laptop ▸ Check. tone: ok | bad | "" (a plain note).
+  function relayView(r) {
+    const rl = r && r.relay;
+    const n = ((r && r.matches) || []).length;
+    if (!rl) return { tone: "", text: "" };
+    if (rl.ok) {
+      const how = rl.source === "discovered" ? " (found on the network)" : rl.source === "env" ? " (from the board's setup)" : rl.source === "default" ? " (on the board itself)" : "";
+      return { tone: "ok", text: "Scorer laptop at " + rl.address + how + " — " + (n ? n + (n === 1 ? " match" : " matches") + " listed." : "no match listed yet.") };
+    }
+    const errs = (r && r.errors) || [];
+    return { tone: rl.configured && rl.configured.source !== "default" ? "bad" : "", text: errs.length ? linkErrorText(errs[0]) : "No scorer laptop answered." };
+  }
   async function refreshMatches() {
-    const list = $("#matches"), note = $("#matchesNote"), errs = $("#linkErrs");
-    errs.innerHTML = ""; note.textContent = "Loading…";
+    const list = $("#matches"), note = $("#matchesNote"), errs = $("#linkErrs"), line = $("#relayLine");
+    errs.innerHTML = ""; note.textContent = "Loading…"; line.hidden = true;
     try {
-      const r = await api("/api/matches");
+      // Longer than a plain read: when the saved address does not answer, the board looks for the
+      // laptop on its own Wi-Fi before it replies (a few seconds, bounded on the board).
+      const r = await api("/api/matches", { signal: deadline(20000) });
+      const v = relayView(r);
+      if (v.tone === "ok") { line.textContent = v.text; line.hidden = false; }
       const matches = (r && r.matches) || [];
       const errors = (r && r.errors) || [];
       errors.forEach((m) => {
         const p = document.createElement("div");
         const text = linkErrorText(m);
         // No laptop on the network is how most evenings look: say it plainly, not in red.
-        const normal = /OpenVolley laptop isn't/.test(text);
+        const normal = /OpenVolley laptop isn't on this network|isn't set up/.test(text);
         p.className = normal ? "note" : "err"; p.textContent = normal ? text : "⚠ " + text; p.title = String(m); errs.appendChild(p);
       });
       list.innerHTML = "";
       // The error line already says why the list is empty; "No matches found" under it is noise.
-      if (!matches.length) { note.textContent = errors.length ? "" : "No matches found."; return; }
+      if (!matches.length) { note.textContent = errors.length ? "" : "No match on the scorer laptop yet. Open the match there, then tap Refresh."; return; }
       note.textContent = "";
       for (const m of matches) {
         const li = document.createElement("li");
@@ -5480,6 +5541,28 @@
       pinRequired = false; updateLock();
       toast("PIN removed — scoring is open");
     } catch (e) { toast(e.message); }
+  });
+  // Settings ▸ Scorer laptop ▸ Check: save the address if it was edited, then do the Link tab's
+  // lookup and say here what came back — so the address can be tried without leaving Settings.
+  $("#relayCheck").addEventListener("click", async () => {
+    const btn = $("#relayCheck"), st = $("#relayStat"), fs = $("#relayCard");
+    const save = fs.querySelector(".setsavebtn");
+    btn.disabled = true;
+    st.hidden = false; st.className = "relaystat";
+    try {
+      if (save && save.classList.contains("dirty")) {
+        await saveSettings(save);
+        if (save.classList.contains("fail")) { st.className = "relaystat bad"; st.textContent = $("#setStatus").textContent || "Not saved."; return; }
+      }
+      const addr = String((SETTINGS && SETTINGS.relayAddress) || "");
+      st.textContent = addr ? "Asking " + addr + "…" : "Looking for the scorer laptop on the board's Wi-Fi…";
+      const r = await api("/api/matches", { signal: deadline(20000) });
+      const v = relayView(r);
+      st.className = "relaystat" + (v.tone ? " " + v.tone : "");
+      st.textContent = v.text || "No answer.";
+    } catch (e) {
+      st.className = "relaystat bad"; st.textContent = "Couldn't ask the board: " + ((e && e.message) || e);
+    } finally { btn.disabled = false; }
   });
   // Explicit save: a Save button per settings section (no silent auto-save). Editing a field marks
   // its section as unsaved; clicking any Save persists ALL fields, so every section goes clean.
