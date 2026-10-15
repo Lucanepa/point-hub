@@ -6,7 +6,12 @@
 // Uses Node's built-in global WebSocket (Node >= 22), so there is no npm
 // dependency in production.
 //
-// Relay protocol (see escoresheet/frontend/server.js):
+// Relay protocol (OpenVolley escoresheet/backend/server.js — the standalone server — and
+// escoresheet/frontend/electron/lanRelayCore.cjs, which the desktop app and frontend/server.js
+// share; the Tauri relay.rs follows the same rules). Rooms are keyed by the match's SEED KEY (the
+// `id` in GET /api/match/list); the scorer's local numeric id is not a room and receives nothing.
+// An anonymous subscriber gets the PIN-free summary, which still carries data.liveState, and
+// every live-state-update — so the board needs no PIN or token.
 //   -> { type: 'subscribe-match', matchId }
 //   <- { type: 'match-full-data',   matchId, data }   (initial, on subscribe)
 //   <- { type: 'match-data-update', matchId, data }   (on every scoreboard sync)
@@ -75,6 +80,10 @@ export class RelaySubscriber extends EventEmitter {
     })
     ws.addEventListener('error', (ev) => {
       if (this.ws !== ws) return
+      // stop() closing a socket that was still connecting fires an error AFTER the owner has let
+      // go of us — the SourceManager has already removed its 'error' listener, and an unheard
+      // 'error' event throws, which took the whole appliance down on an unlink or a shutdown.
+      if (this._closing) return
       // Node's WebSocket hands us an ErrorEvent whose `error` is a TypeError with an EMPTY
       // message and no cause — "socket error: " told nobody anything. Name the target instead,
       // which is the fact an operator can actually act on ("is the scoring laptop up?").
@@ -179,6 +188,16 @@ export class RelaySubscriber extends EventEmitter {
           this.emit('match-gone', msg)
         }
         break
+      case 'error': {
+        // The relay refusing something (rate-limited, room-limit, an unknown match). Nothing here
+        // can fix it from the board, but it is the answer to "why is the panel not moving?" — so
+        // it goes on the record with the relay's own code instead of being dropped like a pong.
+        const code = String(msg.code || '').slice(0, 60)
+        const text = String(msg.message || msg.error || '').slice(0, 200)
+        rlog.warn(`the relay answered with an error${code ? ` (${code})` : ''}${text && text !== code ? `: ${text}` : ''}`, { matchId: this.matchId, code: code || null })
+        this.emit('relay-error', { code, message: text })
+        break
+      }
       default:
         break // pong and other control messages are ignored
     }

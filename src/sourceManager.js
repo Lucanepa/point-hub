@@ -62,6 +62,18 @@ export class SourceManager extends EventEmitter {
     }
   }
 
+  // Nobody drives the board any more — the linked match was deleted on the relay. Back to the
+  // state a fresh boot is in: no source, mode 'idle', no score held.
+  clear(reason = '') {
+    slog.info(`source → idle${reason ? ` (${reason})` : ''}`, { from: this._meta.mode, to: 'idle', matchId: this._meta.matchId })
+    this.stop()
+    this.active = null
+    this._onState = null
+    this._onError = null
+    this._last = null
+    this._meta = { mode: 'idle', matchId: null }
+  }
+
   get status() {
     return { mode: this._meta.mode, matchId: this._meta.matchId }
   }

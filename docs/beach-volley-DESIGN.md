@@ -1,9 +1,11 @@
 # Beach volleyball on the KSC Wiedikon LED scoreboard — design & scaffold
 
-**Status:** design + headless scaffold. Nothing here is wired into the running appliance yet, and
-no live file is modified. The indoor volleyball scoreboard keeps working exactly as today; beach
-is added **beside** it behind a `sport` selector. Everything below has been verified headlessly
-(no hardware) — see [What was verified](#what-was-verified-headlessly).
+**Status (2026-10):** shipped. Beach is a sport of the running appliance: `src/sports.js` wires
+`BeachSource` (manual scoring), `toBeachSections` / `toBeachIdleSections` and the
+`beach_matchscore` layout, and the sport picker in the console header (`POST /api/sport`) switches to it with a
+restart. The `.proposal.js` files and the integration plan in §7–§8 below are the original design,
+kept for the reasoning; the code in `src/` is the source of truth. Linking a match scored in
+**openbeach** is not possible yet — see [§9](#9-linking-an-openbeach-match-status-2026-10).
 
 Panel: 192×64 HUB75, driven by a Raspberry Pi running the open `openscore.py` firmware
 (XML layouts → PNG framebuffer). Scoring is driven by hand from the phone/tablet control UI.
@@ -15,7 +17,7 @@ Panel: 192×64 HUB75, driven by a Raspberry Pi running the open `openscore.py` f
 Add **manual beach volleyball scoring** — the same "operator drives the board by hand" model the
 indoor `ManualSource` already provides, but with beach rules and a beach panel layout. Beach at the
 club is scored by hand at the table (there is no live OpenVolley beach feed), so the manual path is
-the whole job for v1. Linking a live LAN beach match is noted as future work in §8.
+the whole job for v1. Linking a live beach match scored in openbeach is §9.
 
 Non-goals for v1: a live beach data source; player-level serve order; on-glass hardware calibration
 (that is the one step that genuinely needs the panel).
@@ -272,6 +274,34 @@ exactly as today.
    the beach sample PNGs into `firmware/openscore/golden/` for `goldentest.py`.
 9. **On-glass**: calibrate `beach_matchscore` on the real panel (font sizes / y-offsets), exactly as
    the volleyball layout was — this is the only step that needs hardware.
+
+---
+
+## 9. Linking an openbeach match (status 2026-10)
+
+**point-hub's side is ready.** Link mode does not care about the sport: with the board on beach, any
+`liveState` the relay delivers is painted by `toBeachSections` — pair names, points, sets, the
+SWITCH cue, the one team timeout, `side_a`. openbeach names the serving player `server_number`
+(the shirt number, 1 or 2); the mapper reads it when `serve_player` is absent. Checked end to end
+against OpenVolley's LAN relay (`backend/server.js --local`) with a MockLedbox: the only thing
+missing for a correct beach board was the live-state message itself.
+
+**openbeach's side is not.** In order of need:
+1. **It never sends `live-state-update` on the relay socket.** Its computed live state goes only to
+   a same-browser `BroadcastChannel` and to the cloud database. One extra message where it already
+   broadcasts — `{ type: 'live-state-update', matchId: <seed key>, liveState }` — is enough on its
+   own (proven by the same e2e check).
+2. **No path in a hall without internet.** The openbeach scorer connects only to the build-time
+   `VITE_BACKEND_URL` (the cloud); it has no LAN relay of its own. It needs to use a LAN relay
+   (the OpenVolley standalone server or desktop app in the hall) the way the indoor app does.
+3. **Its matches are not listed.** Today's relays list a match only with `refereeConnectionEnabled`
+   on, which openbeach never sets (an OpenVolley change may list every match instead).
+4. **Team names are dropped.** The relay keeps `homeTeam`/`awayTeam`; openbeach sends
+   `team1Team`/`team2Team`, so the Link list shows "Home"/"Away".
+5. Cloud writes need the new protocol header and session (`X-OV-Proto: 2`), and the
+   `clear-all-matches` it sends on connect only earns an error from the new relay.
+
+Until then, beach on the board is scored with point-hub's own Beach mode.
 
 ---
 

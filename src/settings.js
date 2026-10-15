@@ -17,6 +17,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { log } from './logStore.js'
+import { parseRelayAddress } from './relayAddress.js'
 
 const setlog = log.child('settings')
 
@@ -52,6 +53,10 @@ export const GLOBAL_DEFAULTS = {
   // Set up the pre-match on its own an hour before a home game in the season schedule (see
   // autoPrepare.js). Shared: it is about the hall's evening, not about one sport's rules.
   autoPrepare: true,
+  // The scorer laptop's OpenVolley relay, as host[:port] (port 8080 when left out), or wss://host
+  // for a relay on the internet. Empty = RELAY_URL from .env if set, else look for the laptop on
+  // the board's own networks (see relayAddress.js). Shared: it is about the hall, not the sport.
+  relayAddress: '',
 }
 
 // Per-sport. Volleyball = the historical flat values (so a migrated board is identical). Beach =
@@ -132,6 +137,14 @@ function sanitizeInto(out, keys, patch = {}) {
       const pin = String(patch[k] ?? '').trim()
       if (pin === '' || PIN_RE.test(pin)) out[k] = pin
       else setlog.warn('ignored a malformed scorer PIN — the previous one stays in force', { rule: 'digits only, 1-8' })
+      continue
+    }
+    // Same discipline as the PIN: a malformed address is dropped (the previous one stands), and
+    // POST /api/settings answers 400 with the reason before it gets here.
+    if (k === 'relayAddress') {
+      const r = parseRelayAddress(patch[k])
+      if (r.ok) out[k] = r.value
+      else setlog.warn('ignored a malformed scorer laptop address — the previous one stays in force', { error: r.error })
       continue
     }
     if (k === 'sport') { out[k] = SPORTS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
