@@ -1,6 +1,28 @@
 <html lang="en">
 <!-- LedBox appliance control UI — self-contained, offline, landscape-first. Talks to the control API on its own origin over relative URLs. -->
 <meta charset="utf-8">
+<!-- Colour theme, before anything is painted: light (the default, no attribute), dark, or eink
+     (greyscale, paper white and ink black — a phone courtside in full sun). One choice per screen,
+     in localStorage.theme, shown as <html data-theme>; the looks are token sets in the stylesheet
+     below. Here, first, so a dark or e-ink console never flashes white while the page loads. It
+     also follows a change made in another tab (the log viewer shares the key) and keeps the
+     browser bar's colour in step. Settings ▸ Theme calls window.phTheme.set(). -->
+<script id="themeBoot">
+(function () {
+  var root = document.documentElement, BAR = { light: "#ffffff", dark: "#151a22", eink: "#ffffff" };
+  function read() { var t; try { t = localStorage.getItem("theme"); } catch (e) {} return t === "dark" || t === "eink" ? t : "light"; }
+  function apply(t) {
+    if (t === "dark" || t === "eink") root.setAttribute("data-theme", t); else { t = "light"; root.removeAttribute("data-theme"); }
+    var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", BAR[t]);
+    return t;
+  }
+  window.phTheme = { read: read, apply: apply, set: function (t) { t = apply(t); try { localStorage.setItem("theme", t); } catch (e) {} return t; } };
+  apply(read());
+  // The theme-color meta is further down: colour it once it exists.
+  document.addEventListener("DOMContentLoaded", function () { apply(read()); });
+  addEventListener("storage", function (e) { if (e.key === "theme" || e.key === null) apply(read()); });
+})();
+</script>
 <!-- interactive-widget=resizes-content is load-bearing, not tidiness. Without it the on-screen
      keyboard does NOT change the layout viewport: the browser keeps #app at its full 100dvh and
      PANS the visual viewport to hold the focused field above the keyboard. #app is
@@ -32,6 +54,41 @@
     /* Smallest thing a finger may be asked to hit. The console is used standing, one-handed, often
        mid-rally; 44px is the platform guideline and anything under it was measured mis-tapping. */
     --tap:44px;
+    /* Ink on a filled accent (a blue primary button, the red confirm, the green LIVE pill), and the
+       wash behind a dialog. Tokens so the themes below can change them. */
+    --on-accent:#fff; --scrim:rgba(15,17,22,.32);
+  }
+  /* Colour themes (Settings ▸ Theme; the boot script at the top sets <html data-theme>). Light, the
+     block above, is the default. Every colour on the console comes from these tokens, so a theme is
+     a token set — plus, for e-ink, the cues at the end of this sheet that colour alone carried.
+     Dark is not black: a black page is what made "the tablet went black" read as a screen that had
+     switched itself off (the viewport comment at the top), so the ground is a lit slate and every
+     card keeps a visible edge. Accents are lifted to read on it, with dark ink on their fills. Team
+     colours are untouched — the cards paint them with their own ink (panelFor) — and so is the
+     board mirror, which is the LED panel's own look in every theme but e-ink. */
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#151a22; --card:#1b212b; --fill:#252c38; --fg:#eef1f6; --muted:#9aa3b1;
+    --line:#7f899a; --line-soft:#343c49;
+    --blue:#7ea1ff; --gold:#f0b14a;
+    --ok:#4fd58a; --warn:#f0b14a; --bad:#ff6f5e;
+    --on-accent:#0b1020; --scrim:rgba(0,0,0,.6);
+  }
+  /* The lit serve arrow is filled with the team colour, and a near-black team fills it with almost
+     the dark card itself: ring it, so which side serves never depends on the shirt standing out. */
+  :root[data-theme="dark"] .sv-arrow.on{box-shadow:inset 0 0 0 1.5px var(--fg)}
+  /* E-ink: greyscale for a phone in full sun. Paper white, ink black, hairlines dark enough to see,
+     muted text all but black. Nothing a hue alone tells apart survives here, so the chosen tab, a
+     limit, which team is which and who serves are carried by fill versus outline, dashes and
+     underlines instead (the e-ink block at the end). The team colours are painted inline by
+     renderBoard, so these four have to be !important to win over them. */
+  :root[data-theme="eink"]{
+    --bg:#ffffff; --card:#ffffff; --fill:#ebebeb; --fg:#000000; --muted:#262626;
+    --line:#000000; --line-soft:#5c5c5c;
+    --blue:#000000; --gold:#000000;
+    --ok:#000000; --warn:#000000; --bad:#000000;
+    --on-accent:#ffffff; --scrim:rgba(255,255,255,.82);
+    --left:#000000!important; --right:#000000!important; --left-ink:#ffffff!important; --right-ink:#ffffff!important;
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
   /* `hidden` must win over every author display rule. Without this each toggled element needed its
@@ -209,7 +266,7 @@
   .prematch .pmbtns{flex:1 1 260px;min-width:0;display:flex;gap:8px;justify-content:flex-end}
   .prematch .pmbtns button{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:52px;padding:0 10px;
     font-size:15px;font-weight:800;line-height:1.15;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
-  .prematch .pmbtns button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .prematch .pmbtns button.primary{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
   .prematch .pmbtns button:disabled{opacity:.5;cursor:default}
   /* Hall Wi-Fi needs a login (see #uplinkBanner). Red-edged rather than gold: gold is "the board is
      waiting on you to start", this is "something the public sees has stopped". One row, so on a
@@ -221,7 +278,7 @@
   .upbanner .ubsub{font-weight:600;color:var(--muted)}
   .upbanner button{flex:0 0 auto;min-height:var(--tap);min-width:var(--tap);border-radius:var(--r);font-size:15px;font-weight:800;cursor:pointer;
     border:1.5px solid var(--line);background:var(--card);color:var(--muted)}
-  .upbanner button.primary{padding:0 18px;background:var(--blue);border-color:var(--blue);color:#fff}
+  .upbanner button.primary{padding:0 18px;background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
   .bvhint{font-weight:700;letter-spacing:0;text-transform:none}
   .gfooter{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
   .setstrip{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto}
@@ -279,8 +336,8 @@
   #matches li{display:flex;align-items:center;gap:12px;padding:13px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--line)}
   #matches .info{flex:1;min-width:0} #matches .label{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #matches .sub{font-size:12px;color:var(--muted)}
-  .live{font-size:11px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--ok);padding:3px 8px;border-radius:20px}
-  #matches li.linked .linkbtn{color:#fff;background:var(--blue);border-color:var(--blue)}
+  .live{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--on-accent);background:var(--ok);padding:3px 8px;border-radius:20px}
+  #matches li.linked .linkbtn{color:var(--on-accent);background:var(--blue);border-color:var(--blue)}
   /* A schedule row is ONE big button: time · HOME vs AWAY · league. The whole row is the target —
      read and tapped at arm's length, often with the teams already on court. */
   .schedlist{list-style:none;padding:0;margin:0 0 4px;display:flex;flex-direction:column;gap:10px}
@@ -378,7 +435,7 @@
   .settings input[type=number]{width:84px} .settings input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:46px;height:26px;border-radius:3px;position:relative;cursor:pointer;background:var(--card);border:1.5px solid var(--line);transition:background .2s}
   .settings input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:2px;background:var(--muted);transition:transform .2s}
   .settings input[type=checkbox]:checked{background:var(--blue);border-color:var(--blue)}
-  .settings input[type=checkbox]:checked::after{transform:translateX(20px);background:#fff}
+  .settings input[type=checkbox]:checked::after{transform:translateX(20px);background:var(--on-accent)}
   .settings .hint{font-size:11px;color:var(--muted);margin:4px 0 0} #setStatus.saved{color:var(--ok)} #setStatus.err{color:var(--bad);font-weight:700;font-size:13px}
   /* Numeric settings get real −/+ buttons. Mobile Chrome and Safari render NO spinner at all for
      input[type=number], so on the venue tablet these had no tap affordance whatsoever — the only
@@ -395,7 +452,7 @@
   /* explicit per-section Save: muted "Saved" when clean, filled blue "Save" when there are unsaved edits */
   .setsaverow{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft)}
   .setsavebtn{min-height:var(--tap);padding:0 20px;font-size:13px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--muted);cursor:pointer}
-  .setsavebtn.dirty{background:var(--blue);border-color:var(--blue);color:#fff}
+  .setsavebtn.dirty{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
   .setsavebtn.ok{border-color:var(--ok);color:var(--ok)}
   .setsavebtn.fail{border-color:var(--bad);color:var(--bad);background:var(--card)}
 
@@ -417,16 +474,16 @@
   body.fs-gate #fsGate{display:flex}
   #fsGate .t{font-size:26px;font-weight:800}
   #fsGate .s{font-size:15px;color:var(--muted);max-width:420px}
-  #fsGate #fsGo{font-size:22px;font-weight:800;min-height:72px;padding:0 40px;border-radius:var(--r);border:0;background:var(--blue);color:#fff;cursor:pointer}
+  #fsGate #fsGo{font-size:22px;font-weight:800;min-height:72px;padding:0 40px;border-radius:var(--r);border:0;background:var(--blue);color:var(--on-accent);cursor:pointer}
   #fsGate #fsSkip{font-size:14px;min-height:44px;padding:0 16px;border:0;background:transparent;color:var(--muted);text-decoration:underline;cursor:pointer}
   #updateBar{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--blue);color:var(--fg);font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
   #updateBar[hidden]{display:none}
-  #updateBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:#fff;font-weight:800;cursor:pointer}
+  #updateBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:var(--on-accent);font-weight:800;cursor:pointer}
   /* Same bar, same place: the two never need to be read at once (both wait for a quiet board, and
      the move to https reloads the page anyway), so the later one simply sits on top. */
   #secureBar{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:96;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:var(--r);background:var(--card);border:1.5px solid var(--blue);color:var(--fg);font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
   #secureBar[hidden]{display:none}
-  #secureBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:#fff;font-weight:800;cursor:pointer}
+  #secureBar button{min-height:44px;padding:0 14px;border:0;border-radius:var(--r);background:var(--blue);color:var(--on-accent);font-weight:800;cursor:pointer}
   /* The way to the tablet app, where a volunteer first lands: the Tap-to-start gate and the sport
      picker. Only in a touch browser — never inside the app itself, never on a laptop. */
   .getapp{display:none}
@@ -453,7 +510,7 @@
   /* A write that did not reach the board stays up, in red, until dismissed or until a later write
      gets through — a 3-second note at the bottom was easy to miss mid-rally. */
   #toast.bad{border-color:var(--bad);color:var(--bad);font-weight:700}
-  #edit{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
+  #edit{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:var(--scrim)}
   .editbox{background:var(--card);border-radius:var(--r);padding:18px;width:min(300px,90vw);border:1.5px solid var(--line);box-shadow:0 24px 50px -24px rgba(10,11,13,.45)}
   .editlabel{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;text-align:center}
   #editInput{width:100%;padding:14px;font-size:32px;font-weight:800;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;font-family:var(--mono)}
@@ -483,7 +540,7 @@
   .notsent{position:relative;outline:3px solid var(--bad)!important;outline-offset:2px}
   /* Inside the corner, not hanging off it: the team card clips its overflow, so a badge at -9px
      showed as a sliver on the + it was meant to mark. */
-  .notsent::after{content:"!";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:var(--bad);color:#fff;
+  .notsent::after{content:"!";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:var(--bad);color:var(--on-accent);
     font:800 13px/20px system-ui,sans-serif;text-align:center;pointer-events:none}
   .editable{cursor:pointer}
   /* Power / shutdown */
@@ -513,7 +570,7 @@
   .uplink #upCode{letter-spacing:.2em}
   .uplink .upbtn{flex:0 0 auto;min-height:var(--tap);padding:0 18px;font-size:14px;font-weight:800;border:1.5px solid var(--line);
     border-radius:var(--r);background:var(--card);color:var(--blue);cursor:pointer}
-  .uplink .upbtn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .uplink .upbtn.primary{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
   .uplink .upbtn:disabled{opacity:.55;cursor:default}
   .uplink .uplink2{min-height:var(--tap);margin-top:4px;padding:0;border:0;background:transparent;color:var(--blue);
     font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer}
@@ -570,6 +627,9 @@
   #logBtn{flex:1 1 auto;display:inline-flex;align-items:center;gap:8px;min-width:0;min-height:var(--tap);padding:0 12px;
     font-size:13.5px;justify-content:flex-start;text-align:left}
   #logBtn{overflow:hidden}
+  /* Light leaves it the browser's own grey button; in the themes that grey is the browser's dark one
+     (#6b6b6b, muted text on it unreadable) or off-palette, so it gets the console's button there. */
+  :root[data-theme] #logBtn{border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
   #logBtn .licon{flex:none}
   #logBtn .lltime{font-family:var(--mono);color:var(--muted);font-size:12px;flex:none}
   #logBtn .lltext{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
@@ -588,14 +648,14 @@
   /* confirm modal (T/O + subs) */
   /* Above serveOrder (76) and sportPicker (78): this is the shared yes/no primitive, so it must
      be able to open ON TOP of any other dialog. Below shutdown (90), which is terminal. */
-  #confirm{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
+  #confirm{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:var(--scrim)}
   #confirm .editlabel{font-size:16px;text-transform:none;letter-spacing:0;color:var(--fg);margin-bottom:14px}
   #confirmYes{color:var(--blue)}
   /* A confirm that throws work away says so in red on its verb ("Reset match"), not a blue
      "Confirm" identical to the one on a harmless question. */
-  #confirmYes.danger{color:#fff;background:var(--bad);border-color:var(--bad)}
+  #confirmYes.danger{color:var(--on-accent);background:var(--bad);border-color:var(--bad)}
   /* beach serve-order modal */
-  #serveOrder{position:fixed;inset:0;z-index:76;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32);padding:12px}
+  #serveOrder{position:fixed;inset:0;z-index:76;display:flex;align-items:center;justify-content:center;background:var(--scrim);padding:12px}
   #serveOrder .editbox{width:min(340px,92vw)}
   /* Every dialog box scrolls inside the viewport rather than past it: on a phone in landscape
      (390px tall) the serve-order box was taller than the screen, centred, and clipped top AND
@@ -608,9 +668,12 @@
   .segbtns{display:flex;gap:9px}
   .segbtns button{flex:1;padding:12px;font-size:15px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .segbtns button.on{color:var(--blue);background:var(--fill);border-color:var(--blue)}
+  /* Settings ▸ Theme: the same segmented buttons, with the look's icon. */
+  .themeseg{margin:10px 0 10px}
+  .themeseg button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:var(--tap);padding:0 8px;min-width:0;white-space:nowrap}
   #ordOk{color:var(--blue)}
   /* scorer PIN lock */
-  #pinModal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(15,17,22,.32)}
+  #pinModal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:var(--scrim)}
   #pinInput{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);font-variant-numeric:tabular-nums;font-family:var(--mono)}
   #pinOk{color:var(--blue)}
   #lockBtn{font-size:16px;padding:0 12px}
@@ -623,7 +686,7 @@
   .lg-title{font-size:20px;font-weight:800;margin:12px 0 4px}
   .lg-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
   #lgPin{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;font-family:var(--mono);font-variant-numeric:tabular-nums;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
-  #lgUnlock{width:100%;margin-top:14px;min-height:48px;font-size:15px;font-weight:800;border:1.5px solid var(--blue);background:var(--blue);color:#fff;border-radius:var(--r);cursor:pointer}
+  #lgUnlock{width:100%;margin-top:14px;min-height:48px;font-size:15px;font-weight:800;border:1.5px solid var(--blue);background:var(--blue);color:var(--on-accent);border-radius:var(--r);cursor:pointer}
   .lg-err{min-height:18px;margin-top:12px;font-size:13px;font-weight:700;color:var(--bad)}
   /* live LED-board mirror */
   .boardview{flex:1 1 auto;min-height:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:4px}
@@ -982,6 +1045,55 @@
     #cd.major .cd-label{text-align:center}
     #cd.major .cd-stop{height:auto;min-height:var(--tap);padding:4px 12px;line-height:1.15;white-space:normal;text-wrap:balance}
   }
+
+  /* ---- e-ink: the cues colour alone carried (tokens at the top) -------------------------------
+     No shadows and no motion: in full sun a shadow is a grey smear and a fade is a flicker. Nothing
+     in the script waits on a transition or an animation ending, so cutting them changes no logic. */
+  :root[data-theme="eink"] *,:root[data-theme="eink"] *::before,:root[data-theme="eink"] *::after{
+    box-shadow:none!important;text-shadow:none!important;animation:none!important;transition:none!important}
+  /* Pictures in grey too (the brand mark's tile, the crest). The wifi glyph's red/green is a stroke
+     attribute, which CSS outranks; the words beside it say the same thing. */
+  :root[data-theme="eink"] img{filter:grayscale(1)}
+  :root[data-theme="eink"] #dot .licon{stroke:currentColor}
+  /* Chosen = inked: the open tab, a chosen segment or sport, a toggle that is on. In light these
+     differ from their neighbours by blue or gold alone. */
+  :root[data-theme="eink"] :is(.nav button.active,.segbtns button.on,.spopt.on,.iconbtn.active,.sputil button.active,#lockBtn.on){
+    background:var(--fg);color:var(--bg);border-color:var(--fg)}
+  :root[data-theme="eink"] .spopt.on .spcur{color:inherit}
+  :root[data-theme="eink"] .sv-arrow.on{background:var(--fg);color:var(--bg)}
+  :root[data-theme="eink"] .gpopt.primary{border-width:3px}
+  /* The team cards. With no hue the two teams differ by fill: the team in the darker colour gets the
+     ink card, the other the paper card with a heavy edge. data-tone comes from the team colours
+     (renderBoard), so it follows a team when the teams change ends. The colour swatch keeps its
+     hue on purpose: it is the value being edited, and the only place left on this page that shows
+     which colour the board will paint. */
+  :root[data-theme="eink"] .side[data-tone="ink"]{--edge:#000000!important;--on-edge:#ffffff!important}
+  :root[data-theme="eink"] .side[data-tone="paper"]{--edge:#ffffff!important;--on-edge:#000000!important}
+  :root[data-theme="eink"] .side[data-tone="paper"] .teamcard{border-width:3px}
+  :root[data-theme="eink"] .side :is(.bigbtn,.smbtn,.score .ptbtn,input.short,.namesize){background:transparent;border-color:var(--on-edge)}
+  :root[data-theme="eink"] .side .stat{background:transparent;border-color:var(--on-edge)}
+  /* Limits: one short is a dashed tile, at the limit the tile is inverted (amber and red in light). */
+  :root[data-theme="eink"] .side .stat.warn{border:2px dashed var(--on-edge)}
+  :root[data-theme="eink"] .side .stat.warn :is(.num,.name){color:var(--on-edge)}
+  :root[data-theme="eink"] .side .stat.maxed{background:var(--on-edge);border-color:var(--on-edge)}
+  :root[data-theme="eink"] .side .stat.maxed :is(.num,.name){color:var(--edge)}
+  :root[data-theme="eink"] .side .stat.maxed .smbtn{color:var(--edge);border-color:var(--edge)}
+  /* Elsewhere: a set's or a match's winner underlined, a warning card dashed, a failure heavy. */
+  :root[data-theme="eink"] :is(.setpill b.w,.mesets .msp b.w,.histcard .final .win){text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+  :root[data-theme="eink"] .dcard.warn{border:2.5px dashed var(--fg)}
+  :root[data-theme="eink"] :is(.dcard.bad,#toast.bad){border-width:3px}
+  /* Team colours used as text — the match result, the beach serve player — are inked. */
+  :root[data-theme="eink"] :is(#meWinner,#meScore .mt,#meScore .mn,#servePlrNum){color:var(--fg)!important}
+  /* A dialog on the white wash has only its edge to stand out by (the shadow is gone). */
+  :root[data-theme="eink"] :is(.editbox,.spbox,.lg-box,#cd,#toast,#updateBar,#secureBar){border-width:2.5px}
+  /* The board mirror on paper: every LED colour inked, the score boxes and the serving bar black.
+     The limits it shows in red or amber are on the team cards right above it. */
+  :root[data-theme="eink"] .bvpanel{background:#ffffff;border:2.5px solid #000000}
+  :root[data-theme="eink"] .bvpanel :is(.bvsec,.bvn,.bvtime,.bvdate,.bvcdlabel,.bvcdtime,.bvcdsub,.bvcdsub *){color:#000000!important}
+  :root[data-theme="eink"] .bvbox{border-color:#000000!important}
+  :root[data-theme="eink"] .bvrect:not(.bvbox){background:transparent!important}
+  :root[data-theme="eink"] .bvrect.on{background:#000000!important}
+  :root[data-theme="eink"] .bvnames .bvsep{background:#000000}
 </style>
 
 <div id="app">
@@ -1266,6 +1378,21 @@
           <p class="hint">How bright the LED panel drives. <strong>0 turns the panel off</strong> to save power —
             the controller stays reachable, so set any value above 0 to switch it back on. 5–100 is on; the panel
             blinks for about a second while it restarts at the new level.</p>
+        </fieldset>
+        <!-- The console's own colours, for THIS screen only: kept in the browser (localStorage.theme,
+             applied by the boot script at the top), never in SETTINGS — the scorer's tablet in a dim
+             hall and a phone courtside in full sun want different looks from the same board. No
+             data-set, so no Save button: it applies on the tap. -->
+        <fieldset id="themeCard">
+          <legend><svg class="licon l-contrast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></svg> Theme</legend>
+          <div class="segbtns themeseg" role="group" aria-label="Theme">
+            <button type="button" data-theme-pick="light" aria-pressed="true"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>Light</button>
+            <button type="button" data-theme-pick="dark" aria-pressed="false"><svg class="licon l-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>Dark</button>
+            <button type="button" data-theme-pick="eink" aria-pressed="false"><svg class="licon l-book-open-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>E-ink</button>
+          </div>
+          <p class="hint">Light is the standard look. Dark is easier on the eyes in a dim hall. E-ink is
+            black on white at full contrast, for reading in bright sun. Only this phone or tablet
+            changes — the board and every other screen keep their own.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> Match format</legend>
@@ -2524,6 +2651,10 @@
     const b2 = g("bg_score2"); if (b2) b2.style.borderColor = d.right.color;
     const v1 = g("serve1"); if (v1) v1.style.background = serving === "left" ? d.left.color : "#161c30";
     const v2 = g("serve2"); if (v2) v2.style.background = serving === "right" ? d.right.color : "#161c30";
+    // Which bar is lit, as a class too: e-ink paints the mirror in black and white, and only a class
+    // tells it which bar to ink (the colour above is inline).
+    if (v1) v1.classList.toggle("on", serving === "left");
+    if (v2) v2.classList.toggle("on", serving === "right");
     if (SPORT === "basketball") {
       const tg = SETTINGS.totalTimeouts || 5;
       const toCol = (n) => n >= tg ? "#ff5b52" : "#e7ecff";
@@ -2646,6 +2777,39 @@
     }
     return { bg: "#" + bg.map((v) => v.toString(16).padStart(2, "0")).join(""), ink: inkHex };
   }
+  // WCAG relative luminance of a #rrggbb colour, or null for anything else.
+  function hexLum(hex) {
+    const h = String(hex || "").trim().replace("#", "");
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const [r, g, b] = [0, 2, 4].map((i) => lin(parseInt(h.slice(i, i + 2), 16)));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  // E-ink has no hue to tell the two teams apart, so there they differ by fill: the team in the
+  // darker colour gets the ink card, the other the paper card (the e-ink block in the CSS). Worked
+  // out from the colours, not the screen side, so it follows a team when the teams change ends and
+  // a dark-shirted team reads as the dark card. Equal or missing colours: the panel's left half inks.
+  function toneOf(side, s) {
+    const me = panelSide(side), other = me === "left" ? "right" : "left";
+    const a = s ? hexLum(s[me].color) : null, b = s ? hexLum(s[other].color) : null;
+    if (a === null || b === null || a === b) return me === "left" ? "ink" : "paper";
+    return a < b ? "ink" : "paper";
+  }
+  // A team colour used as TEXT on a card (the match result, the beach serve player). Light shows it
+  // as it is. Dark lifts it towards white until it reads on the dark card at 4.5:1 — KSCW blue sat
+  // at 1.9:1 there. E-ink inks it in the CSS.
+  function teamText(hex) {
+    if (document.documentElement.getAttribute("data-theme") !== "dark") return hex;
+    const card = getComputedStyle(document.documentElement).getPropertyValue("--card").trim();
+    const lc = hexLum(card);
+    if (hexLum(hex) === null || lc === null) return hex;
+    const rgb = [0, 2, 4].map((i) => parseInt(hex.replace("#", "").slice(i, i + 2), 16));
+    for (let t = 0; t <= 1.0001; t += 0.05) {
+      const c = "#" + rgb.map((v) => Math.round(v + (255 - v) * t).toString(16).padStart(2, "0")).join("");
+      if ((hexLum(c) + 0.05) / (lc + 0.05) >= 4.5) return c;
+    }
+    return "#ffffff";
+  }
   function renderBoard(s) {
     // The serve toggle paints from --left/--right, which are stock blue/red constants. Track the
     // TEAM colours onto them so the serve indicator matches the panel and the shirts instead of
@@ -2673,6 +2837,7 @@
       const pan = panelFor(d.color);
       root.style.setProperty("--edge", pan ? pan.bg : "var(--" + side + ")");
       root.style.setProperty("--on-edge", pan ? pan.ink : inkOn(d.color)); // readable ink for the Arena colour block
+      root.dataset.tone = toneOf(side, s); // e-ink only: ink or paper card (see toneOf)
       const prev = shown[side];
       // The point just assigned pulses green — confirmation that the tap registered.
       paint($('[data-val="points"]', root), d.points, prev.points, "flash");
@@ -2717,7 +2882,7 @@
       if (spn) {
         const n = s ? s.servePlayer : 0;
         spn.textContent = n ? String(n) : "–";
-        spn.style.color = !s ? "" : serving === "left" ? s.left.color : serving === "right" ? s.right.color : "";
+        spn.style.color = !s ? "" : serving === "left" ? teamText(s.left.color) : serving === "right" ? teamText(s.right.color) : "";
       }
     }
     renderPreview(s, serving);
@@ -4304,7 +4469,7 @@
       const wName = sa > sb ? nameA : nameB;
       const wCol = sa > sb ? colA : colB;
       win.textContent = wName + " wins";
-      win.style.color = wCol || "";
+      win.style.color = teamText(wCol) || "";
       win.style.fontWeight = "800";
     }
 
@@ -4315,7 +4480,7 @@
     const mk = (cls, txt, col) => {
       const el = document.createElement("span");
       el.className = cls; el.textContent = txt;
-      if (col) el.style.color = col;
+      if (col) el.style.color = teamText(col);
       return el;
     };
     score.append(
@@ -5495,6 +5660,25 @@
     if (b) { b.classList.remove("ok", "fail"); b.classList.add("dirty"); b.textContent = "Save changes"; b.title = ""; }
   };
   setEls().forEach((el) => { el.addEventListener("input", () => markSettingDirty(el)); el.addEventListener("change", () => markSettingDirty(el)); });
+
+  // --- colour theme (Settings ▸ Theme) --------------------------------------
+  // This screen only. The boot script at the top applies it before the first paint and re-applies
+  // a change made in another tab (window.phTheme); here the three buttons set it and show it. The
+  // pressed one is read off <html data-theme>, not storage, so it is right even where storage is
+  // blocked and the choice only lasts for this page.
+  function syncThemePick() {
+    const cur = document.documentElement.getAttribute("data-theme") || "light";
+    $$("[data-theme-pick]").forEach((b) => {
+      const on = b.dataset.themePick === cur;
+      b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  $$("[data-theme-pick]").forEach((b) => b.addEventListener("click", () => {
+    if (window.phTheme) window.phTheme.set(b.dataset.themePick);
+    syncThemePick();
+  }));
+  window.addEventListener("storage", (e) => { if (e.key === "theme" || e.key === null) syncThemePick(); });
+  syncThemePick();
 
   // --- scorer lock ---------------------------------------------------------
   function updateLock() {

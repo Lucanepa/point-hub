@@ -150,6 +150,12 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   its cookies stay on the board. An offline `/api/uplink` also names the Wi-Fi and says `why`.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
+- **Theme** — **Settings ▸ Theme**: Light (the default), Dark, or E-ink — greyscale, paper white
+  and ink black, for a phone courtside in full sun. Per screen, never on the board:
+  `localStorage.theme`, shown as `<html data-theme="dark|eink">`, set by a boot script at the top
+  of `web/index.html` before the first paint; `/logs` follows it. The looks are token sets on
+  `:root`; e-ink carries what colour alone used to (which team, a limit, the chosen tab) as fill
+  versus outline, dashes and underlines, and drops shadows and motion. `npm run test:theme`.
 - **The tablet's app** — with `TLS_CERT`/`TLS_KEY` set (`provisioning/setup-console-tls.sh`),
   `/api/status` carries `httpsOrigin` (the cert's first DNS name + `HTTPS_PORT`; `null` without
   TLS or once the cert has expired), and a console opened on `http://172.24.1.1:8890` moves itself

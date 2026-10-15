@@ -16,7 +16,9 @@ const ok = (c, m) => { if (c) { pass++; console.log('  ✅', m) } else { fail++;
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const html = fs.readFileSync(path.resolve(here, '..', 'web', 'index.html'), 'utf8')
-const js = (html.match(/<script[^>]*>([\s\S]*?)<\/script>/) || [])[1] || ''
+// The console's own script is the bare <script>; the first one on the page is the theme boot
+// script (<script id="themeBoot">), which has to run before anything is painted.
+const js = (html.match(/<script>([\s\S]*?)<\/script>/) || [])[1] || ''
 
 console.log('[1] the on-screen keyboard must resize the app, not pan it off screen')
 {

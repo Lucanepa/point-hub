@@ -159,7 +159,8 @@ console.log('\n[5] the console only works when it is being looked at')
 {
   const here = path.dirname(fileURLToPath(import.meta.url))
   const html = fs.readFileSync(path.resolve(here, '..', 'web', 'index.html'), 'utf8')
-  const js = (html.match(/<script[^>]*>([\s\S]*?)<\/script>/) || [])[1] || ''
+  // The bare <script> is the console's; <script id="themeBoot"> comes first on the page.
+  const js = (html.match(/<script>([\s\S]*?)<\/script>/) || [])[1] || ''
 
   ok(/id="tab-diag"/.test(html), 'the Diagnostics tab exists')
   ok(/data-tab="diag"/.test(html), 'and is reachable from the nav')
