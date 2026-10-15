@@ -55,7 +55,9 @@ export function toBeachSections(state, { off = SERVE_OFF, totalTimeouts = BEACH_
   const due = switchDue(v)
   // Serve-player digit: which player (1|2) of the serving pair is up, painted in that pair's
   // colour dead-centre above the score bars. serve_player is 0 when nobody is serving (blank).
-  const sp = Number(state.serve_player) || 0
+  // A linked openbeach match sends the same thing as `server_number` (the serving player's shirt
+  // number, 1 or 2 in beach), so read that when our own key is absent.
+  const sp = Number(state.serve_player ?? state.server_number) || 0
   const spColor = v.serving === 'left' ? v.leftColor : v.serving === 'right' ? v.rightColor : off
   return [
     ...text('team1', v.leftName, v.leftColor),
@@ -163,6 +165,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const bound = toBeachSections({ ...base, points_a: 4, points_b: 3, serving_team: 'left', serve_player: 2 })
     ok(secOf(bound, 'switch', 'text').value.value === 'SWITCH', 'boundary: centre SWITCH shown')
     ok(secOf(bound, 'serveplr1', 'text').value.value === '', 'boundary: serving-side digit blanked')
+  }
+  // A linked openbeach match names the server as `server_number`, not `serve_player`.
+  {
+    const ob = toBeachSections({ ...base, serving_team: 'right', server_number: 2 })
+    ok(secOf(ob, 'serveplr2', 'text').value.value === '2', 'openbeach server_number -> serving digit shown')
+    ok(secOf(ob, 'serveplr1', 'text').value.value === '', 'openbeach server_number -> other side blank')
+    const own = toBeachSections({ ...base, serving_team: 'left', serve_player: 1, server_number: 2 })
+    ok(secOf(own, 'serveplr1', 'text').value.value === '1', 'serve_player wins over server_number when both are sent')
+    const nul = toBeachSections({ ...base, serving_team: 'left', server_number: null })
+    ok(secOf(nul, 'serveplr1', 'text').value.value === '', 'server_number null -> blank digit')
   }
 
   // Idle fallback: only sections the beach match screen itself paints, names kept, rest blank.
