@@ -46,6 +46,29 @@ class Prefs(context: Context) : PinStorage {
         get() = sp.getInt("dismissedUpdateCode", -1)
         set(v) = sp.edit { putInt("dismissedUpdateCode", v) }
 
+    /**
+     * The scorer PIN this tablet holds for the board (the console's `kscwScorerPin`). Not a
+     * secret of the app's own: it is the board's shared scoring PIN, typed at the scorer's table.
+     */
+    var scorerPin: String
+        get() = sp.getString("scorerPin", null) ?: ""
+        set(v) = sp.edit { if (v.isEmpty()) remove("scorerPin") else putString("scorerPin", v) }
+
+    /** The finished match the "show the result?" prompt was last asked about (`endAskedSig`). */
+    var endAskedSig: String?
+        get() = sp.getString("endAskedSig", null)
+        set(v) = sp.edit { if (v == null) remove("endAskedSig") else putString("endAskedSig", v) }
+
+    /** Admin switch: draw the Game tab natively (true) or leave the whole console to the web page. */
+    var nativeGame: Boolean
+        get() = sp.getBoolean("nativeGame", true)
+        set(v) = sp.edit { putBoolean("nativeGame", v) }
+
+    /** The console's theme (Settings ▸ Theme), reported over the bridge: light | dark | eink. */
+    var theme: String
+        get() = sp.getString("theme", null) ?: "light"
+        set(v) = sp.edit { putString("theme", v) }
+
     /** Admin "Exit app": resume the kiosk (and re-take HOME if [restoreHomeOnStart]) on next start. */
     var exitedByAdmin: Boolean
         get() = sp.getBoolean("exitedByAdmin", false)

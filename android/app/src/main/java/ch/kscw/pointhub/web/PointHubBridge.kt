@@ -19,6 +19,16 @@ interface BridgeHost {
     fun startExport(): Boolean
     fun reloadConsole()
     fun openSettings()
+
+    // Native Game tab (BRIDGE.md "Native Game tab (embed mode)").
+    /** The page asks whether the app draws the Game tab; true also marks this page as embedded. */
+    fun nativeGame(): Boolean
+    fun showTab(name: String)
+    fun scorerPin(): String
+    fun setScorerPin(pin: String)
+    fun pinRejected()
+    fun settingsChanged()
+    fun setTheme(theme: String)
 }
 
 /**
@@ -88,4 +98,42 @@ class PointHubBridge(private val host: BridgeHost) {
     fun openSettings() {
         if (allowed("openSettings")) host.openSettings()
     }
+
+    // ---- Native Game tab ----
+
+    @JavascriptInterface
+    fun nativeGame(): Boolean = allowed("nativeGame") && host.nativeGame()
+
+    @JavascriptInterface
+    fun showTab(name: String?) {
+        if (!allowed("showTab") || name == null) return
+        if (name in TABS) host.showTab(name)
+    }
+
+    @JavascriptInterface
+    fun scorerPin(): String = if (allowed("scorerPin")) host.scorerPin() else ""
+
+    @JavascriptInterface
+    fun setScorerPin(pin: String?) {
+        if (!allowed("setScorerPin") || pin == null || pin.length > 8) return
+        host.setScorerPin(pin)
+    }
+
+    @JavascriptInterface
+    fun pinRejected() {
+        if (allowed("pinRejected")) host.pinRejected()
+    }
+
+    @JavascriptInterface
+    fun settingsChanged() {
+        if (allowed("settingsChanged")) host.settingsChanged()
+    }
+
+    @JavascriptInterface
+    fun setTheme(theme: String?) {
+        if (allowed("setTheme")) host.setTheme(if (theme == "dark" || theme == "eink") theme else "light")
+    }
 }
+
+/** What showTab accepts: the app's tabs, and the Game tab with the beach serve order open. */
+internal val TABS = setOf("game", "link", "history", "diag", "settings", "serve-order")

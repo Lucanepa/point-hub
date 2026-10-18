@@ -18,7 +18,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.isVisible
+import ch.kscw.pointhub.game.ui.GameDialogs
+import ch.kscw.pointhub.game.ui.GameScreen
+import ch.kscw.pointhub.game.ui.PhTheme
+import ch.kscw.pointhub.game.ui.ShellHeader
+import ch.kscw.pointhub.game.ui.Tab
 import ch.kscw.pointhub.kiosk.CornerTapDetector
 import ch.kscw.pointhub.kiosk.Kiosk
 import ch.kscw.pointhub.net.FailReason
@@ -49,6 +58,10 @@ import kotlin.concurrent.thread
  * The kiosk host: one fullscreen WebView showing the board's console, a native offline overlay
  * that covers it whenever no console page is alive (so no browser error page ever shows), the
  * update banner, and the hidden 5-tap admin gesture.
+ *
+ * With a console that asks for it (BRIDGE.md "Native Game tab"), the app draws the header, the tab
+ * bar and the Game tab natively (game/), and the console fills the other tabs under that header.
+ * A console that never asks is shown whole, exactly as before.
  *
  * A LIVE console page is never covered or reloaded because the board link dropped: the console
  * keeps recording scores without the board. Losing the link shows a small pass-through note and
@@ -84,6 +97,17 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     private lateinit var bannerText: TextView
     private lateinit var bannerInstall: Button
     private lateinit var netPill: View
+    private lateinit var shellHeader: ComposeView
+    private lateinit var gameView: ComposeView
+
+    /** The native shell is up: the page asked nativeGame() and the app said yes. */
+    private var nativeActive = false
+    /** Set on the JavaBridge thread when the page now loading asked nativeGame() and got true. */
+    private val pageEmbedded = AtomicBoolean(false)
+    private var tab by mutableStateOf(Tab.GAME)
+    private var consoleTheme by mutableStateOf("light")
+    /** The offline screen is wanted; it shows unless the native Game tab is in front (see applyOverlay). */
+    private var offlineWanted = false
 
     private val committed = AtomicReference<String?>(null)
     @Volatile override var allowlist = OriginPolicy.Allowlist(null)
@@ -127,6 +151,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         bannerText = findViewById(R.id.updateText)
         bannerInstall = findViewById(R.id.updateInstall)
         netPill = findViewById(R.id.netPill)
+        shellHeader = findViewById(R.id.shellHeader)
+        gameView = findViewById(R.id.gameView)
 
         Ui.immersive(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -141,6 +167,7 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         }
 
         createWebView()
+        setUpNativeShell()
         if (!cacheClearedThisProcess) {
             webView?.clearCache(true)
             cacheClearedThisProcess = true
@@ -149,7 +176,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         // Back never leaves the app: it goes back in the console's history, or does nothing.
         onBackPressedDispatcher.addCallback(this) {
             val wv = webView
-            if (wv != null && !offline.isVisible && wv.canGoBack() && allowlist.isAllowed(committed.get())) wv.goBack()
+            if (nativeActive && tab == Tab.GAME) return@addCallback
+            if (wv != null && !offlineWanted && wv.canGoBack() && allowlist.isAllowed(committed.get())) wv.goBack()
         }
 
         findViewById<Button>(R.id.offlineRetry).setOnClickListener {
@@ -166,7 +194,7 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
 
         showOffline(null)
         scope.launch { app.boardNetwork.state.collect { onNetState(it) } }
-        scope.launch { app.boardNetwork.progress.collect { if (it.isNotEmpty() && offline.isVisible) offlineStatus.text = it } }
+        scope.launch { app.boardNetwork.progress.collect { if (it.isNotEmpty() && offlineWanted) offlineStatus.text = it } }
         scope.launch { app.updates.state.collect { onUpdateState(it) } }
         app.boardNetwork.start()
     }
@@ -190,6 +218,7 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     private fun load(origin: String) {
         val wv = webView ?: return
         loadedOrigin = origin
+        pageEmbedded.set(false)
         pageAlive = false
         wasLost = false
         netPill.visibility = View.GONE
@@ -259,10 +288,10 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
                 maybeCheckUpdate()
             }
             is NetState.NotFound -> {
-                if (offline.isVisible) renderFailures(s)
+                if (offlineWanted) renderFailures(s)
             }
             NetState.Lost -> {
-                if (pageAlive && !offline.isVisible) {
+                if (pageAlive && !offlineWanted) {
                     // Keep the console usable: it records scores without the board.
                     if (!wasLost) sendEvent(JSONObject().put("type", "network").put("state", "lost"))
                     wasLost = true
@@ -338,7 +367,7 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     /** Every 3 s while the offline screen or the "connection lost" note is up. */
     private val retryLoop = object : Runnable {
         override fun run() {
-            if (!offline.isVisible && !netPill.isVisible) return
+            if (!offlineWanted && !netPill.isVisible) return
             if (app.boardNetwork.state.value !is NetState.Found) app.boardNetwork.discover()
             main.postDelayed(this, RETRY_MS)
         }
@@ -353,8 +382,9 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         offlineBody.text = getString(R.string.offline_body, app.prefs.ssid)
         offlineStatus.text = reason ?: "Trying https… / 172.24.1.1… / cable…"
         offlineHint.visibility = View.GONE
-        if (!offline.isVisible) {
-            offline.visibility = View.VISIBLE
+        if (!offlineWanted) {
+            offlineWanted = true
+            applyOverlay()
             startRetryLoop()
         }
         thread(name = "last-match") {
@@ -364,8 +394,18 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     }
 
     private fun hideOffline() {
-        offline.visibility = View.GONE
+        offlineWanted = false
+        applyOverlay()
         if (!netPill.isVisible) main.removeCallbacks(retryLoop)
+    }
+
+    /**
+     * The offline screen covers a dead console page — but not the native Game tab, which talks to
+     * the board itself and says so in its own banner: a console reload that fails mid-match must
+     * not put a cover between the scorer and the score.
+     */
+    private fun applyOverlay() {
+        offline.visibility = if (offlineWanted && !(nativeActive && tab == Tab.GAME)) View.VISIBLE else View.GONE
     }
 
     private fun renderSummary(s: MatchSummary?) {
@@ -505,6 +545,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     override fun onDestroy() {
         main.removeCallbacksAndMessages(null)
         scope.cancel()
+        if (isFinishing) app.game.stop()
+        if (::app.isInitialized) app.game.onShowTab = null
         if (::app.isInitialized && app.prefs.setupDone && isFinishing) app.boardNetwork.stop()
         webView?.let {
             webHolder.removeView(it)
@@ -581,5 +623,139 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
 
     override fun openSettings() {
         main.post { openAdmin() }
+    }
+
+    // ---------------------------------------------------------------- Native Game tab
+
+    private fun setUpNativeShell() {
+        consoleTheme = app.prefs.theme
+        val game = app.game
+        game.onShowTab = { name, anchor -> showTabNow(name, anchor) }
+        shellHeader.setContent {
+            PhTheme(consoleTheme) {
+                ShellHeader(game, tab, onTab = { selectTab(it, null) }, onUplink = { selectTab(Tab.SETTINGS, "uplink") })
+                GameDialogs(game)
+            }
+        }
+        gameView.setContent {
+            PhTheme(consoleTheme) { GameScreen(game, onUplink = { selectTab(Tab.SETTINGS, "uplink") }) }
+        }
+    }
+
+    override fun onPageStarted(url: String?) {
+        // A new console page: until it asks, it is not known to want embedding. about:blank (put up
+        // after a failure) is not a page change — the native Game tab carries on over it.
+        if (allowlist.isAllowed(url)) pageEmbedded.set(false)
+    }
+
+    override fun onPageFinished(url: String?) {
+        if (!allowlist.isAllowed(url)) return
+        if (pageEmbedded.get()) {
+            activateNative()
+            // The page starts on its default tab; put back the one this header shows.
+            if (tab != Tab.GAME) showConsoleTab(tab, null)
+        } else {
+            // A console too old to ask (or the admin switch says web): the whole console, as before.
+            deactivateNative()
+        }
+    }
+
+    private fun activateNative() {
+        if (!pageEmbedded.get()) return
+        app.game.origin = loadedOrigin
+        if (nativeActive) return
+        nativeActive = true
+        Log.i(TAG, "native Game tab on for $loadedOrigin")
+        shellHeader.visibility = View.VISIBLE
+        applyTab()
+        app.game.start()
+    }
+
+    private fun deactivateNative() {
+        if (!nativeActive) return
+        nativeActive = false
+        Log.i(TAG, "native Game tab off: the console is shown whole")
+        app.game.stop()
+        shellHeader.visibility = View.GONE
+        gameView.visibility = View.GONE
+        webHolder.visibility = View.VISIBLE
+        applyOverlay()
+    }
+
+    private fun applyTab() {
+        if (!nativeActive) return
+        val onGame = tab == Tab.GAME
+        gameView.visibility = if (onGame) View.VISIBLE else View.GONE
+        // Hidden, not removed: the console keeps polling, saving backups and updating itself behind.
+        webHolder.visibility = if (onGame) View.INVISIBLE else View.VISIBLE
+        applyOverlay()
+    }
+
+    /** A tab chosen in the native header (or asked for by the Game tab itself). */
+    private fun selectTab(t: Tab, anchor: String?) {
+        if (!nativeActive) return
+        tab = t
+        applyTab()
+        if (t == Tab.GAME) {
+            hideConsoleTab()
+            app.game.enterGameTab()
+        } else showConsoleTab(t, anchor)
+    }
+
+    /** The console stays loaded under the Game tab; it only stops what a visible tab needs. */
+    private fun hideConsoleTab() {
+        val wv = webView ?: return
+        if (!allowlist.isAllowed(committed.get())) return
+        wv.evaluateJavascript("window.pointhubEmbed&&window.pointhubEmbed.hide&&window.pointhubEmbed.hide()", null)
+    }
+
+    private fun showTabNow(name: String, anchor: String?) {
+        if (name == "serve-order") {
+            selectTab(Tab.GAME, null)
+            app.game.serveOrderFromConsole()
+            return
+        }
+        Tab.of(name)?.let { selectTab(it, anchor) }
+    }
+
+    private fun showConsoleTab(t: Tab, anchor: String?) {
+        val wv = webView ?: return
+        if (!allowlist.isAllowed(committed.get())) return
+        val a = if (anchor == "uplink") ",'uplink'" else ""
+        wv.evaluateJavascript("window.pointhubEmbed&&window.pointhubEmbed.show('${t.key}'$a)", null)
+    }
+
+    // BridgeHost, on the JavaBridge thread.
+
+    override fun nativeGame(): Boolean {
+        if (!app.prefs.nativeGame) return false
+        pageEmbedded.set(true)
+        main.post { activateNative() }
+        return true
+    }
+
+    override fun showTab(name: String) {
+        main.post { showTabNow(name, null) }
+    }
+
+    override fun scorerPin(): String = app.prefs.scorerPin
+
+    override fun setScorerPin(pin: String) {
+        main.post { app.game.pinFromConsole(pin) }
+    }
+
+    override fun pinRejected() {
+        main.post { app.game.onPinRejected() }
+    }
+
+    override fun settingsChanged() {
+        main.post { app.game.settingsChanged() }
+    }
+
+    override fun setTheme(theme: String) {
+        main.post {
+            consoleTheme = theme
+            app.prefs.theme = theme
+        }
     }
 }

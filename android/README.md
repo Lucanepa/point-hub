@@ -1,7 +1,8 @@
 # Point Hub: Android tablet app
 
 This app is the board's dedicated control screen for a Samsung Galaxy Tab A (Android 13–15). It is a
-fullscreen, landscape kiosk that shows the LedBox console served by the board.
+fullscreen, landscape kiosk that shows the LedBox console served by the board, with the Game tab
+drawn natively (see "Native Game tab" below).
 
 | | |
 |---|---|
@@ -58,6 +59,20 @@ fullscreen, landscape kiosk that shows the LedBox console served by the board.
 - **Updates itself from the board.** See [Self-update](#self-update).
 - **JS bridge.** `window.PointHubApp` lets the console save backups and the schedule on the tablet.
   See [BRIDGE.md](BRIDGE.md).
+- **Native Game tab (from 1.1.0).** The header, the tab bar and the Game tab are drawn natively
+  (Jetpack Compose, `app/src/main/java/ch/kscw/pointhub/game/`). They talk to the board's API
+  directly, exactly as the console's own Game tab does. Link, History, Diagnostics and Settings stay
+  the console's, embedded under the native header. The console has to ask for this
+  (BRIDGE.md, "Native Game tab"): a board running an older console gets the whole web console, as
+  before, so the app and the board can be updated in either order.
+  - The native screen follows the console's theme (Light, Dark, E-ink), shares its scorer PIN, and
+    survives a console reload: the score stays on screen while the page underneath reloads.
+  - **Fallback:** admin menu → **Game screen: native (switch to the web console)** shows the whole
+    web console again, with its own Game tab. Use it if the native screen ever misbehaves at a
+    match; the same button switches back.
+  - The rules (set labels, limits, who won, the match log's wording) are ported one for one from
+    `web/index.html` into `game/Rules.kt`, `game/TeamColors.kt` and `game/GameController.kt`, with
+    the console's function names in the comments. Change both together.
 
 ## Build
 
@@ -311,5 +326,7 @@ app/src/main/java/ch/kscw/pointhub/
   store/                backups + rotation (pure), schedule, admin PIN (pure), Keystore secret, prefs
   update/               version.json model (pure), sha256 (pure), download + install
   kiosk/                lock task / home / boot, 5-tap detector (pure)
+  game/                 native Game tab: board model, rules, colours (pure), BoardApi, GameController
+  game/ui/              Compose: header + tabs (Shell), GameScreen, BoardMirror, dialogs, theme tokens
 app/src/test/…          JVM unit tests for everything marked pure
 ```

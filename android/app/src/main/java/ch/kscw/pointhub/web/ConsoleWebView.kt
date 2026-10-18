@@ -30,6 +30,10 @@ interface ConsoleHost {
     /** [url] is the failed main-frame URL when known. */
     fun onMainFrameFailed(url: String?, reason: String)
     fun onRendererGone(view: WebView)
+    /** A main-frame load started (a new page: whatever the last one told us is void). */
+    fun onPageStarted(url: String?) {}
+    /** A main-frame load finished: the console's script has run. */
+    fun onPageFinished(url: String?) {}
     val debug: Boolean
 }
 
@@ -97,7 +101,12 @@ object ConsoleWebView {
         }
 
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+            host.onPageStarted(url)
             host.onMainFrameUrl(url)
+        }
+
+        override fun onPageFinished(view: WebView, url: String?) {
+            host.onPageFinished(url)
         }
 
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {

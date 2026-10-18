@@ -22,6 +22,8 @@ class PointHubApp : Application() {
     lateinit var adminPin: AdminPin; private set
     lateinit var boardNetwork: BoardNetwork; private set
     lateinit var updates: UpdateManager; private set
+    /** The native Game tab's state; one per process, like a long-lived console page. */
+    val game: ch.kscw.pointhub.game.GameController by lazy { ch.kscw.pointhub.game.GameController(this) }
 
     /** Admin chose "Exit kiosk": don't re-pin until "Resume kiosk" or the next app start. */
     @Volatile var kioskSuspended = false
