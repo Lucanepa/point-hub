@@ -144,6 +144,11 @@ tab bar. The console keeps every other tab (Link, History, Diagnostics, Settings
 the app's tab bar. Both talk to the board through the same API (`/api/status`, `/api/action`, …);
 the board does not know or care which one is scoring.
 
+The desktop app (`android/desktop`) implements the same contract with the same native screens.
+Its `window.PointHubApp` is put into the console's HTML before the console's scripts, so the
+synchronous calls below work there too (desktop/README.md, "The bridge"). `getInfo().app` is
+`"pointhub-desktop"` there.
+
 ### How the two find out about each other
 
 The console asks once, at boot, before it opens anything:
