@@ -47,7 +47,7 @@ jobs:
             tasks: packageDmg
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Version check (tag builds)
         if: startsWith(github.ref, 'refs/tags/desktop-v')
@@ -58,7 +58,7 @@ jobs:
           [ "$want" = "$have" ] || { echo "tag $GITHUB_REF_NAME but desktop/version.properties says $have"; exit 1; }
 
       # Gradle itself runs on a stock JDK; the desktop module compiles and packages on JBR.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -88,6 +88,30 @@ jobs:
         shell: bash
         working-directory: android
         run: ./gradlew --no-daemon :shared:desktopTest $(for t in ${{ matrix.tasks }}; do printf ':desktop:%s ' "$t"; done)
+
+      # Proof the package starts on this OS: Chromium initialises and paints a page, then the app
+      # exits 0 (Main.kt, POINTHUB_SMOKE). The screenshot is uploaded with the packages.
+      - name: Smoke test
+        shell: bash
+        env:
+          POINTHUB_SMOKE: '20'
+          POINTHUB_SMOKE_SHOT: ${{ runner.temp }}/smoke-${{ matrix.platform }}.png
+        run: |
+          app=android/desktop/build/compose/binaries/main/app
+          case "${{ matrix.platform }}" in
+            linux)
+              sudo apt-get install -y -qq xvfb >/dev/null
+              xvfb-run -s "-screen 0 1600x1000x24" "$app/point-hub/bin/point-hub" ;;
+            windows) "$app/point-hub/point-hub.exe" ;;
+            macos-*) "$app/Point Hub.app/Contents/MacOS/Point Hub" ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ matrix.platform }}
+          path: ${{ runner.temp }}/smoke-${{ matrix.platform }}.png
+          if-no-files-found: ignore
 
       - name: Finish the .deb (the /usr/bin/point-hub command)
         if: matrix.platform == 'linux'

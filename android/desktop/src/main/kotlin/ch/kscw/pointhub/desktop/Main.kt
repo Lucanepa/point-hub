@@ -67,6 +67,23 @@ fun main() {
             state = rememberWindowState(width = 1340.dp, height = 840.dp),
         ) {
             LaunchedEffect(Unit) { window.minimumSize = Dimension(960, 600) }
+            // CI's smoke test: start, let Chromium paint a page, prove it did, and leave.
+            System.getenv("POINTHUB_SMOKE")?.toLongOrNull()?.let { secs ->
+                LaunchedEffect(Unit) {
+                    app.console.loadRaw("data:text/html,<body style='background:%23ffc832'><h1>Point Hub smoke test</h1></body>")
+                    kotlinx.coroutines.delay(secs * 1000)
+                    val painted = app.console.frame != null
+                    System.getenv("POINTHUB_SMOKE_SHOT")?.let { path ->
+                        try {
+                            val img = java.awt.Robot().createScreenCapture(window.bounds)
+                            javax.imageio.ImageIO.write(img, "png", java.io.File(path))
+                        } catch (_: Exception) {}
+                    }
+                    println("smoke: cef=${org.cef.CefApp.getState()} painted=$painted")
+                    app.dispose(); Cef.shutdown()
+                    kotlin.system.exitProcess(if (painted) 0 else 3)
+                }
+            }
             PhTheme(app.consoleTheme) { Root(app) }
         }
     }

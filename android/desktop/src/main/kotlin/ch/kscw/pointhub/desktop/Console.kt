@@ -238,6 +238,16 @@ class Console(private val host: ConsoleHost) {
 
     fun reload() { origin?.let { load(it) } }
 
+    /** Smoke test (POINTHUB_SMOKE): load a page with no board, to see Chromium paint a frame. */
+    fun loadRaw(url: String) {
+        val b = browser
+        if (b == null) {
+            val nb = client.createBrowser(url, CefRendering.CefRenderingWithHandler(render, awtSource), false)
+            nb.createImmediately()
+            browser = nb
+        } else b.loadURL(url)
+    }
+
     fun resize(widthDip: Int, heightDip: Int, scale: Double) {
         if (widthDip <= 0 || heightDip <= 0) return
         val changed = scale != this.scale
