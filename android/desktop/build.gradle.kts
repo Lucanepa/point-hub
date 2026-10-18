@@ -93,6 +93,21 @@ afterEvaluate {
                 val f = File(lib, n)
                 if (f.isFile) f.setExecutable(true, false)
             }
+            // Windows: the jcef module keeps Chromium's data and helper programs in its "commands"
+            // section (bin/), which the runtime image is made without (--strip-native-commands), so
+            // icudtl.dat and the rest went missing and Chromium died at start. Put them back next to
+            // libcef.dll, as the JBR has them. (Linux keeps them under lib/, macOS in its framework.)
+            if (System.getProperty("os.name").lowercase().contains("win") && jbr != null) {
+                val from = File(jbr, "bin")
+                val to = layout.buildDirectory.dir("compose/tmp/main/runtime/bin").get().asFile
+                for (n in listOf("cef_server.exe", "jcef_helper.exe", "icudtl.dat", "v8_context_snapshot.bin",
+                    "resources.pak", "chrome_100_percent.pak", "chrome_200_percent.pak")) {
+                    val f = File(from, n)
+                    if (!f.isFile) throw GradleException("JBR has no bin/$n: not a JCEF runtime?")
+                    f.copyTo(File(to, n), overwrite = true)
+                }
+                File(from, "locales").takeIf { it.isDirectory }?.copyRecursively(File(to, "locales"), overwrite = true)
+            }
             // Chromium's UI strings in 55 languages are 45 MB; the console is English, and the
             // country's languages cover a Swiss scorer's machine. The rest only make packages bigger.
             val keep = setOf("en-US.pak", "en-GB.pak", "de.pak", "fr.pak", "it.pak")

@@ -20,7 +20,7 @@ fi
 epoch=$(find "$work/root" -mindepth 1 ! -path "$work/root/DEBIAN" ! -path "$work/root/DEBIAN/*" -type f -printf '%T@\n' | sort -n | tail -1)
 epoch=${epoch%.*}
 find "$work/root" -exec touch -h -d "@$epoch" {} +
-SOURCE_DATE_EPOCH=$epoch dpkg-deb --root-owner-group --threads-max=1 -Zxz -z6 -b "$work/root" "$work/out.deb" >/dev/null
+SOURCE_DATE_EPOCH=$epoch dpkg-deb --root-owner-group -Zxz -z6 -b "$work/root" "$work/out.deb" >/dev/null
 mv "$work/out.deb" "$deb"
 dpkg-deb -c "$deb" | grep -q ' ./usr/bin/point-hub -> /opt/point-hub/bin/point-hub' || { echo "finish-deb: symlink missing after rebuild" >&2; exit 1; }
 echo "finished $deb ($(du -h "$deb" | cut -f1))"
