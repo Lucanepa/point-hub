@@ -32,19 +32,19 @@ jobs:
             # machine's package names, and these also install on newer releases.
             os: ubuntu-22.04
             jbr: linux-x64
-            tasks: packageDeb packageRpm
+            tasks: createDistributable packageDeb packageRpm
           - platform: windows
             os: windows-latest
             jbr: windows-x64
-            tasks: packageMsi
+            tasks: createDistributable packageMsi
           - platform: macos-arm64
             os: macos-14
             jbr: osx-aarch64
-            tasks: packageDmg
+            tasks: createDistributable packageDmg
           - platform: macos-x64
             os: macos-15-intel
             jbr: osx-x64
-            tasks: packageDmg
+            tasks: createDistributable packageDmg
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -98,12 +98,18 @@ jobs:
           POINTHUB_SMOKE_SHOT: ${{ runner.temp }}/smoke-${{ matrix.platform }}.png
         run: |
           app=android/desktop/build/compose/binaries/main/app
+          find "$app" -maxdepth 4 \( -name '*.exe' -o -path '*/bin/*' -o -path '*/Contents/MacOS/*' \) -type f | head -5
           case "${{ matrix.platform }}" in
             linux)
               sudo apt-get install -y -qq xvfb >/dev/null
-              xvfb-run -s "-screen 0 1600x1000x24" "$app/point-hub/bin/point-hub" ;;
-            windows) "$app/point-hub/point-hub.exe" ;;
-            macos-*) "$app/Point Hub.app/Contents/MacOS/Point Hub" ;;
+              exe=$(ls "$app"/*/bin/* | head -1)
+              xvfb-run -s "-screen 0 1600x1000x24" "$exe" ;;
+            windows)
+              exe=$(ls "$app"/*/*.exe | head -1)
+              "$exe" ;;
+            macos-*)
+              exe=$(ls "$app"/*.app/Contents/MacOS/* | head -1)
+              "$exe" ;;
           esac
 
       - uses: actions/upload-artifact@v4
