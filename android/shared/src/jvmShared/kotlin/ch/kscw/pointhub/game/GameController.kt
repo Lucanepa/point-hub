@@ -1,13 +1,11 @@
 package ch.kscw.pointhub.game
 
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import ch.kscw.pointhub.PointHubApp
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -73,6 +71,21 @@ data class ServeOrderUi(val first: String, val left: Int, val right: Int)
 data class PinPadUi(val gate: Boolean, val error: String? = null, val busy: Boolean = false)
 
 /**
+ * What the Game tab needs from the app around it: where the board is, how to reach it, and two
+ * values kept across restarts. The tablet app and the desktop app each provide one.
+ */
+interface GameHost {
+    /** The scorer PIN this device holds for the board ("" = none). */
+    var scorerPin: String
+    /** The finished match the "show the result?" prompt was last asked about. */
+    var endAskedSig: String?
+    /** The board's origin when no console page has told us one yet (discovery's answer), or null. */
+    fun boardOrigin(): String?
+    /** An HTTP(S) connection to [url], over the board's own network where the platform has one. */
+    fun open(url: java.net.URL): java.net.HttpURLConnection
+}
+
+/**
  * The native Game tab: everything web/index.html does for its Game tab, against the same board API.
  *
  * Ported function by function, with the console's names, so a change on one side can be found on
@@ -80,21 +93,19 @@ data class PinPadUi(val gate: Boolean, val error: String? = null, val busy: Bool
  * network calls suspend off it (BoardApi). One instance per process, so a countdown or a half-sent
  * action survives the activity being recreated, exactly as a long-lived console page would.
  */
-class GameController(private val app: PointHubApp) {
+class GameController(private val host: GameHost) {
     companion object {
-        private const val TAG = "GameController"
         const val POLL_MS = 1_500L
     }
 
     private val scope = MainScope()
-    private val prefs get() = app.prefs
 
     /** The origin the console page is on; the native screen talks to the same board. */
     @Volatile var origin: String? = null
 
     val api = BoardApi(
-        origin = { origin ?: app.boardNetwork.currentOrigin },
-        network = { app.boardNetwork.currentNetwork },
+        origin = { origin ?: host.boardOrigin() },
+        open = { url -> host.open(url) },
         pin = { scorerPin },
     )
 
@@ -118,7 +129,7 @@ class GameController(private val app: PointHubApp) {
     var nowMs by mutableLongStateOf(System.currentTimeMillis()); private set
     var prematchOn by mutableStateOf(false); private set
 
-    var scorerPin by mutableStateOf(prefs.scorerPin); private set
+    var scorerPin by mutableStateOf(host.scorerPin); private set
     var pinRequired by mutableStateOf(false); private set
 
     // Dialogs. Several can be open at once (a PIN pad over the sport picker, a confirm over the game
@@ -791,15 +802,15 @@ class GameController(private val app: PointHubApp) {
         if (s == null || endAsking) return
         if (!Rules.matchOver(sport, s, settings.bestOf)) {
             lastFinal = null
-            prefs.endAskedSig = null
+            host.endAskedSig = null
             return
         }
         lastFinal = s
         val sig = Rules.matchSig(s)
-        if (prefs.endAskedSig == sig) return
+        if (host.endAskedSig == sig) return
         if (sportPicker != null || gamePicker != null) return
         endAsking = true
-        prefs.endAskedSig = sig
+        host.endAskedSig = sig
         scope.launch {
             try {
                 if (askConfirm("Match finished — show the result?", yes = "Show result", no = "Not now")) showMatchEnd(s)
@@ -1079,7 +1090,7 @@ class GameController(private val app: PointHubApp) {
 
     private fun savePin(pin: String) {
         scorerPin = pin
-        prefs.scorerPin = pin
+        host.scorerPin = pin
     }
 
     /** From the console (BRIDGE setScorerPin): it learned a PIN, or forgot it. */
@@ -1156,6 +1167,4 @@ class GameController(private val app: PointHubApp) {
             if (r.optString("reason") == "busy") clockOffered = false
         } catch (_: Exception) { }
     }
-
-    fun log(msg: String) = Log.i(TAG, msg)
 }

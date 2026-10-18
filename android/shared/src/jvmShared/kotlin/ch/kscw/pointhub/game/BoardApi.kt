@@ -1,7 +1,5 @@
 package ch.kscw.pointhub.game
 
-import android.net.Network
-import ch.kscw.pointhub.net.HttpProbe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -28,7 +26,7 @@ import kotlin.coroutines.resumeWithException
  */
 class BoardApi(
     private val origin: () -> String?,
-    private val network: () -> Network?,
+    private val open: (URL) -> HttpURLConnection,
     private val pin: () -> String,
 ) {
     /** The board answered with a refusal (4xx/5xx). [message] is the board's own words when it sent some. */
@@ -49,6 +47,18 @@ class BoardApi(
         private val pool = Executors.newCachedThreadPool { r -> Thread(r, "board-api").apply { isDaemon = true } }
     }
 
+    private fun readCapped(input: java.io.InputStream, cap: Int): String? = input.use { s ->
+        val buf = java.io.ByteArrayOutputStream()
+        val chunk = ByteArray(8192)
+        while (true) {
+            val n = s.read(chunk)
+            if (n < 0) break
+            buf.write(chunk, 0, n)
+            if (buf.size() > cap) return null
+        }
+        buf.toString(Charsets.UTF_8.name())
+    }
+
     suspend fun get(path: String, timeoutMs: Int = READ_MS): JSONObject = request("GET", path, null, timeoutMs)
 
     suspend fun post(path: String, body: JSONObject = JSONObject(), timeoutMs: Int? = null): JSONObject =
@@ -56,14 +66,13 @@ class BoardApi(
 
     private suspend fun request(method: String, path: String, body: JSONObject?, timeoutMs: Int): JSONObject {
         val base = origin() ?: throw Unreachable("The scoreboard has not been found yet.")
-        val net = network()
         val pinNow = pin()
         return withContext(Dispatchers.IO) {
             suspendCancellableCoroutine { cont ->
                 var conn: HttpURLConnection? = null
                 val future = pool.submit {
                     try {
-                        val c = HttpProbe.open(URL(base + path), net)
+                        val c = open(URL(base + path))
                         conn = c
                         c.instanceFollowRedirects = false
                         c.connectTimeout = minOf(timeoutMs, 4_000)
@@ -82,7 +91,7 @@ class BoardApi(
                         }
                         val status = c.responseCode
                         val stream = if (status >= 400) c.errorStream else c.inputStream
-                        val text = stream?.let { HttpProbe.readCapped(it, MAX_BODY) }
+                        val text = stream?.let { readCapped(it, MAX_BODY) }
                         val json = text?.let { t ->
                             try { JSONTokener(t).nextValue() as? JSONObject } catch (_: Exception) { null }
                         }

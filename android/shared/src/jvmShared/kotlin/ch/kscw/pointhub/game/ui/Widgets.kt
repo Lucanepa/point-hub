@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -48,18 +46,14 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import ch.kscw.pointhub.game.ToastMsg
 
 val PhShape = RoundedCornerShape(Ph.radius)
+
+
 
 /** The console's flat primitive: card background, hairline edge, a darker fill while pressed. */
 @Composable
@@ -134,42 +128,13 @@ fun Hairline(modifier: Modifier = Modifier, color: Color = Ph.colors.line) =
     Box(modifier.background(color))
 
 /**
- * A modal in its own window, full screen with the theme's scrim, keeping the kiosk immersive
- * (no status or navigation bar popping up because a dialog took focus). A tap on the scrim is
- * [onDismiss] (null = the scrim does nothing, e.g. the lock gate).
+ * A modal over everything, with the theme's scrim. A tap on the scrim is [onDismiss] (null = the
+ * scrim does nothing, e.g. the lock gate). The tablet puts it in its own immersive window; the
+ * desktop draws it as an overlay inside the main window (PhModalHost).
  */
 @Composable
 fun PhDialog(onDismiss: (() -> Unit)?, content: @Composable BoxScope.() -> Unit) {
-    Dialog(
-        onDismissRequest = { onDismiss?.invoke() },
-        properties = DialogProperties(
-            dismissOnBackPress = onDismiss != null,
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
-    ) {
-        val view = LocalView.current
-        DisposableEffect(view) {
-            (view.parent as? DialogWindowProvider)?.window?.let { w ->
-                // Edge to edge over the whole screen, header and cutout included, like the console's
-                // fixed overlays; otherwise the scrim stops where the hidden status bar would be.
-                w.setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
-                w.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
-                if (android.os.Build.VERSION.SDK_INT >= 30) {
-                    w.attributes = w.attributes.apply {
-                        layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-                    }
-                }
-                WindowCompat.setDecorFitsSystemWindows(w, false)
-                WindowInsetsControllerCompat(w, w.decorView).apply {
-                    hide(WindowInsetsCompat.Type.systemBars())
-                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                }
-                w.setDimAmount(0f)
-            }
-            onDispose {}
-        }
+    PhModalHost(onDismiss) {
         val c = Ph.colors
         Box(
             Modifier
@@ -181,6 +146,10 @@ fun PhDialog(onDismiss: (() -> Unit)?, content: @Composable BoxScope.() -> Unit)
         )
     }
 }
+
+/** Where a PhDialog lives on this platform: its own window, or an overlay in the main one. */
+@Composable
+expect fun PhModalHost(onDismiss: (() -> Unit)?, content: @Composable () -> Unit)
 
 /** The box a dialog's content sits in (`.editbox` / `.spbox`). Taps inside never reach the scrim. */
 @Composable
@@ -254,7 +223,6 @@ val MonoStyle = TextStyle(fontFamily = Ph.mono, fontWeight = FontWeight.ExtraBol
 
 /** A numeral in its own box (CSS line-height ≤ 1): no leading above or below it. */
 val TightNumber = MonoStyle.copy(
-    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
     lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
         androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
         androidx.compose.ui.text.style.LineHeightStyle.Trim.None,

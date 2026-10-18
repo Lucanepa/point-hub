@@ -58,3 +58,7 @@ android/*.iml
 android/captures/
 *.jks
 *.keystore
+
+# Gradle outputs of every module (app, shared, desktop) and Kotlin caches.
+android/*/build/
+android/.kotlin/
