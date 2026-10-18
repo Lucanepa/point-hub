@@ -60,13 +60,14 @@ function page({ reply = {}, liveScoring = 'kscw' } = {}) {
   // Anything that writes to storage fails the privacy checks below.
   const localStorage = { setItem: (k, v) => io.stored.push([k, v]), getItem: () => null, removeItem() {} }
   const make = new Function('$', 'api', 'toast', 'SETTINGS', 'LAST_STATUS', 'goToTab', 'dismissKeyboard', 'refreshStatus',
-    'setCard', 'diagOpen', 'deadline', 'SCORER_PIN', 'localStorage', 'sessionStorage',
+    // pinNow: the PIN every write carries (SCORER_PIN, or the tablet app's in embed mode).
+    'setCard', 'diagOpen', 'deadline', 'SCORER_PIN', 'pinNow', 'localStorage', 'sessionStorage',
     block + `
     return { uplinkUntil, uplinkSoon, uplinkView, renderUplink, renderUplinkBrief, refreshUplink, uplinkSendCode, uplinkLogIn,
       uplinkCheck, goToUplink,
       get UPLINK() { return UPLINK }, set UPLINK(v) { UPLINK = v }, get upStep() { return upStep } }`)
   const f = make($, api, (m, o) => io.toasts.push({ m, o }), { liveScoring }, LAST_STATUS, (t) => io.tabs.push(t), () => {},
-    () => { io.statusRefreshed++ }, (card, lvl) => { card.level = lvl }, () => false, (ms) => ({ ms }), '1234',
+    () => { io.statusRefreshed++ }, (card, lvl) => { card.level = lvl }, () => false, (ms) => ({ ms }), '1234', () => '1234',
     localStorage, localStorage)
   return { f, $, io, LAST_STATUS, nodes }
 }

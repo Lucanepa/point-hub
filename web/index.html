@@ -469,6 +469,19 @@
   /* Keep-awake is held by the app for as long as it runs (BRIDGE.md); a toggle there could only
      turn it off by mistake mid-match, so it is not offered. */
   html.in-app .js-awake{display:none!important}
+  /* Embed mode (android/BRIDGE.md, "Native Game tab"): from app 1.1.0 the app draws the header, the
+     tab bar and the Game tab itself, natively, and shows this page under its own tab bar for Link,
+     History, Diagnostics and Settings. So nothing that belongs to the Game tab or to the header is
+     drawn here at all: the top bar (the app's header carries the board dot, the set chip, the sport
+     and the lock), the Game tab, the countdown card, the "Board not connected" banner (the app shows
+     its own), the rotate tip, and the Game tab's dialogs — the boot lock gate and the PIN pad (the
+     app asks for the PIN), the sport and game pickers, the result, the beach serve order and the
+     match log. A rule here, not `hidden`: the script sets and clears `hidden` on most of these as
+     it goes, and no poll may ever put one back on screen. One plain selector list rather than
+     :is(), so an old WebView that does not know it still drops every one of them. */
+  html.embed .topbar,html.embed #tab-manual,html.embed #cd,html.embed #offline,html.embed #rotate,
+  html.embed #lockGate,html.embed #sportPicker,html.embed #gamePicker,html.embed #matchEnd,
+  html.embed #serveOrder,html.embed #liveLog,html.embed #pinModal{display:none!important}
   #appCard .appver{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800}
   #fsGate{position:fixed;inset:0;z-index:120;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg);color:var(--fg);text-align:center;padding:24px}
   body.fs-gate #fsGate{display:flex}
@@ -1855,6 +1868,26 @@
     location.reload();
   }
   if (IN_APP) document.documentElement.classList.add("in-app");
+  // Embed mode (BRIDGE.md, "Native Game tab"). From app 1.1.0 the app draws the Game tab itself —
+  // header, tab bar and scoring, natively — and shows this page under its tab bar for the other
+  // four tabs. It does that only for a page that asks, and this is the asking: once, here, before
+  // anything opens. Only a plain `true` counts. An older app (no such method), the admin menu's
+  // "Game screen: web console" switch, a denied origin and a throw all answer something else
+  // (appCall turns a throw into undefined), and then this console is the whole UI, exactly as
+  // before — so an app update and a board deploy can land in either order.
+  const EMBED = IN_APP && appCall("nativeGame") === true;
+  // The tab the app asked for last and the console moved to itself — see goToTab and
+  // pointhubEmbed.show, which uses it to recognise the app's echo of a move the console made.
+  let embedEcho = null;
+  if (EMBED) {
+    document.documentElement.classList.add("embed");
+    // The page opens on the Game tab, which embed mode never draws (the stylesheet). The app calls
+    // pointhubEmbed.show() before it makes this page visible; until then Link is the tab underneath,
+    // so nothing ever shows a blank page. Classes only, no click: the tab's own refreshes are run by
+    // that show(), not twice.
+    $$(".nav button[data-tab]").forEach((x) => x.classList.toggle("active", x.dataset.tab === "link"));
+    $$(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-link"));
+  }
   // A finger-driven browser (the tablet before it has the app): shows the "Get the app" links.
   try { if (matchMedia("(pointer: coarse)").matches) document.body.classList.add("touch"); } catch {}
 
@@ -1945,9 +1978,18 @@
 
   // Scorer lock: a PIN (when the board has one set) gates all scoring; stored per-device.
   let SCORER_PIN = ""; try { SCORER_PIN = localStorage.getItem("kscwScorerPin") || ""; } catch {}
+  // The PIN this tablet scores with. In embed mode the app holds it (BRIDGE.md, "Scorer PIN"): the
+  // PIN pad the scorer types into is the app's, so it is asked again for every write and every "do
+  // we have one?" — never a copy taken earlier, which the next unlock in the app would leave stale.
+  // SCORER_PIN is still kept and stored as before, so a console the admin switches back to the
+  // whole UI starts with the PIN it had.
+  const pinNow = () => (EMBED ? String(appCall("scorerPin") || "") : SCORER_PIN);
+  // …and every PIN the console learns or forgets goes to the app as well ("" = forgotten).
+  const tellAppPin = (pin) => { if (EMBED) appCall("setScorerPin", pin); };
   let pinRequired = false;
   let sheetLoading = false, sheetGameId = null;   // the match-sheet card (refreshSheet); renderStatus reads it
   let sheetDone = false, sheetAt = 0;             // …whether it has the whole answer, and when it last asked
+  let sheetPin = null;                            // …and with which PIN (embed mode, sheetPinStale)
   // The board's rule for a PIN, checked before anything is sent so the two can never disagree.
   const PIN_RE = /^\d{1,8}$/;
 
@@ -2054,7 +2096,7 @@
   }
   const postJSON = (path, obj) => api(path, {
     method: "POST",
-    headers: { "content-type": "application/json", "X-Scorer-Pin": SCORER_PIN },
+    headers: { "content-type": "application/json", "X-Scorer-Pin": pinNow() },
     body: JSON.stringify(obj || {}),
   });
 
@@ -2093,6 +2135,9 @@
   // opts.action = label for the button, which RUNS onFinish rather than just dismissing —
   // "✕" read as "cancel" when it actually means "start the next set now".
   function startCountdown(seconds, label, onFinish, opts = {}) {
+    // The countdowns are the Game tab's, and in embed mode that is the app's: a clock started here
+    // would run behind a tab nobody sees and put a second countdown on the panel.
+    if (EMBED) return;
     clearCountdown();
     cdOnFinish = onFinish || null;
     cdEnd = Date.now() + seconds * 1000;
@@ -2128,6 +2173,7 @@
   // score, and this prompt waits for the operator to press "Start interval". Only then does
   // the interval countdown (and the board's countdown screen) begin.
   function showSetEndPrompt(state) {
+    if (EMBED) return;   // the app's Game tab says SET ENDED (see startCountdown)
     clearCountdown();
     const sd = sides(state);
     $("#cdLabel").textContent = "SET ENDED";
@@ -2329,7 +2375,7 @@
     // Another game on the board (a schedule tap, the automatic pre-match, a reset): the card follows.
     // Until it has the whole answer (roster not open yet, no internet, schedule still loading) it
     // asks again every 20 s while the tab is open, so it fills in by itself.
-    if ($("#tab-link").classList.contains("active") && ((st.gameId ?? null) !== sheetGameId || (!sheetDone && Date.now() - sheetAt > 20000))) refreshSheet(false);
+    if ($("#tab-link").classList.contains("active") && ((st.gameId ?? null) !== sheetGameId || (!sheetDone && Date.now() - sheetAt > 20000) || sheetPinStale())) refreshSheet(false);
     // Where the scorer sits rides on every poll, so a change made on another tablet lands here too.
     // Not in the few seconds after this tablet saved it: a poll already in the air says the old one.
     if ((st.orientation === "behind" || st.orientation === "front") && st.orientation !== SETTINGS.orientation
@@ -2394,6 +2440,18 @@
     maybeAskEndMatch(st.state);
     pinRequired = !!st.pinRequired;
     updateLock();
+    if (EMBED) embedPinCheck();
+  }
+  // Embed mode: an unlock on the app's PIN pad never passes through tryUnlock or the boot gate, and
+  // after one of those the board was handed this tablet's clock (offerClock). So it is offered here
+  // whenever the PIN the app holds changes to one — still once a load, offerClock sees to that. (The
+  // match sheet's own re-ask is sheetPinStale.)
+  let embedPin = null;
+  function embedPinCheck() {
+    const pin = pinNow();
+    if (pin === embedPin) return;
+    embedPin = pin;
+    if (pin) offerClock();
   }
 
   // Sets needed to win: 2 for beach (best of 3), else the best-of setting (default 5 → 3).
@@ -3662,9 +3720,11 @@
       clearCountdown(); board.mode = r && r.prematch === true ? "clock" : "match";
       if (r) renderStatus(r);
       savedGame = null;
-      goToTab("manual");
+      // Embed mode: the Game tab, and the beach serve order with it, are the app's (showAppGame).
+      if (EMBED) showAppGame();
+      else goToTab("manual");
       toast(home + " vs " + away + " — ready" + (r && r.prematch === true ? "; the board shows the clock" : ""));
-      if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
+      if (!EMBED && curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
     } catch (e) {
       toast(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then tap the game again." : "Couldn't start that game: " + ((e && e.message) || e));
     } finally { if (btn) btn.disabled = false; }
@@ -3808,7 +3868,9 @@
       // Always 200 (a locked tablet gets a "PIN" button in the card, not the PIN pad popping up);
       // the header goes only when this tablet holds a PIN, so a locked one never counts as a guess.
       const headers = { "content-type": "application/json" };
-      if (SCORER_PIN) headers["X-Scorer-Pin"] = SCORER_PIN;
+      const pin = pinNow();
+      sheetPin = pin;
+      if (pin) headers["X-Scorer-Pin"] = pin;
       const r = await api("/api/gamesheet", { method: "POST", headers, body: JSON.stringify({ refresh: !!force }),
         signal: deadline(force ? 20000 : API_POST_TIMEOUT_MS) });
       renderSheet(r);
@@ -3817,6 +3879,14 @@
       sheetDone = false;
       renderSheet({ ok: false, error: "Couldn't load the game from the board." });
     } finally { sheetLoading = false; if (btn) btn.disabled = false; }
+  }
+  // Embed mode: the card on screen was asked for with another PIN than the one the app holds now.
+  // A roster refused for want of a PIN counts as a complete answer (sheetDone), and outside embed
+  // mode the unlock asks again itself (tryUnlock) — but an unlock on the app's PIN pad passes
+  // through nothing here, so the next status notices instead. Compared with the PIN the request
+  // was MADE with, so an unlock landing while one is in the air is not lost either.
+  function sheetPinStale() {
+    return EMBED && !$("#sheetWrap").hidden && pinNow() !== sheetPin;
   }
   $("#sheetRefreshBtn").addEventListener("click", () => refreshSheet(true));
 
@@ -4247,6 +4317,8 @@
   // NOT /api/manual: this must not switch the source, or opening the Game tab during a linked
   // LAN match would silently drop the link and strand the match on manual.
   async function showBoardLive() {
+    // Not in embed mode: opening the Game tab is the app's, and so is what it means for the panel.
+    if (EMBED) return;
     // Not from a pre-match: the hall keeps the clock until the warm-up ends or the scorer starts
     // the match, and opening the tab (which starting from the schedule does itself) is neither.
     if (prematchOn) return;
@@ -4484,6 +4556,9 @@
   let lastFinal = null;                   // the finished state, so the Final chip can reopen this
 
   async function maybeAskEndMatch(state) {
+    // Embed mode: the result is the app's Game tab's to offer. renderStatus still runs on every
+    // poll here (backups, the match sheet, the self-update), so this is where it stops.
+    if (EMBED) return;
     if (!state || endAsking) return;
     if (!matchOver(state)) {
       // A match is running again, so forget that we asked about the last one. This is what makes
@@ -4528,6 +4603,9 @@
   }
 
   function showMatchEnd(state) {
+    // Embed mode: not here — it would also put the result screen on the panel from a dialog nobody
+    // can see (pushResultToBoard). The app's Game tab owns the end of a match.
+    if (EMBED) return;
     if (!state) return;
     const nameA = (state.team_a_short || state.team_a_name || "TEAM A").toUpperCase();
     const nameB = (state.team_b_short || state.team_b_name || "TEAM B").toUpperCase();
@@ -4642,7 +4720,9 @@
     // "New game" already clears the saved slot server-side, so ending a match here is what stops
     // the finished one being offered back as "Continue" on the next visit to the game menu.
     if (!await gameChoice("new")) { meStatus("Couldn't start a new game — try the game menu.", true); return; }
-    clearCountdown(); closeMatchEnd(); goToTab("manual");
+    clearCountdown(); closeMatchEnd();
+    if (EMBED) { showAppGame(); return; }   // never shown in embed mode, but kept right
+    goToTab("manual");
     if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
   });
   $("#meClock").addEventListener("click", async () => {
@@ -4654,6 +4734,7 @@
   let ordSel = { first: "left", left: 1, right: 1 };
   const segPick = (groupId, match) => $$("#" + groupId + " button").forEach((b) => b.classList.toggle("on", match(b)));
   function openServeOrder() {
+    if (EMBED) return;   // the app's Game tab asks it (showTab("serve-order"), see showAppGame)
     const s = bvLast.s, raw = lastState || {};
     // Prefill from the live state: who's serving now + each pair's current server.
     ordSel.first = raw.serving_team === "right" ? "right" : "left";
@@ -4692,6 +4773,7 @@
   // has been played (so an idle refresh never pops it). Match start is handled by chooseSport.
   let beachSeenPoints = false, beachAskedSets = -1;
   function maybePromptServeOrder(state) {
+    if (EMBED) return;   // a Game-tab prompt: the app's in embed mode (see maybeAskEndMatch)
     if (SPORT !== "beach" || !state || !$("#serveOrder").hidden) return;
     if (!$("#cd").hidden) return; // wait out any countdown / set-interval / set-end overlay first
     const pts = num(state.points_a) + num(state.points_b);
@@ -4877,6 +4959,7 @@
     });
   }
   function openSportPicker() {
+    if (EMBED) return;   // the app's header carries the sport, and its Game tab the choice
     buildSportList();
     const st = $("#spStatus"); if (st) { st.hidden = true; st.classList.remove("err"); st.textContent = ""; }
     spBusy(false);
@@ -4953,10 +5036,21 @@
     return s.teams.a + " " + s.points.a + "–" + s.points.b + " " + s.teams.b + sets + when;
   }
   function goToTab(name) {
+    // Embed mode: the Game tab is the app's, so going there is asking the app to show it.
+    if (EMBED && name === "manual") { appCall("showTab", "game"); return; }
     const b = $$('.nav button[data-tab="' + name + '"]')[0];
     if (b) b.click();
+    // …and any other move the console makes itself, the app's tab bar follows. The app highlights
+    // the tab and calls pointhubEmbed.show(name) back; embedEcho tells show() that this one is
+    // already on screen, so its refreshes don't run twice.
+    if (EMBED && b) { embedEcho = name; appCall("showTab", name); }
   }
+  // Embed mode: a game the console has just set up (from the schedule, or the result's New game)
+  // is scored on the app's Game tab. Beach opens it with the serve order up, which is what the
+  // console's own Game tab asked first.
+  const showAppGame = () => appCall("showTab", curSport() === "beach" ? "serve-order" : "game");
   async function openGamePicker() {
+    if (EMBED) return;   // never in embed mode: the game menu is the app's Game tab
     closeSportPicker();
     $("#gpTitle").textContent = sportLabel(curSport());
     gpStatus(""); gpBusy(false);
@@ -5015,7 +5109,9 @@
     if (savedGame && !await askConfirm("Start a new game? The saved match (" + describeSaved(savedGame) + ") will be deleted.", { yes: "Start new game", danger: true })) return;
     if (!await gameChoice("new")) return;
     clearCountdown();   // any SET ENDED / interval card was about the match just discarded
-    closeGamePicker(); goToTab("manual");
+    closeGamePicker();
+    if (EMBED) { showAppGame(); return; }   // never shown in embed mode, but kept right
+    goToTab("manual");
     // Beach opens with a serve order. Asked HERE rather than on the sport switch, so continuing
     // an existing beach match doesn't re-ask something already decided mid-match.
     if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
@@ -5341,7 +5437,7 @@
   }
   const uplinkPost = (path, obj, ms) => api(path, {
     method: "POST",
-    headers: { "content-type": "application/json", "X-Scorer-Pin": SCORER_PIN },
+    headers: { "content-type": "application/json", "X-Scorer-Pin": pinNow() },
     body: JSON.stringify(obj || {}),
     signal: deadline(ms),
   });
@@ -5443,6 +5539,11 @@
   // From the banner or the header chip: straight to the card, and show where it is.
   function goToUplink() {
     goToTab("settings");
+    flashUplink();
+  }
+  // The card itself: scrolled to and flashed. Apart from goToUplink so that the app's
+  // pointhubEmbed.show("settings", "uplink") — which has already opened Settings — can do just this.
+  function flashUplink() {
     const card = $("#uplinkCard");
     if (!card) return;
     card.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -5466,9 +5567,11 @@
       uplinkError(e && e.status === 404 ? "This board cannot open the login page yet — it needs an update." : uplinkFail(e));
     } finally { uplinkBusy(false, btn); }
   });
-  // Back from the login page: land on Settings, where the card says whether it worked.
+  // Back from the login page: land on Settings, where the card says whether it worked. Through
+  // goToTab, which is the same click on the Settings button — and in embed mode also tells the app,
+  // whose tab bar would otherwise still show the tab the scorer left from.
   if (typeof location !== "undefined" && location.hash === "#settings") setTimeout(() => {
-    try { $("#tabSettingsBtn").click(); history.replaceState(null, "", location.pathname + location.search); } catch {}
+    try { goToTab("settings"); history.replaceState(null, "", location.pathname + location.search); } catch {}
   }, 0);
   $("#upReveal").addEventListener("click", () => { upReveal = true; uplinkError(""); renderUplink(); const i = $("#upPhone"); i.value = ""; i.focus(); });
   $("#upRestart").addEventListener("click", () => {
@@ -5623,6 +5726,7 @@
       // sides can never overwrite each other mid-flight either.
       const saved = await postJSON("/api/settings", { [key]: next });
       SETTINGS = saved;
+      if (EMBED) appCall("settingsChanged");   // the app's Game tab reads /api/settings again
       const el = fontInput(side);               // keep the Settings tab honest
       if (el) { el.value = String(saved[key]); syncStepper(el.closest(".stepper")); }
       // The size the board ACTUALLY paints comes back on the next status (a long name still shrinks
@@ -5679,8 +5783,11 @@
       SETTINGS = await postJSON("/api/settings", patch);
       orientSavedAt = Date.now();
       applyOrientation();
-      if (newPin) { SCORER_PIN = newPin; try { localStorage.setItem("kscwScorerPin", newPin); } catch {} }
+      if (newPin) { SCORER_PIN = newPin; try { localStorage.setItem("kscwScorerPin", newPin); } catch {} tellAppPin(newPin); }
       pinRequired = !!SETTINGS.pinSet; updateLock();
+      // Embed mode: the app's Game tab runs on these too (timeouts, limits, orientation, name
+      // sizes) and reads them again when told. Told right away, before anything below can fail.
+      if (EMBED) appCall("settingsChanged");
       const st = $("#setStatus");
       st.textContent = "Saved.";
       st.classList.remove("err"); st.classList.add("saved");
@@ -5716,6 +5823,8 @@
       SETTINGS = await postJSON("/api/settings", { clearPin: true });
       if (SETTINGS.pinSet) throw new Error("The board kept the PIN — update the appliance and try again.");
       SCORER_PIN = ""; try { localStorage.removeItem("kscwScorerPin"); } catch {}
+      tellAppPin("");
+      if (EMBED) appCall("settingsChanged");
       pinRequired = false; updateLock();
       toast("PIN removed — scoring is open");
     } catch (e) { toast(e.message); }
@@ -5768,6 +5877,9 @@
       const on = b.dataset.themePick === cur;
       b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
     });
+    // Embed mode: the app's native screens wear the same theme (BRIDGE.md, setTheme). This runs at
+    // boot, after every pick and when another tab changes it — every moment the theme can move.
+    if (EMBED) appCall("setTheme", cur);
   }
   $$("[data-theme-pick]").forEach((b) => b.addEventListener("click", () => {
     if (window.phTheme) window.phTheme.set(b.dataset.themePick);
@@ -5781,7 +5893,7 @@
     const pc = $("#pinClear"); if (pc) pc.hidden = !pinRequired;
     const b = $("#lockBtn"); if (!b) return;
     b.hidden = !pinRequired;
-    const open = !SCORER_PIN;
+    const open = !pinNow();
     if (b._open !== open) { b.innerHTML = open ? IC.lock : IC.lockOpen; b._open = open; } // avoid per-poll SVG flash
     b.classList.toggle("on", pinRequired && open);
     // What it says is what tapping it does. It used to claim "tap to change PIN" while unlocked
@@ -5792,7 +5904,12 @@
     b.setAttribute("aria-label", b.title);
     document.body.classList.toggle("locked", pinRequired && open);
   }
-  function openPinModal() { $("#pinModal").hidden = false; const i = $("#pinInput"); i.value = ""; setTimeout(() => i.focus(), 30); }
+  function openPinModal() {
+    // Embed mode: the PIN pad is the app's, and pinRejected() is how it is asked for — "the PIN is
+    // wrong or missing" is exactly the case of every caller (the match sheet's "Enter scorer PIN").
+    if (EMBED) { appCall("pinRejected"); return; }
+    $("#pinModal").hidden = false; const i = $("#pinInput"); i.value = ""; setTimeout(() => i.focus(), 30);
+  }
   function closePinModal() { $("#pinModal").hidden = true; }
   // --- handing the board our clock ----------------------------------------
   // The board has no RTC: fake-hwclock only replays its last hourly save, so a board booted
@@ -5823,7 +5940,12 @@
       // risked mid-rally. Clear the latch so the next unlock tries again instead of giving up for
       // the rest of the session.
       if (r && r.reason === "busy") clockOffered = false;
-    } catch { /* the board is entitled to refuse; never let this block scoring */ }
+    } catch (e) {
+      // The board is entitled to refuse; never let this block scoring. In embed mode the offer can
+      // be made with a PIN the app holds that the board does not take (embedPinCheck): the 403 has
+      // sent the app to ask for the right one, and that one gets to try again.
+      if (EMBED && e && e.status === 403) clockOffered = false;
+    }
   }
   function renderClock(c) {
     const el = $("#dClock"); if (!el || !c) return;
@@ -5843,6 +5965,7 @@
       const r = await api("/api/unlock", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pin }) });
       if (r && r.ok) {
         SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
+        tellAppPin(pin);
         closePinModal(); updateLock(); toast("Unlocked — you can score");
         if ($("#tab-link").classList.contains("active")) refreshSheet(false);
         offerClock();
@@ -5852,16 +5975,22 @@
   // A rejected action means our PIN is wrong/absent — forget it and prompt again.
   function onPinRejected() {
     SCORER_PIN = ""; try { localStorage.removeItem("kscwScorerPin"); } catch {}
+    // Embed mode: the PIN is the app's, so is the pad. pinRejected() makes it forget the PIN and ask
+    // (BRIDGE.md) — said before updateLock, so the lock reads the PIN as gone. Never the console's
+    // own pad, which embed mode does not draw. (No setScorerPin("") on top: pinRejected is the
+    // forgetting, and the app would only hear the same news twice.)
+    if (EMBED) appCall("pinRejected");
     pinRequired = true; updateLock();
-    if ($("#pinModal").hidden) openPinModal();
+    if (!EMBED && $("#pinModal").hidden) openPinModal();
   }
   // Locked -> ask for the PIN. Unlocked -> hand the tablet on: forget the PIN this device is
   // holding, so the next person has to enter it. Confirmed, because doing it mid-rally by accident
   // would put the PIN pad between the scorer and the next point.
   $("#lockBtn").addEventListener("click", async () => {
-    if (!SCORER_PIN) return openPinModal();
+    if (!pinNow()) return openPinModal();
     if (!(await askConfirm("Lock scoring on this device? You'll need the PIN to score again.", { yes: "Lock scoring" }))) return;
     SCORER_PIN = ""; try { localStorage.removeItem("kscwScorerPin"); } catch {}
+    tellAppPin("");
     updateLock();
     toast("Locked — the PIN is needed to score");
   });
@@ -6225,6 +6354,14 @@
   const hideGate = () => { if (lockGate) lockGate.hidden = true; };
   const showGate = () => { if (lockGate) { lockGate.hidden = false; const i = $("#lgPin"); if (i) { i.value = ""; setTimeout(() => i.focus(), 50); } } };
   async function bootLock() {
+    if (EMBED) {
+      // Embed mode: never the gate — the app asks for the PIN, on its own pad. What the gate's way
+      // through also did still happens: an open board is handed this tablet's clock now, and a
+      // locked one once the app holds a PIN (embedPinCheck, on the first status).
+      hideGate();
+      try { const s = await api("/api/settings"); if (!s.pinSet) offerClock(); } catch {}
+      return;
+    }
     let pinSet = false;
     try { const s = await api("/api/settings"); pinSet = !!s.pinSet; } catch { hideGate(); return; } // board down → don't trap the operator (writes stay server-gated anyway)
     // No PIN configured → open access, and /api/clock is open too, so still offer the clock.
@@ -6241,6 +6378,7 @@
       const r = await postJSON("/api/unlock", { pin });
       if (r && r.ok) {
         SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
+        tellAppPin(pin);
         pinRequired = true; updateLock();
         $("#lgErr").textContent = ""; hideGate(); offerClock();
       } else { $("#lgErr").textContent = "Wrong PIN — try again."; el.value = ""; el.focus(); }
@@ -6276,8 +6414,45 @@
   $$("[data-font]").forEach((b) => b.addEventListener("click",
     () => nudgeFont(panelSide(b.dataset.font), Number(b.dataset.d))));
   loadSettings();
-  // Present the sport picker first (landing), with the current sport pre-highlighted.
-  loadSportList().then(openSportPicker);
+  // Present the sport picker first (landing), with the current sport pre-highlighted. Not in embed
+  // mode, where the app's Game tab is the landing — but the list is still loaded, for the sport
+  // names the other tabs use (Settings' per-sport note).
+  if (EMBED) loadSportList();
+  else loadSportList().then(openSportPicker);
+
+  // --- embed mode: the app's way in (BRIDGE.md, "The console's global") ------------------------
+  // Defined only in embed mode, so its mere presence tells the app this page asked for it. The app
+  // calls show() to put one of the console's tabs under its tab bar: before it first makes this
+  // page visible, whenever the scorer taps one of those tabs, and in answer to a showTab() of ours.
+  // The same as a tap on that tab's own button, so its wiring runs (the refreshes, startDiag and
+  // stopDiag). It never calls showTab back — the app is the one moving. hide(): see below. Anything but the four tabs
+  // the console still draws is ignored: "game" and "serve-order" are the app's own.
+  if (EMBED) {
+    const EMBED_TABS = ["link", "history", "diag", "settings"];
+    window.pointhubEmbed = Object.freeze({
+      show(name, anchor) {
+        if (typeof name !== "string" || !EMBED_TABS.includes(name)) return;
+        const b = $$('.nav button[data-tab="' + name + '"]')[0];
+        if (!b) return;
+        // The app echoing a move the console made itself (goToTab): already on screen and already
+        // refreshed. Any other call clears the note, so a missed echo can't swallow a later tap.
+        const echo = embedEcho === name;
+        embedEcho = null;
+        if (!(echo && b.classList.contains("active"))) b.click();
+        // Settings ▸ Hall internet, as the console's own uplink chip and banner do (goToUplink) —
+        // minus its goToTab, which would only tell the app about the move it just made.
+        if (anchor === "uplink" && name === "settings") flashUplink();
+      },
+      // The app's own Game tab went in front. This page stays loaded underneath (it keeps polling
+      // for the backups and its own update), but what only a VISIBLE tab needs stops: Diagnostics'
+      // one-second /api/system poll and its log stream. The next show() of that tab starts them
+      // again, through the same button click as ever.
+      hide() {
+        embedEcho = null;
+        stopDiag();
+      },
+    });
+  }
   startPolling();
 })();
 </script>

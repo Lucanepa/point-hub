@@ -51,7 +51,8 @@ console.log('\n[3] the lock button does what its tooltip says')
   ok(!/\$\("#lockBtn"\)\.addEventListener\("click", openPinModal\)/.test(js),
     'tapping it while unlocked no longer just re-opens the unlock pad')
   ok(/tap to lock this device/.test(js), 'the unlocked tooltip offers locking')
-  ok(/if \(!SCORER_PIN\) return openPinModal\(\)/.test(js), 'and locked still goes straight to the PIN pad')
+  // pinNow() is SCORER_PIN outside the tablet app's embed mode, and the app's PIN inside it.
+  ok(/if \(!pinNow\(\)\) return openPinModal\(\)/.test(js), 'and locked still goes straight to the PIN pad')
 }
 
 console.log('\n[4] the name box cannot send lower case to the panel')

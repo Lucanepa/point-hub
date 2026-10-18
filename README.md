@@ -182,6 +182,11 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   of `web/index.html` before the first paint; `/logs` follows it. The looks are token sets on
   `:root`; e-ink carries what colour alone used to (which team, a limit, the chosen tab) as fill
   versus outline, dashes and underlines, and drops shadows and motion. `npm run test:theme`.
+- **Inside the Android app** (`android/`, contract `android/BRIDGE.md`) — the app shows this console
+  in a kiosk WebView. From app 1.1.0 it draws the header, the tab bar and the Game tab natively, and
+  the console runs in *embed mode* under the app's tab bar for Link, History, Diagnostics and
+  Settings, with the scorer PIN and the theme shared with the app (BRIDGE.md, "Native Game tab";
+  `npm run test:embed`).
 - **The tablet's app** — with `TLS_CERT`/`TLS_KEY` set (`provisioning/setup-console-tls.sh`),
   `/api/status` carries `httpsOrigin` (the cert's first DNS name + `HTTPS_PORT`; `null` without
   TLS or once the cert has expired), and a console opened on `http://172.24.1.1:8890` moves itself
