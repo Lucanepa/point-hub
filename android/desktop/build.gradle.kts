@@ -77,6 +77,8 @@ compose.desktop {
                 dockName = "Point Hub"
                 iconFile.set(project.file("icons/point-hub.icns"))
                 bundleID = "ch.kscw.pointhub"
+                // Chromium in this JBR's CEF needs macOS 12 (Monterey) or newer.
+                minimumSystemVersion = "12.0"
                 appCategory = "public.app-category.sports"
             }
         }
