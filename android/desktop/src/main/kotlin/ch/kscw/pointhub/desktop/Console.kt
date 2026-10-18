@@ -64,6 +64,11 @@ object Cef {
         System.getenv("POINTHUB_CEF_ARGS")?.split(' ')?.filter { it.isNotBlank() }?.let { args += it }
         val settings = config.cefSettings
         settings.windowless_rendering_enabled = true
+        // No Chromium sandbox: its setuid helper is not installed setuid by a package, unprivileged
+        // user namespaces are off on Ubuntu 24.04 and absent in Flatpak, and either failure is a
+        // crash at start. What makes that safe here is Console's lockdown: the page can only ever
+        // be the scoreboard's own (every other navigation, request and popup is refused).
+        settings.no_sandbox = true
         settings.cache_path = Paths.cefCache.absolutePath
         settings.log_severity = CefSettings.LogSeverity.LOGSEVERITY_ERROR
         settings.locale = "en-US"
@@ -158,10 +163,16 @@ class Console(private val host: ConsoleHost) {
         }, true)
         client.addMessageRouter(router)
         client.addRequestHandler(object : CefRequestHandlerAdapter() {
+            // Only the scoreboard's own pages, in any frame: a link to anywhere else does nothing.
+            override fun onBeforeBrowse(b: CefBrowser, f: CefFrame?, request: CefRequest, userGesture: Boolean, isRedirect: Boolean): Boolean =
+                !permitted(request.url)
+
             override fun getResourceRequestHandler(
                 b: CefBrowser, f: CefFrame?, request: CefRequest, isNavigation: Boolean, isDownload: Boolean,
                 initiator: String?, disableDefault: BoolRef,
             ): CefResourceRequestHandler? {
+                // Anything not from the board (a script, an image, a fetch elsewhere) is never loaded.
+                if (!permitted(request.url)) return BLOCK
                 // The console page itself, fetched here and handed over with the bridge in it.
                 if (!isNavigation || f == null || !f.isMain || request.method != "GET") return null
                 if (!isConsoleDocument(request.url)) return null
@@ -169,6 +180,10 @@ class Console(private val host: ConsoleHost) {
                     override fun getResourceHandler(b: CefBrowser, f: CefFrame, r: CefRequest): CefResourceHandler = ConsoleDocument(r.url)
                 }
             }
+        })
+        // No second windows (target=_blank, window.open): the console never needs one.
+        client.addLifeSpanHandler(object : org.cef.handler.CefLifeSpanHandlerAdapter() {
+            override fun onBeforePopup(b: CefBrowser, f: CefFrame?, url: String?, frameName: String?): Boolean = true
         })
         client.addLoadHandler(object : CefLoadHandlerAdapter() {
             override fun onLoadingStateChange(b: CefBrowser, isLoading: Boolean, canGoBack: Boolean, canGoForward: Boolean) {
@@ -182,6 +197,19 @@ class Console(private val host: ConsoleHost) {
                 if (f.isMain) SwingUtilities.invokeLater { if (status in 200..399) loadError = null }
             }
         })
+    }
+
+    /** The board's own URLs, and the inert local ones a page may use (about:blank, data:, its blobs). */
+    private fun permitted(url: String?): Boolean {
+        if (url == null) return false
+        val u = url.trim().lowercase()
+        if (u == "about:blank" || u.startsWith("data:")) return true
+        if (u.startsWith("blob:")) return isBoard(url.trim().substring(5))
+        return isBoard(url)
+    }
+
+    private val BLOCK = object : CefResourceRequestHandlerAdapter() {
+        override fun onBeforeResourceLoad(b: CefBrowser, f: CefFrame?, r: CefRequest): Boolean = true
     }
 
     private fun isBoard(url: String?): Boolean {

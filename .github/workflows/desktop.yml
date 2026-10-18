@@ -84,6 +84,10 @@ jobs:
         working-directory: android
         run: ./gradlew --no-daemon :shared:desktopTest $(for t in ${{ matrix.tasks }}; do printf ':desktop:%s ' "$t"; done)
 
+      - name: Finish the .deb (the /usr/bin/point-hub command)
+        if: matrix.platform == 'linux'
+        run: android/desktop/packaging/finish-deb.sh android/desktop/build/compose/binaries/main/deb/*.deb
+
       - uses: actions/upload-artifact@v4
         with:
           name: point-hub-${{ matrix.platform }}
