@@ -42,7 +42,7 @@ jobs:
             jbr: osx-aarch64
             tasks: packageDmg
           - platform: macos-x64
-            os: macos-13
+            os: macos-15-intel
             jbr: osx-x64
             tasks: packageDmg
     runs-on: ${{ matrix.os }}
@@ -73,11 +73,16 @@ jobs:
           want=$(cut -d' ' -f1 jbr.tar.gz.checksum)
           if command -v sha512sum >/dev/null; then have=$(sha512sum jbr.tar.gz | cut -d' ' -f1); else have=$(shasum -a 512 jbr.tar.gz | cut -d' ' -f1); fi
           [ "$want" = "$have" ] || { echo "JBR checksum mismatch"; exit 1; }
-          mkdir -p "$RUNNER_TEMP/jbr" && tar xzf jbr.tar.gz -C "$RUNNER_TEMP/jbr"
-          home=$(ls -d "$RUNNER_TEMP"/jbr/*/ | head -1)
+          # Git Bash on Windows: tar wants a POSIX path, Gradle a Windows one.
+          tmp=$RUNNER_TEMP
+          command -v cygpath >/dev/null && tmp=$(cygpath -u "$RUNNER_TEMP")
+          mkdir -p "$tmp/jbr" && tar xzf jbr.tar.gz -C "$tmp/jbr"
+          home=$(ls -d "$tmp"/jbr/*/ | head -1)
+          home=${home%/}
           [ -d "$home/Contents/Home" ] && home="$home/Contents/Home"
-          echo "POINTHUB_JBR=${home%/}" >> "$GITHUB_ENV"
-          "${home%/}/bin/java" -version
+          "$home/bin/java" -version
+          command -v cygpath >/dev/null && home=$(cygpath -w "$home")
+          echo "POINTHUB_JBR=$home" >> "$GITHUB_ENV"
 
       - name: Build
         shell: bash
