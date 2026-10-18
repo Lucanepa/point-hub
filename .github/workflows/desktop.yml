@@ -1,0 +1,129 @@
+name: Desktop app
+
+# Builds the Point Hub desktop app (android/desktop, Compose Desktop on JetBrains Runtime with
+# JCEF) for Linux (.deb, .rpm), Windows (.msi) and macOS (.dmg, Apple Silicon and Intel; ad-hoc
+# signed, not notarized).
+#   - push a tag like `desktop-v1.1.0` (desktop/version.properties must say the same): builds and
+#     publishes a GitHub release with every package;
+#   - a pull request touching the apps, or a manual run: builds only, as workflow artifacts.
+# Nothing here signs anything for the package repos: that is publish-pkgs.sh on lenovoserver.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'desktop-v*'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/desktop.yml'
+
+env:
+  JBR: jbrsdk_jcef-21.0.11
+  JBR_BUILD: b1163.116
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            # The oldest supported Ubuntu: jpackage writes the .deb's Depends from the build
+            # machine's package names, and these also install on newer releases.
+            os: ubuntu-22.04
+            jbr: linux-x64
+            tasks: packageDeb packageRpm
+          - platform: windows
+            os: windows-latest
+            jbr: windows-x64
+            tasks: packageMsi
+          - platform: macos-arm64
+            os: macos-14
+            jbr: osx-aarch64
+            tasks: packageDmg
+          - platform: macos-x64
+            os: macos-13
+            jbr: osx-x64
+            tasks: packageDmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version check (tag builds)
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        shell: bash
+        run: |
+          want=${GITHUB_REF_NAME#desktop-v}
+          have=$(sed -n 's/^VERSION_NAME=//p' android/desktop/version.properties | tr -d '\r ')
+          [ "$want" = "$have" ] || { echo "tag $GITHUB_REF_NAME but desktop/version.properties says $have"; exit 1; }
+
+      # Gradle itself runs on a stock JDK; the desktop module compiles and packages on JBR.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: JetBrains Runtime with JCEF
+        shell: bash
+        run: |
+          name="$JBR-${{ matrix.jbr }}-$JBR_BUILD.tar.gz"
+          url="https://cache-redirector.jetbrains.com/intellij-jbr/$name"
+          curl -fsSL -o jbr.tar.gz "$url"
+          curl -fsSL -o jbr.tar.gz.checksum "$url.checksum"
+          want=$(cut -d' ' -f1 jbr.tar.gz.checksum)
+          if command -v sha512sum >/dev/null; then have=$(sha512sum jbr.tar.gz | cut -d' ' -f1); else have=$(shasum -a 512 jbr.tar.gz | cut -d' ' -f1); fi
+          [ "$want" = "$have" ] || { echo "JBR checksum mismatch"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/jbr" && tar xzf jbr.tar.gz -C "$RUNNER_TEMP/jbr"
+          home=$(ls -d "$RUNNER_TEMP"/jbr/*/ | head -1)
+          [ -d "$home/Contents/Home" ] && home="$home/Contents/Home"
+          echo "POINTHUB_JBR=${home%/}" >> "$GITHUB_ENV"
+          "${home%/}/bin/java" -version
+
+      - name: Build
+        shell: bash
+        working-directory: android
+        run: ./gradlew --no-daemon :shared:desktopTest $(for t in ${{ matrix.tasks }}; do printf ':desktop:%s ' "$t"; done)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: point-hub-${{ matrix.platform }}
+          path: |
+            android/desktop/build/compose/binaries/main/deb/*.deb
+            android/desktop/build/compose/binaries/main/rpm/*.rpm
+            android/desktop/build/compose/binaries/main/msi/*.msi
+            android/desktop/build/compose/binaries/main/dmg/*.dmg
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Name the macOS images by architecture
+        shell: bash
+        run: |
+          v=${GITHUB_REF_NAME#desktop-v}
+          for a in arm64 x64; do
+            f=$(ls dist/point-hub-macos-$a/*.dmg | head -1)
+            mv "$f" "dist/Point-Hub-$v-macos-$a.dmg"
+          done
+          find dist -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*.dmg' \) -exec ls -la {} \;
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Point Hub desktop ${{ github.ref_name }}
+          files: |
+            dist/**/*.deb
+            dist/**/*.rpm
+            dist/**/*.msi
+            dist/*.dmg
+          body: |
+            Point Hub for Linux, Windows and macOS: the KSCW scoreboard's console, with the native Game tab.
+
+            - **Linux:** `sudo apt install point-hub` from https://get.openvolley.app, or the .deb / .rpm below.
+            - **Windows:** the .msi.
+            - **macOS:** the .dmg for your Mac (arm64 = Apple Silicon). It is not notarized: the first time, right-click the app and choose Open.

@@ -73,6 +73,8 @@ compose.desktop {
                 dirChooser = true
             }
             macOS {
+                packageName = "Point Hub"
+                dockName = "Point Hub"
                 iconFile.set(project.file("icons/point-hub.icns"))
                 bundleID = "ch.kscw.pointhub"
                 appCategory = "public.app-category.sports"
@@ -97,6 +99,25 @@ afterEvaluate {
             layout.buildDirectory.dir("compose/tmp/main/runtime").get().asFile.walkTopDown()
                 .filter { it.isDirectory && it.name == "locales" }
                 .forEach { dir -> dir.listFiles()?.filter { it.name.endsWith(".pak") && it.name !in keep }?.forEach { it.delete() } }
+        }
+    }
+}
+
+// macOS: JBR keeps Chromium (the CEF framework and its helper apps) in its bundle's Frameworks/,
+// outside the jcef module, so jlink leaves it behind. JCEF looks for it next to java.home, which
+// in the app is Contents/runtime/Contents/Home: copy it there, then ad-hoc sign the app again (no
+// Apple developer account; the release notes say how to open it).
+afterEvaluate {
+    tasks.named("createDistributable") {
+        doLast {
+            if (!System.getProperty("os.name").lowercase().contains("mac") || jbr == null) return@doLast
+            val apps = layout.buildDirectory.dir("compose/binaries/main/app").get().asFile
+            val app = apps.listFiles()?.firstOrNull { it.name.endsWith(".app") } ?: return@doLast
+            val frameworks = File(jbr).parentFile.resolve("Frameworks")
+            if (!frameworks.isDirectory) throw GradleException("no Frameworks/ next to POINTHUB_JBR ($jbr): use the JBR bundle's Contents/Home")
+            val dst = File(app, "Contents/runtime/Contents/Frameworks")
+            providers.exec { commandLine("ditto", frameworks.absolutePath, dst.absolutePath) }.result.get()
+            providers.exec { commandLine("codesign", "--force", "--deep", "--sign", "-", app.absolutePath) }.result.get()
         }
     }
 }
