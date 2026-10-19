@@ -169,7 +169,7 @@ jobs:
             dist/**/*.msi
             dist/*.dmg
           body: |
-            Point Hub for Linux, Windows and macOS: the KSCW scoreboard's console, with the native Game tab.
+            Point Hub for Linux, Windows and macOS: the LedBox scoreboard's console, with the native Game tab.
 
             - **Linux:** `sudo apt install point-hub` from https://get.openvolley.app, or the .deb / .rpm below.
             - **Windows:** the .msi.

@@ -49,7 +49,7 @@ compose.desktop {
             targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.Msi, TargetFormat.Dmg)
             packageName = "point-hub"
             packageVersion = appVersion
-            description = "Point Hub: the console of the KSCW LedBox scoreboard"
+            description = "Point Hub: the console of the LedBox scoreboard"
             vendor = "KSC Wiedikon"
             copyright = "© 2026 KSC Wiedikon. MIT License."
             licenseFile.set(rootProject.file("../LICENSE"))

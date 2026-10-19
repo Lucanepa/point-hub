@@ -35,7 +35,7 @@ cat > "$work/root/usr/share/applications/point-hub.desktop" <<'DESKTOP'
 Type=Application
 Name=Point Hub
 GenericName=Scoreboard console
-Comment=The console of the KSCW LedBox scoreboard
+Comment=The console of the LedBox scoreboard
 Exec=/opt/point-hub/bin/point-hub
 Icon=point-hub
 Terminal=false
