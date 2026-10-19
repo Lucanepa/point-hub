@@ -119,9 +119,15 @@ jobs:
           path: ${{ runner.temp }}/smoke-${{ matrix.platform }}.png
           if-no-files-found: ignore
 
-      - name: Finish the .deb (the /usr/bin/point-hub command)
+      - name: Finish the .deb (the /usr/bin/point-hub command, a Depends every distro has)
         if: matrix.platform == 'linux'
         run: android/desktop/packaging/finish-deb.sh android/desktop/build/compose/binaries/main/deb/*.deb
+
+      # Not only on this runner's Ubuntu: apt installs it, from its Depends alone, on the distros
+      # people have, and it starts there (Debian 12 and 13, Ubuntu 22.04 and 24.04).
+      - name: Install and start the .deb on Debian and Ubuntu
+        if: matrix.platform == 'linux'
+        run: android/desktop/packaging/test-deb.sh android/desktop/build/compose/binaries/main/deb/*.deb
 
       - uses: actions/upload-artifact@v4
         with:

@@ -47,6 +47,10 @@ cd android
 - **Runtime image:** jlink makes it from the JBR with the modules listed in `build.gradle.kts`. The build puts
   the executable bit back on Chromium's helpers, and keeps only the en, de, fr and it locales.
 - **Size:** about 150 MB per package, most of it Chromium (`libcef` alone is 225 MB unpacked).
+- **The .deb:** `packaging/finish-deb.sh` finishes jpackage's: the `point-hub` command, the menu entry, and a
+  Depends made from the libraries the bundle links (jpackage's own list only installs on the distro it was
+  built on). `packaging/test-deb.sh` installs and starts it in clean Debian 12/13 and Ubuntu 22.04/24.04
+  containers (docker).
 - **CI:** `.github/workflows/desktop.yml` builds the packages for every platform.
 
 ## Settings
