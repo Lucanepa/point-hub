@@ -7,6 +7,15 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <!-- The native header and tab bar (game/ui/Shell.kt), shown once the console page has agreed
+         to be embedded (BRIDGE.md "Native Game tab"). It also hosts the native dialogs, so they
+         work over the console's own tabs too. Gone for a console that never asked. -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/shellHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -16,6 +25,13 @@
             android:id="@+id/webHolder"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
+
+        <!-- The native Game tab, over the (embedded) console while it is the chosen tab. -->
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/gameView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
 
         <!-- Board link lost while a console page is alive: a small note, not a cover. Not
              clickable, so touches go through to the console under it. -->

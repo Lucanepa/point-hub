@@ -94,6 +94,7 @@ class AdminActivity : ComponentActivity() {
             append("Board: ").append(if (net is NetState.Found) "${net.origin} via ${net.kind.name.lowercase()}" else "not found").append('\n')
             append("Wi-Fi: ${app.prefs.ssid}").append(if (app.prefs.wifiConfigured) "" else " (not configured)").append('\n')
             app.prefs.overrideOrigin?.let { append("URL override: $it\n") }
+            append("Game screen: ").append(if (app.prefs.nativeGame) "native" else "web console").append('\n')
             append("Kiosk: ${Kiosk.lockTaskLabel(this@AdminActivity)}")
             append(if (owner) " · device owner" else "").append(if (home) " · home screen" else "").append('\n')
             append("Update: ").append(when (upd) {
@@ -114,6 +115,13 @@ class AdminActivity : ComponentActivity() {
         }
         button("Check for app update") { app.updates.check(force = true) }
         button("Reload console") { setResult(RESULT_RELOAD); finish() }
+        // The fallback for a match night: if the native Game tab ever misbehaves, the console's own
+        // web Game tab is one tap (and a reload) away.
+        button(if (app.prefs.nativeGame) "Game screen: native (switch to the web console)" else "Game screen: web console (switch to native)") {
+            app.prefs.nativeGame = !app.prefs.nativeGame
+            setResult(RESULT_RELOAD)
+            render()
+        }
         button("Wi-Fi setup") { startActivity(Intent(this, SetupActivity::class.java)) }
         button("Board URL override") { editOverride() }
         button("Change admin PIN") { Ui.changePin(this) { Toast.makeText(this, "PIN changed", Toast.LENGTH_SHORT).show() } }

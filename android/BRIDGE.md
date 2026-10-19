@@ -137,6 +137,71 @@ app does not know the console's data model. To show something useful, **include 
 - `state` is `"live"` or `"final"` (other values are shown as they are).
 - Without a `summary`, the offline screen shows only the backup's name and time.
 
+## Native Game tab (embed mode)
+
+From app 1.1.0 the app draws the **Game tab itself**, natively, together with the header and the
+tab bar. The console keeps every other tab (Link, History, Diagnostics, Settings), embedded under
+the app's tab bar. Both talk to the board through the same API (`/api/status`, `/api/action`, …);
+the board does not know or care which one is scoring.
+
+### How the two find out about each other
+
+The console asks once, at boot, before it opens anything:
+
+```js
+const EMBED = appCall("nativeGame") === true
+```
+
+- `true`: the app owns the Game tab. The console enters **embed mode** (below).
+- `false`, `undefined` (an older app, no method) or a throw: the console is the whole UI, exactly
+  as before.
+
+The app shows its native screens only for a page that asked. A console too old to ask is shown
+whole, as before, so an app update and a board deploy can land in either order. The admin menu's
+**Game screen: web console** switch makes `nativeGame()` answer `false` (a fallback if the native
+screen ever misbehaves at a match).
+
+### Embed mode, the console's side
+
+- **Hidden:** the top bar (brand, board dot, set chip, sport badge, nav, lock), the Game tab, the
+  countdown card, the `#offline` banner, and the rotate tip. The app's header shows all of that.
+- **Not run:** the boot lock gate (the app asks for the PIN), the sport picker on load, the
+  end-of-match prompt, the beach serve-order prompt, the countdowns, and `showBoardLive()`. These
+  are the Game tab's business.
+- **Tabs:** the app shows a console tab by calling `window.pointhubEmbed.show(name)`. The console
+  moves itself to another tab by calling `PointHubApp.showTab(name)`. The app then highlights that
+  tab and calls `show(name)` back. For the Game tab, that is `showTab("game")`.
+- **Scorer PIN:** the app keeps it. The console reads `PointHubApp.scorerPin()` for every write it
+  makes, and reports a PIN it learned or forgot with `setScorerPin(pin)`. A 403 on a console write
+  calls `pinRejected()`, and the app opens its PIN pad.
+- **Theme:** Settings ▸ Theme stays in the console. The console reports the current theme at boot
+  and on every change with `setTheme(theme)`, and the app's native screens follow it.
+- **Settings:** after a successful save the console calls `settingsChanged()`, so the native Game
+  tab reloads `/api/settings` (timeouts, limits, orientation, name sizes).
+- Backups (`saveBackup`), the schedule copy (`saveSchedule`), the console's self-update reload and
+  everything else in this document are unchanged.
+
+### Methods (console → app)
+
+| Call | Returns | Denied value | Meaning |
+|---|---|---|---|
+| `nativeGame()` | boolean | `false` | `true` = the app draws the Game tab; enter embed mode. |
+| `showTab(name)` | void | (nothing) | Show tab `name`: `"game"`, `"link"`, `"history"`, `"diag"` or `"settings"`. `"serve-order"` shows the Game tab with the beach serve order open (after a beach game was started from the schedule). |
+| `scorerPin()` | string | `""` | The scorer PIN this tablet holds, `""` for none. |
+| `setScorerPin(pin)` | void | (nothing) | The console learned a PIN (an unlock, a new PIN saved in Settings), or forgot it (`""`). At most 8 characters; anything else is ignored. |
+| `pinRejected()` | void | (nothing) | A console write got a 403: the PIN is wrong or missing. The app forgets it and asks for it. |
+| `settingsChanged()` | void | (nothing) | The board's settings were saved from the console. |
+| `setTheme(theme)` | void | (nothing) | `"light"`, `"dark"` or `"eink"`. Anything else counts as `"light"`. |
+
+### The console's global (app → console)
+
+`window.pointhubEmbed`, defined only in embed mode:
+
+| Call | Meaning |
+|---|---|
+| `show(name, anchor?)` | Show console tab `name` (`"link"`, `"history"`, `"diag"`, `"settings"`). `anchor` `"uplink"` scrolls Settings to Hall internet, as the console's own uplink chip does. |
+| `hide()` | The app's Game tab went in front. The page stays loaded (backups, self-update), but stops what only a visible tab needs: Diagnostics' poll and log stream. The next `show()` starts them again. |
+
 ## Things the console should know
 
 - **Storage is per origin.** `localStorage` and IndexedDB are separate for each origin, so the
