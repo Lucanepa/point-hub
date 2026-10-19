@@ -148,7 +148,9 @@ jobs:
         run: |
           v=${GITHUB_REF_NAME#desktop-v}
           for a in arm64 x64; do
-            f=$(ls dist/point-hub-macos-$a/*.dmg | head -1)
+            # upload-artifact keeps the folders below the patterns' common root: .../dmg/X.dmg
+            f=$(find dist/point-hub-macos-$a -name '*.dmg' | head -1)
+            [ -n "$f" ] || { echo "no .dmg for macos-$a" >&2; exit 1; }
             mv "$f" "dist/Point-Hub-$v-macos-$a.dmg"
           done
           find dist -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*.dmg' \) -exec ls -la {} \;
