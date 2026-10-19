@@ -82,7 +82,7 @@ android {
 
     buildFeatures {
         buildConfig = true
-        // The native Game tab (game/); everything else stays classic views.
+        // The native shell is hosted in ComposeViews (its code is in :shared).
         compose = true
     }
 
@@ -119,19 +119,17 @@ dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    // The native Game tab. Foundation + material3 for dialogs and text fields; no navigation, no
-    // icons artifact (the few glyphs are drawn from Lucide path data in game/ui/Icons.kt).
-    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
-    implementation(composeBom)
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
+    // The native Game tab, header and tabs (Compose), shared with the desktop app.
+    implementation(project(":shared"))
     implementation("androidx.activity:activity-compose:1.10.1")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    implementation("androidx.compose.ui:ui-tooling-preview")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     // Android's org.json is a stub on the JVM; the real one for the adapter tests.
     testImplementation("org.json:json:20240303")
+}
+
+// The platform's own org.json, never a second copy in the APK (the JVM unit tests keep theirs).
+configurations.configureEach {
+    if (!name.contains("Test", ignoreCase = true)) exclude(group = "org.json", module = "json")
 }

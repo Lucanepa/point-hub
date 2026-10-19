@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextMeasurer
@@ -38,7 +37,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import ch.kscw.pointhub.R
 import ch.kscw.pointhub.game.BoardMode
 import ch.kscw.pointhub.game.Countdown
 import ch.kscw.pointhub.game.Rules
@@ -56,6 +54,10 @@ import kotlin.math.floor
  * sport-specific sections differ. Non-match screens follow the board: the names + VS screen, the
  * clock, a break countdown.
  */
+
+/** The club crest (web/kscw_logo.svg as a PNG), from the platform's resources. */
+@Composable
+expect fun crestImage(): ImageBitmap
 
 private const val BW = 192f
 private const val BH = 64f
@@ -140,7 +142,7 @@ fun BoardMirror(
     val c = Ph.colors
     val eink = c.eink
     val measurer = rememberTextMeasurer(cacheSize = 64)
-    val crest = ImageBitmap.imageResource(R.drawable.kscw_crest)
+    val crest = crestImage()
 
     // A changed score blinks on the mirror, as it does on the panel.
     val blink1 = remember { Animatable(1f) }

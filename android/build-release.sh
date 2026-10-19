@@ -103,7 +103,7 @@ write_props "$new_code" "$new_name" "$released"
 echo "==> Building Point Hub $new_name (versionCode $new_code; last released: $last)"
 
 # ---- 3. Build, lint and test ----
-./gradlew --no-daemon clean lintRelease testReleaseUnitTest assembleRelease
+./gradlew --no-daemon clean lintRelease testReleaseUnitTest :shared:desktopTest assembleRelease
 
 # ---- 4. Collect and verify ----
 mkdir -p dist

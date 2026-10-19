@@ -111,7 +111,8 @@ fun GameScreen(g: GameController, onUplink: () -> Unit) {
                 // with no room at all would fall back to the full width and spill over the cards.
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().alpha(dim).grayscale(grey), contentAlignment = Alignment.Center) {
                     val labelH = 24.dp
-                    val h = minOf(maxHeight - labelH, maxWidth / 3)
+                    // Capped: on a big desktop window a wall-sized mirror pushes nothing useful.
+                    val h = minOf(maxHeight - labelH, maxWidth / 3, 200.dp)
                     if (h >= 26.dp) Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(6.dp),

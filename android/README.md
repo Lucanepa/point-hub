@@ -60,7 +60,7 @@ drawn natively (see "Native Game tab" below).
 - **JS bridge.** `window.PointHubApp` lets the console save backups and the schedule on the tablet.
   See [BRIDGE.md](BRIDGE.md).
 - **Native Game tab (from 1.1.0).** The header, the tab bar and the Game tab are drawn natively
-  (Jetpack Compose, `app/src/main/java/ch/kscw/pointhub/game/`). They talk to the board's API
+  (Compose, in the `shared/` module, which the desktop app in `desktop/` uses too). They talk to the board's API
   directly, exactly as the console's own Game tab does. Link, History, Diagnostics and Settings stay
   the console's, embedded under the native header. The console has to ask for this
   (BRIDGE.md, "Native Game tab"): a board running an older console gets the whole web console, as
@@ -71,7 +71,7 @@ drawn natively (see "Native Game tab" below).
     web console again, with its own Game tab. Use it if the native screen ever misbehaves at a
     match; the same button switches back.
   - The rules (set labels, limits, who won, the match log's wording) are ported one for one from
-    `web/index.html` into `game/Rules.kt`, `game/TeamColors.kt` and `game/GameController.kt`, with
+    `web/index.html` into `shared/…/game/Rules.kt`, `TeamColors.kt` and `GameController.kt`, with
     the console's function names in the comments. Change both together.
 
 ## Build
@@ -326,7 +326,12 @@ app/src/main/java/ch/kscw/pointhub/
   store/                backups + rotation (pure), schedule, admin PIN (pure), Keystore secret, prefs
   update/               version.json model (pure), sha256 (pure), download + install
   kiosk/                lock task / home / boot, 5-tap detector (pure)
-  game/                 native Game tab: board model, rules, colours (pure), BoardApi, GameController
-  game/ui/              Compose: header + tabs (Shell), GameScreen, BoardMirror, dialogs, theme tokens
+  AndroidGameHost       the tablet's side of the shared Game tab (prefs, the bound board network)
+shared/                 Kotlin Multiplatform (Android + desktop JVM), shared with desktop/:
+  src/jvmShared/…/game/     board model, rules, colours (pure), BoardApi, GameController
+  src/jvmShared/…/game/ui/  Compose: header + tabs (Shell), GameScreen, BoardMirror, dialogs, theme
+  src/jvmShared/…/store/    backups + rotation, the schedule copy (pure)
+  src/desktopTest/          JVM tests for the rules and colours (./gradlew :shared:desktopTest)
+desktop/                the desktop app (desktop/README.md)
 app/src/test/…          JVM unit tests for everything marked pure
 ```
