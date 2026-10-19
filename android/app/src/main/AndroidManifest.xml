@@ -92,19 +92,20 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Setup and admin are plain forms: any orientation (typing a Wi-Fi password is easier
+             upright), following the device's rotation lock. Rotating only relayouts, so typed
+             text, open PIN dialogs and in-flight saves survive it. -->
         <activity
             android:name=".SetupActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="false"
-            android:screenOrientation="sensorLandscape"
             android:theme="@style/Theme.PointHub.Admin"
-            android:windowSoftInputMode="adjustResize"
-            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".AdminActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="false"
-            android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.PointHub.Admin"
-            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
+            android:theme="@style/Theme.PointHub.Admin" />
 
         <receiver
             android:name=".AdminReceiver"
