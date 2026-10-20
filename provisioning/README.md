@@ -105,6 +105,61 @@ does, the portal keeps the board's MAC logged in for about 24 h. The number is n
   `grep options /etc/resolv.conf` while `hall-uplink` is up (`--hall` prints it when it re-applies
   to an active connection) — the options only apply if NetworkManager is writing `resolv.conf`.
 
+### The school network SCHULEN_KTZH — `--login`
+
+```bash
+ssh -t pi@172.24.1.1 bash ledbox-bridge/provisioning/setup-wlan1-client.sh --login   # asks, then ONE attempt
+ssh -t pi@172.24.1.1 bash ledbox-bridge/provisioning/setup-wlan1-client.sh --forget-login
+```
+
+`172.24.1.1` is the board on its own AP (`ledbox_C0270`). The path is **relative, not `~/…`**: an
+unquoted `~` is expanded by the *laptop's* shell into the laptop user's home, and the board then
+says "No such file or directory". `bash` in front means the file's exec bit does not matter.
+
+The canton's school Wi-Fi at KWI (LEUnet Schule). Settings from the MBA's LEUnet handbook (V2.2,
+11 Jul 2024, `help.mba.zh.ch`, "Anmeldung SCHULEN_KTZH für Android"): **WPA2-Enterprise,
+EAP-TTLS / PAP**, server certificate from **SwissSign Gold CA - G2** for the domain **`ktzh.ch`**,
+username `vorname.nachname.schule` (…`.kwi`), the Sek II intranet password.
+
+- **One attempt, never a guessing loop.** The handbook: wrong credentials, too many attempts and a
+  password change each **lock the account for up to 8 hours**. So the method is fixed, and the
+  username is checked for the `first.last.school` shape *before* anything is sent — a swapped pair
+  is refused outright (it would send the password as the identity, which goes out in clear), an
+  odd-looking username needs `ODD_USERNAME=1`. Capitals are fine; a non-ASCII letter is refused
+  with a hint (ü → ue).
+- **"One attempt" takes two NM settings.** With a saved password, NM does not stop at the first EAP
+  failure: it waits out `802-1x.auth-timeout` (25 s default) while wpa_supplicant re-enables the
+  network 10 s after the reject and sends the password again — two strikes from one
+  `nmcli connection up`. And a profile that has connected before goes round that up to 1 + 3
+  times (`connection.auth-retries`). So the profile carries **`auth-timeout=12`** (a TTLS/PAP
+  exchange takes 2–5 s; the re-send cannot start before ~12 s) and **`auth-retries=1`**, and every
+  `--login` deletes any earlier `hall-login` first, so a refusal ends as "no secrets" instead of
+  replaying a saved password. A refused login deletes the profile again (Ctrl-C mid-attempt too).
+- **The failure report says whether a strike was spent.** It reads wpa_supplicant's journal as well
+  as NM's: a certificate refusal (`TLS-CERT-ERROR`) means the password was never sent and a retry
+  is safe; `EAP-FAILURE` lines are refusals by the server, each one counting. Read it before
+  trying again.
+- **The certificate check is mandatory.** PAP sends the password itself inside the TLS tunnel, so
+  without the check any AP named SCHULEN_KTZH would read it. The CA is `swisssign-gold-ca-g2.pem`
+  shipped next to the script (deploy copies both), else the system's copy; its SHA-256 fingerprint
+  is checked either way, and it is then installed at `/etc/NetworkManager/certs/` for the profile —
+  Mozilla is retiring roots of Gold G2's age, and an `apt upgrade` dropping the system symlink must
+  not silently break the uplink later. The board's clock has to be roughly right for the
+  certificate dates — the script stops on a clock before 2026.
+- **If the account's password changes, run `--forget-login` straight away**, then `--login` with
+  the new one: until then every boot presents the old password — about 2 strikes per boot even
+  with `auth-retries=1` (0 would mean unlimited), after which NM blocks it until the next reboot.
+- Saved as its own NM connection **`hall-login`**: priority 8 (above Free_WLAN_KTZH's 5, below the
+  house's 10), metric 55, the same DNS options as `hall-uplink`, `band=a` when seen on 5 GHz.
+- **Run it over the AP or the cable, not Tailscale** — the attempt drops wlan1, which would cut a
+  session riding on it; the script refuses (`FORCE=1` overrides that check and nothing else).
+- Credentials are asked for (password not echoed — hence `ssh -t`) or read from `LOGINFILE`
+  (default `/run/ledbox/login`: username line 1, password line 2, `0600`), shredded on every exit.
+
+Another 802.1X network: `--login "SSID"` with `METHOD=eap:phase2` (default `peap:mschapv2`) and,
+when known, `DOMAIN=` (system CAs) or `CA=`. Still one attempt. WPA-Personal: the password is the
+passphrase. Open: that is a web login page — capture it as a HAR, like Free_WLAN_KTZH.
+
 ### Adapter notes
 
 Tested with a Netgear A6210 (MT7612U, USB `0846:9053`). No driver install: `mt76x2u` is in-kernel

@@ -27,6 +27,9 @@
 # android/build-release.sh) when there is one, to $DEST/android/dist — where the bridge serves it at
 # /app/pointhub.apk and /app/version.json, and the tablets update themselves from it.
 #
+# Also ships provisioning/setup-wlan1-client.sh and swisssign-gold-ca-g2.pem to $DEST/provisioning —
+# run ON the board, at the hall, from a laptop on its AP (provisioning/README.md, --login).
+#
 # NOT shipped: the firmware's crest+QR idle screen (lives on the board's own disk and survives
 # power cycles — see firmware/idle-crest-qr/), settings.json (the board's operator preferences)
 # and data/ (its match history).
@@ -67,6 +70,11 @@ ssh "${J[@]}" "$BOARD" "B=$DEST/.deploy-backups/$STAMP
   true"
 
 echo "== 3) copy bridge sources + control UI =="
+# The uplink script, so the board always carries the current one — it is run ON the board, often
+# at the hall with only a laptop on the AP, which is no time to find it was never copied. First in
+# this step, so a checkout missing the .pem fails before src/ and web/ are overwritten, not after.
+ssh "${J[@]}" "$BOARD" "mkdir -p $DEST/provisioning"
+scp "${J[@]}" "$REPO"/provisioning/setup-wlan1-client.sh "$REPO"/provisioning/swisssign-gold-ca-g2.pem "$BOARD:$DEST/provisioning/"
 scp "${J[@]}" "$REPO"/src/*.js "$BOARD:$DEST/src/"
 # The WHOLE web dir, not just *.html. It used to be the HTML alone, so every asset the console
 # references — favicon.svg, apple-touch-icon.png — simply never arrived, and the board answered
