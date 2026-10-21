@@ -130,4 +130,5 @@ settable **live** over `SetSections`; `x`/`y` are only honoured from the layout 
 The board is its own Tailscale node and has its own Wi-Fi uplink, so it no longer depends on the
 `openvolley` Pi for anything. Put the board behind a `ledbox` alias in `~/.ssh/config`; addresses
 are deliberately not committed here. Deploy with `./deploy-board.sh`, or over the cable with
-`BOARD=pi@192.168.5.1 JUMP=openvolley ./deploy-board.sh`.
+`BOARD=pi@192.168.5.1 JUMP=openvolley ./deploy-board.sh`. Run `./drift-check.sh` (same `BOARD`/`JUMP`) before
+either: it stops if the board has edits the repo never had, which a deploy would overwrite.
