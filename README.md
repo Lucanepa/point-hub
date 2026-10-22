@@ -145,6 +145,22 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   `kscw_result`); an undo of the end brings the score back. When the scorer deletes the match
   (`match-deleted`), the board unlinks (mode `idle`) and holds the clock — or keeps the result if
   it is already up — instead of freezing the last score. Relay `error` frames are logged.
+- **Scorer PIN — mandatory** — the board's AP passphrase is on the panel, so a real boot requires a
+  scorer PIN. A board that has none yet (every board on the day this shipped) refuses writes from
+  its Wi-Fi with *"This board has no scorer PIN yet — set one in Settings before scoring."* and the
+  console shows **Set a scorer PIN** in front of everything (PIN typed twice) until someone sets
+  one — that one save needs no PIN. In the tablet app the console comes to the front by itself to
+  do it; the app's own screens can only type a PIN. A tablet on the **cable** is never blocked
+  (`CABLE_TRUST`) and only reminded. The PIN can be changed (with the current one), not removed.
+  Lost PIN: on the board, remove `scorerPin` from `settings.json` (in `STATE_DIR`) and restart the
+  bridge — it is back in the setup, and the next operator sets a new one. Keep the PIN in the vault
+  and on the coaches' sheet, not on the public hall card.
+- **Which board** — `/api/status.board` names the board beside `fontsize`: `id` (settings.json
+  `boardId`, set on the board only and never through the API since tablets pair against it, else
+  the hostname), `idSource`, `label` (`boardLabel`, e.g. "Court 2", else the id) and `caps`:
+  `sports`, `panel` `{ width, height, source }` read from the firmware's `setting.ini` [DISPLAY]
+  (192×64 when absent), `renderer` `{ kind: 'vendor' | 'openscore', version, device }` from the
+  board's own Init reply (null before the first handshake). Nothing existing was renamed.
 
 - **Undo** — one button beside the set strip takes back the last action, whatever it was
   (point, timeout, sub, swap, next set, reset), up to 30 steps; it reads what it will undo
