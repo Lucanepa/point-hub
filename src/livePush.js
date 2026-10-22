@@ -7,7 +7,14 @@
 // no fan-out — the app polls that row every ~3s. (This replaced an earlier
 // Cloudflare Durable-Object relay design, which needed a PAID Workers plan.)
 //
+// When the board knows WHICH game it is showing (started from the schedule, or a linked OpenVolley
+// match whose number is in the season copy) it also writes that game's own row, `game-<games.id>`,
+// home/away instead of left/right — the row wiedisync's "Watch live" and result prefill read. See
+// liveFixture.js for the two rows and why the second one is turned around.
+//
 //   Manual/Beach/Basketball Source --state--> SourceManager --> livePush --PATCH--> Directus
+//                                                                  board row   <channel>   A = left
+//                                                                  fixture row game-<id>   A = home
 //
 // Collection, permissions and token: wiedisync/src/modules/live/DIRECTUS-SETUP.md
 //
@@ -17,7 +24,9 @@
 //     LIVE_PUBLISH_TOKEN   static token of the `ledbox-board@kscw.ch` user, whose
 //                          "KSCW LedBox Publisher" policy grants create+read+update
 //                          on `live_scores` ONLY. Prod and dev tokens differ.
-//     LIVE_CHANNEL         the row's primary key (default 'kscw' — one board, one row)
+//     LIVE_CHANNEL         the board row's primary key. Unset: 'kscw' on the club's first board
+//                          (the C0270), derived from the host name on any other — see
+//                          liveFixture.js boardChannel. Never a 'game-…' channel.
 //     LIVE_COLLECTION      Directus collection (default 'live_scores')
 //
 // DISTINCT from the LAN relay vars (RELAY_URL / RELAY_HTTP_URL, the OpenVolley
@@ -33,6 +42,7 @@ import { BEACH } from './beachSource.js'
 import { setDur, durField } from './manualSource.js'
 import { BASKETBALL } from './basketballSource.js'
 import { log as logStore } from './logStore.js'
+import { DEFAULT_CHANNEL, boardChannel, fixtureChannel, homeSide, toHomeAway } from './liveFixture.js'
 
 // Publishing used to be visible only under DEBUG=1, on stdout. It now always goes to the log
 // store, which owns the level — so "is /live stale?" is answerable from the /logs page instead
@@ -40,8 +50,10 @@ import { log as logStore } from './logStore.js'
 const plog = logStore.child('livePush')
 
 const DEFAULTS = {
-  channel: 'kscw', collection: 'live_scores', historyCollection: 'live_history', sport: 'volleyball',
+  channel: DEFAULT_CHANNEL, collection: 'live_scores', historyCollection: 'live_history', sport: 'volleyball',
   timeoutMs: 2000, debounceMs: 150,
+  // How long a fixture row Directus refused (see writeFixture) is left alone before the next try.
+  refusedMs: 30 * 60 * 1000,
   // The history POST gets far longer than the live PATCH. A live write that times out is simply
   // sent again (it overwrites one row), but an archive that times out may already be committed and
   // is NOT sent again (see archive()) — so every abort there is a history row possibly lost, and a
@@ -228,6 +240,12 @@ export function createLivePush(opts = {}) {
   const unarchived = new Map()
   let failures = 0 // consecutive failed flushes, for the retry backoff
   let generation = 0 // bumped by detach() so a flush already in flight does not re-arm afterwards
+  // Which game a state belongs to (liveFixture.js fixtureOf), from the appliance — the control
+  // server knows the schedule game the board was set up for and maps a linked match's number. null
+  // = unscheduled: the board row only. A throw in there is a bug, never a reason to lose the board
+  // row, so it reads as unscheduled.
+  const fixtureFor = typeof opts.fixture === 'function' ? opts.fixture : () => null
+  const refused = new Map() // fixture channel -> ms epoch until which it is left alone (writeFixture)
 
   // Kept for the incidental call sites; the interesting ones log structured data directly.
   function log(...a) { plog.debug(a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')) }
@@ -271,7 +289,11 @@ export function createLivePush(opts = {}) {
       plog.debug('push skipped', { configured: enabled, publishing: enabled && isLive(), hasState: !!state })
       return
     }
-    pending = { state, event, match: matchInstance }
+    // The fixture is looked up NOW, with the state, like the match instance above: by the time the
+    // debounce fires, the board may already be set up for the next game.
+    let fixture = null
+    try { fixture = fixtureFor(state) || null } catch (err) { plog.debug(`fixture lookup failed: ${err && err.message}`, { error: err && err.message }) }
+    pending = { state, event, match: matchInstance, fixture }
     if (inFlight) return // settle() sends it when the running flush ends
     // A newer state cuts a retry backoff short. The backoff exists to stop hammering a Directus
     // that keeps failing with the SAME payload; a new point is new information, and waiting out up
@@ -301,6 +323,59 @@ export function createLivePush(opts = {}) {
     try { if (res && res.body && typeof res.arrayBuffer === 'function') await res.arrayBuffer() } catch { /* ignore */ }
   }
 
+  /**
+   * One write of a fixture row (`game-<id>`): PATCH it, or create it when Directus says it is not
+   * there. Its own timeout, so a slow fixture write never eats the board row's. Resolves to whether
+   * the round is worth sending again (the network, a 5xx) — never throws.
+   *
+   * Directus answers 403, not 404, for an item the token cannot see, and the row of a game nobody
+   * has published yet is exactly that, so both mean "create it". A refusal of the create, or any
+   * other 4xx, means this board may not write this row: wiedisync has not opened `game-*` rows to
+   * the board's policy (it is pinned to the board's own channel), or the game is gone (`game_id` is
+   * a foreign key). Neither changes within a match, so the row is left alone for refusedMs — said
+   * once, not on every point — while the board row carries on exactly as before.
+   */
+  async function writeFixture(channel, body) {
+    const until = refused.get(channel)
+    if (until && Date.now() < until) return false
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.token}` }
+    const coll = encodeURIComponent(cfg.collection)
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), cfg.timeoutMs)
+    try {
+      let res = await fetch(`${base}/items/${coll}/${encodeURIComponent(channel)}`, {
+        method: 'PATCH', headers, body: JSON.stringify(body), signal: ctrl.signal,
+      })
+      if (res.status === 403 || res.status === 404) {
+        await drain(res)
+        res = await fetch(`${base}/items/${coll}`, {
+          method: 'POST', headers, body: JSON.stringify({ channel, ...body }), signal: ctrl.signal,
+        })
+        if (res.ok) plog.info(`fixture row created: ${channel}`, { channel, game: body.game_id })
+      }
+      await drain(res)
+      if (res.ok) {
+        refused.delete(channel)
+        plog.debug(`published ${channel} ${body.points_a}-${body.points_b}`, { channel, status: body.status, score: `${body.points_a}-${body.points_b}`, sets: `${body.sets_won_a}-${body.sets_won_b}` })
+        return false
+      }
+      if (retryable(res.status)) {
+        plog.warn(`directus responded ${res.status}`, { status: res.status, channel, collection: cfg.collection })
+        return true
+      }
+      refused.set(channel, Date.now() + cfg.refusedMs)
+      plog.warn(`directus refused the fixture row ${channel} (${res.status}) — publishing to ${cfg.channel} only; trying it again in ${Math.ceil(cfg.refusedMs / 60000)} min`, {
+        status: res.status, channel, board: cfg.channel, collection: cfg.collection,
+      })
+      return false
+    } catch (err) {
+      plog.warn(`publish failed: ${err && err.message}`, { error: err && err.message, channel })
+      return true
+    } finally {
+      clearTimeout(t)
+    }
+  }
+
   async function flush() {
     timer = null
     backingOff = false
@@ -320,12 +395,18 @@ export function createLivePush(opts = {}) {
       // /live froze on the last published score for the rest of the process, with nothing said.
       // A throw here is a bug in the state, not the network, so it is never retried.
       const row = toRow(payload.state, payload.event, sport)
+      // The fixture's row, when the board knows the game AND can tell which team is home (see
+      // liveFixture.js homeSide). A row that names its game is always home/away — the fixture row,
+      // and the history row below — so one that cannot be turned around safely names none.
+      const side = payload.fixture ? homeSide(payload.state, payload.fixture) : null
+      const fixture = side ? { id: payload.fixture.id, channel: fixtureChannel(payload.fixture.id), side } : null
+      const historyRow = fixture ? { ...toHomeAway(row, side), game_id: fixture.id } : row
 
       // Queued BEFORE the live write and independently of it: whether the result reaches history
       // must not depend on whether one PATCH got through. The latest final row of the instance
       // wins, so a set-score correction made while the archive is still failing is what lands.
       if (row.status === 'final' && !archived.has(payload.match)) {
-        unarchived.set(payload.match, row)
+        unarchived.set(payload.match, historyRow)
         if (unarchived.size > 5) unarchived.delete(unarchived.keys().next().value)
       } else if (row.status !== 'final') {
         // A correction took the match back out of 'final' (remove-set) before its archive got
@@ -365,6 +446,20 @@ export function createLivePush(opts = {}) {
         retry = true
       }
 
+      // The fixture's own row, AFTER the board's: every reader today is on the board row. Not before
+      // the match has begun — a pre-match sits at 0-0 an hour before kickoff, and "Watch live" on a
+      // game nobody is playing yet helps no one — and never a board back at 0-0: that is a reset or
+      // the next game being set up, and it must not wipe the finished result the prefill reads.
+      // One write per flush, so in link mode too there is exactly one writer of this row: OpenVolley
+      // publishes to the LAN relay and its own cloud, never to wiedisync (checked against
+      // openvolley main, 3.0.1) — the board mirroring it is the only way a match scored there
+      // reaches "Watch live" and the result prefill. If OpenVolley ever writes `game-<id>` itself,
+      // the linked case has to stand down here (see controlServer liveFixture).
+      if (fixture && !isFresh(payload.state)) {
+        const body = { ...toHomeAway(row, fixture.side), game_id: fixture.id, source: `board:${cfg.channel}` }
+        if (await writeFixture(fixture.channel, body)) retry = true
+      }
+
       // Archive the result the FIRST time a match reads as finished, so /live can
       // show recent matches once this row is overwritten by the next game. History is
       // append-only (the board has create and nothing else, so it cannot clean up
@@ -383,7 +478,16 @@ export function createLivePush(opts = {}) {
       // ⚠ The counter is in memory: restarting the appliance while a finished match is
       // still on the board can archive it a second time.
       for (const [match, finalRow] of [...unarchived]) {
-        const status = await archive(finalRow)
+        let status = await archive(finalRow)
+        // `game_id` is newer than live_history's schema on some Directus: one that does not know the
+        // column (or will not take it from this token) refuses the whole row. A 400/403 is a final
+        // answer — nothing was stored — so that row is sent once more without it: a result without
+        // its game beats no result at all.
+        if (finalRow.game_id != null && (status === 400 || status === 403)) {
+          const { game_id: _game, ...plain } = finalRow
+          plog.warn(`archive refused with game_id (${status}) — sending it without`, { status, game: finalRow.game_id, collection: cfg.historyCollection })
+          status = await archive(plain)
+        }
         if (status >= 200 && status < 300) { unarchived.delete(match); markArchived(match) }
         else if (archiveRetryable(status)) retry = true
         else {
@@ -477,11 +581,13 @@ export function createLivePush(opts = {}) {
           period: row.period,
           set_results: row.set_results,
           ts: row.ts,
+          // The fixture, when the board knew it — and then team A is home (see flush()).
+          ...(row.game_id != null ? { game_id: row.game_id } : {}),
         }),
         signal: ctrl.signal,
       })
       await drain(res)
-      if (res.ok) plog.info('archived finished match', { channel: cfg.channel, score: `${row.sets_won_a}-${row.sets_won_b}`, teams: `${row.team_a_short}/${row.team_b_short}` })
+      if (res.ok) plog.info('archived finished match', { channel: cfg.channel, score: `${row.sets_won_a}-${row.sets_won_b}`, teams: `${row.team_a_short}/${row.team_b_short}`, game: row.game_id ?? null })
       else plog.warn(`archive responded ${res.status}`, { status: res.status, collection: cfg.historyCollection })
       // A stub or proxy that says ok without a number is still a success.
       return res.ok ? (res.status || 200) : (res.status || 0)
@@ -522,7 +628,7 @@ export function createLivePush(opts = {}) {
       const s = source.getState()
       if (s) push(s, readEvent(source))
     }
-    plog.info(`attached — ${base}/items/${cfg.collection}/${cfg.channel} (${sport})`, {
+    plog.info(`attached — ${base}/items/${cfg.collection}/${cfg.channel} (${sport}), plus game-<id> while the game is known`, {
       target: `${base}/items/${cfg.collection}/${cfg.channel}`, sport, publishing: isLive(),
     })
   }
@@ -536,7 +642,7 @@ export function createLivePush(opts = {}) {
     generation++ // a flush still in flight must not re-arm a retry for a detached publisher
   }
 
-  return { enabled, sport, push, attach, detach, isLive }
+  return { enabled, sport, channel: cfg.channel, push, attach, detach, isLive }
 }
 
 /**
@@ -544,15 +650,18 @@ export function createLivePush(opts = {}) {
  * DIRECTUS_URL or LIVE_PUBLISH_TOKEN is unset, so wiring it in is always safe —
  * a board with no cloud config behaves exactly as it does today.
  */
-export function livePushFromEnv(env = process.env, sport = DEFAULTS.sport, isLive) {
+export function livePushFromEnv(env = process.env, sport = DEFAULTS.sport, isLive, { fixture, hostname } = {}) {
   return createLivePush({
     url: env.DIRECTUS_URL,
     token: env.LIVE_PUBLISH_TOKEN,
-    channel: env.LIVE_CHANNEL || DEFAULTS.channel,
+    channel: boardChannel(env, hostname, {
+      onRefused: (c) => plog.warn(`LIVE_CHANNEL=${c} ignored — game-… rows are wiedisync's per-game rows; publishing to this board's own channel instead`, { refused: c }),
+    }),
     collection: env.LIVE_COLLECTION || DEFAULTS.collection,
     historyCollection: env.LIVE_HISTORY_COLLECTION || DEFAULTS.historyCollection,
     sport,
     isLive,
+    fixture,
     debug: /^(1|true|yes|on)$/i.test(String(env.DEBUG || '')),
   })
 }

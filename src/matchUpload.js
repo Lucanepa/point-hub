@@ -21,18 +21,20 @@
 // Best-effort like livePush: nothing here may reach the scoreboard. Every failure is logged and
 // swallowed; a match that fails stays on the list for the next round.
 //
-// Config — the same env as livePush (DIRECTUS_URL, LIVE_PUBLISH_TOKEN, LIVE_CHANNEL), plus
+// Config — the same env as livePush (DIRECTUS_URL, LIVE_PUBLISH_TOKEN, LIVE_CHANNEL — and the same
+// board channel when LIVE_CHANNEL is unset, liveFixture.js boardChannel), plus
 //   LIVE_MATCH_LOG_COLLECTION   Directus collection (default 'live_match_logs')
 // ─────────────────────────────────────────────────────────────────────────────
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { log as logStore } from './logStore.js'
+import { DEFAULT_CHANNEL, boardChannel } from './liveFixture.js'
 
 const ulog = logStore.child('matchUpload')
 
 const DEFAULTS = {
-  channel: 'kscw', collection: 'live_match_logs',
+  channel: DEFAULT_CHANNEL, collection: 'live_match_logs',
   timeoutMs: 15000, // a 5-setter's log is ~60 KB; a 4G uplink on armhf needs the room
   intervalMs: 5 * 60 * 1000, // the regular sweep, which is also what picks up a returning uplink
   retryBaseMs: 30 * 1000, retryMaxMs: 5 * 60 * 1000,
@@ -199,11 +201,11 @@ export function createMatchUpload(opts = {}) {
 }
 
 /** Built from the environment; a disabled no-op when DIRECTUS_URL or LIVE_PUBLISH_TOKEN is unset. */
-export function matchUploadFromEnv(env = process.env, { isLive, file } = {}) {
+export function matchUploadFromEnv(env = process.env, { isLive, file, hostname } = {}) {
   return createMatchUpload({
     url: env.DIRECTUS_URL,
     token: env.LIVE_PUBLISH_TOKEN,
-    channel: env.LIVE_CHANNEL || DEFAULTS.channel,
+    channel: boardChannel(env, hostname),
     collection: env.LIVE_MATCH_LOG_COLLECTION || DEFAULTS.collection,
     isLive,
     file,
