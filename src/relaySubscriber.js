@@ -17,9 +17,37 @@
 //   <- { type: 'match-data-update', matchId, data }   (on every scoreboard sync)
 //   <- { type: 'match-deleted',     matchId }
 //   keepalive: -> { type: 'ping' }  <- { type: 'pong' }
+//
+// A live state can reach us after a newer one: the relay replays its stored copy to every
+// (re)subscribe — after a link drop, that copy is whatever it last kept — and the match-data
+// path can carry a copy of its own. The scorer numbers each state it pushes (see liveStateOrder;
+// it already drops its own older push when a side-out's 'point' and 'rotation' states race), and
+// a state older than the newest one passed on is dropped here, so a stale frame can neither roll
+// the score back nor restart a countdown that has ended.
 
 import { EventEmitter } from 'node:events'
 import { log } from './logStore.js'
+
+// The scorer's order of a live state, or null when it carries none (an older scorer, a database
+// row). OpenVolley's relayPublisher.createLiveStateOrder stamps every relay push with `_seq`,
+// counting up from 1, and `_session`, a random id of the scoring page: a reload starts again at 1
+// under a new session, so two numbers compare only within one session (as OpenVolley's own
+// serverDataSync.newerLiveState does). Never the wall clock: that is the scorer laptop's, and an
+// NTP step there would freeze the board.
+export function liveStateOrder(state) {
+  const seq = Number(state && state._seq)
+  const session = state && state._session
+  return Number.isFinite(seq) && typeof session === 'string' && session ? { seq, session } : null
+}
+
+// Whether `state` is older than the newest state already taken (`last`, a liveStateOrder or null).
+// A repeat of the same number is not stale — the relay replays its copy on every subscribe, and
+// that copy is exactly as new as what we have. A state of another session (the scorer reloaded)
+// or one with no order at all cannot be compared, so it is taken.
+export function isStaleLiveState(state, last) {
+  const o = liveStateOrder(state)
+  return !!(o && last && o.session === last.session && o.seq < last.seq)
+}
 
 const PING_MS = 25000
 // Silence budget before we assume the socket is half-open. The relay answers every ping with a
@@ -42,6 +70,9 @@ export class RelaySubscriber extends EventEmitter {
     this._pingTimer = null
     this._retryTimer = null
     this._lastRx = 0 // when the socket last carried ANY frame — see _hangUp
+    // The order of the newest live state passed on (liveStateOrder). Kept across reconnects: the
+    // relay's replay after one is exactly the frame a stale check is for.
+    this._order = null
   }
 
   start() {
@@ -156,7 +187,7 @@ export class RelaySubscriber extends EventEmitter {
         const liveState = msg.data?.liveState
         if (liveState) {
           rlog.debug(`${msg.type} → live-state`, { matchId: msg.matchId })
-          this.emit('state', liveState)
+          this._take(liveState, msg.type)
         } else {
           // The normal case, not a fault. The relay's `sync-match-data` REPLACES its stored match
           // with one that has no liveState, and the scoring app sends that sync after every action
@@ -178,7 +209,7 @@ export class RelaySubscriber extends EventEmitter {
         if (this.matchId && String(msg.matchId) !== this.matchId) return
         if (msg.liveState) {
           rlog.debug('live-state-update', { matchId: msg.matchId })
-          this.emit('state', msg.liveState)
+          this._take(msg.liveState, msg.type)
         }
         break
       }
@@ -201,6 +232,19 @@ export class RelaySubscriber extends EventEmitter {
       default:
         break // pong and other control messages are ignored
     }
+  }
+
+  // Pass a live state on, unless it is older than the newest one already passed on (see the
+  // header). Debug, not warn: that is the guard doing its job, not a fault.
+  _take(liveState, via) {
+    if (isStaleLiveState(liveState, this._order)) {
+      const o = liveStateOrder(liveState)
+      rlog.debug(`dropped a stale live state (${via}: #${o.seq} after #${this._order.seq})`, { matchId: this.matchId, seq: o.seq, newest: this._order.seq, via })
+      return
+    }
+    const o = liveStateOrder(liveState)
+    if (o) this._order = o
+    this.emit('state', liveState)
   }
 
   stop() {
