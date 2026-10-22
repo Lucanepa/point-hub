@@ -33,6 +33,9 @@ set -e
 blob() { { printf 'blob %s\0' "$(stat -c%s "$1")"; cat "$1"; } | sha1sum | cut -c1-40; }
 cd /home/pi/ledbox-bridge
 for f in src/*.js $(find web -type f); do echo "$(blob "$f") $f"; done
+for f in provisioning/*.sh provisioning/*.service provisioning/*.pem firmware/ledbox-watchdog.sh tools/*.mjs; do
+  [ -f "$f" ] && echo "$(blob "$f") $f"
+done
 cd /home/pi/ledbox/layout
 for f in *_kscw_*.xml *_beach_matchscore.xml *_basketball_matchscore.xml; do
   [ -f "$f" ] && echo "$(blob "$f") layouts/$f"

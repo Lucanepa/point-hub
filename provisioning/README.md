@@ -160,6 +160,26 @@ Another 802.1X network: `--login "SSID"` with `METHOD=eap:phase2` (default `peap
 when known, `DOMAIN=` (system CAs) or `CA=`. Still one attempt. WPA-Personal: the password is the
 passphrase. Open: that is a web login page — capture it as a HAR, like Free_WLAN_KTZH.
 
+### A volunteer's phone hotspot — `--hotspot`
+
+```bash
+ssh -t <board> bash ledbox-bridge/provisioning/setup-wlan1-client.sh --hotspot   # asks the passphrase
+ssh <board> bash ledbox-bridge/provisioning/setup-wlan1-client.sh --forget-hotspot
+```
+
+Pre-provisions NM connection `phone-hotspot` for the SSID **`KSCW-Board`**: WPA2, **no band pin**
+(Android hotspots are often 2.4 GHz only; an iPhone's is 5 GHz unless *Maximize Compatibility* is on),
+priority **6** — above Free_WLAN_KTZH (5), which sits behind an SMS login, below the school login (8)
+and the house (10) — metric 58. On the day, a volunteer sets their hotspot to that name and the
+passphrase on the hall card, and the board has internet without anyone touching it. Android lets you
+set the SSID directly; an iPhone's hotspot is named after the phone, so the iPhone itself has to be
+renamed. The passphrase is asked for (not echoed) or read from `/run/ledbox/hotspot` (0600, shredded),
+and goes only into a 0600 keyfile. A hotspot passphrase on a hall card is semi-public, which is fine
+for a CLIENT whose traffic is all HTTPS or WireGuard. NetworkManager does not leave a working
+connection for a higher-priority one that appears later: a board already on Free_WLAN_KTZH switches at
+its next reconnect (`sudo nmcli connection up phone-hotspot`). The phone giving the hotspot must not
+be the console tablet.
+
 ### Adapter notes
 
 Tested with a Netgear A6210 (MT7612U, USB `0846:9053`). No driver install: `mt76x2u` is in-kernel
@@ -327,6 +347,82 @@ Three things were checked before trusting it, each of which would have broken so
 Ordered `Before=rc-local.service` so the mounts exist before the first frame, but nothing
 `Requires` it: if the unit fails, the vendor app writes to the card exactly as before and the
 scoreboard still comes up.
+
+## 5. The on-site kit (2026-10-23) — shared rules
+
+The scripts below were written for the visit in `docs/onsite-2026-10-23.md`, which is the order to
+run them in. They share `lib-provision.sh` (sourced, never run) and the same contract:
+
+- **`--check` is the default and is read-only.** `--apply` changes things, `--rollback` undoes the
+  newest `--apply` that changed anything. Run as root on the board, from the bridge install that
+  `deploy-board.sh` keeps current: `sudo bash ledbox-bridge/provisioning/<script> [--check|--apply|--rollback]`.
+  `deploy-board.sh` **ships** them and never **runs** them.
+- **Backups go to `/var/backups/ledbox/<script>-<stamp>/`, not next to the file.** dnsmasq loads every
+  file in `/etc/dnsmasq.d` and NetworkManager every file in `system-connections` whose suffix it does
+  not know — a `foo.conf.bak` there is a second, live config. A file that did not exist is recorded as
+  absent, so a rollback deletes it again. Each rollback marks its run `.rolled-back`, so a second one
+  steps back one run further: apply one step per run and each step can be undone on its own.
+- **A re-run that finds everything in place writes nothing** — no backup run, nothing for a rollback
+  to "undo".
+- **`cmdline.txt` is edited token-wise**, refused if it is not exactly one line, checked to keep the
+  same `root=` and stay one line before it is written, and copied to `cmdline.txt.bak-<stamp>` on the
+  FAT partition too — the one place a laptop can reach when the board does not boot.
+- Scripts that restart hostapd or dnsmasq refuse to run from a session that comes in over the AP
+  they are about to restart (`FORCE=1` to insist).
+
+## 6. Supervision — `setup-supervision.sh`
+
+Steps `watchdog restart probe hwdog crashlog` (`--apply <step>`; none = all five in one run):
+
+- **watchdog** — re-enables `ledbox-watchdog` (disabled since 2026-07-31, `firmware/RECOVERY.md`), with
+  `Restart=always` on its own unit, after installing the repo's `firmware/ledbox-watchdog.sh` over an
+  older copy (the old one turned the first NTP step into a pkill of a healthy app). If an old copy had
+  started the panel driver inside its own cgroup, the restart takes the panel down — the script starts
+  it again at once, the same way the watchdog does.
+- **restart** — `Restart=on-failure` for hostapd and dnsmasq (Debian ships neither with one; a crashed
+  hostapd is a board with no AP until a power cycle). Bounded: 10 tries in 5 minutes.
+- **probe** — `ledbox-bridge-probe`: a bridge that is active but no longer answers `/api/status` (a
+  wedged event loop never exits, so `Restart=always` never fires) is restarted after 3 misses 30 s
+  apart. A loop service, not a timer, so a healthy board logs nothing.
+- **hwdog** — the bcm2835 hardware watchdog through systemd (`RuntimeWatchdogSec=14s`, hardware max
+  ~15 s; `RebootWatchdogSec=2min`) and `kernel.panic=10`. Catches the kernel/I-O hang nothing in
+  userspace can see. Refuses if another process holds `/dev/watchdog`. The rollback only re-execs
+  systemd to disarm early when the kernel reports `nowayout=0`; otherwise it waits for the next reboot.
+- **crashlog** — a persistent journal capped at 64 MB and synced every minute (`journalctl -b -1`
+  shows the run up to a reset), plus `dtoverlay=ramoops` so a panic's last kernel lines land in
+  `/var/lib/systemd/pstore` (needs a reboot).
+
+## 7. Quiet core — `setup-quiet-core.sh`
+
+Appends hzeller's `isolcpus=domain,managed_irq,3 nohz_full=3 rcu_nocbs=3 irqaffinity=0,1,2` to
+`cmdline.txt`, so interrupts and the timer tick stay off the core the refresh thread already runs on,
+and blacklists `snd_bcm2835` (with hardware pulsing the library exits if it loads, so an update that
+re-enables it would darken the panel). Refuses the blacklist if the module is loaded right now. Needs a
+reboot with eyes on the panel; the header says how to recover from a laptop if the board will not boot.
+
+## 8. Wi-Fi country — `setup-wifi-country.sh`
+
+Steps `hostapd regdom`. `hostapd` sets `country_code=CH`, `ieee80211d=1`, `wmm_enabled=1` in the
+config hostapd is actually started with (found from `/etc/default/hostapd`, the unit, else
+`/etc/hostapd/hostapd.conf`), changes nothing else, refuses a 5 GHz AP, and puts the old file back at
+once if hostapd does not come up again. `regdom` adds `cfg80211.ieee80211_regdom=CH` to `cmdline.txt`
+(what raspi-config's WLAN country does on bookworm) so wlan1 starts in CH too. `--check` greps the
+vendor tree for code that writes the hostapd config, and never prints the passphrase.
+
+## 9. Boot order, Node, cable DHCP
+
+- **`bridge-boot-order.sh`** — `--check` measures (`systemd-analyze critical-chain`, `blame`, who
+  pulls `network-online.target`); `--apply` changes the installed unit to `After=network.target` with no
+  `Wants=network-online.target`, like `systemd/ledbox-bridge.service` now. Next boot.
+- **`update-node.sh`** — installs a pinned Node 22 armv7l tarball (sha256 in the script) to
+  `/opt/nodejs-<ver>`, flips `/opt/nodejs` atomically, restarts the bridge and flips back by itself if
+  it is not healthy within 20 s. `--rollback` flips to the previous version, which stays on disk.
+- **`setup-cable-dhcp.sh`** — dnsmasq also serves DHCP on eth0 (192.168.5.50–99, 15 min leases, no
+  router and no DNS option), never on wlan1, so the tablet works over a USB-C Ethernet adapter. It needs
+  `udp/67` on eth0 in `ledbox-firewall.sh` (install with `install-firewall.sh`). **The board's network
+  port is for the tablet or a laptop only — never a hall or school switch**: the board would hand out
+  addresses there, and the appliance trusts a client on the cable without the scorer PIN.
+- **`setup-wlan1-client.sh --hotspot`** — a pre-provisioned phone-hotspot uplink (`KSCW-Board`, see §1).
 
 ## Gotchas on the board
 
