@@ -4205,7 +4205,7 @@
       ? `Back to the normal screen by itself in ${left} s.`
       : "The panel shows what it would anyway.";
     $("#ptBack").hidden = !on;
-    $("#ptStart").textContent = on ? "Restart the 20 s" : "Show test screen";
+    $("#ptStart").textContent = on ? "Start again" : "Show test screen";
     setCard($("#dcPanel"), on ? "warn" : "");
     if (!on && ptTimer) { clearInterval(ptTimer); ptTimer = null; }
   }
