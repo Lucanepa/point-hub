@@ -124,7 +124,7 @@ ssh "${J[@]}" "$BOARD" "
   }
   echo -n '  bridge: '; systemctl is-active ledbox-bridge || rc=1
   N=/opt/nodejs/bin/node
-  \$N -e 'fetch(\"http://127.0.0.1:8890/api/status\").then(r=>r.json()).then(s=>console.log(\"  connected=\"+(s.ledbox&&s.ledbox.connected),\"sport=\"+s.sport,\"pinRequired=\"+s.pinRequired)).catch(e=>{console.log(\"  status ERR\",e.message);process.exit(1)})' || rc=1
+  \$N -e 'fetch(\"http://127.0.0.1:8890/api/status\").then(r=>r.json()).then(s=>console.log(\"  connected=\"+(s.ledbox&&s.ledbox.connected),\"sport=\"+s.sport,\"pinRequired=\"+s.pinRequired,\"pinSetup=\"+s.pinSetup)).catch(e=>{console.log(\"  status ERR\",e.message);process.exit(1)})' || rc=1
   # Prove the NEW code is what is actually running — not merely that something started.
   grep -q SELF-CLOCKED     $DEST/src/ledboxClient.js; chk \$? 'self-clocked blink'
   grep -q showSportConfirm $DEST/src/ledboxClient.js; chk \$? 'sport confirmation'

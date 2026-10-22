@@ -124,5 +124,11 @@ export function loadConfig(env = process.env) {
     cableTrust: !/^(0|false|no|off)$/i.test(String(env.CABLE_TRUST ?? '').trim()),
     cableAddress: String(env.CABLE_ADDRESS || '').trim() || '192.168.5.1',
     cableSubnet: String(env.CABLE_SUBNET || '').trim() || '192.168.5.0/24',
+    // A real boot REQUIRES a scorer PIN (system-12; controlServer.js, pinSetup). Not an env switch
+    // on purpose: the board's AP passphrase is on the panel, so a board without a PIN is a board
+    // anyone in the hall can score on. A board that has none yet refuses writes from its Wi-Fi until
+    // the first operator sets one in the console (no PIN needed for that one save); the cable is
+    // exempt. A hand-built config (the tests) leaves it off and keeps the old open no-PIN board.
+    pinMandatory: true,
   }
 }

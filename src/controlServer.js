@@ -47,6 +47,12 @@ const UI_RATE_MAX_IPS = 256
 const UI_LOG_MAX_BODY = 8 * 1024
 const UI_LOG_MAX_MSG = 300
 
+// What a write is refused with on a board that must have a scorer PIN and has none yet. Shown as it
+// is by the tablet app (1.1.x): as the toast on a refused point, and inside its PIN pad when someone
+// types into it — so it has to name the way out, and it has to contain "PIN" (that word is how the
+// app tells a PIN refusal from a fault). The console shows its own "Set a scorer PIN" screen.
+export const PIN_SETUP_MSG = 'This board has no scorer PIN yet — set one in Settings before scoring.'
+
 // Actions that set a game up rather than play it. During a pre-match they keep the board on the
 // clock and the pre-match on; every other action starts the match (see `prematch`).
 const PREMATCH_ACTIONS = new Set(['team', 'serve', 'serve-order', 'serve-player', 'swap', 'undo'])
@@ -195,7 +201,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -295,7 +301,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // Returns { ok, locked, retryAfterMs }.
   const tryPin = (req, supplied) => {
     const need = settings ? settings.values.scorerPin : ''
-    if (!need) return { ok: true, locked: false, retryAfterMs: 0 } // no PIN set — gate is off
+    // No PIN set: the gate is open — unless this board must have one (pinSetup). Then nothing is
+    // let through until the first operator sets it; there is no PIN to guess, so nothing is counted.
+    if (!need) return pinSetup() ? { ok: false, locked: false, setup: true, retryAfterMs: 0 } : { ok: true, locked: false, retryAfterMs: 0 }
     const ip = clientIp(req)
     const g = pinGate.check(ip)
     if (!g.allowed) return { ok: false, locked: true, retryAfterMs: g.retryAfterMs }
@@ -314,7 +322,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     const r = tryPin(req, req.headers['x-scorer-pin'] || '')
     // A locked board rejecting a phone is normally a spectator poking at it, but it is also
     // what a scorer sees when they mistype — either way it belongs in the record.
-    if (!r.ok) clog.warn(`rejected ${req.method} ${req.url} — ${r.locked ? 'PIN locked out' : 'wrong or missing scorer PIN'}`, { path: req.url, ip: clientIp(req), locked: r.locked })
+    if (!r.ok) clog.warn(`rejected ${req.method} ${req.url} — ${r.setup ? 'no scorer PIN set yet' : r.locked ? 'PIN locked out' : 'wrong or missing scorer PIN'}`, { path: req.url, ip: clientIp(req), locked: r.locked, setup: !!r.setup })
     req._pinDenial = r
     return r.ok
   }
@@ -325,24 +333,46 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       res.setHeader('Retry-After', String(secs))
       return sendJson(res, 429, { error: `too many wrong PINs — try again in ${secs}s`, retryAfterMs: r.retryAfterMs })
     }
+    // 403 like any PIN refusal — the tablet app opens its PIN pad on exactly that — but saying what
+    // is actually missing, and flagged, so the console can show its setup screen instead.
+    if (r.setup) return sendJson(res, 403, { error: PIN_SETUP_MSG, pinSetup: true })
     return sendJson(res, 403, { error: 'scorer PIN required' })
+  }
+  // MANDATORY PIN (system-12). On a real boot (loadConfig) the board must have a scorer PIN: its AP
+  // passphrase is on the panel as a QR, so "no PIN" means anyone in the hall can score, or halt the
+  // board. A board that has none — every board on the day this shipped, the C0270 included — does
+  // not lock anyone out: it refuses writes from the Wi-Fi with PIN_SETUP_MSG until the first
+  // operator sets one, which needs no PIN (POST /api/settings with a valid scorerPin), and the
+  // console puts a "Set a scorer PIN" screen in front of everything until then. The cable is
+  // exempt as always. Off for a hand-built test config, which keeps the old open no-PIN board.
+  function pinSetup() {
+    return !!pinMandatory && !(settings && settings.values.scorerPin)
   }
   // The PIN as one requester sees it, for /api/status. `pinRequired` is per requester: true when
   // this client's writes need a PIN — never for a cable-trusted one, which is how the tablet app
   // (1.1.x reads exactly this) shows no padlock and dims nothing on the cable. `pinTrust` says
   // why: 'cable', or null. `pinConfigured` is the board's own fact — a PIN exists — for a console
   // that has to word Settings ▸ Access right whatever its own connection is.
+  // `pinSetup` (and `pinMandatory`): the board must have a PIN and has none yet — writes from the
+  // Wi-Fi are refused until one is set, so `pinRequired` is true there too (the app shows its
+  // padlock), while the cable is told it needs none and gets the setup only as a reminder.
   function pinView(req) {
     const configured = !!(settings && settings.values.scorerPin)
     const trust = trustOf(req)
-    return { pinRequired: configured && !trust, pinTrust: trust, pinConfigured: configured }
+    const setup = pinSetup()
+    return { pinRequired: (configured || setup) && !trust, pinTrust: trust, pinConfigured: configured, pinMandatory: !!pinMandatory, pinSetup: setup }
   }
   // The same for /api/settings. `pinSet` keeps the meaning every shipped client gives it — "this
   // board will ask you for a PIN" — so the tablet app's start-up lock (it reads pinSet and nothing
   // else) stays down on the cable. Whether one exists at all is `pinConfigured`.
+  //
+  // NOT pinRequired: during the setup there is no PIN anyone could type, and the app's start-up
+  // screen — the only thing that reads pinSet — has no way past it but a PIN. Answering true there
+  // would trap the first operator behind it; false lets them through to the PIN pad (which says
+  // where to set one) and to Settings.
   function pinSettingsView(req) {
     const v = pinView(req)
-    return { pinSet: v.pinRequired, pinTrust: v.pinTrust, pinConfigured: v.pinConfigured }
+    return { pinSet: v.pinConfigured && !v.pinTrust, pinTrust: v.pinTrust, pinConfigured: v.pinConfigured, pinMandatory: v.pinMandatory, pinSetup: v.pinSetup }
   }
   // Ephemeral display countdown (timeout 30s / set interval / side switch). Owned here
   // so it reaches every surface from ONE source: the control UI banner, the
@@ -936,7 +966,13 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/settings' && req.method === 'POST') {
       const body = await readJson(req)
       if (!settings) return sendJson(res, 501, { error: 'settings unavailable' })
-      if (!pinOk(req)) return denyPin(res, req)
+      // The setup (see pinSetup): with no PIN on a board that must have one, the save that sets the
+      // first PIN needs none — it is the only write that does. Anything else, and a malformed PIN,
+      // is refused as usual (the latter with its reason, not as a missing PIN).
+      const offered = body && body.scorerPin != null ? String(body.scorerPin).trim() : ''
+      const firstPin = pinSetup() && !!offered && PIN_RE.test(offered) && !(body && body.clearPin === true)
+      if (pinSetup() && offered && !PIN_RE.test(offered)) return sendJson(res, 400, { error: 'PIN must be 1–8 digits' })
+      if (!firstPin && !pinOk(req)) return denyPin(res, req)
       const patch = { ...(body || {}) }
       // The PIN is validated here, not quietly repaired. An empty field means "leave the current
       // PIN unchanged" (else every ordinary save would wipe the lock). Anything else must be 1-8
@@ -952,6 +988,12 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       }
       if (pin) patch.scorerPin = pin
       else delete patch.scorerPin
+      // A board that must have a PIN keeps it: it can be changed (a new one in the field), never
+      // removed. Refused before anything in the patch is applied.
+      if (clearPin && pinMandatory) {
+        clog.warn('refused to remove the scorer PIN — this board must have one', { ip: clientIp(req) })
+        return sendJson(res, 400, { error: "The scorer PIN can't be removed on this board — type a new one to change it." })
+      }
       if (clearPin) patch.scorerPin = ''
       // Same rule as the PIN: refused with the reason, never quietly repaired into some other host.
       if ('relayAddress' in patch) {
@@ -967,6 +1009,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       const updated = settings.update(patch)
       if (before.relayAddress !== updated.relayAddress) forgetRelay()
       if (clearPin) clog.warn('scorer PIN removed — scoring is open to anyone on the network', { ip: clientIp(req) })
+      if (firstPin) clog.warn('scorer PIN set for the first time — the board now asks every Wi-Fi device for it', { ip: clientIp(req), cable: !!trustOf(req) })
       // The match format is read live by the scoring engine, not just by the console header. Without
       // this a "Best of 3" save changed the header's idea of the deciding set while the engine kept
       // playing best-of-5: set 3 went to 25, and a 2-0 or 2-1 match never ended. Sources without a
@@ -1184,6 +1227,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         const offered = String((body && body.pin) || '')
         return sendJson(res, 200, { ok: !need || !offered || safeEqual(offered, need), trusted: 'cable' })
       }
+      // The setup: there is no PIN to check a guess against. Not `ok:false` — the app would say
+      // "Wrong PIN" — but a refusal with the way out, which the app's PIN pad shows as it is. 409,
+      // not 403: a 403 makes every client forget its PIN and ask again, which is the loop to avoid.
+      if (pinSetup()) return sendJson(res, 409, { ok: false, pinSetup: true, error: PIN_SETUP_MSG })
       // Goes through the same gate as the header path — this endpoint is the cheapest oracle on
       // the board, so guesses here must count towards the same lock, not get their own budget.
       const r = tryPin(req, (body && body.pin) || '')
@@ -1200,7 +1247,11 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // operator out of the HTTPS console. Answers 200 with `applied:false` far more often than it
     // actually moves anything — see clockSync.js for the five gates and what each `reason` means.
     if (pathname === '/api/clock' && req.method === 'POST') {
-      if (!pinOk(req)) return denyPin(res, req)
+      // During the PIN setup the clock offer is let through: the tablet app makes it at start-up,
+      // and a refusal would open its PIN pad over a board that has no PIN to type. Guarding it then
+      // would protect nothing — the open setup itself hands out every right — and the five gates in
+      // clockSync.js still apply.
+      if (!pinSetup() && !pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const r = await clockSync.setFromConsole(body && body.epochMs)
       return sendJson(res, r.ok ? 200 : 400, r)

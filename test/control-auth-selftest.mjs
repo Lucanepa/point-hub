@@ -10,6 +10,10 @@
 // mutating endpoint added without a decision about authentication fails the build rather than
 // shipping open.
 //
+// The second half does the same for a board that MUST have a PIN and has none yet (the mandatory
+// PIN, system-12): every guarded route refuses with the setup message, the save that sets the first
+// PIN is the one write that needs none, and nothing is counted towards a lock-out until a PIN exists.
+//
 // /api/shutdown is exercised ONLY in the unauthenticated direction. It runs `sudo systemctl
 // poweroff` 700 ms after answering, so a test that sent it a valid PIN would halt the machine
 // running the test — and, on the board, the scoreboard mid-match.
@@ -34,6 +38,7 @@ const PIN = '4242'
 const ROUTES = {
   '/api/manual': { guard: 'pin', body: {} },
   '/api/action': { guard: 'pin', body: { action: { type: 'point', side: 'left', delta: 1 } } },
+  // During the setup only a save that SETS the first PIN gets through (asserted separately below).
   '/api/settings': { guard: 'pin', body: { brightness: 50 } },
   '/api/sport': { guard: 'pin', body: { sport: 'volleyball' }, skipAuthed: 'a real switch restarts the appliance' },
   '/api/link': { guard: 'pin', body: { source: 'lan', matchId: 'x' }, skipAuthed: 'reaches for an unreachable relay' },
@@ -43,7 +48,8 @@ const ROUTES = {
   // Sets the host clock (`sudo date`). The authed probe offers this machine's OWN time on purpose:
   // that is under clockSync's 30 s "close enough" floor (or NTP already has the clock), so it is
   // answered 200 with applied:false and can never move the clock of the machine running the test.
-  '/api/clock': { guard: 'pin', body: { epochMs: Date.now() } },
+  // During the PIN setup it is let through (the tablet app offers it at start-up; see /api/clock).
+  '/api/clock': { guard: 'pin', body: { epochMs: Date.now() }, setup: 'open' },
   '/api/game': { guard: 'pin', body: { choice: 'clock' } },
   // Takes the hall from the pre-match clock to the scoreboard.
   '/api/prematch': { guard: 'pin', body: { action: 'start' } },
@@ -71,6 +77,10 @@ const ROUTES = {
   '/api/logs': { guard: 'open', body: { msg: 'ui event' }, why: 'the console posts its own errors; a spectator hitting a bug is what we want to see' },
   '/api/unlock': { guard: 'unlock', body: { pin: PIN } },
 }
+// What each route does during the setup, unauthenticated, when it differs from its guard:
+//   'setup'  (the default for a 'pin' route) -> 403 { pinSetup: true, error: names Settings }
+//   'open'   -> through
+//   'unlock' -> 409 { pinSetup: true } — there is no PIN to check a guess against
 
 // ── the routes list must match the source ────────────────────────────────────────────────────
 // This is what makes an unguarded new endpoint fail the build instead of shipping.
@@ -168,6 +178,89 @@ try {
 } finally {
   await app.close()
   fs.rmSync(stateDir, { recursive: true, force: true })
+}
+
+// ── the mandatory PIN: a board that must have one and has none yet ──────────────────────────
+const setupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-auth-setup-'))
+fs.writeFileSync(path.join(setupDir, 'settings.json'), JSON.stringify({ sport: 'volleyball' }))
+const setupApp = await startAppliance({
+  stateDir: setupDir, pinMandatory: true,
+  relayUrl: '', relayHttpUrl: '', matchId: '',
+  ledboxAlias: 'test', ledboxApiVersion: 2, reconnectMs: 0,
+  mock: true, controlPort: 0, debug: false,
+  uplinkProbeUrl: 'http://127.0.0.1:9/generate_204', uplinkPortalUrl: 'http://127.0.0.1:9',
+})
+const sbase = `http://127.0.0.1:${setupApp.server.address().port}`
+await sleep(200)
+const sreq = (route, { method = 'POST', body, pin, from } = {}) => new Promise((resolve, reject) => {
+  const payload = method === 'GET' ? null : JSON.stringify(body ?? {})
+  const headers = { origin: sbase }
+  if (payload !== null) { headers['content-type'] = 'application/json'; headers['content-length'] = Buffer.byteLength(payload) }
+  if (pin !== undefined) headers['X-Scorer-Pin'] = pin
+  const req = http.request(
+    { host: '127.0.0.1', port: setupApp.server.address().port, path: route, method, headers, localAddress: from },
+    (res) => { let d = ''; res.setEncoding('utf8'); res.on('data', (c) => { d += c }); res.on('end', () => { let json = null; try { json = JSON.parse(d) } catch {} resolve({ status: res.statusCode, json }) }) })
+  req.on('error', reject)
+  if (payload !== null) req.write(payload)
+  req.end()
+})
+try {
+  console.log('\nmandatory PIN, none set yet — every guarded route refuses with the way out:')
+  let host = 0
+  for (const [route, spec] of Object.entries(ROUTES)) {
+    // Never sent here, not even unauthenticated: a bug that let them through during the setup would
+    // halt or reboot the machine running the test. They go through the same pinOk as every route
+    // swept here, and their refusal with a PIN set is asserted above.
+    if (route === '/api/shutdown' || route === '/api/reboot') { console.log(`  ↷ ${route} not sent: ${spec.skipAuthed}`); continue }
+    const want = spec.setup || (spec.guard === 'pin' ? 'setup' : spec.guard)
+    const r = await sreq(route, { body: spec.body, from: `127.0.5.${++host}` })
+    if (want === 'setup') ok(r.status === 403 && r.json && r.json.pinSetup === true && /Settings/.test(r.json.error) && /PIN/.test(r.json.error), `POST ${route} -> 403 pinSetup (got ${r.status})`)
+    else if (want === 'open') ok(r.status < 400, `POST ${route} -> ${r.status}, open${spec.why ? `: ${spec.why}` : ' during the setup'}`)
+    else ok(r.status === 409 && r.json && r.json.pinSetup === true && r.json.ok === false, `POST ${route} -> 409 pinSetup, no PIN to check (got ${r.status})`)
+  }
+  const st = await (await fetch(sbase + '/api/status')).json()
+  ok(st.pinRequired === true && st.pinSetup === true && st.pinMandatory === true && st.pinConfigured === false, '/api/status: pinRequired, pinSetup, pinMandatory true; pinConfigured false')
+  const se = await (await fetch(sbase + '/api/settings')).json()
+  ok(se.pinSet === false && se.pinSetup === true, '/api/settings: pinSet false (no PIN anyone could type), pinSetup true')
+  for (const route of ['/api/status', '/api/board', '/api/sport', '/api/settings', '/api/game', '/api/history', '/api/uplink']) {
+    ok((await fetch(sbase + route)).status === 200, `GET ${route} still open`)
+  }
+
+  console.log('\nduring the setup nothing is counted — there is no PIN to guess:')
+  let worst = 0
+  for (let i = 0; i < 10; i++) worst = Math.max(worst, (await sreq('/api/action', { body: ROUTES['/api/action'].body, pin: String(1000 + i), from: '127.0.6.1' })).status)
+  ok(worst === 403, `ten writes with made-up PINs from one address: 403 every time, never 429 (worst ${worst})`)
+  for (let i = 0; i < 8; i++) await sreq('/api/unlock', { body: { pin: String(2000 + i) }, from: '127.0.6.1' })
+
+  console.log('\nsetting the first PIN — the one write that needs none:')
+  ok((await sreq('/api/settings', { body: { brightness: 50 }, from: '127.0.6.2' })).status === 403, 'a save WITHOUT a PIN in it is still refused')
+  ok((await sreq('/api/settings', { body: { scorerPin: '12ab' }, from: '127.0.6.2' })).status === 400, 'a malformed PIN is refused with its reason (400), not as a missing PIN')
+  ok((await sreq('/api/settings', { body: { clearPin: true }, from: '127.0.6.2' })).status === 403, 'clearPin is no way in')
+  const set = await sreq('/api/settings', { body: { scorerPin: PIN, clubName: 'SETUP TEST' }, from: '127.0.6.1' })
+  ok(set.status === 200 && set.json.pinSet === true && set.json.pinSetup === false, `a save with a valid PIN sets it (200, pinSet true, pinSetup false) — from the address that just made 18 refused attempts`)
+  ok(set.json.clubName === 'SETUP TEST', 'and the rest of that save is applied with it')
+  ok(JSON.parse(fs.readFileSync(path.join(setupDir, 'settings.json'), 'utf8')).scorerPin === PIN, 'persisted')
+  ok((await sreq('/api/settings', { body: { scorerPin: '9999' }, from: '127.0.6.3' })).status === 403, 'once set, a second "first PIN" is a PIN change and needs the PIN')
+
+  console.log('\nafter the setup — the board behaves like any board with a PIN:')
+  ok((await sreq('/api/action', { body: ROUTES['/api/action'].body, from: '127.0.6.4' })).status === 403, 'no PIN: 403')
+  ok((await sreq('/api/action', { body: ROUTES['/api/action'].body, pin: PIN, from: '127.0.6.4' })).status === 200, 'the PIN: 200')
+  const un = await sreq('/api/unlock', { body: { pin: PIN }, from: '127.0.6.4' })
+  ok(un.status === 200 && un.json.ok === true, '/api/unlock with it: ok')
+  let locked = 0
+  for (let i = 0; i < 8; i++) if ((await sreq('/api/action', { body: ROUTES['/api/action'].body, pin: '0000', from: '127.0.6.5' })).status === 429) locked++
+  ok(locked > 0, `and guessing is throttled again (${locked} of 8 locked out)`)
+  const rm = await sreq('/api/settings', { body: { clearPin: true }, pin: PIN, from: '127.0.6.6' })
+  ok(rm.status === 400 && /can't be removed/.test(rm.json.error), 'the PIN cannot be removed on this board (400, with the reason)')
+  ok(JSON.parse(fs.readFileSync(path.join(setupDir, 'settings.json'), 'utf8')).scorerPin === PIN, 'and stays')
+  const ch = await sreq('/api/settings', { body: { scorerPin: '5678' }, pin: PIN, from: '127.0.6.6' })
+  ok(ch.status === 200 && (await sreq('/api/action', { body: ROUTES['/api/action'].body, pin: '5678', from: '127.0.6.6' })).status === 200, 'it can be changed, with the current one')
+} catch (err) {
+  fail++
+  console.log(`  ❌ threw: ${err?.stack || err}`)
+} finally {
+  await setupApp.close()
+  fs.rmSync(setupDir, { recursive: true, force: true })
 }
 
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

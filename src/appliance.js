@@ -233,7 +233,12 @@ export async function startAppliance(config = loadConfig()) {
     autoPrepare: config.autoPrepare || null,
     matchUpload,
     cableTrust,
+    // loadConfig sets it; a hand-built test config leaves it off (see config.js).
+    pinMandatory: config.pinMandatory === true,
   })
+  if (config.pinMandatory === true && !settings.values.scorerPin) {
+    log.warn('no scorer PIN set — writes from the Wi-Fi are refused until the first operator sets one in the console (the cable is exempt)')
+  }
 
   // The default screen on a fresh boot (the KSC Wiedikon crest) is asserted by the client
   // itself after the handshake (see `defaultIdle` above), so it survives the board's own
