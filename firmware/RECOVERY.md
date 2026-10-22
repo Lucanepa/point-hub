@@ -138,3 +138,7 @@ boots and runs without it — what is missing is crash recovery. Next time it is
 
 There is no need to disable it before a shutdown: systemd stops it as part of the shutdown
 anyway, and `disable` persists across reboots.
+
+`provisioning/setup-supervision.sh --apply watchdog` does this with a backup and a rollback, and
+first installs this repo's `ledbox-watchdog.sh` if the board's copy is older (see
+`docs/onsite-2026-10-23.md`).
