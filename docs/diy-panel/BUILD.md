@@ -1,4 +1,4 @@
-# Point Hub XL — DIY scoreboard build guide (KSCW)
+# Point Hub board — DIY scoreboard build guide (KSCW)
 
 How KSC Wiedikon builds its own scoreboard from open parts: the same 192 × 64 pixels as the
 Tech4Sport LedBox C0270 at **1.67× its pitch**, a small score panel facing each bench, powered by
@@ -560,7 +560,7 @@ resistor/diode of the common ZS-042 module) and power it from 3.3 V.
 - Wi-Fi country **CH** on both radios (`raspi-config`, and `country_code=CH` for the access point).
 - The **MT7612U is the board's access point**, on 5 GHz channels 36–48 indoors; the built-in radio
   is the client for a hall's Wi-Fi uplink, on 2.4 GHz.
-- The board gets **its own Wi-Fi name and passphrase** and its own identity — never the C0270's, and never "LedBox": that is Tech4Sport's product name. Use **Point Hub XL** for the board and `PointHub-XL` for its Wi-Fi.
+- The board gets **its own Wi-Fi name and passphrase** and its own identity — never the C0270's, and never "LedBox": that is Tech4Sport's product name. Use **Point Hub** for the board and `PointHub` for its Wi-Fi.
 - `eth0`: **192.168.5.1/24 with a DHCP server** for the tablet (§7).
 
 ### 10.2 Driver library, first light
@@ -642,7 +642,7 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 
 1. **flushBuffer2** — build it with [`firmware/flushbuffer/build.sh`](../../firmware/flushbuffer/build.sh)
    (it adds `applicon` but the stock `regular` is still there). It compiles in the C0270's
-   64 × 64 × 3 geometry, so the XL's start script must pass `--led-rows=32 --led-cols=64
+   64 × 64 × 3 geometry, so the Point Hub board's start script must pass `--led-rows=32 --led-cols=64
    --led-chain=3 --led-parallel=3 --led-scan-mode=0` along with the `setting.ini` tuning
    (`hardware_mapping=regular`, the values from §10.3).
 2. **openscore** — the renderer ([`firmware/openscore/`](../../firmware/openscore/)) writes the

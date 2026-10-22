@@ -21,7 +21,7 @@ before deciding the board is broken, so it lives here rather than only in a prin
 order is: panel driver splash (`POINT HUB`, gold) → the firmware's `waiting` crest+QR screen →
 `kscw_crest` once the bridge handshakes. Anything under a minute is normal.
 
-**2026-10-22 — a second board is designed, not built.** The **Point Hub XL**, the club's own
+**2026-10-22 — a second board is designed, not built.** The **Point Hub board**, the club's own
 successor to the C0270 (192×64 at 5 mm pitch plus a panel facing each bench, USB-C power only,
 the same software stack), is written up in [`docs/diy-panel/BUILD.md`](./docs/diy-panel/BUILD.md):
 parts, wiring, safety case, build steps, bring-up, and the software still to write before it can

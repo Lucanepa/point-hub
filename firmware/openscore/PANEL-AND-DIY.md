@@ -29,11 +29,11 @@ for indoor modules — a DIY build starts from the indoor profile C and measures
 
 ## Building one from open parts
 
-KSC Wiedikon's own design is the **Point Hub XL**: the same 192 × 64 at 5 mm pitch from six 64×32
+KSC Wiedikon's own design is the **Point Hub board**: the same 192 × 64 at 5 mm pitch from six 64×32
 indoor modules, plus a 64×32 bench panel at each end, three HUB75 outputs, powered by USB-C only
 (no mains inside), in a plywood box. The full guide — parts, purchase spec, GPIO plan, power path,
 safety case, case, build steps and software bring-up — is
 [`docs/diy-panel/BUILD.md`](../../docs/diy-panel/BUILD.md).
 
 What carries over from this board unchanged: the bridge and console, openscore, and flushBuffer2
-(with the XL's geometry passed as flags and the `regular` mapping instead of `applicon`).
+(with the Point Hub board's geometry passed as flags and the `regular` mapping instead of `applicon`).
