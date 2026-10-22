@@ -70,23 +70,32 @@ def break_screen():
     )
 
 
-def vendor_countdown():
+def countdown():
+    # The bridge's fallback countdown (toCountdownSections, a timeout): points in the boxes, the
+    # set score on the line below the clock.
     return (
-        [attr("timer", "text", "30"), attr("lbl", "text", "TIMEOUT"), attr("sep", "text", "-")]
+        [attr("timer", "text", "30"), attr("lbl", "text", "TO WIEDIKON"), attr("sep", "text", "-")]
         + text("score1", 18, BLUE) + text("score2", 16, ORANGE)
         + text("set1", 1) + text("set2", 1)
         + box("bg_score1", BLUE) + box("bg_score2", ORANGE)
-        + [attr("media", "src", "")]  # blank the vendor logo so the clock owns the screen
+        + [attr("media", "src", "")]  # the bridge blanks `media` on every countdown
     )
 
 
-def tennis():
-    return (
-        text("team1", "FEDERER", "255,165,0") + text("team2", "NADAL", "50,205,50")
-        + text("score1", 40, "255,165,0") + text("score2", 30, "50,205,50")
-        + text("set1game1", 6) + text("set2game1", 3)
-        + rect("serve1", "255,165,0") + rect("serve2", "0,0,0")  # serve = filled circle
-    )
+def shapes():
+    """The section types no bridge screen uses (circle, bar), plus the text ladder either side of
+    SMALL_TEXT_PX, drawn as an ad-hoc layout so they stay covered without a layout file for them.
+    Small text must come out as whole pixels in one colour; big text keeps its anti-aliasing."""
+    S = olb.Section
+    return olb.Layout(name="__shapes__", sections=[
+        S(name="dot", type="circle", x=4, y=4, width=12, height=12, color=(255, 165, 0)),
+        S(name="ring", type="circle", x=4, y=22, width=12, height=12, color=(0, 0, 0), bordercolor=(50, 205, 50)),
+        S(name="bar", type="bar", x=4, y=48, width=40, height=8, color=(37, 99, 235), bordercolor=(200, 200, 200), text="60"),
+        S(name="small", type="text", x=24, y=2, fontsize=13, color=(255, 69, 0), text="TO WIEDIKON"),
+        S(name="edge", type="text", x=24, y=18, fontsize=olb.SMALL_TEXT_PX, color=(255, 255, 255), text="1:26"),
+        S(name="big", type="text", x=190, y=32, fontsize=olb.SMALL_TEXT_PX + 14, color=(255, 200, 50),
+          align="right", valign="middle", text="25"),
+    ])
 
 
 SCREENS = [
@@ -96,8 +105,7 @@ SCREENS = [
         text("team1", "KSC WIEDIKON", "255,200,50") + text("team2", "VBC ZUG", ORANGE)),
     ("03_kscw_crest", "kscw_crest", []),
     ("04_break", "kscw_break", break_screen()),
-    ("05_vendor_countdown", "volleyball_matchscore_timeout_02", vendor_countdown()),
-    ("06_tennis_circle", "tennis_matchscore", tennis()),
+    ("05_countdown", "volleyball_matchscore_timeout_02", countdown()),
 ]
 
 
@@ -131,10 +139,14 @@ def main():
             assert reply["status"] == "ok", (name, reply)
         snapshot(name)
 
+    # Shapes and the text ladder, drawn straight through the renderer (no layout file).
+    renderer.render(shapes())
+    snapshot("06_shapes")
+
     # The procedural network-info screen (showInfo).
     device.show_info()
     snapshot("07_info")
-    print("OK — %d sample screens in %s" % (len(SCREENS) + 1, out))
+    print("OK — %d sample screens in %s" % (len(SCREENS) + 2, out))
 
 
 if __name__ == "__main__":

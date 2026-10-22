@@ -29,7 +29,9 @@ let pass = 0, fail = 0
 const ok = (cond, label) => { if (cond) { pass++; console.log(`  ✅ ${label}`) } else { fail++; console.log(`  ❌ ${label}`) } }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const layoutXml = (file) => fs.readFileSync(path.join(root, 'layouts', file), 'utf8')
+// Repo-relative. The vendor's own match layout is not in the repo (it stays on the board's disk);
+// openscore's volleyball_matchscore_02 is ours, written to the same section names and captions.
+const layoutXml = (file) => fs.readFileSync(path.join(root, file), 'utf8')
 // { sectionName: text } for every section of a layout file.
 const sectionsOf = (file) => Object.fromEntries(
   [...layoutXml(file).matchAll(/<section name="([^"]+)"[^>]*>([^<]*)<\/section>/g)].map((m) => [m[1], m[2]]))
@@ -46,10 +48,10 @@ const state = {
 console.log('\n[1] every static caption is re-asserted with the text its layout file gives it')
 {
   const LAYOUT_FILE = {
-    volleyball: '02_volleyball_matchscore_02.xml',
-    beach: '40_beach_matchscore.xml',
-    basketball: '41_basketball_matchscore.xml',
-    simple: '02_volleyball_matchscore_02.xml',
+    volleyball: 'firmware/openscore/layout/volleyball_matchscore_02.xml',
+    beach: 'layouts/40_beach_matchscore.xml',
+    basketball: 'layouts/41_basketball_matchscore.xml',
+    simple: 'firmware/openscore/layout/volleyball_matchscore_02.xml',
   }
   ok(SPORT_KEYS.includes('simple') && getSport('simple').label === 'Simple scoreboard', 'the simple scoreboard is a registered sport')
   for (const key of ['volleyball', 'beach', 'basketball']) {

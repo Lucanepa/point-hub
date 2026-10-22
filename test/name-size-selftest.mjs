@@ -3,7 +3,7 @@
 // Two things need locking down, and they pull in opposite directions:
 //
 //   1. The default must be INVISIBLE. Volleyball previously sent no `fontsize` at all, so the
-//      panel used the 18 baked into 02_volleyball_matchscore_02.xml. If the default we now send
+//      panel used the 18 baked into the vendor's volleyball_matchscore_02. If the default we now send
 //      is anything other than 18, every board in the hall silently changes size on deploy — the
 //      kind of regression nobody reports as a bug, they just say "the board looks off now".
 //   2. It has to actually DO something, end to end: settings → client → mapper → SetSections.
@@ -48,7 +48,7 @@ const LONG = { side_a: 'left', team_a_short: 'WIEDIKON', team_b_short: 'VOLLEY Z
 console.log('[1] the default is exactly what the layout XML already painted')
 {
   const s = toSections(SHORT)
-  eq(fontOf(s, 'team1'), 18, 'volleyball short name defaults to 18 — the fontsize in 02_volleyball_matchscore_02.xml')
+  eq(fontOf(s, 'team1'), 18, 'volleyball short name defaults to 18 — the fontsize in the vendor match layout')
   eq(fontOf(s, 'team2'), 18, 'both sides')
   eq(fontOf(toBeachSections(SHORT), 'team1'), 18, 'beach default unchanged from its old hard-coded 18')
   eq(fontOf(toBasketballSections(SHORT), 'team1'), 18, 'basketball default unchanged from its old hard-coded 18')

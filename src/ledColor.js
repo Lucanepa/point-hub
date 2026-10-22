@@ -56,9 +56,11 @@ export const EDGE_LIFT = 160
 // team in exactly #000000 therefore keeps a black border; its digits still go light grey.
 export const PANEL_OFF = new Set(['0,0,0', '30,30,30'])
 
-// Default text size per layout for the sections that carry a team colour, from layouts/*.xml
-// and firmware/openscore/layout*/ (the selftest checks this table against them). A fontsize in
-// the same SetSections write wins; anything not listed falls back to TEXT_PX_FALLBACK.
+// Default text size per layout for the sections that carry a team colour. The volleyball match and
+// countdown sizes are the vendor's layouts on the board (not in this repo); the rest are ours in
+// layouts/ and firmware/openscore/. The selftest checks that every layout of the same name in the
+// repo agrees on small vs big. A fontsize in the same SetSections write wins; anything not listed
+// falls back to TEXT_PX_FALLBACK.
 export const LAYOUT_TEXT_PX = {
   volleyball_matchscore_02: { team1: 18, team2: 18, score1: 55, score2: 55, set1: 26, set2: 26, sub1: 18, sub2: 18 },
   volleyball_matchscore_timeout_02: { score1: 22, score2: 22, set1: 14, set2: 14 },

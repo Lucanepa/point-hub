@@ -68,12 +68,13 @@ const text = (name, value, color) =>
   color ? [attr(name, 'text', value), attr(name, 'color', color)] : [attr(name, 'text', value)]
 const rect = (name, color) => [attr(name, 'color', color)]
 
-// The layout's own static captions: `lbl_to` "T" and `lbl_sub` "S" beside the two counters
-// (layouts/02_volleyball_matchscore_02.xml). The XML already says so, and for a long time nothing
-// wrote them — until the simple scoreboard, which shares this layout and empties both. The firmware
-// holds section values in memory across layout switches and bridge restarts, so volleyball then
-// came back with two unlabelled counters until the panel was power-cycled. Re-asserted on every
-// full paint, exactly like `vs`, so whatever last wrote them can never decide what they say.
+// The layout's own static captions: `lbl_to` "T" and `lbl_sub` "S" beside the two counters (the
+// vendor's volleyball_matchscore_02 on the board, and openscore's own layout of that name). The XML
+// already says so, and for a long time nothing wrote them — until the simple scoreboard, which
+// shares this layout and empties both. The firmware holds section values in memory across layout
+// switches and bridge restarts, so volleyball then came back with two unlabelled counters until the
+// panel was power-cycled. Re-asserted on every full paint, exactly like `vs`, so whatever last
+// wrote them can never decide what they say.
 export const LAYOUT_LABELS = [attr('lbl_to', 'text', 'T'), attr('lbl_sub', 'text', 'S')]
 // The score box: black fill so the big number reads, border in the team colour.
 //
@@ -383,9 +384,9 @@ export function toMessageSections(text, { color = CLUB_GOLD } = {}) {
 //
 // `matchFontMaxLeft`/`matchFontMaxRight` are the CEILING for each team name, not a fixed size: a
 // short code keeps it, a long one steps down until it fits MATCH_NAME_WIDTH. The default of 18 is
-// exactly the value baked into 02_volleyball_matchscore_02.xml, so leaving them alone paints what
-// the layout always painted — the only behaviour change is that an over-long name now shrinks
-// instead of running into the set counter.
+// exactly the value baked into the vendor's volleyball_matchscore_02 on the board, so leaving them
+// alone paints what the layout always painted — the only behaviour change is that an over-long
+// name now shrinks instead of running into the set counter.
 //
 // One per side rather than one shared number, because the two names are independent: the fitter
 // already shrinks a long name on its own, so a shared ceiling only ever gets in the way of making

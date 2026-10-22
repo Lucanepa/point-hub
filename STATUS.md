@@ -89,8 +89,11 @@ that renders). So every remaining item needs a **shell on the board** to drop a 
 | **Split** score-left / clock-right countdown | same custom layout (section `x`/`y` are NOT settable live — fixed in the layout XML) |
 
 **Built and ready to install:** the idle image is generated (crest + KSC/WIEDIKON, 192×64) and
-the source logos are in the repo. All six stock layout XMLs are backed up in `layouts/` — the
-ground truth for geometry and the restore path.
+the source logos are in the repo. The vendor's own layout XMLs are **not** in this repo (removed
+2026-10-22): the board keeps running them from its own disk, and its restore path is the board-side
+backup `/home/pi/ledbox-config-backup/layout.tar.gz` (firmware/RECOVERY.md). `layouts/` holds only
+the layouts we author (`*_kscw_*`, beach, basketball, `20_openvolley_timeout`); openscore's
+volleyball screens under `firmware/openscore/layout/` are our own, written to the same names.
 
 ### The unblock recipe (once we have board SSH)
 
@@ -105,7 +108,7 @@ sudo mount -o remount,rw /path # make the layout/media dir writable
 # then: scp the image into the media dir, and/or drop a custom layout XML next to the stock ones
 ```
 
-Custom layouts are plain XML (see `layouts/*.xml`); sections carry `x y fontsize color
+Custom layouts are plain XML (see `layouts/*_kscw_*.xml`); sections carry `x y fontsize color
 bordercolor align animation src`. `animation`/`color`/`fontsize`/`bordercolor`/`src` are also
 settable **live** over `SetSections`; `x`/`y` are only honoured from the layout file.
 

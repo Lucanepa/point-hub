@@ -229,6 +229,24 @@ def main():
               size < 20 and d.textlength(name, font=font) <= box < d.textlength(name, font=rt._font(size + 1)),
               size)
 
+    # --- our layouts answer to the names and sections the bridge writes ---
+    lays = olb.load_layouts(cfg["layout_dir"])
+    want = {
+        "volleyball_matchscore_02": ["team1", "team2", "score1", "score2", "bg_score1", "bg_score2", "set1", "set2",
+                                     "vs", "timeout1", "timeout2", "sub1", "sub2", "lbl_to", "lbl_sub", "serve1", "serve2"],
+        "volleyball_matchscore_timeout_02": ["media", "lbl", "timer", "score1", "score2", "bg_score1", "bg_score2",
+                                             "set1", "set2", "sep"],
+        "volleyball_matchscore_set_02": ["media"],
+    }
+    for lname, secs in want.items():
+        lay = lays.get(lname)
+        missing = [n for n in secs if lay is None or lay.get(n) is None]
+        check("layout %s has every section the bridge writes" % lname, not missing, missing)
+    vm = lays.get("volleyball_matchscore_02")
+    check("its captions are T and S", vm and vm.get("lbl_to").text == "T" and vm.get("lbl_sub").text == "S")
+    check("its names and scores carry a width (shrink-to-fit)",
+          vm and all(vm.get(n).width > 0 for n in ("team1", "team2", "score1", "score2")))
+
     passed = sum(1 for _, ok in checks if ok)
     total = len(checks)
     print("\n%d/%d checks passed" % (passed, total))
