@@ -1,6 +1,6 @@
-# LedBox XL build manual (generator)
+# Point Hub XL build manual (generator)
 
-The illustrated, IKEA-style build manual for the LedBox XL: a 3D view of the finished board,
+The illustrated, IKEA-style build manual for the Point Hub XL: a 3D view of the finished board,
 the parts and tools, and the 17 assembly steps. Every drawing is generated to scale from the real
 dimensions in millimetres, so a change of size is a change of numbers, not a redraw.
 

@@ -109,7 +109,7 @@ const stageHtml = stages.map(([L, name, sub, steps]) => `
   </article>`).join('')}
 </section>`).join('');
 
-const html = `<title>LedBox XL Assembly</title>
+const html = `<title>Point Hub XL Assembly</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Archivo+Narrow:wght@600;700&family=Atkinson+Hyperlegible:wght@400;700&family=Azeret+Mono:wght@400;600&display=swap">
@@ -269,7 +269,7 @@ footer.end { margin-top: 56px; padding-block: 22px 48px; border-top: 3px solid v
   <header class="mast">
     <div>
       <div class="eyebrow">KSC Wiedikon · Point Hub · build manual</div>
-      <h1>LedBox <em>XL</em></h1>
+      <h1>Point Hub <em>XL</em></h1>
       <p class="lede">Our own scoreboard, 1.67 times the size of the Tech4Sport box, with a small score panel facing each bench. Seventeen steps, one weekend.</p>
     </div>
     <dl class="specs">
@@ -284,7 +284,7 @@ footer.end { margin-top: 56px; padding-block: 22px 48px; border-top: 3px solid v
     </dl>
   </header>
 
-  <section class="stage" aria-label="3D view of the finished LedBox XL">
+  <section class="stage" aria-label="3D view of the finished Point Hub XL">
     <div class="view">
       <div id="poster">${d.poster()}</div>
       <div id="stage3d" hidden></div>
@@ -313,7 +313,7 @@ footer.end { margin-top: 56px; padding-block: 22px 48px; border-top: 3px solid v
   <div class="col">${stageHtml}</div>
 
   <footer class="end col">
-    <p>KSC Wiedikon · Point Hub · LedBox XL build manual, draft of 22 October 2026.</p>
+    <p>KSC Wiedikon · Point Hub XL build manual, draft of 22 October 2026.</p>
     <p>The panel software (openscore, flushBuffer2 and the Point Hub console) comes ready on the SD card in step 14.</p>
   </footer>
 </div>

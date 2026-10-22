@@ -29,7 +29,7 @@ for indoor modules — a DIY build starts from the indoor profile C and measures
 
 ## Building one from open parts
 
-KSC Wiedikon's own design is the **LedBox XL**: the same 192 × 64 at 5 mm pitch from six 64×32
+KSC Wiedikon's own design is the **Point Hub XL**: the same 192 × 64 at 5 mm pitch from six 64×32
 indoor modules, plus a 64×32 bench panel at each end, three HUB75 outputs, powered by USB-C only
 (no mains inside), in a plywood box. The full guide — parts, purchase spec, GPIO plan, power path,
 safety case, case, build steps and software bring-up — is

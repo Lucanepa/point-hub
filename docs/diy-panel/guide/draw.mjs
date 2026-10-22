@@ -1,4 +1,4 @@
-// IKEA-style line drawings for the LedBox XL guide. Everything is drawn to scale
+// IKEA-style line drawings for the Point Hub XL guide. Everything is drawn to scale
 // from the real dimensions (mm). World axes for the standing box: X left->right
 // (0..1020), Y front->back (0..220), Z bottom->top (0..380).
 let UID = 0;
@@ -575,7 +575,7 @@ export function poster() {
   b += txt(l[0], l[1], '18', 'pled pled-b') + txt(r[0], r[1], '16', 'pled pled-o') + txt(s[0], s[1], '2 · 1', 'pleds');
   b += txt(n1[0], n1[1], 'WIEDIKON', 'pledn pled-b', 'start') + txt(n2[0], n2[1], 'VOLZ', 'pledn pled-o', 'end');
   for (const hx of [210, 690]) { const a = P(hx, 110, 380), c = P(hx + 120, 110, 380); b += path(`M${R(a[0])} ${R(a[1])} Q${R((a[0] + c[0]) / 2)} ${R(a[1] - 30)} ${R(c[0])} ${R(c[1])}`, 'po-h'); }
-  return svg(640, 372, b, 'LedBox XL, front view with a match score');
+  return svg(640, 372, b, 'Point Hub XL, front view with a match score');
 }
 
 // ---- inventory icons (120 x 80) ------------------------------------------
