@@ -871,6 +871,15 @@
   .dnet .nstate.up{border-color:var(--ok);color:var(--ok)}
   .dnet .nstate.down{border-color:var(--bad);color:var(--bad)}
   .dnet .naddr{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Panel test: the card's three buttons. Full --tap height — this is tapped standing up, often by
+     someone who has never opened this tab before. While the test screen is up the card carries the
+     warn state (colour AND the words in .dbig), and "Back to normal now" is the button that stands
+     out. */
+  .ptbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .ptbtns button{min-height:var(--tap);font-size:14px;font-weight:700;padding:0 16px;border:1.5px solid var(--line);
+    border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
+  .ptbtns button:disabled{opacity:.5;cursor:default}
+  .ptbtns .ptback{border-color:var(--gold);color:var(--gold)}
 
   .logbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
   .logbar strong{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -1544,6 +1553,27 @@
          where the things a console login would have told you live instead. -->
     <section id="tab-diag" class="tab diag">
       <div class="dgrid" id="dgrid">
+        <!-- PANEL TEST — the volunteer's self-check of the LED hardware, on the glass itself. A dead
+             module, a swapped ribbon or a missing colour line is otherwise found mid-match by the
+             spectators. The board refuses it during a match or a countdown (POST /api/paneltest)
+             and always goes back by itself, so nothing here can leave the panel on it. -->
+        <div class="dcard wide" id="dcPanel">
+          <h4><svg class="licon l-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2" /> <path d="M8 21h8" /> <path d="M12 17v4" /></svg> Panel test</h4>
+          <div class="dbig" id="dPanelState">Normal screen</div>
+          <div class="dsub" id="dPanelSub">The panel shows what it would anyway.</div>
+          <div class="ptbtns">
+            <button type="button" id="ptStart">Show test screen</button>
+            <button type="button" id="ptBack" class="ptback" hidden>Back to normal now</button>
+            <button type="button" id="ptHorn">Test horn</button>
+          </div>
+          <p class="hint">The test screen numbers the three panel modules <b>1 | 2 | 3</b> from the left,
+            each with a white frame and four bars: red, green, blue, white. Look for a module that is
+            dark, a frame with a gap, a missing bar, or numbers out of order — and note the module
+            number. It goes back to the normal screen by itself after 20 seconds. Test horn sounds the
+            horn once, unless it is switched off in Settings. Neither works during a match or a
+            countdown.</p>
+        </div>
+
         <div class="dcard" id="dcClock">
           <h4><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Clock</h4>
           <div class="dbig" id="dClockNow">—</div>
@@ -3211,6 +3241,9 @@
       if (statusAgain) { statusAgain = false; refreshStatus(); }
     }
     if (st) renderStatus(st, seq);
+    // Off the poll only: renderStatus also takes patches built from an earlier `ledbox`, whose
+    // test countdown would be stale by the time it landed.
+    if (st && st.ledbox) renderPanelTest(st.ledbox.test);
   }
 
   // `btn` is the control that was tapped, if any: it is disabled for the round trip.
@@ -4150,6 +4183,53 @@
     closeLogStream();
   }
   const diagOpen = () => !!$("#tab-diag") && $("#tab-diag").classList.contains("active");
+
+  // --- panel test (Diagnostics ▸ Panel test) -------------------------------
+  // The board owns the test: it refuses one during a match or a countdown, takes it down by itself
+  // after 20 s, and takes it down the moment anything else wants the panel. So this card only asks,
+  // and reads back what /api/status says (ledbox.test) — a test started from another tablet shows
+  // here too. `remainingMs`, never `endsAt`: the board has no battery clock, and its idea of the
+  // time can be hours away from the tablet's.
+  let ptEndsAt = 0, ptTimer = null;
+  function renderPanelTest(test) {
+    const on = !!(test && test.remainingMs > 0);
+    ptEndsAt = on ? Date.now() + test.remainingMs : 0;
+    paintPanelTest();
+    if (on && !ptTimer) ptTimer = setInterval(paintPanelTest, 500);
+  }
+  function paintPanelTest() {
+    const left = Math.ceil((ptEndsAt - Date.now()) / 1000);
+    const on = ptEndsAt > 0 && left > 0;
+    $("#dPanelState").textContent = on ? "Test screen up" : "Normal screen";
+    $("#dPanelSub").textContent = on
+      ? `Back to the normal screen by itself in ${left} s.`
+      : "The panel shows what it would anyway.";
+    $("#ptBack").hidden = !on;
+    $("#ptStart").textContent = on ? "Restart the 20 s" : "Show test screen";
+    setCard($("#dcPanel"), on ? "warn" : "");
+    if (!on && ptTimer) { clearInterval(ptTimer); ptTimer = null; }
+  }
+  async function panelTest(action, btn) {
+    if (btn) btn.disabled = true;
+    try {
+      const r = await postJSON("/api/paneltest", { action });
+      if (action === "horn") {
+        toast(r && r.ok ? "Horn sounded — did you hear it?" : (r && r.error) || "The horn did not sound.");
+        return;
+      }
+      if (r && r.ledbox) renderPanelTest(r.ledbox.test);
+      if (r && r.ok === false) toast(r.error || "The test screen did not start.");
+      else if (action === "start") toast("Test screen on the panel — check modules 1, 2 and 3.");
+    } catch (e) {
+      // A refusal (a match on, a countdown running) comes back as the board's own sentence.
+      toast(e.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+  $("#ptStart").addEventListener("click", (e) => panelTest("start", e.currentTarget));
+  $("#ptBack").addEventListener("click", (e) => panelTest("stop", e.currentTarget));
+  $("#ptHorn").addEventListener("click", (e) => panelTest("horn", e.currentTarget));
 
   // A new level empties the tail and replays the history at that level, so it starts from 0.
   $("#logLevel").addEventListener("change", () => { $("#logList").textContent = ""; logLastId = 0; openLogStream(); });

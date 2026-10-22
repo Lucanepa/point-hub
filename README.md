@@ -174,6 +174,20 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   `/hall-login/`), so it is still the board that logs in: `POST /api/uplink/portal` (PIN) opens it
   for that tablet for ten minutes, its scripts run sandboxed away from the console's storage, and
   its cookies stay on the board. An offline `/api/uplink` also names the Wi-Fi and says `why`.
+- **Panel test** — **Diagnostics ▸ Panel test** is the volunteer's self-check of the LED hardware,
+  on the glass: **Show test screen** puts up `kscw_test` (`layouts/36_kscw_test.xml`), which
+  numbers the C0270's three 64×64 modules **1 | 2 | 3** from the left, frames each one in white and
+  draws red, green, blue and white bars under each number. A dark module, a frame with a gap, a
+  missing bar or numbers out of order point at that module or its ribbon. **Test horn** sounds the
+  horn once — unless Settings ▸ Horn when a countdown ends is off, which it then says. Both are
+  refused during a match (the scoreboard showing a started, unfinished match, or a linked match)
+  and during a countdown. The test screen goes back to exactly what was there (the held clock,
+  the crest, the scoreboard, the result) after 20 s, on **Back to normal now**, and the moment
+  anything else wants the panel (a point, a countdown, Show clock…); a reconnect, the layout guard
+  and the idle ticker each take down a test screen with no test behind it, so nothing can leave the
+  panel on it. `POST /api/paneltest { action: 'start' | 'stop' | 'horn', seconds? }` (PIN; 409 with
+  the reason when refused); `/api/status` carries `ledbox.test: { endsAt, remainingMs } | null`.
+  The layout ships with `deploy-board.sh` like every `*_kscw_*.xml`. `npm run test:paneltest`.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
 - **Theme** — **Settings ▸ Theme**: Light (the default), Dark, or E-ink — greyscale, paper white

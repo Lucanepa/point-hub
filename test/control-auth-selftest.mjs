@@ -53,6 +53,9 @@ const ROUTES = {
   // Writes across the whole panel AND can swap the ends — the most consequential of the paint
   // routes, so it is gated like the rest.
   '/api/message': { guard: 'pin', body: { text: 'COURT SWITCH', seconds: 1 } },
+  // Diagnostics ▸ Panel test: puts the test screen over whatever the hall is looking at, or sounds
+  // the horn. The authed probe is 'stop', which with no test running changes nothing.
+  '/api/paneltest': { guard: 'pin', body: { action: 'stop' } },
   '/api/history/clear': { guard: 'pin', body: {} },
   '/api/logs/level': { guard: 'pin', body: { level: 'info' } },
   '/api/logs/clear': { guard: 'pin', body: {} },
