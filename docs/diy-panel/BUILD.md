@@ -690,6 +690,11 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 - 2 spare HUB75 ribbons and 2 module power leads.
 - One known-good **single-port PD charger, 65 W or more**, labelled "board only", with a labelled
   1 m USB-C cable (about €40).
+- A **micro-HDMI to HDMI cable** (about €5) and a USB-C network adapter for the club laptop. The
+  laptop on the DATA cable reaches everything the board serves (console, Diagnostics, `/logs`,
+  SSH), but only once the Pi has booted far enough to bring its network up; the DATA port carries
+  no picture (the Pi 4's USB-C has no video). For a Pi that will not boot: open the door and plug
+  a monitor into the Pi's micro-HDMI next to the door, or swap in the spare SD card.
 - The USB-C power meter, a small torch, silica gel.
 - A printed **swap card**.
 
