@@ -152,10 +152,14 @@ required for parity; it is a later enhancement.
 **Colour format**: `"R,G,B"` decimal strings (`_to_rgb` also tolerates `;`-separated). Rendering
 is RGB; the panel is RGB.
 
-**`fontsize` caveat**: the vendor panel uses **bitmap** fonts with a discrete height ladder
-(PROTOCOL.md notes `fontsizearray`), so vendor `fontsize` values are calibrated to *those* glyphs.
-We render **scalable TTF** (DejaVuSans-Bold by default), so the numbers won't match 1:1 — this is
-the main calibration task in the ROADMAP (Phase 2), not a protocol issue.
+**Font and `fontsize`**: the vendor app draws text with the board's `ARIAL.TTF` through Pillow's
+`ImageFont.truetype`, so `fontsize` is a TrueType size, not a step on a bitmap ladder (the
+bitmap-ladder reading of the APK's `fontsizearray` in PROTOCOL.md does not match what the board
+does). We render with the bundled
+**Liberation Sans** (`fonts/`), metric-compatible with Arial, so widths match. Arial is not bundled
+and will not be: it is proprietary. What still differs is **placement** — our text sits a few
+pixels higher than the vendor's — which is the calibration task in the ROADMAP (Phase 2), not a
+protocol issue.
 
 ## 6. Behaviours the bridge relies on
 
@@ -201,7 +205,7 @@ All of these are already exercised by `render_samples.py` / `selftest.py`:
 | `:8889` **wedges ~80 s** when a client dies without `Disconnect` | dead socket dropped at once; new client always accepted; idle-timeout reaps silent clients |
 | `noresend:true` → bridge **stalls 5 s** on a redundant `SetLayout` | always replies |
 | layout scanner **crashes** on any multi-dot filename | globs `*.xml`, skips bad files with a warning |
-| `fontsize` **clips** long names (fixed bitmap boxes) | shrink-to-fit TTF |
+| `fontsize` **clips** long names (one fixed size per box) | shrink-to-fit TTF |
 | latin-1 / py2 umlaut breakage | UTF-8 throughout; structured logging |
 | accepting the READ shape silently | rejects it with **error 9**, exactly like real hardware (fidelity) |
 
@@ -210,7 +214,8 @@ All of these are already exercised by `render_samples.py` / `selftest.py`:
 - No GPIO / panel driving (that is flushBuffer2's job, already done).
 - No media/layout **upload** service (`:12345`), no network-admin commands, no vendor plugins.
 - No native animation engine (software blink covers the bridge's needs).
-- Pixel-exact parity with the vendor's bitmap fonts — deferred to on-glass calibration (ROADMAP).
+- Pixel-exact parity with the vendor's text placement — deferred to calibration against captured
+  vendor frames (ROADMAP Phase 2).
 
 ## 10. File map
 

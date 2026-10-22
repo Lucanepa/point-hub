@@ -34,10 +34,16 @@ SetSections` handshake against it. See README §"Prove the handshake".
 
 Make the headless PNGs look *right* — the protocol is done, this is pixels. All off-hardware.
 
-- ⬜ **Font choice & metrics.** The vendor uses bitmap fonts on a discrete `fontsize` ladder; we
-  render scalable TTF, so sizes won't match 1:1. Pick the font (DejaVuSans-Bold today; consider
-  bundling the panel's own `ARIAL.TTF` whose advance widths the bridge already encodes in
-  `volleyballMapper.js`) and settle the size mapping.
+- ✅ **Font.** The vendor draws its text with the board's `ARIAL.TTF` through Pillow's
+  `ImageFont.truetype` — scalable TrueType, not a bitmap ladder. openscore bundles **Liberation
+  Sans**, which is metric-compatible with Arial, so the advance widths `volleyballMapper.js`
+  encodes still hold. **Arial itself is never bundled**: it is Monotype's and not redistributable
+  ([`fonts/README.md`](fonts/README.md)).
+- ⬜ **Text placement.** Same metrics, different placement: at size 24 openscore's ink sits about
+  4 px (≈0.17 em) higher than the vendor's. That cannot come from the font, so it is a placement
+  rule in the vendor app. Derive it from captured vendor frames at several sizes (14/18/24/26/55)
+  and strings (caps, digits, lowercase, umlauts), implement it as a placement function in
+  `Renderer._draw_text`, then re-bless the golden images. Not a magic constant from one data point.
 - ⬜ **Per-section calibration** of the score/set/timeout/sub boxes in `volleyball_matchscore_02`
   and the break/countdown layouts: baseline (note the intentional negative `y`), centering,
   rectangle inclusive-vs-exclusive edge (Pillow `rectangle` is inclusive → boxes are +1 px).

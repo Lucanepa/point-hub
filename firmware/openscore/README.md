@@ -36,7 +36,7 @@ See **`DESIGN.md`** for the architecture and a table of every protocol message a
 | Port `:8889` **wedges ~80 s** when a client dies without `Disconnect` (needs a power-cycle) | dead socket dropped immediately; new client always accepted; falls back to idle |
 | `noresend: true` → bridge **stalls 5 s** on a redundant `SetLayout` | `noresend: false`, **always replies** — no stalls |
 | layout scanner `f.split('.')` **crashes** on any multi-dot filename | globs `*.xml` + `os.path.splitext` — bad files skipped with a warning |
-| `fontsize` clips long names (fixed bitmap boxes) | **shrink-to-fit** text scales names down to their box |
+| `fontsize` clips long names (one fixed size per box) | **shrink-to-fit** text scales names down to their box |
 | accepts the malformed READ shape silently | rejects it with **error 9**, exactly like real hardware |
 | py2 remnants, latin-1 umlaut breakage | UTF-8 throughout, structured logging |
 
@@ -82,8 +82,8 @@ just to confirm the wire protocol.
 ## Deploy on the board (replaces ledbox.py) — see ROADMAP Phase 3–4
 
 > ⚠️ Do this **with eyes on the panel** — a wrong render is invisible over the network, and
-> fonts/positions will need calibration (the vendor tuned `fontsize` to bitmap fonts; we render
-> scalable TTF). Keep the stock firmware as a fallback; **never** put a backup file inside
+> text positions will need calibration (same metrics as the vendor's Arial, but our text sits a
+> few pixels higher — ROADMAP Phase 2). Keep the stock firmware as a fallback; **never** put a backup file inside
 > `layout/` (that scan is fragile). Full checklist in `ROADMAP.md`.
 
 1. `sudo apt install -y python3-pil` (or `pip3 install --break-system-packages pillow`).
