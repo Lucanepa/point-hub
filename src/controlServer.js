@@ -26,6 +26,7 @@ import { AutoPrepare, inWindow } from './autoPrepare.js'
 import { zurichDate } from './schedule.js'
 import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 import { PortalProxy } from './portalProxy.js'
+import { fixtureOf } from './liveFixture.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -458,6 +459,37 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (typeof schedule.start === 'function') schedule.start()
     autoPrepare.start()
     gameSheet.start()
+  }
+  // Which game the score on the board belongs to, for livePush's `game-<id>` row (liveFixture.js),
+  // asked with every state the board publishes:
+  //   - a linked OpenVolley match: its match number (liveState.game_n) looked up in the season copy,
+  //     and nothing else — the schedule game the board was set up for before the link is a
+  //     different match. OpenVolley's team A is whoever the scorer entered first, so the names
+  //     decide who is home;
+  //   - otherwise the schedule game the board was set up for (currentGameId). The schedule start
+  //     put home on the LEFT, so the state's `ends_swapped` knows where home is when the names
+  //     alone cannot tell.
+  // null = unscheduled: the board's own channel only. A KSCW-vs-KSCW game is a `games` row per team;
+  // the season copy holds the home team's (type 'home'), so that is the id the game is published
+  // under, once — the away team's copy is not written (see the derby note in README).
+  // The last game found is kept, so a late game is not dropped mid-match when the copy prunes it
+  // after midnight.
+  let lastFixtureGame = null
+  function liveFixture(state) {
+    const sport = activeSport()
+    const keep = (g) => { if (g) lastFixtureGame = g; return g }
+    if (sourceManager.status.mode === 'lan') {
+      const n = state && state.game_n != null ? String(state.game_n).trim().replace(/^[a-z]+_/i, '') : ''
+      if (!n) return null
+      const g = (typeof schedule.gameByNumber === 'function' ? schedule.gameByNumber(n, { sport }) : null)
+        || (lastFixtureGame && lastFixtureGame.number === n ? lastFixtureGame : null)
+      return g ? fixtureOf(keep(g), { homeStartsLeft: false }) : null
+    }
+    const id = currentGameId()
+    if (id == null) return null
+    const g = (typeof schedule.game === 'function' ? schedule.game(id) : null)
+      || (lastFixtureGame && Number(lastFixtureGame.id) === Number(id) ? lastFixtureGame : null)
+    return g ? fixtureOf(keep(g), { homeStartsLeft: true }) : null
   }
   // The hall's internet and its Wi-Fi login (see hallLogin.js). Probed every minute while it is
   // not online, every ten when it is — only on a real boot, like the schedule: a test's hand-built
@@ -1845,6 +1877,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // boot, clean or not: the board shows the clock at boot anyway, so bringing the pre-match back
   // only puts the console's "Ready" banner (and the names) back where the scorer left them.
   server.savedPrematch = () => resume.isPrematch(activeSport())
+
+  // The game a state belongs to, for the live publisher's per-game row (see liveFixture above).
+  server.liveFixture = liveFixture
 
   // One automatic pre-match decision, now (the selftest drives it; the board runs it every 30 s).
   server.autoPrepareTick = () => autoPrepare.tick()
