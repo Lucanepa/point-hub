@@ -179,6 +179,15 @@ screen ever misbehaves at a match).
 - **Scorer PIN:** the app keeps it. The console reads `PointHubApp.scorerPin()` for every write it
   makes, and reports a PIN it learned or forgot with `setScorerPin(pin)`. A 403 on a console write
   calls `pinRejected()`, and the app opens its PIN pad.
+- **First PIN (a board that must have one and has none yet):** the board answers `pinSetup:true`
+  and refuses writes from the Wi-Fi with a 403 that carries `pinSetup:true` and words naming
+  Settings. The app can only *type* a PIN, so setting the first one is the console's: it shows its
+  own "Set a scorer PIN" screen (not hidden in embed mode), calls `showTab("settings")` once to come
+  in front of the Game tab, and never `pinRejected()` for such a 403. Once the PIN is set it calls
+  `setScorerPin(pin)`, `settingsChanged()` and `showTab("game")`. Meanwhile the app 1.1.x, unchanged,
+  shows its padlock (`pinRequired:true`), no start-up lock screen (`pinSet:false`), a toast with the
+  board's words on a refused tap, and in its PIN pad the same words (`/api/unlock` answers 409 with
+  them). On the cable nothing of this blocks; Settings ▸ Access only reminds.
 - **Theme:** Settings ▸ Theme stays in the console. The console reports the current theme at boot
   and on every change with `setTheme(theme)`, and the app's native screens follow it.
 - **Settings:** after a successful save the console calls `settingsChanged()`, so the native Game
@@ -228,13 +237,24 @@ screen ever misbehaves at a match).
 - **Dialogs.** `alert` and `confirm` work (they are native dialogs). `window.open`, file pickers,
   geolocation, camera and microphone are refused.
 
+## The scorer PIN on the cable
+
+A tablet on the board's **cable** (it arrived on `192.168.5.1` from `192.168.5.0/24`, the board's
+`CABLE_*` settings) is never asked for the scorer PIN: the board lets its writes through whatever
+`X-Scorer-Pin` says, and answers it as a board that needs no PIN — `/api/status` `pinRequired:false`
+with `pinTrust:"cable"`, `/api/settings` `pinSet:false`. Both fields keep their old meaning ("this
+client must send a PIN"), so the shipped app (1.1.x) needs no change: its start-up PIN screen stays
+down and its padlock hidden. `pinConfigured` says whether the board has a PIN at all. The board
+decides from the TCP connection only; the app sends nothing for it. On the Wi-Fi (or https over
+it) nothing changes.
+
 ## Board-side endpoints the app uses
 
 These are served by the board (the server agent's side):
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/status` | Discovery. A 200 with a JSON **object** body means "this is the board". Redirects count as failures. |
+| `GET /api/status` | Discovery. A 200 with a JSON **object** body means "this is the board". Redirects count as failures. `board.id` (with `board.label` and `board.caps`) says WHICH board it is — every board answers at the same 172.24.1.1 / 192.168.5.1, so pairing a tablet to one board means remembering this id, not an address. |
 | `GET /app/version.json` | The update manifest: `{"versionCode":13,"versionName":"1.0.4","sha256":"<64 hex>","url":"/app/pointhub.apk","notes":"…","size":5234567}`. `url` must be `/app/…` or an absolute URL on the same board origin. |
 | `GET /app/pointhub.apk` | The APK. Serve it as `application/vnd.android.package-archive` with `Cache-Control: no-store`. |
 

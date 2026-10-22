@@ -2,6 +2,21 @@
 // Production has zero npm dependencies: the relay client uses Node's built-in global
 // WebSocket (Node >= 22) and the LedBox client uses node:net.
 
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// The checkout this code runs from (the parent of src/). Everything the appliance writes has always
+// lived here, beside the code: settings.json, data/ and the boot markers.
+export const CODE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+// The one directory everything the appliance PERSISTS hangs off (see STATE_DIR below). Unset = the
+// checkout, byte for byte the paths a board has always used. A relative STATE_DIR is taken from the
+// working directory, which under systemd is the checkout (WorkingDirectory=), so spell it absolute.
+export function stateRootOf(config = {}) {
+  const dir = config && typeof config.stateDir === 'string' ? config.stateDir.trim() : ''
+  return dir ? path.resolve(dir) : CODE_ROOT
+}
+
 export function loadConfig(env = process.env) {
   const bool = (v, d = false) => (v == null || v === '' ? d : /^(1|true|yes|on)$/i.test(String(v)))
   // `Number(env.X || default)` is a trap for every numeric var here: '0' is truthy so it skips the
@@ -92,5 +107,28 @@ export function loadConfig(env = process.env) {
     // relay address: its own origin first (the standalone server and the cloud serve HTTP and WS on
     // one port), then port 5173 on the same host (the desktop app). See relayHttpCandidates.
     relayHttpUrl: env.RELAY_HTTP_URL || '',
+    // Where everything the appliance WRITES lives: settings.json (the scorer PIN with it), data/ —
+    // match history, the resume slot, the logs, the schedule copy, the upload ledger — and the two
+    // boot markers (.sport-switch, data/.running). Empty (the default) = the checkout, exactly the
+    // paths every board has always used. A board with a read-only root (an overlay root on the DIY
+    // build) points this at its persistent data partition, e.g. STATE_DIR=/data/ledbox: on an
+    // overlay, a write anywhere else lands in RAM and is gone at the next power cut — which is the
+    // one event the resume slot exists to survive. Read once at boot. See stateRootOf.
+    stateDir: String(env.STATE_DIR || '').trim(),
+    // Cable trust (src/cableTrust.js): a tablet plugged into the board by cable is never asked for
+    // the scorer PIN — a request that arrived on CABLE_ADDRESS (the board's eth0) from inside
+    // CABLE_SUBNET passes every PIN gate, on http and https. Decided from the TCP connection only,
+    // never from anything the client sends. On by default; CABLE_TRUST=0 switches it off (a board
+    // whose cable faces something other than the scorer's table). A malformed address or subnet
+    // switches it off too, and says so at boot.
+    cableTrust: !/^(0|false|no|off)$/i.test(String(env.CABLE_TRUST ?? '').trim()),
+    cableAddress: String(env.CABLE_ADDRESS || '').trim() || '192.168.5.1',
+    cableSubnet: String(env.CABLE_SUBNET || '').trim() || '192.168.5.0/24',
+    // A real boot REQUIRES a scorer PIN (system-12; controlServer.js, pinSetup). Not an env switch
+    // on purpose: the board's AP passphrase is on the panel, so a board without a PIN is a board
+    // anyone in the hall can score on. A board that has none yet refuses writes from its Wi-Fi until
+    // the first operator sets one in the console (no PIN needed for that one save); the cable is
+    // exempt. A hand-built config (the tests) leaves it off and keeps the old open no-PIN board.
+    pinMandatory: true,
   }
 }

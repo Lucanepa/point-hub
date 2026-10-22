@@ -30,8 +30,19 @@ STALE_AFTER=60      # seconds without a repaint before we call the renderer dead
 CHECK_EVERY=30
 PANEL_OFF=/home/pi/ledbox/PANEL_OFF   # present = operator set brightness 0; keep the panel dark
 LOCK=/home/pi/ledbox/panel.lock       # serialises panel starts so we never spawn two drivers
-# The bridge's persisted settings -- read only to spot a PANEL_OFF left behind (see below).
-BRIDGE_SETTINGS=/home/pi/ledbox-bridge/settings.json
+# The bridge's persisted settings -- read only to spot a PANEL_OFF left behind (see below). They sit
+# beside the bridge's code unless its .env moves them with STATE_DIR (a read-only root keeps them on
+# the data partition), so follow that setting: reading a stale copy at the old path would judge the
+# flag by a brightness the operator has since changed. A relative STATE_DIR is relative to the
+# bridge's WorkingDirectory, as systemd resolves it.
+BRIDGE_DIR=/home/pi/ledbox-bridge
+BRIDGE_STATE=$(sed -n 's/^[[:space:]]*STATE_DIR=[[:space:]]*//p' "$BRIDGE_DIR/.env" 2>/dev/null | tail -n 1 | tr -d "\"'" | sed 's/[[:space:]]*$//')
+case "$BRIDGE_STATE" in
+    '') BRIDGE_STATE=$BRIDGE_DIR ;;
+    /*) ;;
+    *) BRIDGE_STATE=$BRIDGE_DIR/$BRIDGE_STATE ;;
+esac
+BRIDGE_SETTINGS=$BRIDGE_STATE/settings.json
 PANEL_CTL=/run/ledbox-panel           # a live driver's control directory (tmpfs; see the header)
 
 log() { logger -t ledbox-watchdog "$1"; echo "$(date '+%F %T') $1"; }

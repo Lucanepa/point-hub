@@ -58,6 +58,8 @@ boots a working board on the defaults below (`src/config.js` is the source of tr
 | `SCHEDULE_HALLS` | empty (every hall) | Comma list of hall names, e.g. `KWI A,KWI B`: only games in those halls are offered (and prepared automatically). Case-insensitive. |
 | `SCHEDULE_SYNC` | on | `0` = no background download and no automatic pre-match; the schedule is then only fetched when a console asks for it. |
 | `UPLINK_WATCH` | on | Watch the board's internet and offer the **hall Wi-Fi login** (below). `0` = no background probe. `UPLINK_PROBE_URL` / `UPLINK_PORTAL_URL` point it at a fake portal for testing; they default to Android's `generate_204` and `https://login.pwlan.ch`. |
+| `CABLE_TRUST`, `CABLE_ADDRESS`, `CABLE_SUBNET` | on, `192.168.5.1`, `192.168.5.0/24` | **A tablet on the cable is never asked for the scorer PIN** (owner decision 2026-10-22: the cable is a direct, physical connection). A request that arrived on `CABLE_ADDRESS` (the board's eth0) from an address inside `CABLE_SUBNET` (the board itself excluded) passes every PIN gate, on http and https alike, is never counted by the brute-force lock-out, and is told so: `/api/status` answers it `pinRequired:false, pinTrust:"cable"`, `/api/settings` `pinSet:false` (so the tablet app's start-up PIN screen stays down), with `pinConfigured` saying whether the board has a PIN at all. Decided from the TCP connection only — no header, query or `X-Forwarded-For` counts. Everyone else (the board's Wi-Fi `172.24.1.x`, the hall uplink, the tailnet, loopback, a Wi-Fi client aiming at `192.168.5.1`) is gated as before. `CABLE_TRUST=0` switches it off; a malformed address or subnet switches it off too and says so at boot. See `src/cableTrust.js`, `test/cable-trust-selftest.mjs`. |
+| `STATE_DIR` | empty (the checkout) | Where everything the appliance **writes** lives: `settings.json` (the scorer PIN with it), `data/` (match history, the resume slot, logs, the schedule copy, the upload ledger, the hall-login stamp, the match-sheet copy) and the boot markers `.sport-switch` and `data/.running`. Empty keeps the paths every board has always used. A board with a **read-only root** sets it to a directory on its persistent data partition (e.g. `STATE_DIR=/data/ledbox`, absolute): on an overlay root anything written elsewhere is lost at the next power cut. Not covered by it, because they belong to the OS or the panel firmware: `/etc/NetworkManager/system-connections`, `/var/lib/tailscale`, the TLS cert dir, the fake-hwclock / timesyncd stamps, and the firmware's own `setting.ini` and `PANEL_OFF` under `/home/pi/ledbox` — a read-only root bind-mounts those itself. A state dir that cannot be written is logged at boot at error level; the board still scores, from memory. `firmware/ledbox-watchdog.sh` reads the same `STATE_DIR` from this `.env`. `test/state-dir-selftest.mjs` fails on any new write path until it is classified. |
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error`; `DEBUG=1` is shorthand for `debug`. |
 | `MOCK` | off | `1` = in-process mock LedBox, no hardware. |
 | `MATCH_ID` | — | Only the headless `src/bridge.js` needs it; the appliance picks matches in the UI. It is the match's **seed key** (`match_…`, the `id` in the relay's `/api/match/list`, also in the scorer's QR code) — the relay keys rooms by it. The scorer's local numeric match id receives nothing. |
@@ -197,6 +199,22 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   `_session` of one scoring page; a reload starts again at 1). A state older than the newest one
   the board has taken is dropped (`src/relaySubscriber.js`), so the relay's replay after a
   reconnect can neither roll the score back nor start a break twice.
+- **Scorer PIN — mandatory** — the board's AP passphrase is on the panel, so a real boot requires a
+  scorer PIN. A board that has none yet (every board on the day this shipped) refuses writes from
+  its Wi-Fi with *"This board has no scorer PIN yet — set one in Settings before scoring."* and the
+  console shows **Set a scorer PIN** in front of everything (PIN typed twice) until someone sets
+  one — that one save needs no PIN. In the tablet app the console comes to the front by itself to
+  do it; the app's own screens can only type a PIN. A tablet on the **cable** is never blocked
+  (`CABLE_TRUST`) and only reminded. The PIN can be changed (with the current one), not removed.
+  Lost PIN: on the board, remove `scorerPin` from `settings.json` (in `STATE_DIR`) and restart the
+  bridge — it is back in the setup, and the next operator sets a new one. Keep the PIN in the vault
+  and on the coaches' sheet, not on the public hall card.
+- **Which board** — `/api/status.board` names the board beside `fontsize`: `id` (settings.json
+  `boardId`, set on the board only and never through the API since tablets pair against it, else
+  the hostname), `idSource`, `label` (`boardLabel`, e.g. "Court 2", else the id) and `caps`:
+  `sports`, `panel` `{ width, height, source }` read from the firmware's `setting.ini` [DISPLAY]
+  (192×64 when absent), `renderer` `{ kind: 'vendor' | 'openscore', version, device }` from the
+  board's own Init reply (null before the first handshake). Nothing existing was renamed.
 
 - **Undo** — one button beside the set strip takes back the last action, whatever it was
   (point, timeout, sub, swap, next set, reset), up to 30 steps; it reads what it will undo

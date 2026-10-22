@@ -18,6 +18,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { log } from './logStore.js'
 import { parseRelayAddress } from './relayAddress.js'
+import { BOARD_ID_RE } from './boardIdentity.js'
 
 const setlog = log.child('settings')
 
@@ -35,6 +36,13 @@ export const GLOBAL_DEFAULTS = {
   // 125px name column, the scoreboard only ~86px, so one number cannot serve both.
   idleFullNames: true,
   idleFontMax: 24,
+  // The "Join WiFi" + "Open UI" QR codes on the crest screen while nobody is on the console. The
+  // Join-WiFi one IS the AP passphrase, shown to the whole hall. Off = the crest and the wall clock
+  // instead (the same screen an operator on the console already gets). The QRs are fixed images in
+  // the board's own layout (firmware/idle-crest-qr), so this only chooses whether the appliance puts
+  // that layout up: the firmware's own `waiting` screen — at boot, and whenever the bridge is not
+  // running — still carries them. On by default: the printed hall guide tells people to scan it.
+  idleQr: true,
   // Shown on the set-interval and warm-up countdowns. Short — it lands in a narrow label box.
   clubName: 'KSC WIEDIKON',
   // Scorer PIN. Set = the board rejects scoring/control without it. Empty = open. Digits, max 8.
@@ -57,6 +65,12 @@ export const GLOBAL_DEFAULTS = {
   // for a relay on the internet. Empty = RELAY_URL from .env if set, else look for the laptop on
   // the board's own networks (see relayAddress.js). Shared: it is about the hall, not the sport.
   relayAddress: '',
+  // Which board this is (gap-07; see boardIdentity.js). `boardId` is what tablets pair against, so
+  // it is set ON THE BOARD (settings.json, or left empty for the hostname) and never through the
+  // API — no patch can change it (update()). `boardLabel` is the name for people, e.g. "Court 2";
+  // empty = the id.
+  boardId: '',
+  boardLabel: '',
 }
 
 // Per-sport. Volleyball = the historical flat values (so a migrated board is identical). Beach =
@@ -107,7 +121,7 @@ export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
 // about what a valid PIN is.
 export const PIN_RE = /^\d{1,8}$/
 
-const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare']
+const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare', 'idleQr']
 const NUMS = {
   idleFontMax: [10, 30], matchFontMaxLeft: [10, 30], matchFontMaxRight: [10, 30],
   brightness: [0, 100], blinkMs: [200, 10000],
@@ -148,6 +162,10 @@ function sanitizeInto(out, keys, patch = {}) {
       continue
     }
     if (k === 'sport') { out[k] = SPORTS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
+    // Lower-cased; a malformed id is dropped like any bad value (then the hostname stands in).
+    if (k === 'boardId') { const v = String(patch[k] ?? '').trim().toLowerCase(); if (v === '' || BOARD_ID_RE.test(v)) out[k] = v; continue }
+    // Shown to people and maybe on the panel one day: printable, short — the clubName discipline.
+    if (k === 'boardLabel') { out[k] = String(patch[k] ?? '').replace(/[^\x20-\x7E]/g, '').trim().slice(0, 24); continue }
     if (k === 'branding') { out[k] = BRANDINGS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'liveScoring') { out[k] = LIVE_SYSTEMS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'orientation') { out[k] = ORIENTATIONS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
@@ -235,7 +253,8 @@ export class Settings {
     // Reading raw.sport after applying the patch would route the outgoing sport's numbers into
     // the incoming one and silently overwrite its defaults on disk.
     const active = SPORTS.includes(this.raw.sport) ? this.raw.sport : 'volleyball'
-    sanitizeInto(this.raw, allowSport ? GLOBAL_KEYS : GLOBAL_KEYS.filter((k) => k !== 'sport'), patch)
+    // `boardId` is never patched at all: tablets pair against it (see GLOBAL_DEFAULTS).
+    sanitizeInto(this.raw, GLOBAL_KEYS.filter((k) => k !== 'boardId' && (allowSport || k !== 'sport')), patch)
     sanitizeInto(this.raw.perSport[active], PER_SPORT_KEYS, patch)
     this.save()
     this.values = flatten(this.raw, this.raw.sport)

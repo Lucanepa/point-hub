@@ -14,6 +14,16 @@ There are **two** crest screens and the bridge picks between them (`ledboxClient
 every 1.5s). Both are the *no-teams-known* screen — once teams are set, `kscw_idle` already uses
 that side of the panel for their names.
 
+**Switching the QR codes off.** The "Join WiFi" code *is* the AP passphrase, shown to the whole
+hall. Settings ▸ Crest screen ▸ *Show the connect QR codes when nobody is on the controller*
+(`idleQr`, on by default) makes the bridge never put `kscw_crest` up: `kscw_clock` (crest + wall
+clock) is shown instead, viewer or not. That is all the appliance controls. The codes are fixed
+images on the board's own disk (`media/wifi_qr.png`, `media/ui_qr.png`), and the firmware's own
+`waiting` layout carries them too — so they still show while the board boots (until the bridge
+handshakes) and whenever the bridge is not running. To remove them there as well, edit
+`waiting.xml` on the board (drop the `wifilbl`/`wifiqr` sections) and/or delete `wifi_qr.png`;
+neither is shipped by `deploy-board.sh`.
+
 Where they go on the board (`pi@192.168.5.1`, via the `openvolley` jump host):
 
 | File here | Board path |

@@ -161,6 +161,40 @@ ok(mid.time === '00:00:00', 'midnight is 00:00:00, not 24:00:00')
 ok(mid.time.length === 8, 'time string is a fixed 8 characters')
 ok(mid.date.length === 14, 'date string is a fixed 14 characters, so it cannot outgrow the column')
 
+// Settings ▸ Crest screen ▸ the connect QR codes (settings.js idleQr). The Join-WiFi code is the
+// AP passphrase, so a board can be told never to put the QR crest up: the clock screen instead,
+// with nobody connected. Where the board lacks the clock layout it still falls back to the QRs.
+console.log('\nconnect QR codes switched off (idleQr):')
+const q1 = client({ idleQr: false })
+await q1.showIdle(true)
+ok(q1.currentLayout === 'kscw_clock', 'nobody connected: the clock screen, not the QR crest')
+ok(/^\d\d:\d\d:\d\d$/.test(q1.sections.time || ''), 'and the clock is painted')
+await q1._idleTick()
+ok(q1.currentLayout === 'kscw_clock' && !q1.seq.includes('layout:kscw_crest'), 'the ticker never puts the QR crest back')
+q1.noteViewer(); q1._viewerAt = Date.now() - (q1.viewerTimeoutMs + 1)
+await q1._idleTick()
+ok(q1.currentLayout === 'kscw_clock', 'not even after a viewer comes and goes')
+const q2 = client()
+await q2.showIdle(true)
+ok(q2.currentLayout === 'kscw_crest', 'on by default: the QR crest, as before')
+q2.setLimits({ idleQr: false })
+for (let i = 0; i < 5 && q2.currentLayout !== 'kscw_clock'; i++) await new Promise((r) => setImmediate(r))
+ok(q2.idleQr === false && q2.currentLayout === 'kscw_clock', 'switched off from Settings while the crest is up: the clock replaces it at once (setLimits repaints)')
+q2.setLimits({ idleQr: true })
+for (let i = 0; i < 5 && q2.currentLayout !== 'kscw_crest'; i++) await new Promise((r) => setImmediate(r))
+ok(q2.currentLayout === 'kscw_crest', 'and back on, the QR crest returns')
+q2.setLimits({ totalTimeouts: 2 })
+ok(q2.idleQr === true, 'a save that does not mention it leaves it alone')
+const q3 = client({ idleQr: false })
+q3._sendNow = async (cmd, value) => {
+  if (cmd === 'SetLayout' && value === 'kscw_clock') { const err = new Error('SetLayout: layout not present in device (5)'); err.code = 5; throw err }
+  if (cmd === 'SetLayout') q3.seq.push(`layout:${value}`)
+  return 'ok'
+}
+q3.on('error', () => {})
+await q3.showIdle(true)
+ok(q3.currentLayout === 'kscw_crest', 'a board without the clock layout still shows the QR crest rather than a blank panel')
+
 console.log('\nviewerPresent:')
 const g = client()
 ok(g.viewerPresent() === false, 'false before anyone has ever connected')

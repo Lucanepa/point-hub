@@ -69,7 +69,9 @@ actually been logged — so the list can never drift from the code.
 
 `data/logs/appliance.jsonl` (the bridge writes `bridge.jsonl`), rotated at 5 MB across 3 files:
 **15 MB ceiling**, trivial against the card. `data/` is already gitignored. An unwritable path
-(full or read-only card) silently degrades to memory-only rather than failing the boot.
+(full or read-only card) silently degrades to memory-only rather than failing the boot. `data/`
+sits under the state dir — the checkout, unless `STATE_DIR` moves it (a read-only root points it at
+its data partition); a state dir that cannot be written is logged at boot at error level.
 
 ## API
 

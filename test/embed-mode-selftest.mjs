@@ -15,6 +15,9 @@
 //       and never the console's own pad, a PIN learned or forgotten goes to setScorerPin()
 //   [8] the theme and settings saves go to the app
 //   [9] the poll still does everything but the Game tab's prompts (backups, the self-update)
+//  [10] the mandatory PIN's first run: a board with none yet puts "Set a scorer PIN" in front of
+//       everything — in a browser and in the app, which can only type a PIN, never set one — and a
+//       tablet on the cable is only reminded
 //
 // No browser here, as in the other console selftests: the page's own markup is parsed into a small
 // fake DOM — enough of one for the console to boot, poll and switch tabs — and the WHOLE console
@@ -346,29 +349,43 @@ const STATE = () => ({
 })
 // The board, as far as the console can tell: the routes it calls, with the scorer PIN enforced on
 // every write the way src/controlServer.js does (403 when it is wrong or missing).
-function makeBoard({ pin = '', sport = 'volleyball', liveScoring = 'off', gameId = null, build = 'b1' } = {}) {
+// `mandatory` / `cable` model the mandatory PIN and the cable trust (src/controlServer.js): a board
+// that must have a PIN and has none refuses writes with 403 pinSetup, except the save that sets the
+// first one and the clock offer; the cable passes every gate. Without either flag the board answers
+// exactly as one built before them did (none of the new fields), which [1]-[9] rely on.
+const SETUP_MSG = 'This board has no scorer PIN yet — set one in Settings before scoring.'
+function makeBoard({ pin = '', sport = 'volleyball', liveScoring = 'off', gameId = null, build = 'b1', mandatory = false, cable = false } = {}) {
   const b = {
-    pin, sport, build, gameId, state: STATE(),
+    pin, sport, build, gameId, state: STATE(), mandatory, cable,
     settings: { sport, orientation: 'behind', liveScoring, timeoutSeconds: 30, setIntervalSeconds: 180, warmupSeconds: 600, totalTimeouts: 2, totalSubs: 6, matchFontMaxLeft: 18, matchFontMaxRight: 18, branding: 'kscw', bestOf: 5, relayAddress: '', autoPrepare: true },
     game: { id: 4711, date: '2026-10-18', time: '19:30', home: 'KSC Wiedikon H1', away: 'VBC Züri', homeShort: 'KSCW H1', awayShort: 'ZÜRI', league: '3. Liga Herren', hall: 'KWI A' },
   }
   const json = (status, body) => [status, body]
+  const setup = () => b.mandatory && !b.pin
+  // The per-requester PIN fields a board with the mandatory PIN / cable trust sends (pinView).
+  const pinFields = () => (b.mandatory || b.cable
+    ? { pinTrust: b.cable ? 'cable' : null, pinConfigured: !!b.pin, pinMandatory: b.mandatory, pinSetup: setup() }
+    : {})
   b.route = (method, p, body, headers) => {
-    const pinOk = !b.pin || headers['X-Scorer-Pin'] === b.pin
+    const pinOk = b.cable || (b.pin ? headers['X-Scorer-Pin'] === b.pin : !b.mandatory)
     const write = method !== 'GET'
     const gated = write && !['/api/logs', '/api/unlock', '/api/gamesheet'].includes(p)
-    if (gated && !pinOk) return json(403, { error: 'scorer PIN required' })
+    const firstPin = setup() && p === '/api/settings' && /^\d{1,8}$/.test(String((body && body.scorerPin) || ''))
+    const clockInSetup = setup() && p === '/api/clock'
+    if (gated && !pinOk && !firstPin && !clockInSetup) return setup() ? json(403, { error: SETUP_MSG, pinSetup: true }) : json(403, { error: 'scorer PIN required' })
     if (p === '/api/status') return json(200, { sport: b.sport, mode: 'manual', build: b.build, gameId: b.gameId, matchId: null, prematch: false,
-      ledbox: { connected: true, host: 'mock', port: 1 }, state: b.state, pinRequired: !!b.pin, uplink: { status: 'online' }, canUndo: false })
-    if (p === '/api/settings' && method === 'GET') return json(200, { ...b.settings, pinSet: !!b.pin })
+      ledbox: { connected: true, host: 'mock', port: 1 }, state: b.state, pinRequired: (!!b.pin || setup()) && !b.cable, uplink: { status: 'online' }, canUndo: false, ...pinFields() })
+    if (p === '/api/settings' && method === 'GET') return json(200, { ...b.settings, pinSet: !!b.pin && !b.cable, ...pinFields() })
     if (p === '/api/settings') {
+      if (body.clearPin && b.mandatory) return json(400, { error: "The scorer PIN can't be removed on this board — type a new one to change it." })
       if (body.clearPin) b.pin = ''
       if (body.scorerPin) b.pin = body.scorerPin
       const { clearPin, scorerPin, ...rest } = body
       Object.assign(b.settings, rest)
-      return json(200, { ...b.settings, pinSet: !!b.pin })
+      return json(200, { ...b.settings, pinSet: !!b.pin && !b.cable, ...pinFields() })
     }
     if (p === '/api/sport') return json(200, { sport: b.sport, sports: [{ key: 'volleyball', label: 'Volleyball' }, { key: 'beach', label: 'Beach volleyball' }] })
+    if (p === '/api/unlock' && setup() && !b.cable) return json(409, { ok: false, pinSetup: true, error: SETUP_MSG })
     if (p === '/api/unlock') return json(200, { ok: !b.pin || (body && body.pin) === b.pin })
     if (p === '/api/clock') return json(200, { ok: true, applied: false, reason: 'synced' })
     if (p === '/api/schedule') return json(200, { ok: true, date: '2026-10-18', today: [b.game], upcoming: [] })
@@ -807,6 +824,95 @@ console.log('\n[9] the poll still does everything but the Game tab\'s prompts')
   board.state = STATE(); board.build = 'b2'
   await p.poll()
   ok(app.named('reloadConsole').length === 1, 'a new console build on a quiet board still reloads through the app (noteBuild)')
+}
+
+// ─── [10] ────────────────────────────────────────────────────────────────────────────────────
+console.log('\n[10] the mandatory PIN\'s first run')
+{
+  // From source: the screen is not one of the things embed mode drops — the app cannot set a PIN.
+  const rule = (css.match(/((?:html\.embed [^,{]+,\s*)*html\.embed [^,{]+)\{display:none!important\}/) || [])[1] || ''
+  ok(!/#setupGate/.test(rule) && /#setupGate\{position:fixed;inset:0;z-index:101/.test(css), '#setupGate sits over everything (z-index above the lock gate) and is NOT hidden in embed mode')
+  ok(/if \(body && body\.pinSetup\) syncPinSetup\(\{ pinSetup: true, pinTrust: null \}\);\s*else onPinRejected\(\);/.test(bodyOf('api')), 'a 403 that says pinSetup opens the setup, never the PIN pad (and forgets nothing)')
+
+  console.log('  in a browser, on the Wi-Fi:')
+  const board = makeBoard({ mandatory: true })
+  const p = boot({ board })
+  await flush()
+  ok(p.$('#setupGate').hidden === false && p.$('#lockGate').hidden === true, 'boot: "Set a scorer PIN" is up, the lock gate (which asks for a PIN that does not exist) is not')
+  ok(p.req('/api/clock', 'POST').length === 1, 'the clock offer is still made (the board lets it through during the setup)')
+  ok(p.$('#pinClear').hidden === true, '"Remove the PIN" is not offered on a board that must have one')
+  const set = (a, b2) => { p.$('#sgPin').value = a; p.$('#sgPin2').value = b2; p.$('#sgSet').click() }
+  set('2580', '2581'); await flush()
+  ok(/don't match/.test(p.$('#sgErr').textContent) && p.req('/api/settings', 'POST').length === 0, 'two different PINs: "don\'t match", nothing sent')
+  set('25a0', '25a0'); await flush()
+  ok(/1–8 digits/.test(p.$('#sgErr').textContent) && p.req('/api/settings', 'POST').length === 0, 'not digits: the board\'s rule, checked before sending')
+  // A write before the PIN is set (another tab's poll, a stray tap) gets the setup's 403.
+  await p.poll()
+  ok(p.$('#setupGate').hidden === false && p.$('#pinModal').hidden === true, 'the poll keeps it up; no PIN pad behind it')
+  set('2580', '2580'); await flush()
+  const sent = p.req('/api/settings', 'POST').pop()
+  ok(sent && sent.body.scorerPin === '2580' && Object.keys(sent.body).join() === 'scorerPin' && sent.headers['X-Scorer-Pin'] === '', 'the same PIN twice: POST /api/settings { scorerPin } alone, with no PIN')
+  ok(p.$('#setupGate').hidden === true && p.$('#lockGate').hidden === true, 'the screen goes, and no lock gate follows (this device holds the PIN now)')
+  ok(p.local.getItem('kscwScorerPin') === '2580', 'the PIN is remembered on this device')
+  ok(/Write it down for the coaches/.test(p.$('#toast').textContent), `and the operator is told to write it down ("${p.$('#toast').textContent.slice(0, 60)}…")`)
+  p.$('#spCancel').click()
+  await p.poll()
+  ok(p.$('#pinClear').hidden === true && /can't be removed/.test(p.$('#pinAccessNote').textContent) && p.$('#pinAccessNote').hidden === false, 'Settings ▸ Access: it can be changed, not removed (and no "Remove the PIN")')
+  p.doc.querySelectorAll('[data-theme-pick="dark"]')[0].click()
+  p.$('#sportPicker').hidden = true
+  board.state = { ...STATE(), points_a: 1 }
+  await p.poll()
+  ok(p.$('#setupGate').hidden === true, 'later polls (pinSetup false) leave it down')
+
+  // The PIN set from ANOTHER device while this one waited at the screen.
+  const q = boot({ board: makeBoard({ mandatory: true }) })
+  await flush()
+  q.board.pin = '1357'
+  await q.poll()
+  ok(q.$('#setupGate').hidden === true && q.$('#lockGate').hidden === false, 'set elsewhere meanwhile: the screen goes and the ordinary lock gate asks for that PIN')
+  // A board that goes BACK into the setup (its PIN cleared on the card) under an open console.
+  const r = boot({ board: makeBoard({ pin: '2468' }), store: { kscwScorerPin: '2468' } })
+  await flush()
+  ok(r.$('#setupGate').hidden === true, 'a board with a PIN: no setup screen')
+  r.board.mandatory = true; r.board.pin = ''
+  r.$('#spCancel').click(); r.$('#gpCancel') && r.$('#gpCancel').click()
+  r.doc.querySelectorAll('.setsavebtn')[0].click(); await flush()
+  ok(r.$('#setupGate').hidden === false && r.$('#pinModal').hidden === true, 'a write refused with 403 pinSetup opens the setup screen, not the PIN pad')
+
+  console.log('  in the tablet app (embed mode), on the Wi-Fi:')
+  const app = makeApp({ pin: '' })
+  const e = boot({ app, board: makeBoard({ mandatory: true }) })
+  await flush()
+  ok(e.$('#setupGate').hidden === false, 'boot: the setup screen is up in the console')
+  ok(JSON.stringify(app.named('showTab')) === '[["showTab","settings"]]', 'and the console brings itself in front of the app\'s Game tab: showTab("settings"), once')
+  ok(app.named('pinRejected').length === 0, 'without ever asking the app for a PIN (pinRejected) — there is none to type')
+  await e.poll(); await e.poll()
+  ok(app.named('showTab').length === 1, 'later polls do not pull the tablet back again')
+  e.win.pointhubEmbed.show('settings'); await flush()
+  e.$('#sgPin').value = '2580'; e.$('#sgPin2').value = '2580'; e.$('#sgSet').click(); await flush()
+  const order = app.calls.filter((c) => ['setScorerPin', 'settingsChanged', 'showTab'].includes(c[0])).slice(1).map((c) => c.join(':'))
+  ok(order.join() === 'setScorerPin:2580,settingsChanged,showTab:game', `set: the app is handed the PIN, told settings changed, and its Game tab comes back (${order.join(', ')})`)
+  ok(e.$('#setupGate').hidden === true && app.pin === '2580', 'the screen goes; the app holds the PIN for its own writes')
+
+  console.log('  on the cable:')
+  const c = boot({ board: makeBoard({ mandatory: true, cable: true }) })
+  await flush()
+  ok(c.$('#setupGate').hidden === true && c.$('#lockGate').hidden === true, 'no setup screen and no lock gate — nothing blocks a cabled tablet')
+  ok(/on the cable/.test(c.$('#toast').textContent) && /Wi-Fi tablets/.test(c.$('#toast').textContent), `a reminder that Wi-Fi tablets still need one ("${c.$('#toast').textContent.slice(0, 50)}…")`)
+  ok(c.$('#pinAccessNote').hidden === false && c.$('#pinAccessNote').classList.contains('warn') && /can't score until you set one here/.test(c.$('#pinAccessNote').textContent), 'and the same in Settings ▸ Access')
+  c.$('#spCancel').click()
+  c.doc.querySelectorAll('.setsavebtn')[0].click(); await flush()
+  ok(c.req('/api/settings', 'POST').length === 1 && c.$('#setupGate').hidden === true && c.$('#pinModal').hidden === true, 'its writes go through')
+  c.$('#toast').textContent = ''
+  await c.poll(); await c.poll()
+  ok(!/on the cable/.test(c.$('#toast').textContent), 'the reminder is said once a load, not on every poll')
+  const capp = makeApp({ pin: '' })
+  const ce = boot({ app: capp, board: makeBoard({ mandatory: true, cable: true }) })
+  await flush(); await ce.poll()
+  ok(capp.named('showTab').length === 0 && capp.named('pinRejected').length === 0, 'in the app on the cable: no showTab, no PIN pad — the Game tab stays in front')
+  const done = boot({ board: makeBoard({ pin: '2468', mandatory: true, cable: true }) })
+  await flush()
+  ok(done.$('#lockGate').hidden === true && /never needs the PIN/.test(done.$('#pinAccessNote').textContent), 'a board WITH a PIN, on the cable: no lock gate, and Access says this tablet never needs it')
 }
 
 console.log(`\n${fail ? '❌ FAIL' : '✅ PASS'} — embed-mode-selftest: ${pass} passed, ${fail} failed`)

@@ -51,7 +51,24 @@ Verified on the real panel:
 - **Settings page** (persisted on the Pi, survives restart): blink on/off + length, countdown
   on/off + lengths, horn on/off, best-of 3/5 (the scoring engine follows it — from boot and on
   save, not only the header), club name, scorer PIN (digits only, 1–8: a malformed PIN is
-  refused with a message and never clears the lock; removing it is its own action).
+  refused with a message and never clears the lock), the connect QR codes on the crest screen
+  (on/off).
+
+## Access (since 2026-10-22, deployed with the next deploy)
+
+- **The scorer PIN is mandatory.** The C0270 had none. After the deploy it refuses every write
+  from its Wi-Fi with *"This board has no scorer PIN yet — set one in Settings before scoring."*
+  until the first operator sets one on the console's **Set a scorer PIN** screen (typed twice; that
+  one save needs no PIN). In the tablet app (1.1.1, unchanged) the console brings itself to the
+  front for it; meanwhile the app shows its padlock, toasts those words on a refused tap, and its
+  PIN pad shows them too — nothing traps anyone. Once set: changeable, not removable. Lost: remove
+  `scorerPin` from the board's `settings.json` and restart the bridge (back to the setup screen).
+- **A tablet on the cable never needs the PIN** (owner decision): `192.168.5.1` from
+  `192.168.5.0/24`, decided from the TCP connection, http and https. `CABLE_TRUST=0` turns it off.
+- **`/api/status.board`** now names the board (`id`, `label`) and its `caps` (sports, panel size,
+  renderer) — for a second board and the apps to tell boards apart.
+- **`STATE_DIR`** moves everything the appliance writes off the checkout (for a read-only root);
+  unset on the C0270, so its paths are unchanged.
 
 ## Working in the appliance / infra
 

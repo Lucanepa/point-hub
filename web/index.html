@@ -713,6 +713,16 @@
   #lgPin{width:100%;padding:14px;font-size:30px;font-weight:800;text-align:center;letter-spacing:.4em;font-family:var(--mono);font-variant-numeric:tabular-nums;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
   #lgUnlock{width:100%;margin-top:14px;min-height:48px;font-size:15px;font-weight:800;border:1.5px solid var(--blue);background:var(--blue);color:var(--on-accent);border-radius:var(--r);cursor:pointer}
   .lg-err{min-height:18px;margin-top:12px;font-size:13px;font-weight:700;color:var(--bad)}
+  /* first run on a board that must have a scorer PIN and has none yet (syncPinSetup). Above the
+     lock gate, and shown in embed mode too: the app has no screen for SETTING a PIN, only for
+     typing one, so this is the console's job wherever it runs. */
+  #setupGate{position:fixed;inset:0;z-index:101;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px;overflow:auto}
+  #setupGate .lg-sub{margin-bottom:14px}
+  #setupGate .sg-note{font-size:12px;color:var(--muted);margin:12px 0 0}
+  #sgPin,#sgPin2{width:100%;padding:12px;font-size:26px;font-weight:800;text-align:center;letter-spacing:.4em;font-family:var(--mono);font-variant-numeric:tabular-nums;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg)}
+  #sgPin2{margin-top:10px}
+  #sgSet{width:100%;margin-top:14px;min-height:48px;font-size:15px;font-weight:800;border:1.5px solid var(--blue);background:var(--blue);color:var(--on-accent);border-radius:var(--r);cursor:pointer}
+  #pinAccessNote.warn{color:var(--bad);font-weight:700}
   /* live LED-board mirror */
   .boardview{flex:1 1 auto;min-height:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:4px}
   .bvlabel{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -1464,6 +1474,11 @@
           <p class="hint">The pre-match screen beside the crest. Long names are shrunk
             automatically to fit the panel, so this size is the ceiling — what a short
             name like KSCW gets. Turn the switch off to show short codes instead.</p>
+          <label class="row"><span>Show the connect QR codes when nobody is on the controller</span>
+            <input type="checkbox" data-set="idleQr" checked></label>
+          <p class="hint">"Join WiFi" and "Open UI" beside the crest, for the next person to get
+            connected. The Wi-Fi one hands the board's Wi-Fi password to anyone in the hall. Off:
+            the crest and the clock instead. The codes still show while the board starts up.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Board identity</legend>
@@ -1500,6 +1515,7 @@
           <label class="row"><span>Scorer PIN</span>
             <input type="password" inputmode="numeric" pattern="[0-9]*" data-set="scorerPin" maxlength="8" autocomplete="off" placeholder="unchanged" style="width:110px"></label>
           <p class="hint">Set a digits-only PIN so only your scorer can change the score — anyone who scans the board can still watch, not touch. Leave blank to keep the current PIN.</p>
+          <p class="hint" id="pinAccessNote" hidden></p>
           <button type="button" id="pinClear" class="setlink" hidden>Remove the PIN — anyone can score</button>
         </fieldset>
         <fieldset>
@@ -1825,6 +1841,21 @@
   </div>
 </div>
 
+<!-- First run: the board must have a scorer PIN and has none yet. Over everything until one is set
+     (the Wi-Fi cannot score before that); never on the cable, which needs no PIN. -->
+<div id="setupGate" role="dialog" aria-modal="true" aria-label="Set a scorer PIN" hidden>
+  <div class="lg-box">
+    <div class="lg-ic"><svg class="licon l-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
+    <div class="lg-title">Set a scorer PIN</div>
+    <div class="lg-sub">This board has no scorer PIN yet, and it needs one before anyone can score. Choose 1–8 digits. Anyone can still watch; only people with the PIN can change the score.</div>
+    <input id="sgPin" aria-label="New scorer PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="New PIN">
+    <input id="sgPin2" aria-label="The same PIN again" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="Again">
+    <button id="sgSet" type="button">Set PIN</button>
+    <div class="lg-err" id="sgErr" role="alert"></div>
+    <p class="sg-note">Write it down for the coaches. This tablet remembers it; every other tablet asks for it once. A tablet on the cable never needs it.</p>
+  </div>
+</div>
+
 <script>
 (() => {
   "use strict";
@@ -1987,6 +2018,9 @@
   // …and every PIN the console learns or forgets goes to the app as well ("" = forgotten).
   const tellAppPin = (pin) => { if (EMBED) appCall("setScorerPin", pin); };
   let pinRequired = false;
+  // The mandatory PIN's first run (syncPinSetup): whether the board says it must have a PIN, whether
+  // the "Set a scorer PIN" screen is up, and whether the cable's reminder was shown this load.
+  let pinMandatory = false, pinSetupOn = false, cableReminded = false;
   let sheetLoading = false, sheetGameId = null;   // the match-sheet card (refreshSheet); renderStatus reads it
   let sheetDone = false, sheetAt = 0;             // …whether it has the whole answer, and when it last asked
   let sheetPin = null;                            // …and with which PIN (embed mode, sheetPinStale)
@@ -2077,7 +2111,12 @@
     }
     let body = null;
     try { body = await res.json(); } catch { /* non-JSON */ }
-    if (res.status === 403) onPinRejected();
+    if (res.status === 403) {
+      // A board that must have a PIN and has none yet: no PIN was wrong, so there is nothing to
+      // forget and no pad to open — the way on is setting one (syncPinSetup).
+      if (body && body.pinSetup) syncPinSetup({ pinSetup: true, pinTrust: null });
+      else onPinRejected();
+    }
     if (!res.ok) {
       // A refusal the operator may never see (most callers swallow it) — record what the
       // phone actually got back. Network-level failures are skipped: if the appliance is
@@ -2440,6 +2479,7 @@
     maybeAskEndMatch(st.state);
     pinRequired = !!st.pinRequired;
     updateLock();
+    syncPinSetup(st);
     if (EMBED) embedPinCheck();
   }
   // Embed mode: an unlock on the app's PIN pad never passes through tryUnlock or the boot gate, and
@@ -5890,7 +5930,10 @@
 
   // --- scorer lock ---------------------------------------------------------
   function updateLock() {
-    const pc = $("#pinClear"); if (pc) pc.hidden = !pinRequired;
+    // "Remove the PIN" only where there is one to remove (pinConfigured, which an older board does
+    // not send: then pinRequired, as before) and the board allows it (not pinMandatory).
+    const configured = "pinConfigured" in LAST_STATUS ? !!LAST_STATUS.pinConfigured : pinRequired;
+    const pc = $("#pinClear"); if (pc) pc.hidden = !configured || pinMandatory;
     const b = $("#lockBtn"); if (!b) return;
     b.hidden = !pinRequired;
     const open = !pinNow();
@@ -6353,17 +6396,111 @@
   const lockGate = $("#lockGate");
   const hideGate = () => { if (lockGate) lockGate.hidden = true; };
   const showGate = () => { if (lockGate) { lockGate.hidden = false; const i = $("#lgPin"); if (i) { i.value = ""; setTimeout(() => i.focus(), 50); } } };
+
+  // --- first run: the board's first scorer PIN ----------------------------------------------------
+  // On a real boot the board MUST have a scorer PIN (its AP passphrase is on the panel). One that has
+  // none yet refuses every write from the Wi-Fi until one is set, and setting it is the one write
+  // that needs no PIN. The board says so on every status and settings answer (pinSetup) and on a
+  // refused write (403 pinSetup). #setupGate is the way through — in a browser, and in the tablet
+  // app too, whose own screens can only TYPE a PIN, never set one. On the cable (pinTrust) nothing
+  // is blocked: the reminder is a toast and a line in Settings ▸ Access.
+  function syncPinSetup(st) {
+    if (!st || !("pinSetup" in st)) return; // an older board, or a partial reply: nothing to say
+    if ("pinMandatory" in st) pinMandatory = !!st.pinMandatory;
+    const need = !!st.pinSetup && !st.pinTrust;
+    if (need && !pinSetupOn) openSetupGate();
+    else if (!need && pinSetupOn) closeSetupGate();
+    renderAccessNote(st);
+    if (st.pinSetup && st.pinTrust === "cable" && !cableReminded) {
+      cableReminded = true;
+      // Embed mode: this page sits behind the app's Game tab, where a toast is never seen — the
+      // Access note is what reaches the operator there.
+      if (!EMBED) toast("No scorer PIN yet. This tablet is on the cable and needs none — but Wi-Fi tablets can't score until one is set (Settings ▸ Access).", { ms: 7000 });
+    }
+    updateLock();
+  }
+  function openSetupGate() {
+    pinSetupOn = true;
+    hideGate(); closePinModal();
+    const setupGate = $("#setupGate");
+    if (!setupGate) return;
+    setupGate.hidden = false;
+    $("#sgErr").textContent = "";
+    const a = $("#sgPin"), b = $("#sgPin2");
+    a.value = ""; b.value = "";
+    setTimeout(() => a.focus(), 50);
+    // Embed mode: the app's own Game tab is in front, and its PIN pad can only type a PIN. Bring
+    // this page forward — the screen covers whichever console tab is up — once per setup.
+    if (EMBED) appCall("showTab", "settings");
+  }
+  function closeSetupGate() {
+    pinSetupOn = false;
+    const setupGate = $("#setupGate");
+    if (setupGate) setupGate.hidden = true;
+    // Set from another device, so this one holds none: from now on the board asks for it like any
+    // locked board — here the lock gate; in embed mode the app's own pad (its padlock, the next 403).
+    if (!pinNow() && !EMBED) showGate();
+  }
+  function renderAccessNote(st) {
+    const n = $("#pinAccessNote"); if (!n) return;
+    let text = "";
+    if (st.pinTrust === "cable") {
+      text = st.pinSetup
+        ? "No scorer PIN yet. This tablet is on the cable, so it never needs one — but tablets on the board's Wi-Fi can't score until you set one here."
+        : "This tablet is on the cable, so it never needs the PIN. Tablets on the board's Wi-Fi do.";
+    } else if (pinMandatory && st.pinConfigured) {
+      text = "This board must have a scorer PIN: type a new one to change it. It can't be removed.";
+    }
+    n.textContent = text; n.hidden = !text;
+    n.classList.toggle("warn", !!(st.pinSetup && st.pinTrust === "cable"));
+  }
+  async function setFirstPin() {
+    const a = String($("#sgPin").value || "").trim(), b = String($("#sgPin2").value || "").trim();
+    const err = $("#sgErr");
+    // The board's own rule, checked before anything is sent; and typed twice, because a PIN nobody
+    // remembers locks every other tablet out until someone with a shell on the board clears it.
+    if (!PIN_RE.test(a)) { err.textContent = "The PIN must be 1–8 digits."; return; }
+    if (a !== b) { err.textContent = "The two don't match — type the PIN again."; $("#sgPin2").value = ""; $("#sgPin2").focus(); return; }
+    const btn = $("#sgSet"); btn.disabled = true; err.textContent = "";
+    try {
+      // A plain settings save with only the PIN in it, sent with whatever PIN this device holds
+      // (none): the board takes this one write without a PIN because it has none yet.
+      const r = await postJSON("/api/settings", { scorerPin: a });
+      SETTINGS = r || SETTINGS;
+      SCORER_PIN = a; try { localStorage.setItem("kscwScorerPin", a); } catch {}
+      tellAppPin(a);
+      if (EMBED) appCall("settingsChanged");
+      pinRequired = !!(r && r.pinSet);
+      syncPinSetup(r || { pinSetup: false }); // pinSetup false → the screen goes
+      toast("Scorer PIN set. Write it down for the coaches — every other tablet asks for it once.", { ms: 6000 });
+      offerClock();
+      // Embed mode: back to the app's Game tab, which now holds the PIN too.
+      if (EMBED) appCall("showTab", "game");
+    } catch (e) {
+      const m = (e && e.message) || "";
+      err.textContent = e && e.status === 400 ? m
+        : e && e.status === 403 ? "A PIN was set from another device just now — ask for it."
+        : /pin/i.test(m) ? m : "Couldn't reach the board — try again.";
+    } finally { btn.disabled = false; }
+  }
+  { const b = $("#sgSet"); if (b) b.addEventListener("click", setFirstPin);
+    const a = $("#sgPin"); if (a) a.addEventListener("keydown", (e) => { if (e.key === "Enter") $("#sgPin2").focus(); });
+    const c = $("#sgPin2"); if (c) c.addEventListener("keydown", (e) => { if (e.key === "Enter") setFirstPin(); }); }
   async function bootLock() {
     if (EMBED) {
       // Embed mode: never the gate — the app asks for the PIN, on its own pad. What the gate's way
       // through also did still happens: an open board is handed this tablet's clock now, and a
       // locked one once the app holds a PIN (embedPinCheck, on the first status).
       hideGate();
-      try { const s = await api("/api/settings"); if (!s.pinSet) offerClock(); } catch {}
+      try { const s = await api("/api/settings"); if (!s.pinSet) offerClock(); syncPinSetup(s); } catch {}
       return;
     }
-    let pinSet = false;
-    try { const s = await api("/api/settings"); pinSet = !!s.pinSet; } catch { hideGate(); return; } // board down → don't trap the operator (writes stay server-gated anyway)
+    let pinSet = false, s0 = null;
+    try { s0 = await api("/api/settings"); pinSet = !!s0.pinSet; } catch { hideGate(); return; } // board down → don't trap the operator (writes stay server-gated anyway)
+    // A board that must have a PIN and has none yet: the setup screen, not the lock (there is no PIN
+    // to type). The clock offer is let through during the setup, so it is made as on an open board.
+    if (s0 && s0.pinSetup && !s0.pinTrust) { hideGate(); syncPinSetup(s0); offerClock(); return; }
+    syncPinSetup(s0); // the cable's reminder and Settings ▸ Access's note
     // No PIN configured → open access, and /api/clock is open too, so still offer the clock.
     if (!pinSet) { hideGate(); offerClock(); return; }
     if (SCORER_PIN) {                                     // remember a prior unlock if the PIN still checks out

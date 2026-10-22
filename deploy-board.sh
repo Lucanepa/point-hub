@@ -32,7 +32,8 @@
 #
 # NOT shipped: the firmware's crest+QR idle screen (lives on the board's own disk and survives
 # power cycles — see firmware/idle-crest-qr/), settings.json (the board's operator preferences)
-# and data/ (its match history).
+# and data/ (its match history) — beside the code by default, or wherever the board's STATE_DIR
+# (in its .env) puts them.
 # Run ./drift-check.sh first, with the same BOARD/JUMP: this script overwrites without looking, and
 # the board has run code the repo never had (2026-09-23).
 set -euo pipefail
@@ -123,7 +124,7 @@ ssh "${J[@]}" "$BOARD" "
   }
   echo -n '  bridge: '; systemctl is-active ledbox-bridge || rc=1
   N=/opt/nodejs/bin/node
-  \$N -e 'fetch(\"http://127.0.0.1:8890/api/status\").then(r=>r.json()).then(s=>console.log(\"  connected=\"+(s.ledbox&&s.ledbox.connected),\"sport=\"+s.sport,\"pinRequired=\"+s.pinRequired)).catch(e=>{console.log(\"  status ERR\",e.message);process.exit(1)})' || rc=1
+  \$N -e 'fetch(\"http://127.0.0.1:8890/api/status\").then(r=>r.json()).then(s=>console.log(\"  connected=\"+(s.ledbox&&s.ledbox.connected),\"sport=\"+s.sport,\"pinRequired=\"+s.pinRequired,\"pinSetup=\"+s.pinSetup)).catch(e=>{console.log(\"  status ERR\",e.message);process.exit(1)})' || rc=1
   # Prove the NEW code is what is actually running — not merely that something started.
   grep -q SELF-CLOCKED     $DEST/src/ledboxClient.js; chk \$? 'self-clocked blink'
   grep -q showSportConfirm $DEST/src/ledboxClient.js; chk \$? 'sport confirmation'

@@ -77,5 +77,21 @@ clock += 2000
 g.fail('someone-else')
 ok(g.state('persistent') !== null, 'a still-locked source survives pruning')
 
+// check() is a pure lookup. The mandatory PIN puts every write from the Wi-Fi through the gate,
+// and the board's status poll asks it nothing — but a check that recorded its callers would grow
+// the map with every phone in the hall that ever opened the console.
+g = mk()
+for (let i = 0; i < 1000; i++) g.check(`10.0.${i >> 8}.${i & 255}`)
+ok(g.size === 0, 'a thousand checks from a thousand sources record nothing')
+g.succeed('never-seen')
+ok(g.size === 0 && g.check('never-seen').allowed === true, 'succeed() on a source with no record is harmless')
+
+// A source that is cleared by a success starts from zero again: five more free attempts, not one.
+g = mk()
+for (let i = 0; i < 5; i++) g.fail('tablet')
+g.succeed('tablet')
+for (let i = 0; i < 5; i++) g.fail('tablet')
+ok(g.check('tablet').allowed === true, 'after a success, the free attempts are all back')
+
 console.log(`\npin-throttle-selftest: ${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

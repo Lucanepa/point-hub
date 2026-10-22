@@ -218,9 +218,11 @@ appliance is unreachable*. They need different words on screen; the console alre
 the tablet **shares its budget and can lock the scorer out**. Hence: validate the PIN once at
 pairing via `/api/unlock`, never on every launch.
 
-The shipped default is an empty PIN (`src/settings.js:39`), meaning the gate is off and anything in
-RF range can score. Adding a second always-connected client is the moment to require one. The
-remote refuses to pair with a board reporting `pinRequired: false`.
+Since 2026-10-22 a real boot requires a PIN: a board with none yet refuses writes from its Wi-Fi
+(403 `pinSetup:true`) until an operator sets one in the console. A remote must not try to set it;
+it waits for `pinSetup:false`. On the board's **cable** the board reports `pinRequired:false,
+pinTrust:"cable"` and needs no PIN at all (src/cableTrust.js), so the rule is: refuse to pair with a
+board reporting `pinRequired:false` **unless** `pinTrust` says why.
 
 **Sport switches restart the appliance** for 6–8 s. The remote rides it out rather than erroring;
 the console already does exactly this by polling for 25 s.
