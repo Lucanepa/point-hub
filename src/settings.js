@@ -35,6 +35,13 @@ export const GLOBAL_DEFAULTS = {
   // 125px name column, the scoreboard only ~86px, so one number cannot serve both.
   idleFullNames: true,
   idleFontMax: 24,
+  // The "Join WiFi" + "Open UI" QR codes on the crest screen while nobody is on the console. The
+  // Join-WiFi one IS the AP passphrase, shown to the whole hall. Off = the crest and the wall clock
+  // instead (the same screen an operator on the console already gets). The QRs are fixed images in
+  // the board's own layout (firmware/idle-crest-qr), so this only chooses whether the appliance puts
+  // that layout up: the firmware's own `waiting` screen — at boot, and whenever the bridge is not
+  // running — still carries them. On by default: the printed hall guide tells people to scan it.
+  idleQr: true,
   // Shown on the set-interval and warm-up countdowns. Short — it lands in a narrow label box.
   clubName: 'KSC WIEDIKON',
   // Scorer PIN. Set = the board rejects scoring/control without it. Empty = open. Digits, max 8.
@@ -107,7 +114,7 @@ export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
 // about what a valid PIN is.
 export const PIN_RE = /^\d{1,8}$/
 
-const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare']
+const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare', 'idleQr']
 const NUMS = {
   idleFontMax: [10, 30], matchFontMaxLeft: [10, 30], matchFontMaxRight: [10, 30],
   brightness: [0, 100], blinkMs: [200, 10000],
