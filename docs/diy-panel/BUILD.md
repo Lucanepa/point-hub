@@ -1,439 +1,729 @@
-# DIY 192×64 LED scoreboard panel — build guide (KSCW)
+# LedBox XL — DIY scoreboard build guide (KSCW)
 
-How to build, from open parts, a scoreboard panel **functionally identical** to the
-Tech4Sport LedBox that KSC Wiedikon runs today — driven by the exact same open software
-stack. This is a complete-from-scratch recipe: bill of materials, power budget, wiring,
-software bring-up, pitch/size trade-offs, and a build order with costs.
+How KSC Wiedikon builds its own scoreboard from open parts: the same 192 × 64 pixels as the
+Tech4Sport LedBox C0270 at **1.67× its pitch**, a small score panel facing each bench, powered by
+**USB-C only** and driven by the same open software stack (bridge, console, openscore,
+flushBuffer2).
 
-> Prices are **approximate, EUR, 2026**, quoted incl. shipping/VAT where a European retailer
-> was available and converted ~1 USD ≈ €0.92 otherwise. Treat them as budgeting figures, not
-> quotes — LED-panel and Raspberry Pi pricing both move a lot (2025–26 saw memory-driven Pi
-> price rises). Verify at purchase time; sources are listed at the end.
+**The illustrated build manual** — parts with letters A–Z, drawings for every step, a 3D view — is
+here: **<https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8>** (draft of 22 October 2026). This page
+is the reference behind it: the electrical design, the settings, the safety case and the software.
+Where the two differ, this page is newer: the tablet-charging hub (§7) and the fold-out legs (§8)
+were decided after the drawings were made.
 
----
+> **Status, 22 October 2026: designed, not built.** openscore 1.0.0 has never run on real glass,
+> and several pieces of software this box depends on are still to be written (§10.6). Treat every
+> number here as a plan to be confirmed at the bench.
+>
+> Prices are **approximate, EUR, 2026**, incl. shipping/VAT where a European retailer exists.
+> LED module and Raspberry Pi prices move a lot; check at purchase time. Orders from outside
+> Switzerland add import VAT and fees — put them in as few parcels as possible.
 
-## What we are replicating
-
-The panel is a **192 × 64 RGB** display built from **3 × (64×64)** HUB75 modules in a single
-chain. Everything below is measured off the actual board (`setting.ini`, the recovered
-`flushBuffer` config, and `firmware/flushbuffer/flushbuffer.cc`):
-
-| Property | Value | Notes for the DIY build |
-|---|---|---|
-| Resolution | **192 × 64** RGB | 3 modules × 64 wide = 192, 1 module tall = 64 |
-| Panel type | Outdoor **HUB75** matrix | indoor modules are a valid, cheaper alternative — see §5 |
-| Module layout | **3 × 64×64**, single chain | `chain=3`, `parallel=1` |
-| Scan | **scan_mode = 1** | recovered from the vendor; verify on glass (§4) |
-| Multiplexing | **1** | matches the vendor's **outdoor** panels; indoor panels usually want `0` (§4) |
-| GPIO mapping | vendor uses `applicon` | **you do NOT replicate this** — use `regular` or `adafruit-hat` (see below) |
-| PWM | `pwm_bits=7`, `pwm_lsb_ns=450`, `dither=2` | good, proven tuning — keep it |
-| GPIO slowdown | **5** | this is a **Pi 4** value; Pi 3B+ ≈ 2, Pi 5 ≈ 4–5 with a current lib |
-| Brightness | **40** (%) | scoreboard content is mostly black, so this looks bright and saves power |
-| Host | Raspberry Pi | the real board is a Pi 4 |
-| Refresh | ~62 fps | `flushBuffer2` reloads `buffer.png` each frame |
-
-**About the `applicon` GPIO mapping:** the vendor's mapping is just the stock `regular` mapping
-with the **E address line moved from GPIO15 to GPIO26** — a quirk of Tech4Sport's own board
-wiring. A standard driver HAT already routes the address lines correctly for its own mapping,
-so on a DIY build you simply select `--led-gpio-mapping=regular` (generic HAT) or
-`--led-gpio-mapping=adafruit-hat` (Adafruit Bonnet). **Do not copy `applicon` onto a standard HAT.**
-
-**What is reused vs. new (software):**
-
-```
-control UI + Node bridge   →   open firmware renderer   →   flushBuffer2   →   HUB75 panel
-      (reuse as-is)              (the ONE new piece)          (reuse as-is)      (this guide)
-```
-
-- **Reused unchanged:** the Node **bridge** (`src/bridge.js`), the **control UI / appliance**
-  (`src/appliance.js` + `web/`), and **`flushBuffer2`** (`firmware/flushbuffer/`), the open
-  panel driver already built on hzeller's `rpi-rgb-led-matrix`.
-- **The one genuinely new component** is the **open firmware renderer** — the piece that turns
-  layouts into `buffer.png`, replacing Tech4Sport's closed `ledbox.py`. KSCW's in-progress
-  `openscore.py` (see `firmware/openscore/`) fills exactly this role and is tracked as its
-  own effort; treat "ship the open renderer" as a **separate project**, not part of this hardware build.
+This guide replaces the earlier recipe for a 1× panel (three 64×64 modules on a 230 V mains supply),
+which is withdrawn; it is in the git history if you need it.
 
 ---
 
-## 1. Bill of materials
+## 1. What it is
 
-Two headline configurations — an **indoor** build (recommended for a volleyball hall, §5) and
-an **outdoor** build (matches the vendor exactly; also right for beach volleyball or a very
-bright/glazed hall). The only differences are the panels and the enclosure.
+| | |
+|---|---|
+| Main screen | **192 × 64 LEDs at 5 mm pitch** (6 modules of 64×32, P5), 96 × 32 cm |
+| Bench panels | **2 × (32 × 64)**: one P5 module per end, upright, facing the benches |
+| Box | **102 × 38 × 22 cm**, 6 mm plywood, about **8 kg** |
+| Front | 3 mm polycarbonate, tight on the LED mask |
+| Power | **USB-C PD charger, 18–100 W**; 65 W or more for full brightness while charging the tablet |
+| Ports | **2 × USB-C, nothing else**: POWER and DATA (to the scorer tablet: network + charging) |
+| Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
+| Horn | none fitted, wiring provisioned |
+| Use | **indoor only** — the outdoor C0270 stays the beach board |
+| Parts | about **€550** |
+| Build time | 12–15 h plus a day for paint to dry |
 
-### 1a. Raspberry Pi (the host)
+**Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
+the pitch grows, from the C0270's ~3 mm to 5 mm. A score digit (fontsize 55, about 40 px) becomes
+about **20 cm** tall instead of about 12 cm. A 1.5× box is not possible (there is no 4.5 mm pitch),
+and 2× would mean twelve P3 modules with a 2× upscale: around €815 and more power than USB-C
+delivers.
 
-| Option | ~EUR | Notes |
-|---|---|---|
-| **Raspberry Pi 4 Model B, 4 GB** ✅ recommended | **€65–80** | Same generation as the real board; the `slowdown_gpio=5` tuning is dialed in for it. 4 GB is plenty. |
-| Raspberry Pi 3B+ | €40–50 | Works; use `--led-slowdown-gpio=2`. Cheapest, slightly less refresh headroom. |
-| Raspberry Pi 5, 4 GB | €75–90 | Works with a **current** `rpi-rgb-led-matrix` (RP1 support) and `--led-slowdown-gpio=4`–`5`; newer, but re-introduces per-Pi tuning. Only pick it if you already have one. |
+**The bench panels** show the score to each bench (own team on top, timeouts and substitutions).
+openscore draws them itself from the live match sections, so the bridge, the console and the
+protocol stay unchanged (§10.6).
 
-Buy from Berrybase, Reichelt, Pimoroni, The Pi Hut, or any authorised reseller (check
-`rpilocator.com` for stock). Add a **32 GB microSD** (~€8) and a Pi heatsink/fan (~€6).
+**Software:**
 
-### 1b. HUB75 driver HAT
-
-We need **one** HUB75 output driving **one chain of three** panels (`parallel=1`), so the
-standard single-output HAT is exactly right — no need for a triple/parallel board.
-
-| Option | ~EUR | Notes |
-|---|---|---|
-| **Adafruit RGB Matrix Bonnet** (P/N 3211) ✅ recommended | **€18–25** | ~$14.95 base. Clean level-shifting, well-documented, works out of the box with `--led-gpio-mapping=adafruit-hat`. For 64-row panels solder the on-board **address-E jumper** (pick pin `8` or `16` — analogous to the vendor's E-line quirk). Optional flicker mod: bridge GPIO4→GPIO18 to unlock `adafruit-hat-pwm`. |
-| **ElectroDragon "RGB Matrix Panel Drive Board"** (active-3 / hzeller adapter clone) | €10–15 + shipping | Reputable, based directly on hzeller's active-3 adapter. Use `--led-gpio-mapping=regular`. Budget choice; longer shipping from CN. |
-| Adafruit **Triple** LED Matrix Bonnet (P/N 6358) | €25–30 | Only if you later want **parallel** chains — **not needed** for our `parallel=1` layout. |
-
-### 1c. Three 64×64 HUB75 panels
-
-All three must be the **same model and pitch** and support chaining (each has HUB75 **IN + OUT**
-and its own 5 V power pigtail).
-
-| Option | ~EUR each | ×3 | Notes |
-|---|---|---|---|
-| **Indoor 64×64, P5 high-brightness** ✅ hall recommendation | €55–70 | **€165–210** | ~1000–1500 cd/m². P5 → ~960×320 mm board (§5). Sweet spot of size/brightness/cost for an indoor hall. |
-| Indoor 64×64, P4 | €55–75 | €165–225 | More compact (~768×256 mm), closer viewing. |
-| Indoor 64×64, P3 (e.g. Waveshare / DMX4ALL) | €60–130 | €180–390 | EU retail like DMX4ALL is ~€131 ea; AliExpress/Amazon ~€55–70. 192×192 mm/module. |
-| **Outdoor 64×64, P5/P6 (vendor-equivalent)** | €90–130 | **€270–390** | ~5000 cd/m², weather-resistant, brighter for sunlit/beach venues. What the real board uses. |
-
-Buy indoor panels from Waveshare, The Pi Hut, Pimoroni, DMX4ALL, Amazon; outdoor modules from
-AliExpress LED-sign sellers or a local sign shop. **Confirm each panel is 64×64 with HUB75 (HUB75E
-for 64-row) and 1/32 scan.** Buy a spare 4th panel if the budget allows — matching a single
-replacement later is painful.
-
-### 1d. 5 V power supply
-
-| Option | ~EUR | Notes |
-|---|---|---|
-| **Mean Well LRS-350-5** (5 V, 60 A, 300 W) ✅ recommended | **€45–55** | ~$36 base. Comfortable headroom over the worst case (§2), even for bright outdoor panels + the Pi. Runs cool. |
-| Mean Well **LRS-200-5** (5 V, 40 A, 200 W) | €35–45 | Fine for an **indoor** build at brightness 40; less margin if you ever run full-white outdoor. |
-| Generic enclosed 5 V / 40–60 A | €25–35 | Cheaper, quality varies — prefer a real Mean Well for a device left on unattended. |
-
-### 1e. Cabling, connectors, protection
-
-| Item | ~EUR | Notes |
-|---|---|---|
-| HUB75 ribbon cables (chaining) | €0–8 | Usually **included** with panels; buy 2–3 spares. |
-| 5 V power injection wire — **≥14 AWG / 2.5 mm²** bus + panel pigtails (16 AWG) | €10–20 | Star-wire one feed per panel (§2/§3). |
-| IEC C14 inlet **with fuse + switch** | €8–15 | Mains entry; fuse per PSU rating (~3.15 A slow-blow for a 300 W PSU at 230 V). |
-| Pi power: USB-C lead or a 5 V feed to the Bonnet terminal | €5–10 | Power the Pi from the same 5 V rail or its own supply. |
-| Ferrules, ring terminals, cable gland, strain relief | €5–10 | |
-
-### 1f. Frame / enclosure
-
-| Build | ~EUR | Notes |
-|---|---|---|
-| **Indoor** — laser-cut ply / 3D-printed frame + tinted acrylic front + magnetic panel mounts | €30–60 | Tinted/anti-glare front raises contrast noticeably. Leave airflow for the PSU. |
-| **Outdoor** — IP54+ aluminium/steel LED cabinet (empty "P-series outdoor cabinet") + polycarbonate front + gasket + rear vented box | €80–200 | Many sign shops sell empty cabinets sized to 3×(64×64). Include a front louver/diffuser for sunlight readability. |
+```
+console + bridge  ──TCP 8889──▶  openscore  ──buffer.png──▶  flushBuffer2  ──3 × HUB75──▶  8 modules
+ (unchanged)                    (renderer)                  (panel driver, power governor)
+```
 
 ---
 
-## 2. Power budget
+## 2. Bill of materials
 
-### Worst-case current (full white)
+Letters match the illustrated manual. Quantities include the spares that live in the box
+(2 modules, 4 fuses, 1 SD card).
 
-The accepted rule for HUB75 panels (Adafruit / hzeller) is **max current = panel width in
-pixels × 0.12 A** at 5 V, full white, full brightness. This comes from the 1/32-scan geometry:
-at any instant **2 of the 64 rows are lit** (top + bottom half), so 64 columns × 2 rows = 128
-RGB pixels draw current at once, each ~0.06 A (0.02 A × R,G,B):
+| | Part | Spec | Qty | ~EUR |
+|---|---|---|---|---|
+| A–D, Y | Plywood | 6 mm poplar, one 1250 × 1250 sheet, store-cut (cut list §8) | 1 | 30 |
+| E | Battens | 15 × 15, 2 × 1008 + corner blocks | 1 set | 5 |
+| F | Steel bars | 20 × 3 × 368, galvanised — must be steel, the module magnets hold on them | 3 | 6 |
+| G | Polycarbonate | 3 mm, light grey; 990 × 350 + 2 × 172 × 332 | 3 | 30 |
+| H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch | 10 | 120 |
+| I | Raspberry Pi 4 | **1 GB** — enough for the stack; the 2 GB rose to $67.50 on 1 Oct 2026 | 1 | 40 |
+| J | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs | 1 | 14 |
+| K | Stacking header | 40-pin, tall, between Pi and bonnet | 1 | 3 |
+| L | Wi-Fi stick | MT7612U (the board's access point) | 1 | 30 |
+| M | microSD | 32 GB, prepared image; one spare | 2 | 14 |
+| N | Converter | **Mean Well RSD-60G-5**: 9–36 V in, 5 V 12 A (60 W) out | 1 | 55 |
+| O | USB-C PD sink board | **STUSB4500** (e.g. SparkFun DEV-15801, contract-gated output) | 1 | 30 |
+| P | USB-C panel sockets | panel mount, 30 cm, data-rated (not charge-only) | 2 | 14 |
+| Q | Fuse box | 12-way MINI blade, 14 × 5 A fuses (4 spare) | 1 | 18 |
+| R | Horn switch | MOSFET board + plug, no horn | 1 | 4 |
+| S | Stand cup | 35 mm, with M4 screws | 1 | 8 |
+| T | Threaded inserts | ¼″-20 and ⅜″-16 | 2 | 4 |
+| U | Rubber feet | | 4 | 3 |
+| V | Handles | | 2 | 8 |
+| W | Metal corners | 30 mm, front corners only | 4 | 5 |
+| X | Thumb screws | M5 knurled, with threaded inserts | 2 | 4 |
+| Z | Blanking plug | Ø30, for the horn hole | 1 | 2 |
 
-```
-Per 64×64 panel : 128 pixels × 0.06 A          = 7.68 A  ≈ 8 A  → 38 W @ 5 V
-                  (equivalently 64 wide × 0.12 A = 7.68 A)
+| Small parts and wire | Spec | ~EUR |
+|---|---|---|
+| Screws and fittings | 60 × wood screw 3.5 × 16 T20, 12 × M4 × 16 T20 + nuts, 4 × M2.5 standoffs, 8 turn buttons, 2 door hooks (small L brackets), 4 rubber corner guards | 10 |
+| Straps | 2 × Velcro strap with buckle, 50 mm × 1 m | 8 |
+| Tablet hub | small USB-C hub with **Ethernet (RTL8153)** and a **USB-PD pass-through charging input**, + 15 cm patch cable | 25 |
+| Tablet charging module | USB-C PD source module, 12–24 V in, PD out limited to about 18 W | 14 |
+| Clock + temperature | DS3231 RTC (breakout without a charging circuit) + SHT40 sensor breakout | 10 |
+| Aluminium plate | 200 × 150 × 2, under the converter and the fuse box | 6 |
+| Protection | 5 A inline fuse + holder, 3 A fuse + holder, TVS diode SMBJ22A, 10 kΩ resistor, snap-on ferrites | 6 |
+| Wire | red + black: 2.5 mm² 1 m, 1 mm² 2 m, 1.5 mm² for extensions; ferrules; Wago 221 | 8 |
+| Paint, glue | matte black, two coats; wood glue | 8 |
+| Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
+| **Total** | | **≈ 550** |
 
-Three panels    : 3 × 7.68 A                    = 23.0 A  ≈ 24 A → 115 W @ 5 V
-```
+**Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
+bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
+pencil, masking tape; crimp tool for ferrules; multimeter; a **USB-C power meter** (about €12) —
+it is needed for the first power-up and to calibrate the power governor.
 
-So budget **~24 A at 5 V (~115 W)** worst case for the display. Notes:
-
-- **Outdoor panels can pull up to ~2× on the very brightest models** — another reason to size
-  the PSU generously below.
-- **Brightness 40** caps the drive to ~40 %, and **real scoreboard content is mostly black**
-  (a few coloured digits), so **typical** draw is only ~2–4 A total. The 24 A figure is the
-  worst case a PSU must *survive*, not the normal load.
-- **The Pi** adds ~1.5 A (Pi 4) to ~3 A peak (Pi 5) at 5 V if fed from the same rail.
-
-### PSU sizing (with headroom)
-
-```
-Display worst case          ~24 A
-+ Pi                          ~3 A
-= peak                       ~27 A
-+ 25–30 % headroom      ×1.3 ~35 A
-```
-
-A **Mean Well LRS-350-5 (5 V / 60 A)** covers this with huge margin — it will loaf even if you
-run bright outdoor panels at full white, and Mean Well derates gracefully. For a strictly
-**indoor** build at brightness 40, an **LRS-200-5 (40 A)** is adequate. Never size a 5 V PSU to
-exactly the worst case; running a supply near 100 % shortens its life and sags the rail.
-
-### Wire gauge, fusing, power injection
-
-- **Never power the panels through the Pi or the HAT ribbon.** The ribbon carries logic +
-  ground only. Each panel gets its own 5 V pigtail straight from the PSU.
-- **Star-wire the 5 V**, one feed per panel, from the PSU's 5 V/GND terminals (or a small bus
-  bar). **Do not** daisy-chain 5 V across all three panels through a single thin pigtail — that
-  causes voltage droop (dim/pink far end) and is a fire risk at ~24 A.
-- **Wire gauge (short runs, <0.5 m):**
-  - PSU → bus / main run carrying ~24 A: **≥14 AWG (2.5 mm²)**.
-  - Per-panel pigtail carrying ~8 A: **16 AWG (1.5 mm²)** is fine.
-- **Fusing:**
-  - Mains side: fuse in the **IEC inlet** per PSU rating (~3.15 A slow-blow for a 300 W supply at 230 V).
-  - Optional 5 V side: an inline **~10 A fuse per panel feed** protects against a shorted pigtail.
-- **Common ground:** bond the PSU 5 V **GND** to the Pi/HAT ground (they already share ground
-  through the HUB75 ribbon; a dedicated bond is good practice with three panels).
-- Keep the 5 V leads short and equal-ish length; twist/route power away from the ribbon to
-  reduce noise.
+The spares and fallback kit that goes with the box (charger, flip board, …) is in §11.
 
 ---
 
-## 3. Assembly + wiring
+## 3. LED module purchase spec
 
-### Signal chain (HAT → panels)
+Cheap P5 listings rarely name the driver chip, and some chips cannot be driven by the
+`rpi-rgb-led-matrix` library at all. **Get this in writing from the seller, with a photo of the
+driver ICs on the back of a module, before paying:**
 
-The HAT provides one HUB75 output. Chain **HAT → Panel 1 IN → Panel 1 OUT → Panel 2 IN →
-Panel 2 OUT → Panel 3 IN**. Left-to-right physical order should match the chain order (fix
-orientation in software later if a panel is flipped, via `--led-pixel-mapper`).
+| | Require | Why |
+|---|---|---|
+| Module | **P5, 64 × 32, indoor**, HUB75 IN + OUT, own 5 V power lead | 320 × 160 mm each; six make the 960 × 320 screen |
+| Scan | **1/16**, direct **A–D** row addressing | standard for 64×32 P5; no E line needed |
+| Driver IC | plain constant-current: **ICN2037, SM16208, FM6124, DP5125** (ICN2038S or FM6126A also work, possibly with `--led-panel-type=FM6126A`) | the library drives these |
+| Refuse | **S-PWM drivers: ICN2153, FM6353 / FM6363 / FM6373, SM16380, DP3264** | not supported by the library — a whole order could stay dark |
+| LEDs | **black-body SMD2121**, black mask (not white-body SMD3528) | off pixels stay black under hall light, at no power cost |
+| Brightness, angle | ≥ 1000 nits, ≥ 140° | readable from the sideline |
+| Batch | **all 10 from one production batch** | modules from different batches differ visibly in colour and brightness; a seam runs through the score digits |
+| Mounting | magnets on the back (or order M3 magnet standoffs from the same seller) | the modules hang on steel bars, no screws |
+
+Avoid 1/8-scan "outdoor" P5 modules (they may need multiplexing calibration nobody has done) and
+skip GOB modules — the polycarbonate front already takes the ball. Note each listing's maximum
+power: these modules are typically listed around **25 W each at full white**, which is why the
+power governor (§5.5) is not optional.
+
+**Bench-test one module on the Pi as soon as the parcel arrives, before cutting the case** (§10.2).
+Sellers change chips between batches under the same listing.
+
+---
+
+## 4. Outputs and GPIO plan
+
+### 4.1 Three outputs × three modules
 
 ```mermaid
 graph LR
-  PI["Raspberry Pi 4<br/>40-pin GPIO"] --> HAT["RGB Matrix Bonnet<br/>(1× HUB75 out)"]
-  HAT -->|HUB75 ribbon| P1["Panel 1<br/>64×64 · IN→OUT"]
-  P1 -->|OUT → IN| P2["Panel 2<br/>64×64 · IN→OUT"]
-  P2 -->|OUT → IN| P3["Panel 3<br/>64×64 · IN"]
+  PI["Pi 4 + Triple Bonnet"] -->|OUT 1| M1["module 1"] --> M2["module 2"] --> M3["module 3"]
+  PI -->|OUT 2| M4["module 4"] --> M5["module 5"] --> M6["module 6"]
+  PI -->|OUT 3| BL["bench L"] --> BR["bench R"]
 ```
 
-### Power (star injection from the PSU)
+| Output | Modules | Canvas rows |
+|---|---|---|
+| OUT 1 | 1 → 2 → 3, the **top row**, left to right | 0–31 |
+| OUT 2 | 4 → 5 → 6, the **bottom row**, left to right | 32–63 |
+| OUT 3 | **bench L → bench R**, third slot empty | 64–95 |
 
-```mermaid
-graph TD
-  MAINS["230 V AC mains"] -->|"IEC inlet + fuse + switch"| PSU["Mean Well LRS-350-5<br/>5 V · 60 A"]
-  PSU -->|"5V/GND (14 AWG)"| BUS["5 V / GND bus"]
-  BUS -->|"pigtail 16 AWG"| P1P["Panel 1 · 5 V"]
-  BUS -->|"pigtail 16 AWG"| P2P["Panel 2 · 5 V"]
-  BUS -->|"pigtail 16 AWG"| P3P["Panel 3 · 5 V"]
-  BUS -->|"5V/GND"| PIPWR["Pi (USB-C or Bonnet 5 V terminal)"]
-```
+The driver runs `--led-rows=32 --led-cols=64 --led-chain=3 --led-parallel=3`: a **192 × 96**
+canvas whose top 192 × 64 is the unchanged scoreboard. The library needs the same chain length on
+every output, so OUT 3 is a chain of three with one slot unpopulated; that costs no refresh, because
+the outputs are clocked in parallel. All module arrows point the same way (data direction); the
+bench modules stand upright, arrows up. Which canvas slot lands on which end, and the rotation of
+the bench content, is checked on glass with the module-number test (§10.4).
 
-### Mechanical
+**The trade-off.** Three outputs keep 192 pixels per row, the fastest way to drive eight modules
+from this bonnet. The price is that OUT 3 uses the I²C1 and UART pins. The alternative — two
+outputs × four modules (`--led-parallel=2 --led-chain=4` with the library's `Remap` pixel mapper,
+one bench module at the end of each chain) — frees those pins at about 25 % less refresh. Switching
+is only ribbons and flags; measure both with `--led-show-refresh` if the three-output refresh ever
+disappoints.
 
-1. Mount the three panels edge-to-edge on a flat backer (they ship with magnet studs + screw
-   holes). Keep the 64-px rows aligned so the 192×64 image is continuous.
-2. Seat the Bonnet firmly on the Pi's 40-pin header. Mount the Pi + PSU in a rear vented box.
-3. Run the ribbon HAT→Panel 1 with the connector orientation the panel silkscreen shows
-   (arrow = data direction). Chain the rest.
-4. Land all 5 V pigtails on the bus; land mains on the IEC inlet → PSU. Strain-relief the mains.
+### 4.2 Pin plan
+
+With 1/16-scan modules and three outputs, every GPIO from 2 to 27 except 15 is taken by the panels.
+What is left — **GPIO0/1 and GPIO15** — carries everything else:
+
+| Use | GPIO (header pin) |
+|---|---|
+| Shared panel lines | OE− **18** (12), CLK 17 (11), LAT 4 (7), A–D 22 (15), 23 (16), 24 (18), 25 (22) |
+| OUT 1 data | 11, 27, 7, 8, 9, 10 |
+| OUT 2 data | 12, 5, 6, 19, 13, 20 |
+| OUT 3 data | 14, 2, 3, 26, 16, 21 — this is why I²C1 and the UART are gone |
+| **I²C0** | **GPIO0 (27) SDA, GPIO1 (28) SCL**: STUSB4500 `0x28`, SHT40 `0x44`, DS3231 `0x68` |
+| **Horn switch** | **GPIO15 (10)** → gate of the MOSFET board (R) |
+| Pi power | 5 V on pins 2/4, GND on pin 6, from its own fuse (§5) |
+
+Rules that come with it:
+
+- **I²C on GPIO0/1** (`dtparam=i2c_vc=on`, §10.1). These pins have no fixed pull-ups (GPIO2/3 do),
+  so use breakouts that carry their own. Keep every device off `0x50–0x57`: the Pi probes there for
+  a HAT ID EEPROM at boot.
+- **No serial console.** GPIO14 is OUT 3's first data line: `enable_uart=0` and no
+  `console=serial0` on the kernel command line. Recovery is over the DATA cable (SSH) or by swapping
+  in the spare SD card.
+- **OE pull-up: a 10 kΩ resistor from GPIO18 (pin 12) to 3.3 V (pin 1)**, on the Pi side of the
+  bonnet's buffers, plus `gpio=18=op,dh` in `config.txt`. GPIO18 defaults to pull-down, which means
+  "panels on" for the whole boot (about 45 s on the C0270) while the modules hold random data. Eight modules lit at
+  random can draw more than a small charger delivers; the rail sags, the Pi browns out and reboots,
+  and the cycle repeats. The resistor keeps them dark from the first millisecond; the `config.txt`
+  line only takes effect a few seconds after power-on.
+- **Horn on GPIO15**: it defaults to pull-down, so a MOSFET there stays off during boot. **Check
+  before ever driving it:** on regular-mapping adapters GPIO15 is the HUB75 **E** line, and the
+  Triple Bonnet routes it through its buffer to HUB75 pin 4 or pin 8 (a selector on the board). On
+  1/16-scan modules those pins are usually **GND**. Measure, with the ribbons on, that the selected
+  pin is not grounded at the module — or open the E path on the bonnet — before GPIO15 goes high.
+  With no horn fitted and openscore's `horn_cmd` left empty (Horn commands still answer `ok`), it
+  never does.
+- The **tall stacking header (K)** is what makes pins 1, 10, 12, 27 and 28 reachable under the
+  bonnet.
+- Do **not** copy the C0270's `applicon` mapping (its E line moved to GPIO26 — Tech4Sport's own
+  wiring). The Triple Bonnet uses the library's stock **`regular`** mapping.
 
 ---
 
-## 4. Software bring-up
+## 5. Power
 
-### 4.1 Prepare the Pi
+### 5.1 The power path
 
-Flash **Raspberry Pi OS (Bookworm, Lite is fine)**. Then, critically for `rpi-rgb-led-matrix`,
-**disable on-board audio** (its PWM hardware collides with the matrix and causes flicker):
+Nothing in the box runs on mains, and there is no battery inside. Everything comes through the
+POWER socket from a USB-C PD charger (or a PD power bank) and is fused before it goes anywhere.
+
+```mermaid
+graph LR
+  CH["USB-C PD charger<br/>18–100 W"] -->|POWER socket| TVS["TVS SMBJ22A<br/>at the receptacle"]
+  TVS --> O["O · STUSB4500<br/>output on only above 5 V"]
+  O --> F5["5 A input fuse"]
+  F5 -->|"1 mm²"| N["N · RSD-60G-5<br/>9–36 V to 5 V, 12 A"]
+  F5 --> F3["3 A fuse"]
+  F3 --> PDS["PD source module<br/>12–24 V in, ≈18 W out"]
+  PDS --> HUB["tablet hub, PD input (§7)"]
+  N -->|"2.5 mm²"| Q["Q · fuse box, 5 A per way"]
+  Q --> MOD["modules 1–6"]
+  Q --> BEN["bench L, bench R"]
+  Q --> PI["Pi, header 5 V"]
+  Q --> FREE["free way (horn 5 V)"]
+```
+
+- **TVS at the socket.** The SMBJ22A goes across VBUS and GND at the receptacle side of the PD
+  board, ahead of its MOSFET: hot-plug ringing happens at the connector, not behind the converter.
+  All bulk capacitance sits **behind** the contract-gated MOSFET.
+- **5 A input fuse** between the PD board's gated output and everything else.
+- **−Vin bonded to −V on the converter.** The RSD-60G-5 is isolated, but the PD board on its input
+  side talks I²C to the Pi on its output side, so they need a common ground.
+- **Converter and fuse box on the aluminium plate** (at least the size of the datasheet's mounting
+  plate). The datasheet rates full load to +55 °C, or +70 °C on such a plate; the plate also makes a
+  non-combustible tray.
+- **Tablet charging module** taps the fused input (behind the 5 A fuse) through its own 3 A fuse and
+  feeds the hub's charging input (§7). It needs ≥ 12 V, so on a 9 V contract it simply stays off.
+- **Every module, each bench module and the Pi on their own 5 A fuse.** The tenth way stays free
+  (the horn's 5 V if one is ever fitted).
+- The Pi takes its 5 V on the header pins over a short pair of its own; its USB-C socket stays empty.
+  Never power panels through the Pi or the bonnet: the ribbons carry logic only.
+- A snap-on ferrite on the input lead, and flat-cable ferrites on the ribbons at the bonnet end;
+  keep ribbons short and 5 V leads away from them.
+
+### 5.2 STUSB4500 settings (NVM, program once)
+
+| Setting | Value | Why |
+|---|---|---|
+| `power_above_5v_only` | **on** | the output stays off until a ≥ 9 V contract exists: a 5 V-only source (USB-A, a plain 5 V port) leaves the box **completely off** instead of half-booting the Pi, and the converter never sees 5 V |
+| PDO2 | **9 V / 2.0 A** | 18–27 W chargers land here |
+| PDO3 | **20 V / 1.5 A** | a 30 W charger lands on 20 V/1.5 A instead of 9 V |
+| `req_src_current` | **on** | request the charger's full current at the matched voltage, so a 65 W charger gives 20 V/3 A or more |
+
+The NVM has limited write cycles: program it once, on the bench. The Pi reads the negotiated
+contract from `RDO_STATUS` (register `0x91`) every 1–2 s over I²C and turns it into the LED budget
+(§5.5). The chip's ALERT line is not wired (no free GPIO), so it polls.
+
+### 5.3 What each charger gives
+
+| Source | Contract | Result |
+|---|---|---|
+| 5 V only (USB-A, phone charger without PD) | none | box stays off — by design |
+| 18–27 W, 9 V | 9 V, 2–3 A | runs dimmed; tablet charging off (needs ≥ 12 V) |
+| 30 W | 20 V, 1.5 A | runs; little is left for the LEDs once the tablet charges |
+| **65 W or more** | 20 V, 3 A + | **full brightness with the tablet charging** — the recommended charger |
+| 100 W with a 5 A (e-marked) cable | 20 V, 5 A | most headroom; the converter itself stops at 60 W |
+
+Operating rules: a **single-port** charger labelled "board only" — a multi-port charger
+re-negotiates when something else is plugged in, and the box reboots. A power bank must offer
+**20 V at ≥ 2.25 A** (45 W class or more), otherwise the box falls back to 9 V and dims. Swapping
+chargers mid-match means a reboot; the match resumes where it was.
+
+### 5.4 Wiring rules
+
+- Red = +, black = −, everywhere; a ferrule on every wire end. Never swap + and −.
+- PD board → 5 A fuse → converter input: **1 mm²**. Converter output → fuse box: **2.5 mm²**
+  (anything ≥ 1.5 mm² is enough). Branches ≥ 0.75 mm²; extend a module lead that does not reach with
+  1.5 mm² and a Wago 221.
+- **Fuse every branch at ≤ 5 A** (why: §6). Label each power plug (1–6, L, R, Pi) to match a fuse
+  map printed on the inside of the door.
+- Leave **15 cm of slack** on every cable so the back door can come off.
+
+### 5.5 Power budget and the governor
+
+Eight modules at roughly 25 W each could ask for **about 200 W** at full white — more than three
+times what the converter delivers (60 W) and ten times a 9 V/2 A charger (18 W). A white-heavy
+frame or a test pattern would trip the charger, reset the PD contract and reboot the box mid-match.
+So the panel is never allowed to draw what the content asks for:
+
+- **LED budget = negotiated contract − Pi (≈ 5 W) − tablet allowance − margin.** The tablet
+  allowance is about 18 W whenever the charging module runs (a 20 V contract) and zero on 9 V. The
+  budget is also capped at what the converter can deliver after the Pi, and so that no module draws
+  more than about 75 % of its 5 A fuse.
+- **The governor lives in flushBuffer2**, the last stage before the glass, so it covers every
+  renderer, test pattern and bug. Per frame it estimates the current from the duty actually shown
+  (the library's CIE-corrected brightness, not raw pixel values), picks the highest brightness at or
+  below the requested one that fits the budget, limits how fast brightness rises (for example
+  +5 % per frame) and fades in over 1–2 s at boot. The appliance writes the budget to a small control
+  file in `/run`; flushBuffer2 applies it live with `SetBrightness`, no restart.
+- **Calibrate once per build**: show full red, green, blue and white and compare the estimate with
+  the USB-C power meter.
+- **Backstops**: the Pi's under-voltage flag (already read for Diagnostics) cuts the budget by 20 %;
+  the SHT40 inside the box ramps brightness down from **50 °C** and blanks the panel at **60 °C**.
+- The console header should show the contract ("PD 9 V 2 A, 18 W") so a weak charger explains a
+  dim board.
+
+**None of this is written yet** (§10.6). Until it is, bring the box up only at low brightness with
+mostly black content, and do not take it to a match.
+
+---
+
+## 6. Safety case
+
+The box is low-voltage only (at most 20 V from a certified charger), so the realistic hazards are a
+persistent fault that heats a wire or the converter, overheating in the sun, and mechanical damage.
+
+**Electrical faults.** The charger bounds the input power to the negotiated contract, and the 5 A
+input fuse bounds it again. Inside, the RSD-60G-5 does **not** hiccup on overload: it limits current
+at 105–135 % (about 12.6–16 A) and recovers by itself, so a resistive fault can sit at ~60 W
+indefinitely. That is why every branch has its own **5 A** MINI blade fuse: it opens in 0.15–5 s at
+200 % and in under 0.5 s at 350 %, where a 7.5 A fuse could hold for minutes. The converter's output
+over-voltage protection (5.75–7 V) latches off, so a failed converter cannot cook the Pi and the
+modules. The metal plate under converter and fuses is the non-combustible tray.
+
+**Heat.** At the power cap the box turns at most ~60 W into heat, an estimated 12–15 K above the
+hall temperature inside a closed plywood box. **Direct sun is a different league** — an estimated
+30–50 K more on the dark front — past the modules' typical 50–60 °C limit, the converter's 55 °C
+full-load point and the Pi's throttle. Hence the rules: **never in direct sun or next to a sunny
+window**, indoor only, the vents in the door kept clear (if the soak test runs warm, add a row of
+vents low in the door as well), and the SHT40 derating at 50 °C / blanking at 60 °C.
+
+**At boot.** The OE pull-up keeps the panels dark until the driver runs (§4.2).
+
+**Mechanical.** A spiked ball (about 270 g at 20–30 m/s) can crack acrylic into shards;
+**polycarbonate** does not shatter. That is the reason for the PC front — impact, not fire (neither
+material is UL94 V-0 at 3 mm). On a table the straps hold the box against a hit from the court; on
+a stand, use a stand rated 12 kg or more and a sandbag on its feet.
+
+**Climate.** Coming in from a cold car: wait **45 minutes** (60 below 0 °C) before switching on, or
+condensation can short the modules. A sachet of silica gel lives in the box.
+
+### Bench checklist — before the first match, and after any hardware change
+
+1. **First power-up** with a small 9 V charger and nothing connected but the converter: 5.0–5.2 V at
+   the fuse box (step 12). A 5 V-only source must leave the box off.
+2. **Soak: 2 h at the power cap** with thermocouples on the converter, a module back and the Pi (a
+   borrowed thermal camera is a bonus). Log the SHT40 alongside.
+3. **Fuse-clear test** on every branch: short it through a 0.2 Ω load; its fuse must open.
+4. **Ball test**: a spike from 3 m onto the front.
+5. **Drop test**: 50 cm onto a corner, door shut, in transport configuration.
+6. **Link test**: the tablet at about 10 m, ping/load the console with the panel at full cap and
+   off — the panel must not knock out its own Wi-Fi or the cable.
+
+Keep the results with the box: the fuse map on the door, and a short record (schematic, fuse plan,
+soak readings).
+
+---
+
+## 7. Tablet link (DATA port)
+
+**One USB-C cable from the box to the scorer tablet carries the network and charges the tablet.**
+
+```mermaid
+graph LR
+  TAB["scorer tablet<br/>USB host"] <-->|"one USB-C cable"| D["DATA socket"]
+  D <--> HUB["USB-C hub<br/>RTL8153 Ethernet + PD input"]
+  HUB <-->|"15 cm patch"| PI["Pi RJ45, eth0<br/>192.168.5.1 + DHCP"]
+  PDS["PD source module<br/>≈18 W"] -->|charging| HUB
+```
+
+- The DATA socket goes to a small **USB-C hub with Ethernet (RTL8153) and a USB-PD pass-through
+  charging input**. The hub's Ethernet runs over a 15 cm patch cable to the Pi's own RJ45, which
+  serves **`192.168.5.1`** and DHCP exactly like the C0270's cable. The tablet sees an ordinary USB-C
+  Ethernet dongle (the RTL8153 shows up as `eth0`, which Android adopts) and is charged through the
+  same cable by the PD source module (§5.1), up to about 18 W.
+- **The cable is the primary scorer link**; the board's own Wi-Fi access point stays as the backup.
+  A tablet on the cable is **trusted without the scorer PIN** — the console change for that is still
+  to be made (§10.6).
+- **Never connect the DATA port to a hall network switch.** It hands out addresses and, once the
+  change above lands, grants PIN-free control.
+- The tablet charges only on a 20 V contract (the charging module needs ≥ 12 V); on a 9 V charger
+  the data link still works and the tablet runs on its battery.
+- **Bench-test with the club's real Galaxy Tab A before cutting the case**: the tablet must work as
+  USB host (Ethernet up, console on `http://192.168.5.1:8890`) **and** charge through the hub at the
+  same time. If it cannot, fall back to a plain RTL8153 adapter (data only) and give the tablet its
+  own charger.
+- Order the panel socket to match the hub: if the hub has a captive plug, the inside end of the DATA
+  socket must be a USB-C **receptacle**. Every part on this path must pass data and PD.
+- **Why not USB gadget mode on the Pi?** On the Pi 4 the USB-C gadget port is also its power input,
+  which would tie the tablet's 5 V to the converter's; and Android ignores a gadget link named `usb0`.
+  The Pi's own USB-C socket stays empty.
+
+POWER and DATA are both on the back, colour-ringed (gold POWER, blue DATA) and labelled.
+
+---
+
+## 8. The case
+
+### Cut list — one sheet of 6 mm poplar plywood, 1250 × 1250
+
+| Part | Size (mm) | Notes |
+|---|---|---|
+| A front frame | 1020 × 380 | window **960 × 320**, 30 mm border all round |
+| B back panel | 1020 × 380 | the **service door**; ports, horn hole, vents, thumb-screw holes |
+| C top + bottom | 2 × 1020 × 208 | top: 4 × Ø4.5 for the handles; bottom: stand cup and inserts |
+| D ends | 2 × 208 × 368 | window **160 × 320**, 24 mm border |
+| Y backing plate | 208 × 140 | glued inside the bottom, under cup and inserts |
+
+Hand the list to the store saw (straight cuts only) or have the sheet laser-cut, windows included.
+Birch instead of poplar adds about 1.5 kg. Polycarbonate (G) is sawn or CNC-cut, never laser-cut
+(it melts).
+
+**Cut-outs:** Ø45 stand cup, Ø8 ¼″ insert, Ø12 ⅜″ insert (bottom) · Ø30 horn hole, plugged · Ø6 × 2
+thumb screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the door.
+
+### Design
+
+- **Front:** 3 mm light-grey polycarbonate (G) drops into the front frame from inside and sits
+  **tight on the LED mask** (within 2–3 mm, so there is no halo or parallax from the side). The
+  modules lie on it, recessed behind the 6 mm frame. Same for the two small end sheets. Keep the
+  outer protective film on until the very end.
+- **Modules on magnets:** three **steel bars** (F) are screwed across the two long battens; the
+  modules' own magnets snap onto them. No screws — a module swaps out in seconds. The bench modules
+  sit behind the end windows, arrows up, held by four turn buttons each.
+- **Tool-less back door:** the back panel hooks behind **two small L-bracket hooks** at the bottom,
+  tilts shut and is held by **two M5 knurled thumb screws** into threaded inserts at the top. No
+  hatch, no tools: everything inside is in reach. The door carries the **fuse map, four spare fuses
+  and a spare SD card**.
+- **Corners:** 30 mm **metal corners on the front** only — at the back they would block the door,
+  so the back corners get **rubber guards**.
+- **Handles** (×2) on top. On a table, a **Velcro strap through each handle and around the table's
+  back edge** keeps a ball hit from pushing the box off.
+- **Bottom:** a **35 mm speaker-stand cup** (4 × M4 × 16) and **¼″-20 and ⅜″-16 threaded inserts**
+  for tripods and light stands, on the glued backing plate (Y); four rubber feet.
+- **Fold-out back legs (optional, about €10):** two plywood legs hinged under the back edge, with a
+  stop, tilt the box back 10–15° towards the first referee's raised stand. Raising the whole box on
+  a stand is the bigger win, though: it also clears the heads of people standing in front of it.
+- **Torx throughout** (plain, not security Torx): T20 for the wood screws and M4 machine screws,
+  T10 for the small parts. Pre-drill Ø2.5 near every edge.
+- **Matte black** inside and out, two coats, so nothing reflects behind the LEDs.
+- **Electronics** lie on the bottom panel behind the modules: converter and fuse box on the
+  aluminium plate; Pi and bonnet on M2.5 standoffs; the PD board by the POWER socket, the hub and the
+  charging module by the DATA socket; RTC and temperature sensor; the horn switch by the plugged horn
+  hole. The Wi-Fi stick goes on one of the Pi's **USB 2.0** ports (or a short USB 2.0 extension) —
+  USB 3 traffic is noisy right on the 2.4 GHz band — with its antennas outside the shadow of the
+  module PCBs.
+
+---
+
+## 9. Build steps
+
+Seventeen steps in four stages; the drawings are in the
+[illustrated manual](https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8).
+
+**A — Case** (about 5 h plus a day to dry)
+
+1. **Cut the parts** — seven rectangles from one sheet (cut list, §8).
+2. **Cut windows and holes** — drill each window corner, join with the jigsaw; round holes with a
+   hole saw. Masking tape on the cut line, good side down. Check the USB-C cut-outs against the
+   sockets that actually arrive.
+3. **Glue the shell** — bottom, ends, top and front frame onto the battens, glued and screwed. The
+   back panel stays loose: it becomes the door.
+4. **Fit the bottom** — box upside down; glue in the backing plate, then the stand cup, the two
+   threaded inserts and the four feet (and the fold-out legs, if fitted).
+5. **Paint** — two coats of matte black, inside too.
+
+**B — Panels** (the box lies face-down on a blanket)
+
+6. **Front sheet in** — peel the inner film off the polycarbonate and drop it into the front frame;
+   same for the two end sheets.
+7. **Six modules** — LEDs down, all arrows the same way; short ribbons 1 → 2 → 3 and 4 → 5 → 6. Leave
+   the IN of modules 1 and 4 free for the bonnet.
+8. **Bars across** — screw the three steel bars into the battens; the module magnets snap on.
+9. **Bench panels** — one module behind each end window, arrows up, four turn buttons each. Stand
+   the box upright again.
+
+**C — Electronics** (low voltage only — nothing in here can give you a shock)
+
+10. **Lay out the electronics** on the bottom panel (§8); fit both USB-C sockets in the door now.
+    Solder the 10 kΩ OE pull-up (§4.2).
+11. **Power wiring** — POWER socket → PD board → 5 A fuse → converter (1 mm²) → fuse box (2.5 mm²);
+    the TVS across the socket's + and −; −Vin bonded to −V; the charging module behind its 3 A fuse.
+12. **First power-up** — nothing else connected; a small (about 20 W) PD phone charger into POWER,
+    through the USB-C power meter (it should read 9 V); 5.0–5.2 V at the fuse box. 0 V or −5 V:
+    unplug and check + and −. A weak charger is the safety net here.
+13. **Connect everything** — each module, each bench module and the Pi to its own 5 A fuse; ribbon
+    OUT 1 → module 1, OUT 2 → module 4, OUT 3 → bench L → bench R; I²C to pins 27/28; DATA socket →
+    hub → patch cable → Pi network port; charging module → hub.
+14. **Test** — back still open, prepared SD card in, a laptop charger on POWER: a test pattern on all
+    eight modules for 30 minutes, under the power governor (or at low brightness until it exists).
+    Warm is fine; hot or smelly → unplug. The full bench checklist (§6) follows before the first
+    match.
+
+**D — Finish**
+
+15. **Close up** — hook the door in at the bottom, tilt it shut, two thumb screws by hand. Handles
+    on top, metal corners at the front, rubber guards at the back, the plug in the horn hole.
+16. **Set it up** — on the table with a strap through each handle around the table's back edge, on a
+    speaker stand, or on a tripod or light stand (sandbag on its feet). Charger into POWER, the
+    tablet cable into DATA.
+17. **Open it** — unplug the charger, two thumb screws, tilt the door back, lift it off its hooks.
+    Swapping the SD card or a fuse takes under a minute.
+
+---
+
+## 10. Software bring-up
+
+### 10.1 Prepare the Pi
+
+Flash **Raspberry Pi OS Lite, 64-bit**. (The C0270's 32-bit userland is stuck on Node 22, which ends
+in April 2027; a new board should not start there.) Then:
+
+```ini
+# /boot/firmware/config.txt
+dtparam=audio=off                    # on-board audio PWM collides with the panel driver
+enable_uart=0                        # GPIO14 is OUT 3
+dtparam=i2c_vc=on                    # I²C0 on GPIO0/1 (pins 27/28)
+dtoverlay=i2c-rtc,ds3231,i2c0        # DS3231 on I²C0
+dtoverlay=i2c-sensor,sht4x,i2c0      # SHT40 on I²C0
+gpio=18=op,dh                        # OE− high early: panels dark (second layer after the pull-up)
+```
 
 ```bash
-# /boot/firmware/config.txt  → set:
-dtparam=audio=off
-# and blacklist the module:
+# keep the sound module out for good (an OS update must not bring it back)
 echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/blacklist-rgb-matrix.conf
-# (optional, Pi 4) dedicate a core to reduce flicker — append to /boot/firmware/cmdline.txt:
-#   isolcpus=3
-sudo reboot
+
+# /boot/firmware/cmdline.txt is one line: remove console=serial0,115200 and append
+#   isolcpus=domain,managed_irq,3 nohz_full=3 rcu_nocbs=3 irqaffinity=0,1,2
+# (core 3 for the panel's refresh thread); after a reboot:
+cat /sys/devices/system/cpu/isolated      # → 3
 ```
 
-### 4.2 Install the driver library and build the test tools
+Check the overlay parameters against `/boot/firmware/overlays/README` on the image you flash, then
+confirm the bus: `i2cdetect -l` lists I²C0, and the STUSB4500 (`0x28`) answers on it while the RTC
+and the sensor show as bound by their drivers. Drop `fake-hwclock` once the DS3231 keeps time; fit
+the coin cell only on a breakout **without** a charging circuit (or remove the charging
+resistor/diode of the common ZS-042 module) and power it from 3.3 V.
+
+**Networking:**
+
+- Wi-Fi country **CH** on both radios (`raspi-config`, and `country_code=CH` for the access point).
+- The **MT7612U is the board's access point**, on 5 GHz channels 36–48 indoors; the built-in radio
+  is the client for a hall's Wi-Fi uplink, on 2.4 GHz.
+- The board gets **its own Wi-Fi name and passphrase** and its own identity — never the C0270's.
+- `eth0`: **192.168.5.1/24 with a DHCP server** for the tablet (§7).
+
+### 10.2 Driver library, first light
+
+Build `rpi-rgb-led-matrix` at the commit pinned in
+[`firmware/flushbuffer/build.sh`](../../firmware/flushbuffer/build.sh), so the demos and
+flushBuffer2 use the same library:
 
 ```bash
-sudo apt update && sudo apt install -y git build-essential
-git clone https://github.com/hzeller/rpi-rgb-led-matrix
-cd rpi-rgb-led-matrix
-make -C examples-api-use          # builds: demo, led-image-viewer, ...
+sudo apt install -y git build-essential
+git clone https://github.com/hzeller/rpi-rgb-led-matrix && cd rpi-rgb-led-matrix
+git checkout 51d3231e370593b60952b2c3b18d2e3802329f18     # = RGB_SHA in build.sh
+make -C examples-api-use
 ```
 
-### 4.3 The exact flags
+**One module first**, on OUT 1, before anything is cut: `--led-chain=1 --led-parallel=1` with the
+flags below. A rotating square that looks right means the chip, the scan and the bonnet are good.
 
-These reproduce the vendor panel. **Pick the `--led-gpio-mapping` for your HAT** and drop the
-vendor's `applicon`:
+### 10.3 The flags — start from vendor profile C and measure
 
 ```bash
 sudo ./examples-api-use/demo -D0 \
-  --led-rows=64 --led-cols=64 --led-chain=3 --led-parallel=1 \
-  --led-multiplexing=1 --led-scan-mode=1 \
-  --led-gpio-mapping=adafruit-hat \   # Adafruit Bonnet;  use "regular" for a generic/ElectroDragon HAT
-  --led-pwm-bits=7 --led-pwm-lsb-nanoseconds=450 --led-pwm-dither-bits=2 \
-  --led-slowdown-gpio=5 \             # Pi 4;  Pi 3B+ → 2,  Pi 5 → 4–5
-  --led-brightness=40
+  --led-rows=32 --led-cols=64 --led-chain=3 --led-parallel=3 \
+  --led-gpio-mapping=regular --led-multiplexing=0 --led-row-addr-type=0 --led-scan-mode=0 \
+  --led-pwm-bits=7 --led-pwm-lsb-nanoseconds=180 --led-pwm-dither-bits=2 \
+  --led-slowdown-gpio=3 --led-brightness=40 --led-show-refresh
 ```
 
-| Flag | Value | = panel property |
+| Flag | Start value | = panel property |
 |---|---|---|
-| `--led-rows` / `--led-cols` | `64` / `64` | one module |
-| `--led-chain` | `3` | three modules in one chain → 192 wide |
-| `--led-parallel` | `1` | single chain |
-| `--led-multiplexing` | `1` | vendor value (outdoor panels) |
-| `--led-scan-mode` | `1` | recovered scan mode |
-| `--led-gpio-mapping` | `adafruit-hat` / `regular` | **your HAT**, not `applicon` |
-| `--led-pwm-bits` | `7` | PWM tuning |
-| `--led-pwm-lsb-nanoseconds` | `450` | PWM tuning |
-| `--led-pwm-dither-bits` | `2` | PWM tuning |
-| `--led-slowdown-gpio` | `5` (Pi 4) | GPIO timing |
-| `--led-brightness` | `40` | brightness % |
+| `--led-rows` / `--led-cols` | `32` / `64` | one 64×32 module |
+| `--led-chain` | `3` | three modules per output (OUT 3: two plus an empty slot) |
+| `--led-parallel` | `3` | three outputs → 192 × 96 canvas |
+| `--led-gpio-mapping` | `regular` | the Triple Bonnet's pinout — **not** the C0270's `applicon` |
+| `--led-multiplexing` | `0` | indoor 1/16-scan modules; sweep only if the image is scrambled |
+| `--led-row-addr-type` | `0` | direct A–D addressing |
+| `--led-scan-mode` | `0` | the library default; flushBuffer2 compiles in `1` for the C0270, so pass it |
+| `--led-pwm-bits` | `7` | vendor profile C |
+| `--led-pwm-lsb-nanoseconds` | `180` | vendor profile C |
+| `--led-pwm-dither-bits` | `2` | vendor profile C |
+| `--led-slowdown-gpio` | `3` | vendor profile C (Pi 4) |
+| `--led-brightness` | `40` for bring-up | later owned by the console and the power governor |
+| `--led-panel-type` | only `FM6126A` for those chips | |
 
-> `flushBuffer2` **compiles in** `rows/cols/chain/parallel/scan_mode/multiplexing`; the rest it
-> reads from `setting.ini`. The flags above are for the hzeller **demo binaries** you use to
-> bring the panel up before wiring in the KSCW stack.
+**Start from vendor profile C and measure — do not copy the C0270's tuning.** Tech4Sport's own
+table ([`firmware/setting.ini.example`](../../firmware/setting.ini.example)) has profile **C (Pi 4,
+indoor)**: lsb 180, slowdown 3, multiplexing 0. The C0270 runs profile **D** (outdoor: lsb 450,
+slowdown 5, multiplexing 1), which is wrong for indoor modules and wastes much of each frame on
+dark-but-timed PWM planes at low brightness. Then, with `--led-show-refresh` running for a few
+minutes (Wi-Fi traffic included):
 
-### 4.4 Calibrate on glass (important for the vendor's outdoor look)
+- try `--led-slowdown-gpio` 3 → 2 (the bigger lever); keep the fastest value without garble;
+- lower `--led-pwm-lsb-nanoseconds` together with a higher brightness to recover dark time; watch
+  for ghosting;
+- **never** lower `--led-pwm-bits` at low brightness — it drops the only planes that are lit;
+- then lock the refresh with `--led-limit-refresh` a little below the lowest rate observed, at a
+  multiple of 100 Hz (200 or 400 Hz), so video at a 1/100 s or 1/50 s shutter shows no bands. A
+  1/500 s shutter needs a minimum above about 520 Hz.
 
-Geometry problems are invisible over the network — you **must look at the panel**:
+Record the result in `setting.ini` (`[DISPLAY]`), keeping the previous file to roll back.
 
-- **Image scrambled / wrong pixel order?** Sweep **`--led-multiplexing=`** `0`…`17` (indoor 64×64
-  usually wants **`0`**; the vendor's outdoor panels want **`1`**), and try
-  **`--led-scan-mode=0` vs `1`** and **`--led-row-addr-type=0`…`4`**.
-- **A panel rotated/mirrored or the chain snakes?** Add **`--led-pixel-mapper="Rotate:180"`** or
-  `"U-mapper"` as needed.
-- **Adafruit Bonnet + 64-row panels:** solder the **address-E jumper** (pin `8` or `16`) if the
-  bottom half is blank/duplicated.
+### 10.4 Calibrate on glass
 
-### 4.5 Point the KSCW stack at it
+Geometry errors are invisible over the network — **look at the panel**:
 
-Once the demo renders cleanly, swap in the reusable stack. The data flow is:
+- Scrambled pixels: sweep `--led-multiplexing` and `--led-row-addr-type`; confirm the driver chip
+  against the purchase spec.
+- A module upside down or a chain in the wrong order: check the arrows and the ribbons first.
+- Bench panels: which canvas slot is which end, and the rotation, come from the **module-number
+  test screen** (each module shows its number). If the three-output refresh disappoints, try the
+  two-output `Remap` wiring (§4.1).
+- Full-white soak for the power path only under the governor (§5.5).
+
+### 10.5 Point the stack at it
 
 ```
-bridge / appliance  ──TCP:8889──▶  open renderer (openscore.py)  ──buffer.png──▶  flushBuffer2  ──▶  panel
+console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──▶  flushBuffer2  ──▶  panels
 ```
 
-1. Build the open panel driver for your mapping and run it:
-   ```bash
-   # in firmware/flushbuffer/ — build.sh patches the applicon mapping by default;
-   # for a standard HAT, run the hzeller demos above, or rebuild flushBuffer2 and pass
-   # your mapping via setting.ini's hardware_mapping (regular / adafruit-hat).
-   ./build.sh
-   sudo ./flushBuffer2 /home/pi/ledbox/www/buffer.png \
-     --led-gpio-mapping=adafruit-hat --led-pwm-bits=7 --led-slowdown-gpio=5 \
-     --led-pwm-lsb-nanoseconds=450 --led-multiplexing=1 --led-brightness=40 --led-pwm-dither-bits=2
-   ```
-2. Run the **open renderer** (the one new piece — see `firmware/openscore/`) so layouts render
-   to `buffer.png`:
-   ```bash
-   pip install pillow
-   python3 openscore.py --base-dir /home/pi/ledbox --port 8889
-   ```
-3. Run the **reused** bridge or the control UI, pointing `LEDBOX_HOST` at the Pi (use
-   `127.0.0.1` if it is the same Pi):
-   ```bash
-   # headless mirror of a live match:
-   MATCH_ID=123 LEDBOX_HOST=127.0.0.1 node src/bridge.js
-   # or the phone-friendly control UI:
-   npm run appliance      # http://<pi-ip>:8890
-   ```
+1. **flushBuffer2** — build it with [`firmware/flushbuffer/build.sh`](../../firmware/flushbuffer/build.sh)
+   (it adds `applicon` but the stock `regular` is still there). It compiles in the C0270's
+   64 × 64 × 3 geometry, so the XL's start script must pass `--led-rows=32 --led-cols=64
+   --led-chain=3 --led-parallel=3 --led-scan-mode=0` along with the `setting.ini` tuning
+   (`hardware_mapping=regular`, the values from §10.3).
+2. **openscore** — the renderer ([`firmware/openscore/`](../../firmware/openscore/)) writes the
+   192 × 64 `buffer.png`; flushBuffer2 shows it on the front, and the bench rows stay dark until
+   openscore renders them.
+3. **Console and bridge** — unchanged: `npm run appliance` on the board, the console on port 8890.
 
-### 4.6 Test patterns
+### 10.6 Still to build before the first match
 
-- **Geometry/mapping:** `demo -D0` (rotating square) with the §4.3 flags, or
-  `led-image-viewer test.png`. Confirm a straight edge is straight across all three panels.
-- **Power/thermal:** display a **full-white 192×64 PNG** for a few minutes and check the PSU
-  temperature and for any dimming/pink tint at a panel's far edge (→ under-gauged 5 V wire).
-- **End-to-end:** run the appliance, enter a score by hand, and confirm it appears — that
-  exercises control UI → bridge → renderer → `flushBuffer2` → panel.
+| Piece | Where | Status |
+|---|---|---|
+| Power governor, live brightness, budget file in `/run` (§5.5) | flushBuffer2 | **must** — not written |
+| PD contract read (`RDO_STATUS`) → budget; contract shown in `/api/status` and the console | appliance | **must** — not written |
+| SHT40 derating 50 °C / blank 60 °C | appliance → budget | **must** — not written |
+| Module-number test screen (bring-up, swap card) | openscore | **must** — not written |
+| Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | before the first glass run |
+| Bench screens: 192 × 96 canvas (or a `Remap` canvas of 256 × 64), content from the live match sections | openscore | feature — not written |
+| Cable tablet trusted without the scorer PIN (§7) | console | owner decision — not written |
+| Own Wi-Fi name/passphrase and board identity | provisioning | **must** |
+| Read-only root with a persistent `/data` partition and a `STATE_DIR` setting | image, appliance | planned; until then the card stays read-write, because match state and the resume file must survive a power cut |
 
 ---
 
-## 5. Pixel pitch (P-value) and indoor vs. outdoor
+## 11. Spares kit and fallback
 
-**Pixel pitch P = mm between adjacent LEDs.** Since each module is 64×64, one module spans
-`64 × P` mm, and the full 192×64 board is `192P × 64P` mm. Smaller P = finer/denser = read
-closer + more expensive per unit area; larger P = bigger/brighter/cheaper LEDs = read from
-farther but coarser up close.
+**In the box or the kit bag:**
 
-| Pitch | Board size (192×64) | Min. viewing dist.* | Typ. use |
-|---|---|---|---|
-| P2.5 | 480 × 160 mm | ~2.5 m | desktop / very close |
-| P3 | 576 × 192 mm | ~3 m | small indoor |
-| **P4** | **768 × 256 mm** | ~4 m | compact hall board |
-| **P5** | **960 × 320 mm** | ~5 m | **standard indoor hall** |
-| P6 | 1152 × 384 mm | ~6 m | large hall, farther seating |
-| P8 | 1536 × 512 mm | ~8 m | big / outdoor, gets heavy |
-| P10 | 1920 × 640 mm | ~10 m | large outdoor |
+- **2 spare modules from the same order** (H) — a module ordered a year later rarely matches.
+- Spare **5 A fuses** (4, on the door) and a 3 A fuse; the fuse map on the door.
+- A **pre-imaged spare SD card** (M) in a labelled case, refreshed with every image release.
+- 2 spare HUB75 ribbons and 2 module power leads.
+- One known-good **single-port PD charger, 65 W or more**, labelled "board only", with a labelled
+  1 m USB-C cable (about €40).
+- The USB-C power meter, a small torch, silica gel.
+- A printed **swap card**.
 
-\* Rule of thumb: **minimum comfortable viewing distance (m) ≈ pitch (mm)**; pixels blend from
-there out to tens of metres. Character legibility scales with digit height, not pitch — at P5 a
-score digit ~30 px tall is ~150 mm, readable well past 30 m.
+**Swapping a module** (a few minutes): unplug the charger → open the door → read the dead module's
+number on the module-number screen or the map → photograph the cables → lift the module off its
+magnets → move power plug and ribbons to the spare (the arrow is the data direction) → power on →
+run the module-number screen → note the swap in the inventory. Dead pixels: swap at the hall;
+repair with hot air at home, or bin the module — it costs less than an hour of volunteer time.
 
-**Indoor vs. outdoor modules:**
+**Fallback when the board fails:**
 
-| | Indoor 64×64 | Outdoor 64×64 (vendor uses this) |
-|---|---|---|
-| Brightness | ~800–1500 cd/m² | ~4000–6000 cd/m² |
-| Best for | normal-lit halls | sunlit/glazed halls, beach volleyball |
-| Power | lower (~4–5 A/panel white) | higher (up to ~8 A+/panel white) |
-| Weather | none | water/UV resistant, front louver |
-| Cost | lower | higher |
-| Pixel layout | usually simple → `--led-multiplexing=0` | often multiplexed → `--led-multiplexing=1`+ (calibrate) |
-
-### Recommended config for an indoor volleyball hall
-
-**Three 64×64 indoor P5 high-brightness modules** → a **~960 × 320 mm** board (≈ 1 m wide),
-readable from ~5 m to well across a typical hall, at a sensible price. Choose **P4** instead if
-you want it more compact and seating is closer; step up to **outdoor P5/P6** if the hall has big
-windows/very bright lighting or you also play **beach**. Keep the proven tuning either way
-(`pwm_bits=7`, `pwm_lsb_ns=450`, `dither=2`, `brightness=40`, `slowdown_gpio=5` on a Pi 4), and
-expect indoor panels to want **`--led-multiplexing=0`** (calibrate per §4.4).
+- **A flip scoreboard with digits of at least 12 cm** stays in the kit (about €30–80). Swiss Volley's
+  rules (RV, Art. 82 f) require the home team to provide a scoreboard with digits at least 12 cm
+  high; regional associations may relax that (Art. 240), so confirm with SVRZ. A phone or a tablet
+  cannot show 12 cm digits.
+- **If the board dies mid-match:** keep scoring — the scoresheet is the official record and the
+  tablet keeps the score. Tell the first referee and the scorer at the next stoppage, put up the
+  flip board, then power-cycle the box (unplug 10 s, wait for the idle screen). Not back within
+  2 minutes: play on with the flip board. Afterwards, export the log from Diagnostics.
+- **Basketball:** the board is never the official game clock — it has no horn and its clock is
+  network-timed. Use the hall's timer.
 
 ---
 
-## 6. Build order, cost, and time
+## 12. Hinweis: Nachbau, Haftung, Vorschriften
 
-### Step-by-step
+Diese Bauanleitung beschreibt ein Gerät, das der KSC Wiedikon für den eigenen Gebrauch baut. Sie ist
+kein Produkt, wird ohne Gewähr veröffentlicht und ist keine Rechtsberatung.
 
-1. **Order parts** (§1). Longest lead time is usually the panels — order those first; buy a
-   spare panel if budget allows.
-2. **Flash + prep the Pi** (§4.1): Raspberry Pi OS, `dtparam=audio=off`, blacklist audio, reboot.
-3. **Bench-test one panel** on the HAT with the hzeller demo (§4.3) **before** building anything
-   — confirm the mapping and (Bonnet) solder the E jumper if needed.
-4. **Chain all three** and calibrate geometry on glass: multiplexing / scan-mode / pixel-mapper (§4.4).
-5. **Wire power** (§2/§3): star-feed each panel from the PSU, mains via fused IEC inlet, run a
-   full-white soak test and check heat + far-edge colour.
-6. **Bring up the KSCW stack** (§4.5): `flushBuffer2` → open renderer → bridge/appliance; enter a
-   test score end-to-end.
-7. **Build the enclosure** (§1f) and mount everything; add front diffuser/louver.
-8. **Final calibration + burn-in**: brightness, a live match dry-run, leave it running.
-
-### Rough total cost
-
-| Line | Indoor (hall) | Outdoor (vendor-equivalent) |
-|---|---|---|
-| Raspberry Pi 4 (4 GB) + microSD + cooling | €85 | €85 |
-| RGB Matrix Bonnet | €22 | €22 |
-| 3 × 64×64 panels | €190 (P5 indoor) | €300 (P5/P6 outdoor) |
-| PSU (Mean Well) | €50 (LRS-350-5) | €55 (LRS-350-5) |
-| Cabling / connectors / IEC + fuse | €30 | €35 |
-| Frame / enclosure | €45 | €120 (IP54 cabinet) |
-| **Total (approx.)** | **≈ €420** | **≈ €620** |
-
-Budget/stretch swings: Pi 3B+ and an ElectroDragon HAT save ~€40; DMX4ALL-grade EU panels or a
-pro outdoor cabinet add €100–200.
-
-### Time estimate
-
-- Software prep + single-panel bring-up: **~2 h**
-- Chaining + on-glass calibration: **~1–2 h**
-- Power wiring + soak test: **~2 h**
-- KSCW stack integration + end-to-end test: **~1 h**
-- Enclosure build/mount: **~4–8 h** (varies most with fabrication)
-
-**≈ 1.5–2 days of hands-on work (~10–15 h)** — a weekend project for someone comfortable with a
-Raspberry Pi — plus parts lead time.
+- **Kleinspannung heisst nicht «ohne Vorschriften».** Die Niederspannungs-Erzeugnisverordnung (NEV)
+  erfasst in der Schweiz auch Erzeugnisse unter 50 V Wechsel- bzw. 75 V Gleichspannung, also auch ein
+  Gerät, das nur über USB-C versorgt wird.
+- **Nachbau und eigener Gebrauch:** Wer das Gerät nachbaut, ist selbst Herstellerin im Sinne von NEV
+  und EMV-Verordnung (VEMV) und für Sicherheit und elektromagnetische Verträglichkeit verantwortlich.
+  Die VEMV gilt auch beim Betrieb.
+- **Ausleihen:** Wer das Gerät Dritten überlässt – auch unentgeltlich –, kann es im Sinne der NEV in
+  Verkehr bringen, wenn das im Rahmen einer Geschäftstätigkeit geschieht. Vor einem regelmässigen oder
+  organisierten Verleih an andere Vereine oder Verbände beim ESTI nachfragen.
+- **Betrieb:** nur mit einem zertifizierten USB-C-PD-Netzteil (höchstens 100 W); Sicherungen nie
+  überbrücken oder durch stärkere ersetzen; nie in praller Sonne oder an einem sonnigen Fenster
+  betreiben; vor dem Öffnen das Netzteil ausstecken; WLAN-Ländereinstellung CH, Originalantennen des
+  WLAN-Sticks.
 
 ---
 
 ## Sources (approximate, 2026)
 
-- Adafruit RGB Matrix Bonnet — <https://www.adafruit.com/product/3211> (~$14.95); width×0.12 A power rule.
-- ElectroDragon RGB Matrix Panel Drive Board — <https://www.electrodragon.com/product/rgb-matrix-panel-drive-board-raspberry-pi/>
-- hzeller `rpi-rgb-led-matrix` (driver, flags, wiring) — <https://github.com/hzeller/rpi-rgb-led-matrix>
-- Panels: Waveshare / The Pi Hut / DMX4ALL (indoor P2.5/P3 64×64, ~€60–131); AliExpress/Amazon (indoor P3/P4/P5 ~€55–75); AliExpress LED-sign sellers (outdoor P5/P6).
-- Mean Well LRS-350-5 (5 V/60 A/300 W, ~$36) — DigiKey/Mouser/Walmart.
-- Raspberry Pi pricing (2026, memory-driven rises) — <https://www.raspberrypi.com/products/raspberry-pi-5/>; stock via `rpilocator.com`.
-- Measured vendor panel config — this repo: `firmware/openscore/PANEL-AND-DIY.md`, `firmware/FLUSHBUFFER.md`, `firmware/flushbuffer/flushbuffer.cc`.
+- Illustrated build manual (drawings, parts A–Z, the 17 steps): <https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8>
+- hzeller `rpi-rgb-led-matrix` (driver, flags, `regular` mapping, refresh tuning, CPU isolation) —
+  <https://github.com/hzeller/rpi-rgb-led-matrix>, pinned commit in `firmware/flushbuffer/build.sh`
+- Adafruit Triple LED Matrix Bonnet — <https://www.adafruit.com/product/6358>
+- Mean Well RSD-60 datasheet — <https://www.meanwell.com/Upload/PDF/RSD-60/RSD-60-SPEC.PDF>
+- STUSB4500 NVM settings: SparkFun DEV-15801 and the STUSB4500 CircuitPython library documentation
+- LED driver chips, standard vs S-PWM — <https://github.com/board707/DMD_STM32/wiki/Led_drivers>
+- Swiss Volley Reglement Volleyball (RV) 26/27, Art. 82 f and Art. 240
+- This repo: vendor display profiles in [`firmware/setting.ini.example`](../../firmware/setting.ini.example);
+  the measured C0270 in [`firmware/openscore/PANEL-AND-DIY.md`](../../firmware/openscore/PANEL-AND-DIY.md);
+  the panel driver in [`firmware/flushbuffer/`](../../firmware/flushbuffer/)
