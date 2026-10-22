@@ -38,6 +38,7 @@ const volleyMapper = {
   toBreakSections: volley.toBreakSections,
   toResultSections: volley.toResultSections,
   toMessageSections: volley.toMessageSections,
+  toTestSections: volley.toTestSections,
   toLeftRight: volley.toLeftRight,
 }
 
@@ -47,9 +48,10 @@ const volleyMapper = {
 // The result and announcement screens are sport-neutral too — a winner, a score and a list of
 // periods reads the same whatever produced them, and a change of ends is a change of ends — so
 // they ride along with the idle layouts.
+// The panel self-check (Diagnostics ▸ Panel test) is about the hardware, not the sport.
 const IDLE_LAYOUTS = {
   idleLayout: 'kscw_idle', crestLayout: 'kscw_crest', clockLayout: 'kscw_clock',
-  resultLayout: 'kscw_result', messageLayout: 'kscw_message',
+  resultLayout: 'kscw_result', messageLayout: 'kscw_message', testLayout: 'kscw_test',
 }
 
 export const SPORTS = {

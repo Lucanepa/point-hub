@@ -377,6 +377,38 @@ export function toMessageSections(text, { color = CLUB_GOLD } = {}) {
   return out
 }
 
+// The panel self-check (`kscw_test`, Diagnostics ▸ Panel test): every module numbered, a frame
+// around each one, and four colour bars under each number.
+//
+// The C0270 is three 64x64 modules in one chain, numbered 1 | 2 | 3 from the left as the hall sees
+// them. The faults a volunteer can actually spot are per module — a module dark, a frame with a gap
+// (a dead row or column), one bar missing (a dead colour line on that module's ribbon), the numbers
+// in the wrong order (a ribbon swapped) — so everything here is drawn once per module rather than
+// across the panel.
+//
+// Red, green and blue at full single-channel drive, because each one tests its own line on the
+// ribbon and a single channel never draws more than the team colours of a match screen do. The
+// fourth bar is all three channels together, at half drive: a white block is what draws the most
+// current, and a full-white bar adds nothing to what the frame already shows.
+//
+// Every value is written, not left to the layout file: the board keeps section values in memory
+// for as long as the panel runs, so the XML's defaults say nothing about what is on the glass.
+export const TEST_MODULES = 3
+export const TEST_FRAME = '255,255,255'
+export const TEST_BARS = { r: '255,0,0', g: '0,255,0', b: '0,0,255', w: '128,128,128' }
+
+export function toTestSections() {
+  const out = []
+  for (let m = 1; m <= TEST_MODULES; m++) {
+    out.push(attr(`frame${m}`, 'color', '0,0,0'), attr(`frame${m}`, 'bordercolor', TEST_FRAME))
+    out.push(...text(`mod${m}`, String(m), TEST_FRAME))
+    for (const [k, c] of Object.entries(TEST_BARS)) {
+      out.push(attr(`bar${m}${k}`, 'color', c), attr(`bar${m}${k}`, 'bordercolor', c))
+    }
+  }
+  return out
+}
+
 // Returns the `value` array for a `SetSections` command. Each side is painted uniformly
 // in its team colour — name, score, set count and score-box border all match — so the
 // board never shows one team in three different reds.

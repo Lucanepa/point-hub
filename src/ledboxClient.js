@@ -7,7 +7,7 @@
 import net from 'node:net'
 import { EventEmitter } from 'node:events'
 import { encode, StreamDecoder } from './ledboxProtocol.js'
-import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toLeftRight } from './volleyballMapper.js'
+import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toTestSections, toLeftRight } from './volleyballMapper.js'
 import { log } from './logStore.js'
 
 const CONTROL_PORT = 8889
@@ -58,6 +58,9 @@ export class LedboxClient extends EventEmitter {
     resultLayout = 'kscw_result',
     // Full-panel announcement screen (the change of ends). Optional; showMessage no-ops without it.
     messageLayout = 'kscw_message',
+    // The panel self-check (Diagnostics ▸ Panel test): module numbers, colour bars, a frame per
+    // module. Optional; showTest refuses without it.
+    testLayout = 'kscw_test',
     // How long after the last control-UI request a viewer still counts as present. The UI polls
     // /api/status every 1.5s, so this is ~13 missed polls: long enough that a brief wifi stall
     // or a tablet blanking its screen doesn't flap the panel back to the QR codes, short enough
@@ -126,8 +129,8 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
-    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toLeftRight }
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
+    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toTestSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
     // The operator asked for the wall clock specifically ('Show clock', or deleting the saved
@@ -152,6 +155,8 @@ export class LedboxClient extends EventEmitter {
     // The sport-switch confirmation currently holding the panel (a token), or null. See
     // showSportConfirm.
     this._confirming = null
+    // The panel test currently on the glass ({ back, endsAt, timer }), or null. See showTest.
+    this._test = null
     this.currentLayout = null
     this.hosts = (hosts && hosts.length ? hosts : String(host).split(',').map((h) => h.trim()))
       .filter(Boolean)
@@ -274,6 +279,9 @@ export class LedboxClient extends EventEmitter {
       // A sport confirmation still sleeping belongs to the dead socket; its tail must not come
       // back after the reconnect and put the crest over whatever the new connection settled on.
       this._confirming = null
+      // Same for a panel test. The test never touches `_idle`, so the reconnect's own default
+      // screen (idle, or the scoreboard repainted) IS the screen the test would have gone back to.
+      this._cancelTest('the board disconnected')
       // Forget which layout we thought the board had. `currentLayout` is a client-side
       // cache used to skip redundant SetLayout calls, but a board that restarted comes
       // back on its default (`waiting`) — so a stale cache makes setLayoutIfNeeded a
@@ -492,8 +500,9 @@ export class LedboxClient extends EventEmitter {
     if (typeof clubName === 'string') this.clubName = clubName
     // If the crest screen is what's currently up, repaint it so a name-style change shows
     // immediately instead of waiting for the next time someone toggles idle.
-    // Not while the sport-switch confirmation holds the panel: it settles back to idle itself.
-    if (this.ready && this._idle && !this._confirming) this.showIdle(true).catch(() => {})
+    // Not while the sport-switch confirmation holds the panel: it settles back to idle itself. Nor
+    // under a panel test, which goes back to idle (with these limits) when it ends.
+    if (this.ready && this._idle && !this._confirming && !this._test) this.showIdle(true).catch(() => {})
     if (this.ready && this._lastState && !this._idle && this.currentLayout === this.layout) {
       this.pushState(this._lastState).catch(() => {})
     }
@@ -543,6 +552,7 @@ export class LedboxClient extends EventEmitter {
     else if (screen === 'clock') this._clockHeld = true
     else if (screen) this._clockHeld = false
     this._confirming = null // whoever asked for this screen has taken the panel over
+    this._cancelTest('another screen took the panel')
     blog.info(on ? `idle screen on${this._clockHeld ? ' (clock held)' : ''}` : 'idle screen off — back to scoring', { idle: this._idle, hasTeams: this._hasTeams(), clockHeld: this._clockHeld })
     this.clearPulses()
     this._idleInFlight++
@@ -686,7 +696,7 @@ export class LedboxClient extends EventEmitter {
   // Every layout this client itself puts on the panel.
   _ownLayouts() {
     return new Set([this.layout, this.countdownLayout, this.breakLayout, this.idleLayout, this.crestLayout,
-      this.clockLayout, this.resultLayout, this.messageLayout].filter(Boolean))
+      this.clockLayout, this.resultLayout, this.messageLayout, this.testLayout].filter(Boolean))
   }
 
   _layoutAvailable(layout) {
@@ -758,8 +768,11 @@ export class LedboxClient extends EventEmitter {
 
   async _idleTickNow() {
     // `_confirming`: the sport-switch confirmation is on the break screen with `_idle` still true
-    // underneath. The tick would see "not the crest" and put the crest straight back ~1 s in.
-    if (!this.ready || !this._idle || this._suppressPaint || this._confirming) return
+    // underneath. The tick would see "not the crest" and put the crest straight back ~1 s in. A
+    // panel test is the same: idle stays true under it, and it ends on its own timer.
+    if (!this.ready || !this._idle || this._suppressPaint || this._confirming || this._test) return
+    // The test screen up with no test running (its timer lost somehow): never leave it there.
+    if (this.testLayout && this.currentLayout === this.testLayout) { await this.showIdle(true); return }
     // The named idle screen is up; no room for a clock there — unless the operator asked for it.
     if (this._hasTeams() && !this._clockHeld) return
     const want = (this._layoutAvailable(this.clockLayout) && (this.viewerPresent() || this._clockHeld))
@@ -791,6 +804,7 @@ export class LedboxClient extends EventEmitter {
     if (!this.ready || !this._layoutAvailable(this.breakLayout) || !text) return false
     const token = {}
     this._confirming = token
+    this._cancelTest('the sport confirmation took the panel')
     try {
       await this.setLayoutIfNeeded(this.breakLayout)
       // content 'none' blanks the score boxes, so the panel is just the sport name.
@@ -827,6 +841,7 @@ export class LedboxClient extends EventEmitter {
     this._idle = false
     this._clockHeld = false
     this._confirming = null
+    this._cancelTest('the result screen took the panel')
     this.clearPulses()
     try {
       await this.setLayoutIfNeeded(this.resultLayout)
@@ -860,6 +875,7 @@ export class LedboxClient extends EventEmitter {
     this._idle = false
     this._clockHeld = false
     this._confirming = null
+    this._cancelTest('an announcement took the panel')
     this.clearPulses()
     const back = this.layout
     try {
@@ -891,6 +907,105 @@ export class LedboxClient extends EventEmitter {
     return true
   }
 
+  // --- Panel test (Diagnostics ▸ Panel test) ---------------------------------------------------
+  //
+  // Put the self-check screen up for `ms`, then go back to exactly what the panel showed before.
+  // Resolves { ok, endsAt } or { ok:false, reason: 'not-ready'|'missing'|'busy'|'failed' }.
+  //
+  // The one rule is that the panel can never be left on it. Four things end a test, and any one is
+  // enough:
+  //   * its own timer, armed BEFORE the first write so a paint that hangs cannot outlive it;
+  //   * endTest() — the console's "Back to normal now";
+  //   * any other screen taking the panel (showIdle, a countdown, the result, an announcement, the
+  //     sport confirmation) — those cancel it and paint their own screen, see _cancelTest;
+  //   * the socket closing: a reconnect settles on its own default screen.
+  // And should all of those somehow miss, the layout guard (on the scoreboard) and the idle ticker
+  // (on idle) both treat the test layout with no test running as a stray screen and replace it.
+  //
+  // Nothing about the match is touched. `_idle` and `_clockHeld` stay exactly as they were, which is
+  // what lets the way back be the ordinary paths: showIdle(true) for an idle panel, the scoreboard
+  // repainted from the last state otherwise, or the result layout put back (the board keeps each
+  // layout's section values, so the result comes back as it was).
+  async showTest({ ms = 20000 } = {}) {
+    if (!this.ready || !this.testLayout) return { ok: false, reason: 'not-ready' }
+    if (!this._layoutAvailable(this.testLayout)) return { ok: false, reason: 'missing' }
+    // An announcement has its own timer that ends by putting the scoreboard back — straight over
+    // the test. It lasts seconds; asking again in a moment is the honest answer.
+    if (this.messageLayout && this.currentLayout === this.messageLayout) return { ok: false, reason: 'busy' }
+    // A second start while one runs restarts the clock but keeps where it goes back to: "back" is
+    // never the test screen itself.
+    const back = this._test ? this._test.back : { layout: this.currentLayout }
+    if (this._test) clearTimeout(this._test.timer)
+    const token = { back, endsAt: Date.now() + ms, timer: null }
+    this._test = token
+    token.timer = setTimeout(() => { if (this._test === token) this.endTest('time is up').catch(() => {}) }, ms)
+    if (token.timer.unref) token.timer.unref()
+    this._confirming = null
+    // An idle repaint still working through clock → crest must not carry on over the test screen:
+    // its fallback steps give up once a newer call owns the panel (see showIdle's `superseded`).
+    this._idleGen = (this._idleGen || 0) + 1
+    this.clearPulses()
+    blog.info(`panel test screen on for ${Math.round(ms / 1000)}s`, { ms, back: back.layout, idle: this._idle })
+    try {
+      await this.setLayoutIfNeeded(this.testLayout)
+      await this.sendSections(this.mapper.toTestSections())
+    } catch (err) {
+      this._noteLayoutMissing(this.testLayout, err)
+      const missing = Number(err.code) === 5
+      blog.warn(`panel test screen failed: ${err.message}`, { error: err.message, missing })
+      // Whatever got onto the panel goes away again at once rather than when the timer fires.
+      if (this._test === token) await this.endTest('the test screen could not be painted').catch(() => {})
+      return { ok: false, reason: missing ? 'missing' : 'failed', error: err.message }
+    }
+    // Something else took the panel while the test was being painted: it owns the panel now.
+    if (this._test !== token) return { ok: false, reason: 'busy' }
+    return { ok: true, endsAt: token.endsAt }
+  }
+
+  // End a running test and go back to the screen it replaced. Returns whether one was running.
+  async endTest(reason = 'stopped') {
+    const t = this._test
+    if (!t) return false
+    this._test = null
+    clearTimeout(t.timer)
+    blog.info(`panel test screen off (${reason})`, { reason, back: t.back.layout, idle: this._idle })
+    if (!this.ready) return true // the reconnect puts the default screen up by itself
+    try {
+      if (this._idle) {
+        // showIdle without `screen` keeps whatever the operator chose (a held clock stays held).
+        await this.showIdle(true)
+      } else if (this.resultLayout && t.back.layout === this.resultLayout) {
+        await this.setLayoutIfNeeded(this.resultLayout)
+      } else {
+        await this.setLayoutIfNeeded(this.layout)
+        if (this._lastState) await this.pushState(this._lastState)
+      }
+    } catch (err) {
+      // `null` = unknown: lets the next paint (and its error-6 self-heal) and the layout guard at it,
+      // instead of a cached test layout locking every paint out.
+      if (this.currentLayout === this.testLayout) this.currentLayout = null
+      blog.warn(`could not go back from the panel test: ${err.message}`, { error: err.message })
+    }
+    return true
+  }
+
+  // Another screen is taking the panel: drop the test without painting anything — the caller
+  // paints its own screen. Synchronous on purpose, so it can sit beside `_confirming = null`.
+  _cancelTest(reason) {
+    const t = this._test
+    if (!t) return false
+    this._test = null
+    clearTimeout(t.timer)
+    blog.info(`panel test screen off (${reason})`, { reason })
+    return true
+  }
+
+  // For /api/status: { endsAt, remainingMs } while a test is up, else null.
+  testView() {
+    if (!this._test) return null
+    return { endsAt: this._test.endsAt, remainingMs: Math.max(0, this._test.endsAt - Date.now()) }
+  }
+
   // Show (or clear, when secondsLeft == null) a countdown on the board.
   //
   // The device ships `volleyball_matchscore_timeout_02` for exactly this — GetSections on a
@@ -906,6 +1021,7 @@ export class LedboxClient extends EventEmitter {
     this._idle = false // a countdown means the match is live; leave any idle screen
     this._clockHeld = false
     this._confirming = null // ...and any sport-switch confirmation holding the break screen
+    this._cancelTest('a countdown took the panel') // ...and a panel test
     // The ticker calls this once a second, so only the edges are worth `info`: entering the
     // break screen and leaving it. The seconds themselves are debug.
     if (secondsLeft == null) blog.info('countdown cleared — repainting the match')
@@ -1125,7 +1241,10 @@ export class LedboxClient extends EventEmitter {
     if (!this.layoutGuardMs) return
     this._layoutGuard = setInterval(async () => {
       if (!this.ready || this._suppressPaint || this._idle) return
-      if (this.currentLayout && this.currentLayout !== this.layout) return // a break screen is up
+      // A break screen is up — unless it is the test screen with no test running, which nothing
+      // would ever take down again. (Belt and braces: the test's own timer is what ends it.)
+      const strayTest = !!this.testLayout && this.currentLayout === this.testLayout && !this._test
+      if (this.currentLayout && this.currentLayout !== this.layout && !strayTest) return
       blog.debug('layout guard — checking the scoreboard is up', { layout: this.layout })
       // ASK, don't re-assert. A SetLayout for the layout the board already has gets no reply at
       // all (`noresend`), so the old blind re-assert sat in the serialized send queue for its
@@ -1156,6 +1275,7 @@ export class LedboxClient extends EventEmitter {
   disconnect() {
     blog.info('disconnecting', { host: this.host })
     this._closing = true
+    this._cancelTest('disconnecting')
     clearInterval(this._layoutGuard)
     clearInterval(this._idleTicker)
     if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null }
