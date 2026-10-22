@@ -359,10 +359,10 @@ else
   if [ $OFF_FOR -ge $((OFFLINE_H * 3600)) ]; then
     if GAMES=$(games_between $((NOW - 3600)) $((NOW + GAME_AHEAD_H * 3600))); then
       if [ -n "$GAMES" ]; then
-        alert offline_game high rotating_light "Scoreboard offline - home game soon" \
+        alert offline_game high rotating_light "Scoreboard unreachable - home game soon" \
           "$NODE has been off the tailnet for $(dur $OFF_FOR) (last seen $(when "$OFF_FROM")). Home games in the next $GAME_AHEAD_H h:
 $(cut -f2 <<<"$GAMES" | head -5 | sed 's/^/- /')
-Power the board on and check its hall uplink before the game."
+The board can still run in the hall without internet, but then nobody can reach, update or watch it remotely. Check that it is powered and joined to the hall Wi-Fi before the game."
       else
         echo "no home game in the next $GAME_AHEAD_H h — an idle board is fine, no alert"
       fi
