@@ -154,12 +154,17 @@ export async function startAppliance(config = loadConfig()) {
   // A sport can opt out altogether (sports.js `livePush: false` — the simple scoreboard is not a
   // match the /live page could show), and then the toggle is moot: it stays OFF whatever it says.
   const publishes = sport.livePush !== false
-  const livePush = livePushFromEnv(process.env, sport.key, () => publishes && settings.values.liveScoring === 'kscw')
+  // Which game a state belongs to — the control server knows (its liveFixture), and it is built
+  // below; until then every state is unscheduled, which is only ever the boot-time board.
+  let liveFixture = () => null
+  const livePush = livePushFromEnv(process.env, sport.key, () => publishes && settings.values.liveScoring === 'kscw', {
+    fixture: (state) => liveFixture(state),
+  })
   livePush.attach(sourceManager)
   logStore.info('livePush', livePush.enabled
-    ? `configured → ${process.env.DIRECTUS_URL} (${sport.key}); publishing ${livePush.isLive() ? 'ON' : publishes ? 'OFF — flip Settings ▸ Connect to live scoring' : `OFF — ${sport.label} is never published`}`
+    ? `configured → ${process.env.DIRECTUS_URL} (${sport.key}), channel ${livePush.channel}; publishing ${livePush.isLive() ? 'ON' : publishes ? 'OFF — flip Settings ▸ Connect to live scoring' : `OFF — ${sport.label} is never published`}`
     : 'disabled (no DIRECTUS_URL / LIVE_PUBLISH_TOKEN)',
-  { enabled: livePush.enabled, publishing: livePush.isLive(), url: process.env.DIRECTUS_URL || null, sport: sport.key })
+  { enabled: livePush.enabled, publishing: livePush.isLive(), url: process.env.DIRECTUS_URL || null, sport: sport.key, channel: livePush.channel })
   // The match logs for the club's stats: same token, same toggle, uploaded after each match (and
   // whenever the board next has an uplink). Only for a sport that publishes at all.
   const matchUpload = matchUploadFromEnv(process.env, {
@@ -214,6 +219,7 @@ export async function startAppliance(config = loadConfig()) {
     autoPrepare: config.autoPrepare || null,
     matchUpload,
   })
+  liveFixture = server.liveFixture
 
   // The default screen on a fresh boot (the KSC Wiedikon crest) is asserted by the client
   // itself after the handshake (see `defaultIdle` above), so it survives the board's own

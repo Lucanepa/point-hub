@@ -69,7 +69,9 @@ export function toSeasonGames(rows) {
     const home = String(g.home_team || '').trim()
     const away = String(g.away_team || '').trim()
     const time = String(g.time || '').slice(0, 5)
-    // A KSCW-vs-KSCW game is in the table once per team (see schedule.js toGames).
+    // A KSCW-vs-KSCW game is in the table once per team (see schedule.js toGames). The fetch asks
+    // for type 'home' only, so the copy normally holds just the home team's row — and that row's id
+    // is the one the board publishes the game under (livePush, `game-<id>`).
     const key = `${date}|${time}|${home}|${away}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -319,6 +321,19 @@ export class SeasonSchedule {
   game(id) {
     const n = Number(id)
     return (this.games || []).find((g) => Number(g.id) === n) || null
+  }
+
+  // One of this board's games by its federation match number — what a linked OpenVolley match
+  // carries as `game_n` (with or without our 'vb_' source prefix). Only a game played within `days`
+  // of the board's date, and never a cancelled one: a test match on the scorer's laptop that
+  // happens to reuse a number is not that fixture. null when there is none.
+  gameByNumber(number, { sport = 'volleyball', days = 2 } = {}) {
+    const n = String(number ?? '').trim().replace(/^[a-z]+_/i, '')
+    if (!n) return null
+    const today = zurichDate(new Date(this.now()))
+    const from = addDays(today, -days)
+    const to = addDays(today, days)
+    return this.gamesFor(sport).find((g) => g.number === n && !g.cancelled && g.date >= from && g.date <= to) || null
   }
 
   // GET /api/schedule — today's playable games in the shape the console has always had.
