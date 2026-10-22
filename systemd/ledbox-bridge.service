@@ -29,7 +29,7 @@ RestartSec=5
 TimeoutStopSec=15
 # The default KillMode=control-group stays, on purpose: stopping this unit takes down everything
 # it started. The LED panel driver is the one thing that must outlive a restart, so the appliance
-# launches it as its own transient unit (systemd-run, see PANEL_RESTART in src/controlServer.js)
+# launches it as its own transient unit (systemd-run, see PANEL_RESTART in src/panelBrightness.js)
 # rather than as a child — it is never in this cgroup to begin with.
 
 [Install]

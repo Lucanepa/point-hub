@@ -39,12 +39,31 @@ multiplexing=1
 no_hardware_pulsing=0
 pwm_dither=2
 
-# brightness is the one SAFE knob here (it never scrambles, only dims/brightens).
+# brightness is the one SAFE knob here (it never scrambles, only dims/brightens). The console's
+# Settings ▸ Panel brightness owns it: every change there rewrites this key (it is the level the
+# driver starts at), so set a new level in the console rather than here.
 #   40  → current value; good for the indoor hall (an outdoor panel at 100 indoors
 #         is glaring).
 #   ~100 → set this when the panel is used OUTDOORS / for beach in daylight, or 40
 #          is unreadable in sunlight.
 brightness=40
+
+# Optional, read by bin/startled (firmware/flushbuffer/startled). Absent = not passed = how the
+# board has always run; leave them out unless you have measured.
+#
+# limit_refresh: --led-limit-refresh, in Hz. Pads every panel scan to exactly 1/N s, so a camera
+#   shutter that spans a whole number of scans sees no rolling bands. Measure first, at the panel,
+#   with firmware/flushbuffer/measure-refresh.sh, and set it BELOW the lowest rate it reports
+#   (a limit above what the panel reaches does nothing). A multiple of 100 also suits a 1/100 s or
+#   1/50 s shutter, which is what cancels the hall lights' 100 Hz flicker too.
+#limit_refresh=200
+#
+# power_budget_ma / power_full_white_ma / power_idle_ma: flushBuffer2's power governor, on from
+#   the first frame (see firmware/flushbuffer/README.md). For the DIY build on a limited supply;
+#   the C0270 runs without a budget, i.e. without these.
+#power_budget_ma=
+#power_full_white_ma=
+#power_idle_ma=
 
 # Physical panel geometry (do not change): 192x64.
 width=192

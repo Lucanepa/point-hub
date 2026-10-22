@@ -18,6 +18,12 @@
 #
 # Restarting is always preferred over rebooting: a restart costs ~10s, a reboot
 # costs ~60s and drops the wifi AP with it.
+#
+# Brightness 0 means two things, depending on the driver. One that reads brightness only at launch
+# is stopped (PANEL_OFF below). One that takes it live (flushBuffer2 rebuilt from
+# firmware/flushbuffer/flushbuffer.cc: it announces itself in $PANEL_CTL/driver) is told 0 through
+# $PANEL_CTL/brightness and draws black while it keeps running, so switching back on needs no
+# restart. Such a driver is left running here as long as that file says 0.
 
 BUFFER=/home/pi/ledbox/www/buffer.png
 STALE_AFTER=60      # seconds without a repaint before we call the renderer dead
@@ -26,6 +32,7 @@ PANEL_OFF=/home/pi/ledbox/PANEL_OFF   # present = operator set brightness 0; kee
 LOCK=/home/pi/ledbox/panel.lock       # serialises panel starts so we never spawn two drivers
 # The bridge's persisted settings -- read only to spot a PANEL_OFF left behind (see below).
 BRIDGE_SETTINGS=/home/pi/ledbox-bridge/settings.json
+PANEL_CTL=/run/ledbox-panel           # a live driver's control directory (tmpfs; see the header)
 
 log() { logger -t ledbox-watchdog "$1"; echo "$(date '+%F %T') $1"; }
 
@@ -65,7 +72,7 @@ start_app() { ( cd /home/pi/ledbox/bin && ./startledbox >/dev/null 2>&1 & ) ; }
 #       must not hang this loop: the app check below it is the one that matters mid-match.
 #
 # The driver is launched as its OWN transient systemd unit, same as the bridge's PANEL_RESTART
-# (src/controlServer.js). A backgrounded startled only leaves the shell, not the cgroup: when this
+# (src/panelBrightness.js). A backgrounded startled only leaves the shell, not the cgroup: when this
 # script runs as a service, the driver it starts is a member of that unit, and stopping or
 # restarting the watchdog (a deploy, `systemctl restart`) takes the panel dark with it. We run as
 # root, so no sudo and no --uid: the driver runs as the same user it always did from here. $$ keeps
@@ -104,9 +111,49 @@ panel_off_requested() {
     if [ -n "$b" ] && awk -v b="$b" 'BEGIN { exit !(b > 0) }'; then
         log "stale PANEL_OFF (settings.json brightness=$b) -> removing it, panel stays on"
         rm -f "$PANEL_OFF"
+        # The live twin of the same leftover: a driver told 0 would stay black without the flag.
+        # With no brightness file a live driver goes back to the level it was launched with
+        # (setting.ini) -- what restarting an old driver after a stale flag has always done.
+        if [ "$(live_brightness)" = 0 ]; then
+            log "and the live brightness 0 that came with it -> back to the setting.ini level"
+            rm -f "$PANEL_CTL/brightness"
+        fi
         return 1
     fi
     return 0
+}
+
+# The running driver takes its brightness live: $PANEL_CTL/driver names a running process with
+# exactly that start time (field 22 of /proc/<pid>/stat). A file a killed driver left behind names a
+# dead pid, or one since reused with another start time, and an older binary never writes it. The
+# same check, in JS, is liveDriver() in src/panelBrightness.js.
+live_driver() {
+    local pid start stat
+    pid=$(sed -n 's/^pid=\([0-9][0-9]*\)$/\1/p' "$PANEL_CTL/driver" 2>/dev/null | head -n 1)
+    start=$(sed -n 's/^start=\([0-9][0-9]*\)$/\1/p' "$PANEL_CTL/driver" 2>/dev/null | head -n 1)
+    [ -n "$pid" ] && [ -n "$start" ] || return 1
+    stat=$(cat "/proc/$pid/stat" 2>/dev/null) || return 1
+    stat=${stat##*) }            # past the command name, which may itself hold spaces
+    set -- $stat                 # $1 is field 3 (state), so field 22 is ${20}
+    [ "${20}" = "$start" ]
+}
+# The live brightness as a plain number, or nothing if there is no file or it is not one.
+live_brightness() {
+    local v
+    v=$(head -c 16 "$PANEL_CTL/brightness" 2>/dev/null | tr -d ' \t\r\n')
+    case "$v" in ''|*[!0-9]*) return 0 ;; esac
+    echo $((10#$v))
+}
+
+# Under PANEL_OFF: stop the driver, unless it is a live one already showing 0 -- that one is as dark
+# as a stopped driver, and keeping it running is what lets the next brightness change skip the
+# restart. Anything else running (an old driver, a live one lit by a reboot at setting.ini's level)
+# is stopped as before.
+keep_panel_dark() {
+    panel_running || return 0
+    if live_driver && [ "$(live_brightness)" = 0 ]; then return 0; fi
+    log "panel off requested (brightness 0) -> stopping driver"
+    pkill -x flushBuffer2
 }
 
 # Let the normal boot sequence finish before policing it.
@@ -154,10 +201,7 @@ while true; do
             log "PANEL_OFF present (brightness 0, since $(date -r "$PANEL_OFF" '+%F %T' 2>/dev/null || echo '?')) -> keeping the panel dark"
             panel_off_logged=1
         fi
-        if panel_running; then
-            log "panel off requested (brightness 0) -> stopping driver"
-            pkill -x flushBuffer2
-        fi
+        keep_panel_dark
     else
         if [ -n "$panel_off_logged" ]; then
             log "PANEL_OFF cleared -> panel back under watch"

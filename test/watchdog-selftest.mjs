@@ -11,7 +11,12 @@
 //     through the old launch. `systemd-run` is stubbed on PATH: the test never touches real systemd;
 //   - app_running() sees openscore as well as the vendor ledbox.py;
 //   - a PANEL_OFF left behind while settings.json says brightness > 0 is cleared, and one that
-//     matches brightness 0 (or can't be checked) is kept.
+//     matches brightness 0 (or can't be checked) is kept;
+//   - live_driver() accepts only a driver file naming a running process with that exact start
+//     time, and under PANEL_OFF keep_panel_dark() stops every driver EXCEPT a live one whose
+//     brightness file says 0 (dark already, and kept so the next change needs no restart);
+//   - a stale PANEL_OFF takes a live brightness 0 with it, so a live driver does not stay black
+//     while the console shows the panel on.
 
 import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -35,9 +40,11 @@ const DRIVER = `fb2t${process.pid}`.slice(0, 15)
 const lib = src.slice(0, cut)
   .replaceAll('/home/pi/ledbox-bridge', path.join(tmp, 'bridge'))
   .replaceAll('/home/pi/ledbox', path.join(tmp, 'ledbox'))
+  .replaceAll('/run/ledbox-panel', path.join(tmp, 'ctl'))
   .replaceAll('flushBuffer2', DRIVER)
   .replace(/^log\(\) \{.*$/m, 'log() { echo "LOG: $1"; }')
 fs.mkdirSync(path.join(tmp, 'ledbox', 'bin'), { recursive: true })
+fs.mkdirSync(path.join(tmp, 'ctl'), { recursive: true })
 fs.mkdirSync(path.join(tmp, 'bridge'), { recursive: true })
 fs.mkdirSync(path.join(tmp, 'path'), { recursive: true })
 fs.writeFileSync(path.join(tmp, 'lib.sh'), lib)
@@ -127,6 +134,63 @@ try {
   }
   fs.rmSync(flag, { force: true })
   ok(check() === 'on', 'no flag -> panel on')
+
+  console.log('▶ live driver detection')
+  const ctl = path.join(tmp, 'ctl')
+  const bfile = path.join(ctl, 'brightness')
+  const runDriver = async () => {
+    spawn('bash', ['-c', `cd ${JSON.stringify(path.join(tmp, 'ledbox', 'bin'))} && exec ./${DRIVER}`], { stdio: 'ignore', detached: true }).unref()
+    for (let i = 0; i < 60 && drivers() !== 1; i++) await new Promise((r) => setTimeout(r, 50))
+    const pid = execFileSync('pgrep', ['-x', DRIVER], { encoding: 'utf8' }).trim()
+    const st = fs.readFileSync(`/proc/${pid}/stat`, 'utf8')
+    return { pid, start: st.slice(st.lastIndexOf(')') + 2).split(' ')[19] }
+  }
+  const announce = ({ pid, start }) => fs.writeFileSync(path.join(ctl, 'driver'), `# flushBuffer2 live control\npid=${pid}\nstart=${start}\ncontrol=brightness power\n`)
+  const live = () => sh('live_driver && echo yes || echo no').trim()
+  let drv = await runDriver()
+  ok(live() === 'no', 'no driver file -> not live')
+  announce(drv)
+  ok(live() === 'yes', 'driver file naming the running driver with its start time -> live')
+  announce({ pid: drv.pid, start: String(Number(drv.start) + 1) })
+  ok(live() === 'no', 'same pid, another start time (pid reused) -> not live')
+  announce({ pid: 999999999, start: drv.start })
+  ok(live() === 'no', 'a dead pid -> not live')
+  for (const [raw, want] of [['0\n', '0'], [' 40 \n', '40'], ['abc', ''], ['', '']]) {
+    fs.writeFileSync(bfile, raw)
+    const got = sh('live_brightness').trim()
+    ok(got === want, `live_brightness of ${JSON.stringify(raw)} -> ${JSON.stringify(want)} (got ${JSON.stringify(got)})`)
+  }
+
+  console.log('▶ keep_panel_dark (PANEL_OFF present)')
+  // Awaited, not slept inside the shell: the stub is our own child, and until the event loop runs
+  // to reap it a killed one stays a zombie that pgrep still counts.
+  const dark = async (label, setup, kept) => {
+    setup()
+    sh('keep_panel_dark >/dev/null 2>&1')
+    await new Promise((r) => setTimeout(r, 400))
+    ok((drivers() === 1) === kept, `${label} -> ${kept ? 'kept running' : 'stopped'} (drivers ${drivers()})`)
+  }
+  fs.rmSync(path.join(ctl, 'driver'), { force: true })
+  await dark('an old driver (no driver file)', () => fs.writeFileSync(bfile, '0\n'), false)
+  drv = await runDriver()
+  await dark('a live driver showing 0', () => { announce(drv); fs.writeFileSync(bfile, '0\n') }, true)
+  await dark('a live driver showing 40', () => fs.writeFileSync(bfile, '40\n'), false)
+  drv = await runDriver()
+  await dark('a live driver with no brightness file (a reboot lit it at setting.ini)', () => { announce(drv); fs.rmSync(bfile, { force: true }) }, false)
+  killDrivers()
+
+  console.log('▶ a stale PANEL_OFF takes a live brightness 0 with it')
+  fs.writeFileSync(settings, JSON.stringify({ brightness: 40 }))
+  fs.writeFileSync(flag, '')
+  fs.writeFileSync(bfile, '0\n')
+  ok(check() === 'on' && !fs.existsSync(flag) && !fs.existsSync(bfile), 'stale flag + live 0 -> both removed (the driver goes back to its start value)')
+  fs.writeFileSync(flag, '')
+  fs.writeFileSync(bfile, '55\n')
+  ok(check() === 'on' && !fs.existsSync(flag) && fs.readFileSync(bfile, 'utf8') === '55\n', 'stale flag + live 55 -> the 55 stays')
+  fs.writeFileSync(settings, JSON.stringify({ brightness: 0 }))
+  fs.writeFileSync(flag, '')
+  fs.writeFileSync(bfile, '0\n')
+  ok(check() === 'off' && fs.existsSync(bfile), 'a flag that matches brightness 0 leaves the live 0 alone')
 } finally {
   killDrivers()
   fs.rmSync(tmp, { recursive: true, force: true })

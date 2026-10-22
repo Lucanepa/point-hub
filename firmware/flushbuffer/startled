@@ -19,6 +19,10 @@ DITHER=$pwm_dither
 NO_HARDWARE_PULSING=$no_hardware_pulsing
 SCREEN_WIDTH=$screen_width
 SCREEN_HEIGHT=$screen_height
+LIMIT_REFRESH=$limit_refresh
+POWER_BUDGET_MA=$power_budget_ma
+POWER_FULL_WHITE_MA=$power_full_white_ma
+POWER_IDLE_MA=$power_idle_ma
 
 NO_HARDWARE_PULSE=
 
@@ -39,5 +43,21 @@ else
 fi;
 
 
+# Optional keys: absent (or 0, or not a plain number) passes nothing, which is how the board ran
+# before they existed. A typo must not reach the driver: hzeller refuses a malformed --led-* value
+# and the panel would stay dark. All digits or nothing.
+#   limit_refresh        --led-limit-refresh: pad every panel scan to exactly 1/N s, so a camera
+#                        shutter of a whole number of scans sees no rolling bands. Set it BELOW the
+#                        lowest rate measure-refresh.sh reports, or it buys nothing.
+#   power_budget_ma      flushBuffer2's power governor (README.md), from the first frame — off
+#   power_full_white_ma  without a budget, as on the C0270. The older binary ignores these flags;
+#   power_idle_ma        a /run/ledbox-panel/power file overrides them while the driver runs.
+EXTRA=
+digits() { case "$1" in ''|0|*[!0-9]*) return 1 ;; esac; }
+digits "$LIMIT_REFRESH" && EXTRA="$EXTRA --led-limit-refresh=$LIMIT_REFRESH"
+digits "$POWER_BUDGET_MA" && EXTRA="$EXTRA --power-budget-ma=$POWER_BUDGET_MA"
+digits "$POWER_FULL_WHITE_MA" && EXTRA="$EXTRA --power-full-white-ma=$POWER_FULL_WHITE_MA"
+digits "$POWER_IDLE_MA" && EXTRA="$EXTRA --power-idle-ma=$POWER_IDLE_MA"
+
 cp starting.png ../www/buffer.png
-sudo /home/pi/ledbox/bin/flushBuffer2 ../www/buffer.png $NO_HARDWARE_PULSE --led-pwm-bits=$PWM_BITS --led-gpio-mapping=$HARDWARE_MAPPING --led-slowdown-gpio=$SLOWDOWN_GPIO --led-pwm-lsb-nanoseconds=$PWM_LSB_NANOSECONDS --led-multiplexing=$MULTIPLEXING --led-brightness=$BRIGHTNESS --led-pwm-dither-bits=$DITHER
+sudo /home/pi/ledbox/bin/flushBuffer2 ../www/buffer.png $NO_HARDWARE_PULSE --led-pwm-bits=$PWM_BITS --led-gpio-mapping=$HARDWARE_MAPPING --led-slowdown-gpio=$SLOWDOWN_GPIO --led-pwm-lsb-nanoseconds=$PWM_LSB_NANOSECONDS --led-multiplexing=$MULTIPLEXING --led-brightness=$BRIGHTNESS --led-pwm-dither-bits=$DITHER$EXTRA

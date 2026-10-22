@@ -27,6 +27,7 @@ import { zurichDate } from './schedule.js'
 import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 import { PortalProxy } from './portalProxy.js'
 import { fixtureOf } from './liveFixture.js'
+import { applyBrightness } from './panelBrightness.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -110,96 +111,6 @@ const PROBE_BODIES = {
   '/ncsi.txt': { type: 'text/plain', body: 'Microsoft NCSI' },
   '/connecttest.txt': { type: 'text/plain', body: 'Microsoft Connect Test' },
   '/success.txt': { type: 'text/plain', body: 'success\n' },
-}
-
-// Push a new LED brightness to the panel. `startled` reads [DISPLAY] brightness from setting.ini
-// and passes it to flushBuffer2 at launch, so we rewrite that key and bounce the driver. The
-// bridge runs as pi (passwordless sudo); setting.ini is world-writable. Best-effort — any failure
-// is logged, never thrown, and off the board (dev, no setting.ini) it simply no-ops.
-const SETTING_INI = '/home/pi/ledbox/setting.ini'
-// Brightness 0 = panel off. This flag file (checked by the board watchdog) is what keeps the
-// panel dark: without it the watchdog would relight the driver within 30s. Removing it lets the
-// watchdog keep the panel alive again.
-const PANEL_OFF_FLAG = '/home/pi/ledbox/PANEL_OFF'
-// Restart the panel driver at the current setting.ini brightness. Everything happens under the
-// lock the watchdog's start_panel shares (firmware/ledbox-watchdog.sh): SIGTERM the running driver,
-// WAIT for it to actually exit, start exactly one, and keep holding the lock until the new
-// flushBuffer2 is really there. Each part closes a race:
-//   * the kill is INSIDE the lock — outside it, the watchdog could see "no driver" in the gap and
-//     start one at the OLD brightness, which ours would then either skip or fight;
-//   * flushBuffer2 can take ~1s to release the GPIO on SIGTERM, so starting on a fixed timer would
-//     be skipped (the guard still sees the dying process) or spawn a second driver beside it —
-//     vertical flicker on the panel. If it will not die within ~5s we start nothing: a panel at the
-//     old brightness is better than two drivers;
-//   * the lock is held until pgrep sees the new driver (~10s max). startled takes a moment to exec
-//     flushBuffer2, and releasing the lock the instant it was launched let the watchdog take it,
-//     see no driver yet, and start a second one;
-//   * `flock -o` closes the lock fd in the command it runs, so the driver we launch (and systemd-run's
-//     helpers) never inherit it — an inherited fd would hold the lock for the driver's whole life
-//     and lock the watchdog out of every restart after this one.
-// Process match is `-x flushBuffer2` (exact comm) so the transient `sudo` wrapper never counts as a
-// live driver. Exit codes (logged by applyBrightness): 3 = no driver within 10s, 4 = the old one
-// would not exit, 1 = the lock stayed busy for 20s.
-//
-// The driver is launched as its OWN transient systemd unit, not as a child of this process. A
-// backgrounded `( ./startled & )` only leaves the shell, not the cgroup: sudo on this board opens
-// no new session scope, so flushBuffer2 stayed a member of ledbox-bridge.service, and the unit's
-// default KillMode=control-group took the panel down with the bridge on every deploy, sport switch
-// or crash restart after any brightness change — dark until the watchdog noticed (~40s), or for
-// good while the watchdog is disabled. systemd-run makes systemd the parent, so the driver outlives
-// us exactly as the one rc.local started does. Same user as before (id -un), so buffer.png keeps
-// its owner. The unit name carries $$ so a previous launch still being reaped can't collide with
-// it; --collect drops it once the driver exits. `sudo -n` never prompts, and should systemd-run be
-// refused for any reason the old in-cgroup launch still lights the panel — dark is the worse fault.
-const PANEL_START =
-  'sudo -n systemd-run --quiet --collect --unit=ledbox-panel-$$ --uid=$(id -un) /home/pi/ledbox/bin/startled >/dev/null 2>&1 || ' +
-  '( cd /home/pi/ledbox/bin && ./startled >/dev/null 2>&1 & )'
-const PANEL_RESTART =
-  "flock -o -w 20 /home/pi/ledbox/panel.lock -c '" +
-  'sudo -n pkill -x flushBuffer2; ' +
-  'for i in $(seq 25); do pgrep -x flushBuffer2 >/dev/null 2>&1 || break; sleep 0.2; done; ' +
-  'pgrep -x flushBuffer2 >/dev/null 2>&1 && exit 4; ' +
-  `{ ${PANEL_START}; }; ` +
-  'for i in $(seq 50); do pgrep -x flushBuffer2 >/dev/null 2>&1 && exit 0; sleep 0.2; done; ' +
-  "exit 3'"
-
-function applyBrightness(value) {
-  if (value <= 0) {
-    // Off: raise the flag first (so the watchdog leaves it dark), then stop the driver. The
-    // scoreboard app keeps running, so the controller UI stays reachable to switch it back on.
-    try { fs.writeFileSync(PANEL_OFF_FLAG, '') } catch (err) { clog.error(`brightness off-flag write failed: ${err.message}`, { file: PANEL_OFF_FLAG, error: err.message }) }
-    clog.info('panel driver stopped (brightness 0)')
-    execFile('sudo', ['pkill', '-x', 'flushBuffer2'], (err) => {
-      if (err) clog.warn(`pkill flushBuffer2 failed: ${err.message}`, { error: err.message })
-    })
-    return
-  }
-  // On (or level change): clear the off-flag so the watchdog keeps the panel alive.
-  try { fs.rmSync(PANEL_OFF_FLAG, { force: true }) } catch { /* not off, nothing to clear */ }
-  try {
-    let ini = fs.readFileSync(SETTING_INI, 'utf8')
-    ini = /^brightness=.*$/m.test(ini)
-      ? ini.replace(/^brightness=.*$/m, `brightness=${value}`)
-      : ini.replace(/^\[DISPLAY\][^\n]*$/m, (m) => `${m}\nbrightness=${value}`)
-    try {
-      const tmp = `${SETTING_INI}.tmp`
-      fs.writeFileSync(tmp, ini)
-      fs.renameSync(tmp, SETTING_INI)
-    } catch {
-      fs.writeFileSync(SETTING_INI, ini) // world-writable file; write in place if staging a tmp fails
-    }
-  } catch (err) {
-    // Off the board (dev, no setting.ini) this is the expected path, not a fault.
-    clog.debug(`setting.ini update skipped: ${err.message}`, { file: SETTING_INI, error: err.message })
-    return
-  }
-  // setting.ini now holds the new level, so whichever starter wins the lock launches at it.
-  clog.info(`restarting the panel driver at brightness ${value}`, { brightness: value })
-  execFile('bash', ['-c', PANEL_RESTART], (err) => {
-    if (!err) return
-    const why = { 1: 'panel.lock stayed busy for 20s, restart skipped', 3: 'no flushBuffer2 appeared within 10s of startled', 4: 'the old flushBuffer2 did not exit, so no second driver was started' }[err.code]
-    clog.warn(`panel driver restart: ${why || err.message}`, { code: err.code, error: err.message })
-  })
 }
 
 export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null }) {
@@ -1041,8 +952,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       }
       if (Object.keys(changes).length) clog.info(`settings changed: ${Object.keys(changes).join(', ')}`, changes)
       else clog.debug('settings saved with no change', { requested: Object.keys(patch) })
-      // Brightness change → rewrite setting.ini + bounce the panel driver. Only when it actually
-      // changed, so an unrelated settings save never blinks the panel.
+      // Brightness change → the panel driver: live if it reads its control file, otherwise
+      // rewrite setting.ini + bounce it (panelBrightness.js). Only when it actually changed, so an
+      // unrelated settings save never blinks the panel.
       if ('brightness' in patch && updated.brightness !== prevBrightness) {
         clog.info(`panel brightness ${prevBrightness} → ${updated.brightness}${updated.brightness <= 0 ? ' (panel OFF)' : ''}`, {
           from: prevBrightness, to: updated.brightness, panelOff: updated.brightness <= 0,
