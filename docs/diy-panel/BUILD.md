@@ -80,7 +80,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | O | USB-C PD sink board | **STUSB4500** (e.g. SparkFun DEV-15801, contract-gated output) | 1 | 30 |
 | P | USB-C panel sockets | panel mount, 30 cm, data-rated (not charge-only) | 2 | 14 |
 | Q | Fuse box | 12-way MINI blade, 14 × 5 A fuses (4 spare) | 1 | 18 |
-| R | Horn switch | MOSFET board + plug, no horn | 1 | 4 |
+| R | Horn switch | MOSFET board + **TCA9534** I²C output breakout + 10 kΩ gate pull-down + plug, no horn | 1 | 7 |
 | S | Stand cup | 35 mm, with M4 screws | 1 | 8 |
 | T | Threaded inserts | ¼″-20 and ⅜″-16 | 2 | 4 |
 | U | Rubber feet | | 4 | 3 |
@@ -102,6 +102,9 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Paint, glue | matte black, two coats; wood glue | 8 |
 | Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
 | **Total** | | **≈ 550** |
+
+The total assumes about €12 per module. Modules sell for €10–28; at €15–25 each the board costs
+about **€580–680**.
 
 **Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
 bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
@@ -172,8 +175,9 @@ disappoints.
 
 ### 4.2 Pin plan
 
-With 1/16-scan modules and three outputs, every GPIO from 2 to 27 except 15 is taken by the panels.
-What is left — **GPIO0/1 and GPIO15** — carries everything else:
+With 1/16-scan modules and three outputs, every GPIO from 2 to 27 is taken by the panels: GPIO15 is
+the bonnet's HUB75 **E** line, unused on these modules but still wired to the ribbons. What is left —
+**GPIO0/1** — carries everything else, the horn included:
 
 | Use | GPIO (header pin) |
 |---|---|
@@ -181,8 +185,9 @@ What is left — **GPIO0/1 and GPIO15** — carries everything else:
 | OUT 1 data | 11, 27, 7, 8, 9, 10 |
 | OUT 2 data | 12, 5, 6, 19, 13, 20 |
 | OUT 3 data | 14, 2, 3, 26, 16, 21 — this is why I²C1 and the UART are gone |
-| **I²C0** | **GPIO0 (27) SDA, GPIO1 (28) SCL**: STUSB4500 `0x28`, SHT40 `0x44`, DS3231 `0x68` |
-| **Horn switch** | **GPIO15 (10)** → gate of the MOSFET board (R) |
+| **I²C0** | **GPIO0 (27) SDA, GPIO1 (28) SCL**: STUSB4500 `0x28`, SHT40 `0x44`, DS3231 `0x68`, horn switch TCA9534 `0x20` |
+| **Horn switch** | TCA9534 output P0 → gate of the MOSFET board (R), 10 kΩ gate pull-down |
+| GPIO15 (10) | **leave alone**: the bonnet's E line |
 | Pi power | 5 V on pins 2/4, GND on pin 6, from its own fuse (§5) |
 
 Rules that come with it:
@@ -199,14 +204,16 @@ Rules that come with it:
   random can draw more than a small charger delivers; the rail sags, the Pi browns out and reboots,
   and the cycle repeats. The resistor keeps them dark from the first millisecond; the `config.txt`
   line only takes effect a few seconds after power-on.
-- **Horn on GPIO15**: it defaults to pull-down, so a MOSFET there stays off during boot. **Check
-  before ever driving it:** on regular-mapping adapters GPIO15 is the HUB75 **E** line, and the
-  Triple Bonnet routes it through its buffer to HUB75 pin 4 or pin 8 (a selector on the board). On
-  1/16-scan modules those pins are usually **GND**. Measure, with the ribbons on, that the selected
-  pin is not grounded at the module — or open the E path on the bonnet — before GPIO15 goes high.
-  With no horn fitted and openscore's `horn_cmd` left empty (Horn commands still answer `ok`), it
-  never does.
-- The **tall stacking header (K)** is what makes pins 1, 10, 12, 27 and 28 reachable under the
+- **Horn through the I²C bus, not a GPIO.** GPIO15 would be the only candidate, but the Triple
+  Bonnet buffers it onto HUB75 pin 4 or 8 as the **E** line, and on 1/16-scan modules those pins
+  are usually **GND**: driving it high would push the buffer into a short. So the horn MOSFET hangs
+  off a TCA9534 output expander on the I²C0 bus. Its outputs power up as inputs, and the 10 kΩ
+  pull-down keeps the MOSFET off until software switches it. The output register powers up as
+  `0xFF`, so clear it **before** making P0 an output: `i2cset -y 0 0x20 1 0x00`, then
+  `i2cset -y 0 0x20 3 0xFE`; after that `… 1 0x01` sounds the horn and `… 1 0x00` stops it (bus 0
+  is GPIO0/1 on a Pi 4; confirm with `i2cdetect -l`). With no horn fitted,
+  openscore's `horn_cmd` stays empty (Horn commands still answer `ok`).
+- The **tall stacking header (K)** is what makes pins 1, 12, 27 and 28 reachable under the
   bonnet.
 - Do **not** copy the C0270's `applicon` mapping (its E line moved to GPIO26 — Tech4Sport's own
   wiring). The Triple Bonnet uses the library's stock **`regular`** mapping.
