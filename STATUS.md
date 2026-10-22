@@ -68,6 +68,10 @@ Verified on the real panel:
   laptop was never found). A link goes to the laptop that listed the match, never to whatever the
   open match list found last. `npm run test:e2e` runs the whole chain against OpenVolley's
   `backend/server.js --local`, `frontend/server.js` and the Tauri relay (`--server-only`).
+- **Linked breaks** — a linked OpenVolley match's timeouts and set intervals run the board's own
+  TIME OUT and INTERVAL countdowns, horn included, with no console tap (README, "Breaks of a
+  linked match"). Tested against a mock relay and a MockLedbox (`npm run test:breaks`); not yet
+  watched on the real panel with the real eScoresheet.
 - **systemd** — `ledbox-bridge.service` enabled; survives reboot; no MOCK in the unit.
 - **Venue networking** — board's own Wi-Fi `ledbox_C0270` carries phone+Pi+board with no cable
   (verified). Fallback Pi hotspot profile `openvolley-ap` exists (autoconnect off).

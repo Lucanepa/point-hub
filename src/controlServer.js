@@ -52,6 +52,13 @@ const PREMATCH_ACTIONS = new Set(['team', 'serve', 'serve-order', 'serve-player'
 
 const ACTION_TYPES = new Set(['point', 'set', 'timeout', 'sub', 'serve', 'serve-order', 'serve-player', 'swap', 'team', 'next-set', 'remove-set', 'reset', 'set-state', 'undo'])
 
+// A linked match's break that ends with no more than this left on the board's own clock ran its
+// full length (see watchLinkedMatch). The scorer's clock and the board's start a relay hop apart,
+// and the board ticks once a second, so the laptop's "time's up" can land a moment before the
+// board's own zero: that is still time's up, and it gets the horn. An earlier end is the scorer
+// stopping the break, silent like a skip on the console.
+const LINK_END_GRACE_MS = 3000
+
 // A team colour ends up inside a `style` attribute in the console and as a SetSections colour on
 // the panel. Only a #rrggbb literal is ever legitimate, and anything else is either a mistake or
 // the stored-XSS path the review found — so it never gets past this regex.
@@ -326,18 +333,21 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // got no buzzer and the later POST /api/countdown/stop {expired:true} hit the `if (!countdown)`
   // guard. The 1s ticker below is the only thing that knows the clock genuinely ran out, so it
   // is the only thing allowed to end one.
+  // `link` says a linked eScoresheet started it ('timeout' | 'interval'), null for the console's.
   function countdownView() {
     if (!countdown) return null
     const remainingMs = countdown.endsAt - Date.now()
     if (remainingMs <= 0) return null
-    return { label: countdown.label, remainingMs }
+    return { label: countdown.label, remainingMs, link: countdown.link }
   }
   // `side` rides along with `team` so the break screen can size the name with the SAME per-side
   // ceiling the operator set for the scoreboard — a name that is 24px while play is on should not
   // drop to the layout's hard-coded 15 the moment that team calls a timeout.
-  function startCountdown(seconds, label, content = 'full', team = '', side = null) {
-    clog.info(`countdown started: ${label || '(no label)'} ${seconds}s`, { seconds, label: String(label || ''), content, team: String(team || ''), side })
-    countdown = { label: String(label || ''), content, team: String(team || ''), side, endsAt: Date.now() + seconds * 1000 }
+  // `link` is the break of a linked match that started it (see watchLinkedMatch). Returns the
+  // countdown itself: whoever started it can later tell whether it is still the one running.
+  function startCountdown(seconds, label, content = 'full', team = '', side = null, { link = null } = {}) {
+    clog.info(`countdown started: ${label || '(no label)'} ${seconds}s${link ? ' (linked match)' : ''}`, { seconds, label: String(label || ''), content, team: String(team || ''), side, link })
+    countdown = { label: String(label || ''), content, team: String(team || ''), side, link, endsAt: Date.now() + seconds * 1000 }
     if (cdTicker) clearInterval(cdTicker)
     const tick = () => {
       const remainingMs = countdown ? countdown.endsAt - Date.now() : -1
@@ -347,10 +357,12 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         ledbox.pushCountdown(Math.ceil(remainingMs / 1000), countdown.label, { content: countdown.content, team: countdown.team, side: countdown.side }).catch(() => {})
       }
     }
+    const started = countdown
     tick()
     cdTicker = setInterval(tick, 1000)
     // Don't let this daemon-side timer keep the process (or a test) alive.
     if (cdTicker.unref) cdTicker.unref()
+    return started
   }
   // expired=true means the clock reached zero (time's up); false is a manual skip. Guarded so
   // that whichever of {server tick, client /stop} fires first wins — the other is a no-op, so
@@ -367,7 +379,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   function stopCountdown({ expired = false, repaint = true } = {}) {
     if (!countdown) return Promise.resolve(false)
     clog.info(expired ? 'countdown reached zero' : 'countdown skipped', {
-      expired, label: countdown.label, horn: !!(expired && opt('hornOnCountdownEnd')), repaint, prematch,
+      expired, label: countdown.label, horn: !!(expired && opt('hornOnCountdownEnd')), repaint, prematch, link: countdown.link,
     })
     countdown = null
     if (cdTicker) { clearInterval(cdTicker); cdTicker = null }
@@ -561,10 +573,58 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   //   resumed -> the scorer undid the end: back to the live scoreboard
   //   gone    -> unlinked; the clock, unless the result is already up (ending a match and then
   //              deleting it is the normal order, and the result should outlast the delete)
+  //
+  // And the scorer's breaks, on the board's own countdowns (LanSource 'timeout-start' …), through
+  // the same startCountdown / stopCountdown the console's taps reach via /api/countdown — so the
+  // break screen, its label, the sport's own lengths (Settings) and the end horn are exactly what a
+  // hand-started break gets. Each is timed from the moment the board sees it. `linked` is the
+  // countdown this link started, and a link edge only ever ends THAT one: a skip, a warm-up or a
+  // timeout the operator started over it since is the operator's call, and the laptop's end of its
+  // own break must not take it down.
   const watchLinkedMatch = (lan, matchId) => {
     const mine = () => sourceManager.active === lan
+    let linked = null
+    // Only for a sport whose eScoresheet is known to publish its breaks (sports.js `linkBreaks`),
+    // only when Settings wants a countdown for that break at all, and never over a screen the
+    // operator put up by hand (Show clock, the names): the linked score already waits behind it.
+    const startLinked = (kind, setting, what, start) => {
+      if (!mine() || getSport(activeSport()).linkBreaks !== true) return
+      if (opt(setting) === false) { clog.info(`linked match ${matchId}: ${what} — no countdown (off in Settings)`, { matchId, kind }); return }
+      if (ledbox && ledbox._idle) { clog.info(`linked match ${matchId}: ${what} — no countdown over the idle screen the operator chose`, { matchId, kind }); return }
+      clog.info(`linked match ${matchId}: ${what} — countdown on the board`, { matchId, kind })
+      linked = start()
+    }
+    lan.on('timeout-start', (state, { side = null } = {}) => {
+      // The team's name on the break screen, resolved against the state on the board exactly as
+      // /api/countdown resolves a console tap's `side`.
+      let team = ''
+      if (side) { const v = toLeftRight(state); team = side === 'left' ? v.leftName : v.rightName }
+      startLinked('timeout', 'countdownOnTimeout', `timeout${team ? ` ${team}` : ''} on the eScoresheet`,
+        () => startCountdown(Number(opt('timeoutSeconds')) || 30, 'TIME OUT', 'full', team, side, { link: 'timeout' }))
+    })
+    // No swap first, unlike the console's interval: the set_end state already has the next set's
+    // ends, so the break screen shows the set score the right way round.
+    lan.on('interval-start', () => startLinked('interval', 'countdownOnSetInterval', 'set ended on the eScoresheet',
+      () => startCountdown(Number(opt('setIntervalSeconds')) || 180, 'INTERVAL', 'sets', '', null, { link: 'interval' })))
+    const endLinked = (kind) => {
+      const cd = linked
+      if (!mine() || !cd || cd.link !== kind) return
+      linked = null
+      if (countdown !== cd) return // already over: ran out (horn and all), skipped, or replaced
+      const leftMs = cd.endsAt - Date.now()
+      const ranOut = leftMs <= LINK_END_GRACE_MS
+      clog.info(`linked match ${matchId}: ${kind} over on the eScoresheet with ${Math.max(0, Math.ceil(leftMs / 1000))}s left on the board — ${ranOut ? 'time\'s up' : 'ended early'}`, { matchId, kind, leftMs, ranOut })
+      stopCountdown({ expired: ranOut })
+    }
+    lan.on('timeout-end', () => endLinked('timeout'))
+    lan.on('interval-end', () => endLinked('interval'))
     lan.on('match-ended', async (state) => {
       if (!mine()) return
+      // Whatever break is on the board is over with the match (the deciding set's interval above
+      // all) — quietly, and without going back to the scoreboard first: its 1 s ticker would put
+      // the break screen back over the result, and a repaint on the way would flash the score.
+      linked = null
+      await stopCountdown({ expired: false, repaint: false })
       const lines = resultFromLiveState(state)
       const clean = lines && { winner: resultLine(lines.winner, 24), score: resultLine(lines.score, 24), history: resultLine(lines.history, 60) }
       let shown = false

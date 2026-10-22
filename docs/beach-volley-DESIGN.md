@@ -286,6 +286,13 @@ SWITCH cue, the one team timeout, `side_a`. openbeach names the serving player `
 against OpenVolley's LAN relay (`backend/server.js --local`) with a MockLedbox: the only thing
 missing for a correct beach board was the live-state message itself.
 
+The one indoor-only part is the **linked breaks** (an indoor link runs the board's TIME OUT and
+INTERVAL countdowns from `timeout_active` / `set_interval_active`; `sports.js` `linkBreaks`). A
+beach link does not, on purpose: openbeach's live state has never been seen on the relay, and it
+signals the technical timeout apart (`tto_active`, with its own `end_tto`). Turning it on for
+beach means checking the flags against a real openbeach push, handling `tto_active`, and adding
+`linkBreaks: true` to the beach row.
+
 **openbeach's side is not.** In order of need:
 1. **It never sends `live-state-update` on the relay socket.** Its computed live state goes only to
    a same-browser `BroadcastChannel` and to the cloud database. One extra message where it already
