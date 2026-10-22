@@ -1,0 +1,71 @@
+Point Hub — the KSC Wiedikon LED scoreboard stack
+Copyright (c) 2026 KSC Wiedikon
+
+The code and documents in this repository are released under the MIT License (see LICENSE),
+except where a section below says otherwise. This file lists the third-party components the
+stack is built on and the licence each one comes under.
+
+
+Bundled in this repository
+--------------------------
+
+Liberation Sans 2.1.5 (Regular, Bold)
+  Files:    firmware/openscore/fonts/LiberationSans-Regular.ttf, LiberationSans-Bold.ttf
+  Licence:  SIL Open Font License 1.1 (OFL-1.1), full text in firmware/openscore/fonts/OFL.txt
+  Notice:   Digitized data copyright (c) 2010 Google Corporation; copyright (c) 2012 Red Hat, Inc.
+            "Liberation" is a Reserved Font Name: a modified version must be renamed.
+
+
+Fetched by firmware/flushbuffer/build.sh, not stored here
+---------------------------------------------------------
+
+rpi-rgb-led-matrix, by Henner Zeller and contributors
+  Source:   https://github.com/hzeller/rpi-rgb-led-matrix
+  Pinned:   commit 51d3231e370593b60952b2c3b18d2e3802329f18 (sha256-checked by build.sh)
+  Licence:  GNU General Public License, version 2 only (GPL-2.0-only)
+  Note:     flushbuffer.cc and build.sh are MIT, but the flushBuffer2 binary that build.sh links
+            against this library is a combined work and is GPL-2.0-only. Whoever hands that
+            binary to someone else (on its own or inside an SD-card image) must provide the
+            corresponding source with it: the library at the pinned commit, flushbuffer.cc and
+            build.sh. See firmware/flushbuffer/README.md.
+
+stb_image.h, by Sean Barrett and contributors
+  Source:   https://github.com/nothings/stb
+  Pinned:   commit 2c980bb59875b0d32144a71867fbdebb2f77cd20 (sha256-checked by build.sh)
+  Licence:  MIT, or public domain (Unlicense), at the user's choice
+
+
+Installed on the board, not stored here
+---------------------------------------
+
+Node.js 22 (runs the bridge and the console)
+  Licence:  MIT, plus the licences of its bundled dependencies, listed in the LICENSE file of
+            the Node.js release tarball
+
+Pillow (draws the frames in openscore)
+  Licence:  MIT-CMU (the historical PIL licence)
+
+Raspberry Pi OS, its Debian packages and the Raspberry Pi firmware each come under their own
+licences, as shipped by Raspberry Pi Ltd and Debian. This repository does not redistribute them.
+
+
+Development and tooling only
+----------------------------
+
+ws (WebSocket library, used by the test suite)      MIT
+qrcode (Python, used by the QR and hall-guide tools) BSD
+
+The Android and desktop apps under android/ declare their third-party libraries in their own
+Gradle build files; they are not covered by this list.
+
+
+Not included, on purpose
+------------------------
+
+Tech4Sport's files. Neither the vendor's firmware application nor its stock layout files are
+part of this repository; the layouts shipped here are written for this project and keep only the
+shared section and layout names. firmware/openscore/PROVENANCE.md describes how openscore relates
+to the vendor code.
+
+Arial. The vendor board renders text with Monotype's ARIAL.TTF, which is proprietary and may not
+be redistributed; openscore uses the metric-compatible Liberation Sans.
