@@ -43,7 +43,9 @@ const hardware = [
   ['hook', 'Door hooks', 'small L brackets', 2],
   ['guard', 'Rubber corner guards', 'back corners', 4],
   ['strap', 'Velcro strap, buckle', '50 mm × 1 m, for the table edge', 2],
-  ['lan', 'USB-C Ethernet adapter', 'RTL8153 + 15 cm patch cable', 1],
+  ['lan', 'USB-C hub: Ethernet + charging', 'RTL8153 with PD charging input, 15 cm patch cable', 1],
+  ['pdsrc', 'Tablet charging module', 'USB-C PD out, about 18 W', 1],
+  ['legs', 'Tilt legs (optional)', 'plywood, hinges with a stop, 10–15°', 2],
   ['sensor', 'Clock + temperature', 'DS3231 RTC, SHT40 sensor', 2],
   ['plate', 'Aluminium plate', '200 × 150 × 2, under converter + fuses', 1],
   ['small', 'Small parts', '5 A inline fuse, TVS SMBJ22A, 10 kΩ resistor', 1],
@@ -79,7 +81,7 @@ const stages = [
     [9, 'Bench panels', d.step9(), 'One module behind each end window, arrows up. Twist four turn buttons over its edges.', [N('Stand the box upright again after this step.')]],
   ]],
   ['C', 'Electronics', 'Low voltage only: nothing in here can give you a shock.', [
-    [10, 'Lay out the electronics', d.step10(), 'On the bottom panel behind the modules. Converter and fuse box sit on the aluminium plate. The DATA socket goes through a small USB-C Ethernet adapter to the Pi’s network port. Fit the two USB-C sockets in the back panel now; their cables reach inside.', [N('Leave 15 cm of slack on every cable so the back door can come off.'), N('One 10 kΩ resistor keeps the panels dark while the Pi boots, so a weak charger can’t trip. The spot is marked on the wiring card.')]],
+    [10, 'Lay out the electronics', d.step10(), 'On the bottom panel behind the modules. Converter and fuse box sit on the aluminium plate. The DATA socket goes through a small USB-C hub to the Pi’s network port; the charging module feeds the hub, so the tablet charges over the same cable. Fit the two USB-C sockets in the back panel now; their cables reach inside.', [N('Leave 15 cm of slack on every cable so the back door can come off.'), N('One 10 kΩ resistor keeps the panels dark while the Pi boots, so a weak charger can’t trip. The spot is marked on the wiring card.')]],
     [11, 'Power wiring', d.step11(), 'POWER socket → USB-C board → 5 A fuse → converter (1 mm²) → fuse box (2.5 mm²). A ferrule on every wire end. The small TVS diode goes across the POWER socket’s + and −.', [N('Connect the converter’s −Vin to −V: the USB-C board talks to the Pi and needs a shared ground.')]],
     [12, 'First power-up', d.step12(), 'Nothing else connected. Plug a small phone charger into POWER and measure at the fuse box.', [N('A weak charger is the safety net: it cannot push enough current to damage anything.')]],
     [13, 'Connect everything', d.step13(), 'Every panel and the Pi gets its own 5 A fuse. Ribbon OUT 1 to module 1, OUT 2 to module 4, OUT 3 to the left bench panel and on to the right one. The USB-C board, clock and temperature sensor share the I²C wires to pins 27 and 28 of the tall header.', [N('Panel power leads that don’t reach: extend with 1.5 mm².')]],
@@ -87,7 +89,7 @@ const stages = [
   ]],
   ['D', 'Finish', 'Ready for the hall.', [
     [15, 'Close up', d.step15(), 'Hook the door’s bottom edge behind the two hooks, tilt it shut and turn the two thumb screws by hand. Handles on top, metal corners at the front, rubber guards at the back, and the plug in the horn hole.', [N('The horn hole stays plugged: horn wiring is ready inside if you ever want one.')]],
-    [16, 'Set it up', d.step16(), 'On the table, on a speaker stand, or on a tripod or light stand. On the table, loop a strap through each handle and around the back edge of the table. Charger into POWER. Use the DATA cable to the tablet only if the hall Wi-Fi is bad.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness.'), N('On a stand, put a sandbag on the feet instead of the strap.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
+    [16, 'Set it up', d.step16(), 'On the table, on a speaker stand, or on a tripod or light stand. On the table, loop a strap through each handle and around the back edge of the table. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it. The board’s Wi-Fi stays as a backup.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), N('Optional: fold out the two back legs to tilt it 10–15° toward the referee. Raising it on a stand helps more against people in the way.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet only.'), N('On a stand, put a sandbag on the feet instead of the strap.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
 
     [17, 'Open it', d.step17(), 'Unplug the charger. Two thumb screws, tilt the door back, lift it off the hooks: everything inside is in reach. The door carries the fuse map, four spare fuses and a spare SD card.', [OK('Swapping the SD card or a fuse takes under a minute.'), N('The two USB-C cables can stay plugged in: set the door down next to the box.')]],  ]],
 ];
@@ -275,9 +277,9 @@ footer.end { margin-top: 56px; padding-block: 22px 48px; border-top: 3px solid v
       <div><dt>Weight</dt><dd>about 8 kg</dd></div>
       <div><dt>Main screen</dt><dd>192 × 64 LEDs, 5 mm</dd></div>
       <div><dt>Bench panels</dt><dd>2 × 32 × 64 LEDs</dd></div>
-      <div><dt>Power</dt><dd>USB-C, 18–100 W charger</dd></div>
+      <div><dt>Power</dt><dd>USB-C charger, 65 W+ ideal</dd></div>
       <div><dt>Ports</dt><dd>2 × USB-C, nothing else</dd></div>
-      <div><dt>Parts</dt><dd>about €520</dd></div>
+      <div><dt>Parts</dt><dd>about €550</dd></div>
       <div><dt>Build time</dt><dd>12–15 h + drying</dd></div>
     </dl>
   </header>
@@ -294,7 +296,7 @@ footer.end { margin-top: 56px; padding-block: 22px 48px; border-top: 3px solid v
       <span id="stage-status">Loading the 3D view…</span>
     </div>
   </section>
-  <p class="draft"><span class="ni" style="background:var(--infobg);color:var(--info);border:1.5px solid var(--info);font-family:Georgia,serif;font-style:italic">i</span><span><b>Draft, 22 October 2026.</b> Updated with the research pass: three driver outputs (no upside-down row), Adafruit driver board, Pi 4 1 GB, a USB-C Ethernet adapter for the tablet cable, metal plate, clock and temperature sensor. Sizes in the steps still depend on the exact parts that arrive.</span></p>
+  <p class="draft"><span class="ni" style="background:var(--infobg);color:var(--info);border:1.5px solid var(--info);font-family:Georgia,serif;font-style:italic">i</span><span><b>Draft, 22 October 2026.</b> Updated with the research pass: three driver outputs (no upside-down row), Adafruit driver board, Pi 4 1 GB, metal plate, clock and temperature sensor. Since then: the tablet cable also charges the tablet, and optional tilt legs. Sizes in the steps still depend on the exact parts that arrive.</span></p>
 
   <section class="block" aria-labelledby="parts-h">
     <div class="bh"><h2 id="parts-h">In the box</h2><p>Letters match the drawings.</p></div>

@@ -362,7 +362,8 @@ export function step10() {
   b += circ(X(900), Y(220), 7, 'ringg') + circ(X(960), Y(220), 7, 'ringb');
   b += txt(X(900), Y(220) + 17, 'POWER', 'tt') + txt(X(960), Y(220) + 17, 'DATA', 'tt');
   b += path(`M${X(900)} ${Y(214)} L${X(900)} ${Y(206)}`, 'wg');
-  b += rect(X(925), Y(190), 32 * s, 16 * s, 'o p1', 2) + txt(X(941), Y(186), 'USB-C LAN', 'tt halo');
+  b += rect(X(925), Y(190), 32 * s, 16 * s, 'o p1', 2) + txt(X(941), Y(186), 'USB-C hub', 'tt halo');
+  b += rect(X(840), Y(188), 34 * s, 18 * s, 'o fuse', 2) + txt(X(857), Y(220) + 15, 'charge', 'tt') + path(`M${X(874)} ${Y(197)} L${X(925)} ${Y(197)}`, 'wg');
   b += path(`M${X(960)} ${Y(214)} L${X(960)} ${Y(206)} L${X(941)} ${Y(206)}`, 'wd');
   b += path(`M${X(925)} ${Y(200)} L${X(420)} ${Y(200)} L${X(420)} ${Y(165)} L${X(399)} ${Y(165)}`, 'wd');
   b += path(`M${X(897)} ${Y(176)} L${X(897)} ${Y(120)} L${X(352)} ${Y(120)} L${X(352)} ${Y(134)}`, 'wd dash thin');
@@ -433,7 +434,7 @@ export function step13() {
   b += txt(120, 70, 'each fuse → its panel (red + black)', 'tt halo');
   // I2C + data
   b += rect(470, 220, 40, 30, 'o p0') + txt(490, 266, 'O', 'tb') + path('M470 236 L420 236', 'wd dash');
-  b += circ(600, 236, 8, 'ringb') + txt(600, 262, 'DATA', 'tt') + path('M592 236 C580 280 560 284 548 284', 'wd') + rect(520, 276, 28, 16, 'o p1', 2) + path('M520 284 C470 286 430 280 420 256', 'wd') + txt(534, 304, 'USB-C LAN → Pi network port', 'tt');
+  b += circ(600, 236, 8, 'ringb') + txt(600, 262, 'DATA', 'tt') + path('M592 236 C580 280 560 284 548 284', 'wd') + rect(520, 276, 28, 16, 'o p1', 2) + path('M520 284 C470 286 430 280 420 256', 'wd') + txt(534, 304, 'hub → Pi network port · tablet charges', 'tt');
   b += badge(24, 260, 'Q') + txt(40, 264, '5 A fuses ×10', 'ts', 'start');
   return svg(640, 300, b, 'Connect panel power through the fuses, ribbon OUT 1 to the front modules and OUT 2 to the bench panels, I2C and data cables');
 }
@@ -553,7 +554,7 @@ export function step16() {
   b += ln([c2[0], c2[1] + 46], [c2[0] - 52, c2[1] + 166], 'o thick') + ln([c2[0], c2[1] + 46], [c2[0] + 52, c2[1] + 166], 'o thick') + ln([c2[0], c2[1] + 46], [c2[0] + 6, c2[1] + 172], 'o thick');
   b += miniBoard(P) + txt(c2[0], 300, 'tripod · ¼″ or ⅜″ · 12 kg+', 'tl');
   b += circ(36, 232, 8, 'ringg') + txt(52, 236, 'POWER ← any USB-C charger, 18–100 W', 'tl', 'start');
-  b += circ(36, 258, 8, 'ringb') + txt(52, 262, 'DATA ← tablet cable (optional)', 'tl', 'start');
+  b += circ(36, 258, 8, 'ringb') + txt(52, 262, 'DATA ← tablet: scores + charging, no PIN', 'tl', 'start');
   // strap inset: side view, box at the back edge of the table, screen facing the court
   b += ln([20, 322], [620, 322], 'o thin dash');
   b += rect(20, 384, 300, 8, 'o p1') + rect(44, 392, 8, 22, 'o p2') + txt(316, 378, 'court →', 'ts', 'end');
@@ -617,6 +618,8 @@ export const icons = {
   sensor: I(rect(18, 26, 38, 30, 'o p1', 2) + circ(37, 41, 9, 'o p0') + rect(66, 30, 34, 22, 'o p1', 2) + rect(78, 36, 10, 10, 'o p0 thin')),
   plate: I(path('M14 52 L76 52 L104 30 L42 30 Z', 'o al') + path('M14 52 L14 56 L76 56 L104 34 L104 30 L76 52', 'o p2')),
   small: I(rect(14, 34, 22, 12, 'o fuse', 2) + ln([8, 40], [14, 40], 'o') + ln([36, 40], [42, 40], 'o') + rect(52, 36, 18, 8, 'o p1', 1) + ln([46, 40], [52, 40]) + ln([70, 40], [76, 40]) + rect(84, 34, 14, 12, 'o dark', 1) + ln([86, 46], [86, 54]) + ln([96, 46], [96, 54])),
+  pdsrc: I(rect(26, 26, 50, 30, 'o fuse', 3) + rect(76, 34, 12, 12, 'o dark thin', 3) + path('M40 41 l8 -8 l0 6 l8 0 l-8 8 l0 -6 Z', 'ah')),
+  legs: I(path('M30 20 L30 60 M30 20 L58 62', 'o thick nf') + path('M70 20 L70 60 M70 20 L98 62', 'o thick nf') + circ(30, 20, 3, 'o p2') + circ(70, 20, 3, 'o p2')),
   wire: I(path('M16 30 C40 10 70 50 104 26', 'wr') + path('M16 44 C40 24 70 64 104 40', 'wb') + rect(98, 22, 10, 8, 'o p0 thin') + rect(98, 36, 10, 8, 'o p0 thin')),
 };
 
