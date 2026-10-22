@@ -53,7 +53,7 @@ console.log('masking:')
   const q = wifiQrRects(crest)
   ok(q.name === 'kscw_crest' && q.rects.length === 1 && JSON.stringify(q.rects[0]) === '{"x":8,"y":12,"w":48,"h":48}',
     'kscw_crest: exactly the wifiqr box (8,12 48x48) — not the Open-UI QR')
-  ok(wifiQrRects(fs.readFileSync(path.join(repo, 'layouts', '02_volleyball_matchscore_02.xml'), 'utf8')).rects.length === 0, 'the match layout has nothing to mask')
+  ok(wifiQrRects(fs.readFileSync(path.join(repo, 'firmware', 'openscore', 'layout', 'volleyball_matchscore_02.xml'), 'utf8')).rects.length === 0, 'the match layout has nothing to mask')
   const img = maskRects(image(3, () => 255), q.rects)
   ok(pixel(img, 8, 12).join() === '0,0,0' && pixel(img, 55, 59).join() === '0,0,0' && pixel(img, 56, 12).join() === '255,255,255' && pixel(img, 7, 30).join() === '255,255,255',
     'the box is black, its edges exact')
