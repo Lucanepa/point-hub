@@ -36,6 +36,7 @@ const volleyMapper = {
   toIdleSections: volley.toIdleSections,
   toClubIdleSections: volley.toClubIdleSections,
   toBreakSections: volley.toBreakSections,
+  toBreakHistorySections: volley.toBreakHistorySections,
   toResultSections: volley.toResultSections,
   toMessageSections: volley.toMessageSections,
   toTestSections: volley.toTestSections,

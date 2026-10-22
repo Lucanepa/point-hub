@@ -1071,6 +1071,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           matchFontMaxLeft: updated.matchFontMaxLeft,
           matchFontMaxRight: updated.matchFontMaxRight,
           clubName: updated.clubName,
+          intervalHistory: updated.intervalHistory,
         })
       }
       return sendJson(res, 200, { ...updated, scorerPin: '', pinSet: !!updated.scorerPin })

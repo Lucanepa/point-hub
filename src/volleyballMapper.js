@@ -210,6 +210,43 @@ export function toBreakSections(state, {
   return out
 }
 
+// The finished sets on the set-interval screen (Settings ▸ Display ▸ Finished sets on the interval
+// screen; off by default). Two short lines under the clock in kscw_break's centre column, `hist1`
+// and `hist2`, two sets to a line:
+//
+//    [ set  ]    INTERVAL     [ set  ]
+//    [score ]      2:41       [score ]
+//    [ box  ]  25-21  23-25   [ box  ]     centre column x 64..127, between the two boxes
+//    [      ]  25-19          [      ]
+//
+// In PANEL order — the left team's score first, like the boxes the set score sits in. The manual
+// and beach sources keep their set results per physical side (swapped with the ends), and a state
+// with side_a 'right' is turned round here like everywhere else. An interval comes before set 2 to
+// 5, so four finished sets is the most it ever has to show; anything older is left off rather than
+// shrunk. Both lines at one size, fitted to the 64px column. No set results (a linked OpenVolley
+// match, a fresh match) = both lines blank — written blank, because the board keeps section values.
+const BREAK_HISTORY_WIDTH = 62
+export const BREAK_HISTORY_COLOR = '170,170,170' // the result screen's history grey
+
+export function breakHistoryLines(state) {
+  const sets = (state && Array.isArray(state.set_results) ? state.set_results : []).filter((r) => r && typeof r === 'object')
+  const aLeft = !state || (state.side_a || 'left') === 'left'
+  const n = (v) => (Number.isFinite(Number(v)) ? String(Math.max(0, Math.round(Number(v)))) : '0')
+  const pairs = sets.slice(-4).map((r) => (aLeft ? `${n(r.a)}-${n(r.b)}` : `${n(r.b)}-${n(r.a)}`))
+  return [pairs.slice(0, 2).join('  '), pairs.slice(2, 4).join('  ')]
+}
+
+export function toBreakHistorySections(state) {
+  const [l1, l2] = breakHistoryLines(state)
+  const size = Math.min(...[l1, l2].filter(Boolean).map((l) => fitFontSize(l, BREAK_HISTORY_WIDTH, { max: 9, min: 6 })), 9)
+  const out = []
+  for (const [name, line] of [['hist1', l1], ['hist2', l2]]) {
+    out.push(attr(name, 'text', line))
+    if (line) out.push(attr(name, 'color', BREAK_HISTORY_COLOR), attr(name, 'fontsize', size))
+  }
+  return out
+}
+
 // Pre-match / between-matches screen on the ordinary match layout: the two team names with
 // "VS" between them, everything else blanked. No image upload needed — this is the version
 // that works today. A logo screen (full-panel image) is the eventual upgrade once the board

@@ -1429,6 +1429,10 @@
           <p class="hint">How bright the LED panel drives. <strong>0 turns the panel off</strong> to save power —
             the controller stays reachable, so set any value above 0 to switch it back on. 5–100 is on; the panel
             blinks for about a second while it restarts at the new level.</p>
+          <label class="row"><span>Finished sets on the interval screen</span>
+            <input type="checkbox" data-set="intervalHistory"></label>
+          <p class="hint">During the set interval the panel shows each finished set (25-21, 23-25…) under the
+            clock, left team first. Only for matches scored on this board — a linked match sends no set scores.</p>
         </fieldset>
         <!-- The console's own colours, for THIS screen only: kept in the browser (localStorage.theme,
              applied by the boot script at the top), never in SETTINGS — the scorer's tablet in a dim

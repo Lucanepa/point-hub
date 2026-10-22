@@ -7,7 +7,7 @@
 import net from 'node:net'
 import { EventEmitter } from 'node:events'
 import { encode, StreamDecoder } from './ledboxProtocol.js'
-import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toTestSections, toLeftRight } from './volleyballMapper.js'
+import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight } from './volleyballMapper.js'
 import { log } from './logStore.js'
 
 const CONTROL_PORT = 8889
@@ -84,6 +84,9 @@ export class LedboxClient extends EventEmitter {
     matchFontMaxRight = 18,
     // Club name from settings; the matching side is painted in club gold on the crest.
     clubName = '',
+    // The finished sets under the clock on the set-interval screen (Settings; off by default). See
+    // _paintBreakHistory.
+    intervalHistory = false,
     timerSection = 'timer',
     labelSection = 'lbl',
     // Text sections on clockLayout.
@@ -129,8 +132,8 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
-    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toResultSections, toMessageSections, toTestSections, toLeftRight }
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, viewerTimeoutMs, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
+    this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
     // The operator asked for the wall clock specifically ('Show clock', or deleting the saved
@@ -157,6 +160,10 @@ export class LedboxClient extends EventEmitter {
     this._confirming = null
     // The panel test currently on the glass ({ back, endsAt, timer }), or null. See showTest.
     this._test = null
+    // The break screen's finished-sets lines as last written this connection (null = not yet), and
+    // whether this board's kscw_break turned out not to have them. See _paintBreakHistory.
+    this._breakHistText = null
+    this._breakHistMissing = false
     this.currentLayout = null
     this.hosts = (hosts && hosts.length ? hosts : String(host).split(',').map((h) => h.trim()))
       .filter(Boolean)
@@ -218,6 +225,10 @@ export class LedboxClient extends EventEmitter {
         // Re-ask once per connect: a board can gain the layouts between sessions (a reflash and
         // restore, or a firmware layout drop), and it should not need a bridge restart to notice.
         this._missingLayouts.clear()
+        // Same for the break screen's history lines, and nothing is assumed about what the panel
+        // still holds in them from before.
+        this._breakHistText = null
+        this._breakHistMissing = false
         this._startLayoutGuard()
         this._startIdleTicker()
         // The board advertises `noresend` and stays silent when asked for the layout it
@@ -489,8 +500,9 @@ export class LedboxClient extends EventEmitter {
 
   // Update the per-set allowances that drive the counter colours (from operator settings),
   // and repaint so the change shows immediately.
-  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName } = {}) {
-    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName })
+  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory } = {}) {
+    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory })
+    if (typeof intervalHistory === 'boolean') this.intervalHistory = intervalHistory
     if (Number.isFinite(totalTimeouts)) this.totalTimeouts = totalTimeouts
     if (Number.isFinite(totalSubs)) this.totalSubs = totalSubs
     if (typeof idleFullNames === 'boolean') this.idleFullNames = idleFullNames
@@ -809,6 +821,7 @@ export class LedboxClient extends EventEmitter {
       await this.setLayoutIfNeeded(this.breakLayout)
       // content 'none' blanks the score boxes, so the panel is just the sport name.
       await this.sendSections(this.mapper.toBreakSections(null, { timerText: null, label: text, content: 'none' }))
+      await this._paintBreakHistory(null) // nor any finished sets left from a match
       await new Promise((r) => setTimeout(r, ms))
       if (this._confirming !== token) return true // someone else has the panel now
       this._confirming = null
@@ -1098,8 +1111,40 @@ export class LedboxClient extends EventEmitter {
         })
         : this.mapper.toCountdownSections(this._lastState, { timerText, label, content })
       await this.sendSections(sections)
+      // The finished sets go under the clock on the set interval only ('sets'): a timeout is about
+      // the set being played, and the warm-up has none.
+      if (useBreak) await this._paintBreakHistory(content === 'sets' ? this._lastState : null)
       return true
     } catch { return false }
+  }
+
+  // The finished-sets lines (`hist1`/`hist2`) on the break screen — Settings ▸ Finished sets on the
+  // interval screen, off by default. A write of its own, after the break screen is painted, and
+  // only when the text changes: this runs on every countdown tick.
+  //
+  // Kept apart from toBreakSections on purpose. A board whose kscw_break predates these two sections
+  // (the layout not deployed, or the panel not yet restarted to re-read it) refuses a SetSections
+  // that names them — the WHOLE write, so inside the break paint it would blank the interval
+  // screen. Here only these lines are lost: the refusal is remembered for the connection, logged
+  // once, and the break screen itself is untouched. Switched off, nothing is written at all unless
+  // this connection put lines on the panel, which are then blanked at the next break.
+  async _paintBreakHistory(state) {
+    if (this._breakHistMissing || typeof this.mapper.toBreakHistorySections !== 'function') return false
+    const sections = this.mapper.toBreakHistorySections(this.intervalHistory ? state : null)
+    const text = JSON.stringify(sections)
+    if (text === this._breakHistText) return false
+    if (!this.intervalHistory && this._breakHistText === null) return false
+    try {
+      await this.send('SetSections', sections, {}, { timeoutMs: 1500 })
+      this._breakHistText = text
+      return true
+    } catch (err) {
+      if (/not found \(6\)/.test(err.message)) {
+        this._breakHistMissing = true
+        blog.warn('the break screen has no finished-sets lines (hist1/hist2): deploy layouts/31_kscw_break.xml and restart the board once', { error: err.message })
+      }
+      return false
+    }
   }
 
   // Blink a section for a moment, then stop — the board's acknowledgement that a point or a

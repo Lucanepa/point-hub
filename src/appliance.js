@@ -180,6 +180,7 @@ export async function startAppliance(config = loadConfig()) {
     matchFontMaxLeft: settings.values.matchFontMaxLeft,
     matchFontMaxRight: settings.values.matchFontMaxRight,
     clubName: settings.values.clubName,
+    intervalHistory: settings.values.intervalHistory,
   })
   const server = createControlServer({
     sourceManager,

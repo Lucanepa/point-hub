@@ -23,6 +23,8 @@ const KNOWN_SECTIONS = new Set([
   // kscw_break.xml: the second, larger clock used when no team name sits above it, and the team
   // label itself. kscw_result.xml: the end-of-match screen's three lines.
   'timerbig', 'team', 'winner', 'sets', 'history',
+  // kscw_break.xml again: the finished sets under the interval clock (Settings, off by default).
+  'hist1', 'hist2',
   // kscw_message.xml: one big line, or two stacked ones.
   'msgbig', 'msg1', 'msg2',
   // kscw_test.xml (Diagnostics ▸ Panel test): a frame, a number and four colour bars per module.

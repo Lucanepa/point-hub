@@ -188,6 +188,16 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   panel on it. `POST /api/paneltest { action: 'start' | 'stop' | 'horn', seconds? }` (PIN; 409 with
   the reason when refused); `/api/status` carries `ledbox.test: { endsAt, remainingMs } | null`.
   The layout ships with `deploy-board.sh` like every `*_kscw_*.xml`. `npm run test:paneltest`.
+- **Finished sets on the interval screen** — **Settings ▸ Display ▸ Finished sets on the interval
+  screen** (off by default) puts each finished set (`25-21  23-25`, two to a line, the left team's
+  score first) under the clock on the set-interval screen, in two new `kscw_break` sections,
+  `hist1`/`hist2`. Only for matches scored on the board: a linked OpenVolley match sends no set
+  scores. Written apart from the break screen itself, so a board whose `kscw_break` predates the
+  two sections (layout not deployed, or the panel not restarted since) loses only these lines —
+  refused once per connection and logged, the interval screen painted as before. Timeouts and the
+  warm-up show none. A deliberately static line rather than a rotating carousel: the hall and the
+  referees read the interval clock, and frames that change underneath it are motion for the camera.
+  `npm run test:interval`.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
 - **Theme** — **Settings ▸ Theme**: Light (the default), Dark, or E-ink — greyscale, paper white
