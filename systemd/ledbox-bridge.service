@@ -1,7 +1,11 @@
 [Unit]
 Description=OpenVolley LedBox appliance (control UI + virtual board, mirrors live score to a Tech4Sport LedBox)
-After=network-online.target
-Wants=network-online.target
+# network.target, NOT network-online.target. The appliance listens on 0.0.0.0, reaches the panel over
+# loopback, and every network path it has (live push, schedule, relay search, clock sync) retries on
+# its own — so waiting for "online" bought nothing but NetworkManager-wait-online (up to 60 s, every
+# autoconnect profile in range tried first) in front of the console a volunteer is waiting for. On
+# an installed board, provisioning/bridge-boot-order.sh measures that and makes the same change.
+After=network.target
 
 [Service]
 Type=simple
