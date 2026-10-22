@@ -30,7 +30,7 @@ const parts = [
   ['U', 'Rubber feet', '', 4],
   ['V', 'Handles', '', 2],
   ['W', 'Metal corners', '30 mm, front corners', 4],
-  ['X', 'Thumb screws', 'M5 knurled, with inserts', 2],
+  ['X', 'Door screws', 'M4 × 16 T20, with inserts', 2],
   ['Y', 'Backing plate', '208 × 140 plywood', 1],
   ['Z', 'Blanking plug', 'Ø30', 1],
 ];
@@ -87,10 +87,10 @@ const stages = [
     [14, 'Test', d.step14(), 'With the back still open, slide in the SD card we prepared. Power up with a laptop charger: a test pattern runs on all eight modules. Leave it for 30 minutes.', []],
   ]],
   ['D', 'Finish', 'Ready for the hall.', [
-    [15, 'Close up', d.step15(), 'Hook the door’s bottom edge behind the two hooks, tilt it shut and turn the two thumb screws by hand. Handles on top, metal corners at the front, rubber guards at the back, and the plug in the horn hole.', [N('The horn hole stays plugged: horn wiring is ready inside if you ever want one.')]],
+    [15, 'Close up', d.step15(), 'Hook the door’s bottom edge behind the two hooks, tilt it shut and drive in the two T20 door screws. Handles on top, metal corners at the front, rubber guards at the back, and the plug in the horn hole.', [N('The horn hole stays plugged: horn wiring is ready inside if you ever want one.')]],
     [16, 'Set it up', d.step16(), 'On the table, on a speaker stand, or on a tripod or light stand. On the table, loop a strap through each handle and around the back edge of the table. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it. The board joins the hall’s Wi-Fi for live scores, but has no Wi-Fi of its own: a laptop for setup or OpenVolley takes the same cable.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), N('Optional: fold out the two back legs to tilt it 10–15° toward the referee. Raising it on a stand helps more against people in the way.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet or a laptop only.'), N('On a stand, put a sandbag on the feet instead of the strap.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
 
-    [17, 'Open it', d.step17(), 'Unplug the charger. Two thumb screws, tilt the door back, lift it off the hooks: everything inside is in reach. The door carries the fuse map, four spare fuses and a spare SD card.', [OK('Swapping the SD card or a fuse takes under a minute.'), N('The two USB-C cables can stay plugged in: set the door down next to the box.')]],  ]],
+    [17, 'Open it', d.step17(), 'Unplug the charger. Undo the two T20 door screws, tilt the door back, lift it off the hooks: everything inside is in reach. The door carries the fuse map, four spare fuses and a spare SD card.', [OK('Swapping the SD card or a fuse takes under a minute.'), N('The door takes a T20 key on purpose: in a public hall, a door that opens by hand gets opened. Keep the key in the kit bag.'), N('The two USB-C cables can stay plugged in: set the door down next to the box.')]],  ]],
 ];
 
 const partCards = parts.map(([L, name, spec, n]) => `<li class="part"><div class="pic">${d.icons[L]}</div><div class="plabel"><span class="pl">${L}</span><span class="pn">${name}</span><span class="pc">×${n}</span></div><span class="ps">${spec}</span></li>`).join('');

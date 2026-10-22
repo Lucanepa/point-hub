@@ -86,7 +86,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | U | Rubber feet | | 4 | 3 |
 | V | Handles | | 2 | 8 |
 | W | Metal corners | 30 mm, front corners only | 4 | 5 |
-| X | Thumb screws | M5 knurled, with threaded inserts | 2 | 4 |
+| X | Door screws | M4 × 16 T20 button head, with 2 M4 threaded inserts | 2 | 3 |
 | Z | Blanking plug | Ø30, for the horn hole | 1 | 2 |
 
 | Small parts and wire | Spec | ~EUR |
@@ -426,7 +426,7 @@ POWER and DATA are both on the back, colour-ringed (gold POWER, blue DATA) and l
 | Part | Size (mm) | Notes |
 |---|---|---|
 | A front frame | 1020 × 380 | window **960 × 320**, 30 mm border all round |
-| B back panel | 1020 × 380 | the **service door**; ports, horn hole, vents, thumb-screw holes |
+| B back panel | 1020 × 380 | the **service door**; ports, horn hole, vents, door-screw holes |
 | C top + bottom | 2 × 1020 × 208 | top: 4 × Ø4.5 for the handles; bottom: stand cup and inserts |
 | D ends | 2 × 208 × 368 | window **160 × 320**, 24 mm border |
 | Y backing plate | 208 × 140 | glued inside the bottom, under cup and inserts |
@@ -435,8 +435,8 @@ Hand the list to the store saw (straight cuts only) or have the sheet laser-cut,
 Birch instead of poplar adds about 1.5 kg. Polycarbonate (G) is sawn or CNC-cut, never laser-cut
 (it melts).
 
-**Cut-outs:** Ø45 stand cup, Ø8 ¼″ insert, Ø12 ⅜″ insert (bottom) · Ø30 horn hole, plugged · Ø6 × 2
-thumb screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the door.
+**Cut-outs:** Ø45 stand cup, Ø8 ¼″ insert, Ø12 ⅜″ insert (bottom) · Ø30 horn hole, plugged · Ø4.5 × 2
+door screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the door.
 
 ### Design
 
@@ -447,9 +447,11 @@ thumb screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along th
 - **Modules on magnets:** three **steel bars** (F) are screwed across the two long battens; the
   modules' own magnets snap onto them. No screws — a module swaps out in seconds. The bench modules
   sit behind the end windows, arrows up, held by four turn buttons each.
-- **Tool-less back door:** the back panel hooks behind **two small L-bracket hooks** at the bottom,
-  tilts shut and is held by **two M5 knurled thumb screws** into threaded inserts at the top. No
-  hatch, no tools: everything inside is in reach. The door carries the **fuse map, four spare fuses
+- **Back door, one T20 key:** the back panel hooks behind **two small L-bracket hooks** at the
+  bottom, tilts shut and is held by **two M4 × 16 T20 screws** into threaded inserts at the top. Not
+  tool-less on purpose: in a public hall, a door that opens by hand gets opened. Plain Torx, the same
+  T20 as every other screw, so the key in the kit bag opens it. No hatch: everything inside is in
+  reach. The door carries the **fuse map, four spare fuses
   and a spare SD card**.
 - **Corners:** 30 mm **metal corners on the front** only — at the back they would block the door,
   so the back corners get **rubber guards**.
@@ -519,12 +521,12 @@ Seventeen steps in four stages; the drawings are in the
 
 **D — Finish**
 
-15. **Close up** — hook the door in at the bottom, tilt it shut, two thumb screws by hand. Handles
+15. **Close up** — hook the door in at the bottom, tilt it shut, drive in the two T20 door screws. Handles
     on top, metal corners at the front, rubber guards at the back, the plug in the horn hole.
 16. **Set it up** — on the table with a strap through each handle around the table's back edge, on a
     speaker stand, or on a tripod or light stand (sandbag on its feet). Charger into POWER, the
     tablet cable into DATA.
-17. **Open it** — unplug the charger, two thumb screws, tilt the door back, lift it off its hooks.
+17. **Open it** — unplug the charger, undo the two T20 door screws, tilt the door back, lift it off its hooks.
     Swapping the SD card or a fuse takes under a minute.
 
 ---
@@ -695,6 +697,7 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
   SSH), but only once the Pi has booted far enough to bring its network up; the DATA port carries
   no picture (the Pi 4's USB-C has no video). For a Pi that will not boot: open the door and plug
   a monitor into the Pi's micro-HDMI next to the door, or swap in the spare SD card.
+- A **T20 key** (L-key or small screwdriver) for the back door.
 - The USB-C power meter, a small torch, silica gel.
 - A printed **swap card**.
 
