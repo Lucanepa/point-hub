@@ -73,10 +73,46 @@ club's Directus, so members can follow the match at `wiedisync.kscw.ch/live`:
 |---|---|
 | `DIRECTUS_URL` | `https://directus.kscw.ch` (dev: `https://directus-dev.kscw.ch`) |
 | `LIVE_PUBLISH_TOKEN` | static token of `ledbox-board@kscw.ch` — its policy can touch `live_scores` and nothing else |
-| `LIVE_CHANNEL` | which row to write; default `kscw` (one board, one row) |
+| `LIVE_CHANNEL` | the board's own row. Unset: `kscw` on the club's first board (host `ledbox-c0270`, or a generic host name such as `raspberrypi`), the host name on any other board (`ledbox-court2` → `ledbox-court2`), so a second board on defaults never overwrites the first one's row. Set it explicitly on every board; it must match the channel the board's token is allowed to write. Never `game-…` (ignored, with a warning). |
 
 Leave either blank and the publisher is a **no-op** — the board behaves exactly as
-it does without it. Every failure inside it (outage, bad token, slow network) is
+it does without it.
+
+**Two rows when the game is known.** Every match goes to the board's own row, team A =
+the LEFT side, exactly as before. When the board knows *which game* it is showing — started
+from the schedule (the console's tap or the automatic pre-match), or a linked OpenVolley
+match whose match number (`game_n`) is in the season copy — it also writes wiedisync's
+per-game row `game-<games.id>`, the row the game modal's *Watch live* and the result
+entry's prefill read (`src/liveFixture.js`):
+
+| | board row (`LIVE_CHANNEL`) | game row (`game-<id>`) |
+|---|---|---|
+| team A | whoever stands on the left (swaps at every change of ends) | the schedule's **home** team, all match |
+| `set_results` | by side, swapped with the ends | by team, home first |
+| written | every change | from the first point (not the 0-0 pre-match), when the names on the board tell home from away |
+| extra columns | — | `game_id`, `source: 'board:<channel>'` |
+
+Who is home is read from the names on the board against the schedule's; when they fit both
+ways, a board set up from the schedule (home on the left) goes by `ends_swapped`. When the
+names fit neither way (retyped, or the next game already up) **no** game row is written:
+a missing prefill is a nuisance, a swapped one is a wrong result sent to Volleymanager.
+The finished match's `live_history` row stays on the board's channel and, when the game is
+known, carries `game_id` and is home/away too (a Directus that refuses `game_id` gets the
+row again without it).
+
+- **Linked OpenVolley matches.** OpenVolley publishes to the LAN relay and its own cloud,
+  never to wiedisync, so the board mirroring it is the only writer of that game row — once
+  per change, like the board row. A linked match is never filed under the game the board was
+  set up for before the link; only its own match number counts.
+- **KSCW vs KSCW.** A derby is two `games` rows (one per team, `type` home / away). The
+  season copy fetches `type: home` only, so the game is published once, under the **home**
+  team's row id; the away team's copy gets nothing (wiedisync resolves the sibling).
+- **Refused.** Until wiedisync lets the board's token write `game-*` rows, Directus refuses
+  them: the board says so once in the log, leaves that row alone for 30 min and keeps
+  publishing its own row as before. A row nobody has written yet answers a PATCH with 403,
+  so 403/404 mean "create it".
+- **Phone live scoring** writes the same `game-<id>` rows; the board's write is
+  unconditional, so while the board publishes a game, the board wins. Every failure inside it (outage, bad token, slow network) is
 swallowed, so it can never affect scoring. These are deliberately distinct from
 `RELAY_URL`, which is the LAN relay the board *subscribes* to.
 
