@@ -9,9 +9,17 @@ everything needed to rebuild an equivalent is recoverable.
 
 > **✅ Rebuilt.** The open replacement now exists in [`flushbuffer/`](flushbuffer/) —
 > `flushBuffer2`, built from the open-source hzeller lib + the `applicon` mapping, linking
-> **only stock Debian-12 libraries** (no more `/home/pi/ledbox/lib` staging). Built and
-> staged on the board; awaiting an eyes-on-panel test before activation. This document
-> records how it was reverse-engineered; `flushbuffer/README.md` is the build + swap guide.
+> **only stock Debian-12 libraries** (no more `/home/pi/ledbox/lib` staging). It has been
+> the live driver since 2026-08-01, verified on the panel. This document records how it was
+> reverse-engineered; `flushbuffer/README.md` is the build + swap guide.
+>
+> **Since 2026-10-22 the source goes further than the vendor ever did**, and is ahead of the
+> binary on the board until it is rebuilt there ([`flushbuffer/README.md`](flushbuffer/README.md#on-the-board-rebuild-and-switch-over)):
+> brightness changes **live** through `/run/ledbox-panel/brightness`, with no driver restart
+> (the bridge falls back to the old rewrite-`setting.ini`-and-restart for a driver that cannot);
+> an optional per-frame **power governor** for the DIY build; and
+> [`measure-refresh.sh`](flushbuffer/measure-refresh.sh) to measure the real refresh rate at
+> the panel before locking it with `limit_refresh` in `setting.ini`.
 
 ## What it is
 
@@ -58,6 +66,9 @@ To rebuild: take upstream `rpi-rgb-led-matrix`, add this entry to
   into the matrix removes constant SD wear and a chunk of latency.
 - **Unlocks smooth animation.** Blinks and countdowns are currently limited by that
   file-based frame path.
+- **Makes the driver ours to extend.** Brightness used to exist only as a launch flag, so
+  every change meant killing and relaunching the GPIO driver; with the source in hand it is
+  now a file the driver re-reads (see the note at the top).
 
 ## Why it has NOT been replaced
 

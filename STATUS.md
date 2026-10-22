@@ -103,10 +103,16 @@ settable **live** over `SetSections`; `x`/`y` are only honoured from the layout 
 
 ---
 
-## Not doable on this hardware
+## Panel brightness
 
-- **Panel brightness** — no brightness/luminosity command exists in the protocol; it is not in
-  the config surface (only NETWORK/WIFI/GENERAL/LAYOUT). Would be a device-side/web concern only.
+Not in the vendor protocol (no brightness/luminosity command; the config surface is only
+NETWORK/WIFI/GENERAL/LAYOUT), so it is done below it, in the panel driver we now build ourselves:
+console Settings ▸ Panel brightness (0 = off) → `src/panelBrightness.js`. With the
+`flushBuffer2` on the board today each change rewrites `setting.ini` and restarts the driver
+(a short dark gap). The current source takes it **live**, with no restart, once it is rebuilt at
+the panel — **pending**, steps in
+[`firmware/flushbuffer/README.md`](./firmware/flushbuffer/README.md#on-the-board-rebuild-and-switch-over),
+together with measuring the panel's refresh rate (`measure-refresh.sh`).
 
 ## Open decision
 

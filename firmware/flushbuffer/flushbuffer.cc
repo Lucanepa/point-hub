@@ -66,7 +66,7 @@
 //   rise_per_s     how fast the governor lets brightness climb, in points per second. Default 50
 //                  (0 to 40 in 0.8 s). 0 = no limit.
 // The calibration holds for one PWM tuning (pwm bits, lsb nanoseconds, slowdown, limit-refresh):
-// those change how long each plane is lit, so after retuning, calibrate again.
+// those change how much of each frame the LEDs are lit, so after retuning, calibrate again.
 
 #include "led-matrix.h"
 #include <errno.h>
