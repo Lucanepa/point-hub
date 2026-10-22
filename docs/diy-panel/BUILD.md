@@ -38,7 +38,7 @@ which is withdrawn; it is in the git history if you need it.
 | Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | none fitted, wiring provisioned |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **€550** |
+| Parts | about **CHF 950** at Swiss prices (October 2026), plus shipping |
 | Build time | 12–15 h plus a day for paint to dry |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
@@ -71,15 +71,15 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | E | Battens | 15 × 15, 2 × 1008 + corner blocks | 1 set | 5 |
 | F | Steel bars | 20 × 3 × 368, galvanised — must be steel, the module magnets hold on them | 3 | 6 |
 | G | Polycarbonate | 3 mm, **smoked grey** (about 50 % light transmission); 990 × 350 + 2 × 172 × 332 | 3 | 40 |
-| H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch | 10 | 120 |
-| I | Raspberry Pi 4 | **1 GB** — enough for the stack; the 2 GB rose to $67.50 on 1 Oct 2026 | 1 | 40 |
+| H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch (about CHF 18.50 each on AliExpress, Oct 2026) | 10 | 185 |
+| I | Raspberry Pi 4 | **1 GB** is enough (CHF 34.90 when in stock); out of stock everywhere in Oct 2026, so the 2 GB (CHF 60) | 1 | 60 |
 | J | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs | 1 | 14 |
 | K | Stacking header | 40-pin, tall, between Pi and bonnet | 1 | 3 |
 | M | microSD | 32 GB, prepared image; one spare | 2 | 14 |
 | N | Converter | **Mean Well RSD-60G-5**: 9–36 V in, 5 V 12 A (60 W) out | 1 | 55 |
 | O | USB-C PD sink board | **STUSB4500** (e.g. SparkFun DEV-15801, contract-gated output) | 1 | 30 |
 | P | USB-C panel sockets | panel mount, 30 cm, data-rated (not charge-only) | 2 | 14 |
-| Q | Fuse box | 12-way MINI blade, 14 × 5 A fuses (4 spare) | 1 | 18 |
+| Q | Fuse box | 12-way **standard blade (ATO/ATC)** with a negative bus, 14 × 5 A fuses (4 spare); a 12-way MINI box with a negative bus was not on sale in Oct 2026 | 1 | 30 |
 | R | Horn switch | MOSFET board + **TCA9534** I²C output breakout + 10 kΩ gate pull-down + plug, no horn | 1 | 7 |
 | S | Stand cup | 35 mm, with M4 screws | 1 | 8 |
 | T | Threaded inserts | ¼″-20 and ⅜″-16 | 2 | 4 |
@@ -94,17 +94,21 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Straps | 2 × Velcro strap with buckle, 50 mm × 1 m | 8 |
 | Stickers | "POINT HUB" cut-vinyl lettering for the front, back label for the ports | 15 |
 | Tablet hub | small USB-C hub with **Ethernet (RTL8153)** and a **USB-PD pass-through charging input**, + 15 cm patch cable | 25 |
-| Tablet charging module | USB-C PD source module, 12–24 V in, PD out limited to about 18 W | 14 |
+| Tablet charging module | USB-C PD source, 12–24 V in, about 20 W PD out: a bare module (SW3518-type buck) where available, or a 12–24 V USB-C car charger with its plug cut off, wired to the fused input | 10 |
 | Clock + temperature | DS3231 RTC (breakout without a charging circuit) + SHT40 sensor breakout | 10 |
 | Aluminium plate | 200 × 150 × 2, under the converter and the fuse box | 6 |
-| Protection | 5 A inline fuse + holder, 3 A fuse + holder, TVS diode SMBJ22A, 10 kΩ resistor, snap-on ferrites | 6 |
+| Protection | 5 A inline fuse + holder, 3 A fuse + holder, TVS diode SMBJ22A (through-hole equivalent: **P6KE27A**, not P6KE22A, whose standoff is only 18.8 V), 10 kΩ resistor, snap-on ferrites | 6 |
 | Wire | red + black: 2.5 mm² 1 m, 1 mm² 2 m, 1.5 mm² for extensions; ferrules; Wago 221 | 8 |
 | Paint, glue | matte black for the box, gloss black for the front face, two coats each; wood filler, 120-grit sandpaper; wood glue | 16 |
 | Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
 | **Total** | | **≈ 550** |
 
-The total assumes about €12 per module. Modules sell for €10–28; at €15–25 each the board costs
-about **€580–680**.
+The €-figures above were the first estimate, at AliExpress and EU prices. Bought in Swiss shops in
+October 2026 the full list comes to about **CHF 945, plus CHF 50–90 shipping** (the shopping list has
+every item, shop and price). The biggest differences: the modules (CHF 185), the smoked
+polycarbonate (CHF 89), paint and filler (about CHF 78) and the Pi (CHF 60, the 1 GB is sold out).
+Connectors, ferrules, wire, magnets and inserts from AliExpress, and turn buttons cut from the
+offcuts, bring it to about CHF 850.
 
 **Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
 bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
@@ -336,7 +340,7 @@ persistent fault that heats a wire or the converter, overheating in the sun, and
 **Electrical faults.** The charger bounds the input power to the negotiated contract, and the 5 A
 input fuse bounds it again. Inside, the RSD-60G-5 does **not** hiccup on overload: it limits current
 at 105–135 % (about 12.6–16 A) and recovers by itself, so a resistive fault can sit at ~60 W
-indefinitely. That is why every branch has its own **5 A** MINI blade fuse: it opens in 0.15–5 s at
+indefinitely. That is why every branch has its own **5 A** blade fuse: it opens in 0.15–5 s at
 200 % and in under 0.5 s at 350 %, where a 7.5 A fuse could hold for minutes. The converter's output
 over-voltage protection (5.75–7 V) latches off, so a failed converter cannot cook the Pi and the
 modules. The metal plate under converter and fuses is the non-combustible tray.
