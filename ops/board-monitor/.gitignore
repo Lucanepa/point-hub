@@ -1,0 +1,8 @@
+# Written at run time next to the script (see board-monitor.sh). Never commit them.
+board.db
+board.db-journal
+state.json
+state.json.tmp
+games-cache.json
+games-cache.json.tmp
+.lock

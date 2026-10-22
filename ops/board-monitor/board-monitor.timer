@@ -1,0 +1,10 @@
+[Unit]
+Description=Check the KSCW LED scoreboard every 10 minutes (since 22.10.2026)
+Documentation=file:///home/lucanepa/stacks/board-monitor/board-monitor.sh
+
+[Timer]
+OnCalendar=*:02/10
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
