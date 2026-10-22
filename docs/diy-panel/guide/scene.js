@@ -188,7 +188,7 @@ async function main() {
   const print = add(new THREE.PlaneGeometry(0.28, 0.014), new THREE.MeshBasicMaterial({ map: labelTex('KSC WIEDIKON  ·  POINT HUB', 1024, 52, '#9aa1aa', '600 30px "Archivo", Arial, sans-serif'), transparent: true }), 0, 0.015, D / 2 + 0.0004);
   print.castShadow = false;
 
-  // back (the service door): two USB-C ports, horn plug, vents, two T20 door screws
+  // back panel (screwed on, the way in): two USB-C ports, horn plug, vents, six T20 screws
   const back = -D / 2;
   for (const p of [{ x: 0.39, c: 0xf2b705, t: 'POWER' }, { x: 0.45, c: 0x3b74ff, t: 'DATA' }]) {
     const slot = add(new RoundedBoxGeometry(0.0135, 0.0062, 0.004, 2, 0.0028), mDark, p.x, 0.045, back - 0.0004); slot.castShadow = false;
@@ -199,7 +199,7 @@ async function main() {
   }
   add(new THREE.CylinderGeometry(0.017, 0.017, 0.004, 28), mRubber, -0.38, 0.31, back - 0.002).rotation.x = Math.PI / 2;
   for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.345, back - 0.0008).castShadow = false;
-  for (const x of [-0.45, 0.45]) add(new THREE.CylinderGeometry(0.0065, 0.0065, 0.003, 24), mMetal, x, H - 0.03, back - 0.0015).rotation.x = Math.PI / 2;
+  for (const x of [-0.496, 0, 0.496]) for (const y of [0.014, H - 0.014]) add(new THREE.CylinderGeometry(0.0045, 0.0045, 0.002, 20), mMetal, x, y, back - 0.001).rotation.x = Math.PI / 2;
 
   // mounts
   const mounts = {};

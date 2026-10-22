@@ -86,12 +86,11 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | U | Rubber feet | | 4 | 3 |
 | V | Handles | | 2 | 8 |
 | W | Metal corners | 30 mm, front corners only | 4 | 5 |
-| X | Door screws | M4 × 16 T20 button head, with 2 M4 threaded inserts | 2 | 3 |
 | Z | Blanking plug | Ø30, for the horn hole | 1 | 2 |
 
 | Small parts and wire | Spec | ~EUR |
 |---|---|---|
-| Screws and fittings | 60 × wood screw 3.5 × 16 T20, 12 × M4 × 16 T20 + nuts, 4 × M2.5 standoffs, 8 turn buttons, 2 door hooks (small L brackets), 4 rubber corner guards | 10 |
+| Screws and fittings | 66 × wood screw 3.5 × 16 T20 (6 hold the back panel), 12 × M4 × 16 T20 + nuts, 4 × M2.5 standoffs, 8 turn buttons, 4 rubber corner guards | 9 |
 | Straps | 2 × Velcro strap with buckle, 50 mm × 1 m | 8 |
 | Tablet hub | small USB-C hub with **Ethernet (RTL8153)** and a **USB-PD pass-through charging input**, + 15 cm patch cable | 25 |
 | Tablet charging module | USB-C PD source module, 12–24 V in, PD out limited to about 18 W | 14 |
@@ -296,8 +295,8 @@ chargers mid-match means a reboot; the match resumes where it was.
   (anything ≥ 1.5 mm² is enough). Branches ≥ 0.75 mm²; extend a module lead that does not reach with
   1.5 mm² and a Wago 221.
 - **Fuse every branch at ≤ 5 A** (why: §6). Label each power plug (1–6, L, R, Pi) to match a fuse
-  map printed on the inside of the door.
-- Leave **15 cm of slack** on every cable so the back door can come off.
+  map printed on the inside of the back panel.
+- Leave **15 cm of slack** on every cable so the back panel can come off.
 
 ### 5.5 Power budget and the governor
 
@@ -345,8 +344,8 @@ modules. The metal plate under converter and fuses is the non-combustible tray.
 hall temperature inside a closed plywood box. **Direct sun is a different league** — an estimated
 30–50 K more on the dark front — past the modules' typical 50–60 °C limit, the converter's 55 °C
 full-load point and the Pi's throttle. Hence the rules: **never in direct sun or next to a sunny
-window**, indoor only, the vents in the door kept clear (if the soak test runs warm, add a row of
-vents low in the door as well), and the SHT40 derating at 50 °C / blanking at 60 °C.
+window**, indoor only, the vents in the back panel kept clear (if the soak test runs warm, add a
+row of vents low in the back panel as well), and the SHT40 derating at 50 °C / blanking at 60 °C.
 
 **At boot.** The OE pull-up keeps the panels dark until the driver runs (§4.2).
 
@@ -366,11 +365,11 @@ condensation can short the modules. A sachet of silica gel lives in the box.
    borrowed thermal camera is a bonus). Log the SHT40 alongside.
 3. **Fuse-clear test** on every branch: short it through a 0.2 Ω load; its fuse must open.
 4. **Ball test**: a spike from 3 m onto the front.
-5. **Drop test**: 50 cm onto a corner, door shut, in transport configuration.
+5. **Drop test**: 50 cm onto a corner, back panel on, in transport configuration.
 6. **Link test**: the tablet at about 10 m, ping/load the console with the panel at full cap and
    off — the panel must not knock out its own Wi-Fi or the cable.
 
-Keep the results with the box: the fuse map on the door, and a short record (schematic, fuse plan,
+Keep the results with the box: the fuse map inside the back panel, and a short record (schematic, fuse plan,
 soak readings).
 
 ---
@@ -426,7 +425,7 @@ POWER and DATA are both on the back, colour-ringed (gold POWER, blue DATA) and l
 | Part | Size (mm) | Notes |
 |---|---|---|
 | A front frame | 1020 × 380 | window **960 × 320**, 30 mm border all round |
-| B back panel | 1020 × 380 | the **service door**; ports, horn hole, vents, door-screw holes |
+| B back panel | 1020 × 380 | **screwed on, the way in**; ports, horn hole, vents, 6 screw holes |
 | C top + bottom | 2 × 1020 × 208 | top: 4 × Ø4.5 for the handles; bottom: stand cup and inserts |
 | D ends | 2 × 208 × 368 | window **160 × 320**, 24 mm border |
 | Y backing plate | 208 × 140 | glued inside the bottom, under cup and inserts |
@@ -435,8 +434,8 @@ Hand the list to the store saw (straight cuts only) or have the sheet laser-cut,
 Birch instead of poplar adds about 1.5 kg. Polycarbonate (G) is sawn or CNC-cut, never laser-cut
 (it melts).
 
-**Cut-outs:** Ø45 stand cup, Ø8 ¼″ insert, Ø12 ⅜″ insert (bottom) · Ø30 horn hole, plugged · Ø4.5 × 2
-door screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the door.
+**Cut-outs:** Ø45 stand cup, Ø8 ¼″ insert, Ø12 ⅜″ insert (bottom) · Ø30 horn hole, plugged · Ø4 × 6
+back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the back panel.
 
 ### Design
 
@@ -447,13 +446,15 @@ door screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the
 - **Modules on magnets:** three **steel bars** (F) are screwed across the two long battens; the
   modules' own magnets snap onto them. No screws — a module swaps out in seconds. The bench modules
   sit behind the end windows, arrows up, held by four turn buttons each.
-- **Back door, one T20 key:** the back panel hooks behind **two small L-bracket hooks** at the
-  bottom, tilts shut and is held by **two M4 × 16 T20 screws** into threaded inserts at the top. Not
-  tool-less on purpose: in a public hall, a door that opens by hand gets opened. Plain Torx, the same
-  T20 as every other screw, so the key in the kit bag opens it. No hatch: everything inside is in
-  reach. The door carries the **fuse map, four spare fuses
-  and a spare SD card**.
-- **Corners:** 30 mm **metal corners on the front** only — at the back they would block the door,
+- **Back panel, six T20 screws, no door:** the back panel (B) sits on six 15 mm blocks glued into
+  the shell's back edge, flush with it (four corners, the middle of the top and of the bottom; batten
+  offcuts), and is held by six 3.5 × 16 T20 wood screws. No hinges, hooks or inserts: cheaper, and
+  nothing to work loose. It takes a tool on purpose — in a public hall, anything that opens by hand
+  gets opened — and it is the same T20 as every other screw, so the key in the kit bag opens it.
+  Everything inside is in reach once it is off. If it gets opened often and a hole wears, move the
+  screw a few millimetres along the block. The back panel carries the **fuse map, four spare fuses
+  and a spare SD card** on its inside.
+- **Corners:** 30 mm **metal corners on the front** only — at the back they would block the back panel,
   so the back corners get **rubber guards**.
 - **Handles** (×2) on top. On a table, a **Velcro strap through each handle and around the table's
   back edge** keeps a ball hit from pushing the box off.
@@ -468,7 +469,7 @@ door screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the
 - **Electronics** lie on the bottom panel behind the modules: converter and fuse box on the
   aluminium plate; Pi and bonnet on M2.5 standoffs; the PD board by the POWER socket, the hub and the
   charging module by the DATA socket; RTC and temperature sensor; the horn switch by the plugged horn
-  hole. **Put the Pi close to the back door**: its built-in Wi-Fi is the board's only internet link,
+  hole. **Put the Pi close to the back panel**: its built-in Wi-Fi is the board's only internet link,
   and its antenna cannot see through the modules and the steel bars, while plywood lets the signal
   out. Keep USB 3 devices off the blue ports if the hall uplink is weak (USB 3 traffic is noisy on
   the 2.4 GHz band).
@@ -487,7 +488,8 @@ Seventeen steps in four stages; the drawings are in the
    hole saw. Masking tape on the cut line, good side down. Check the USB-C cut-outs against the
    sockets that actually arrive.
 3. **Glue the shell** — bottom, ends, top and front frame onto the battens, glued and screwed. The
-   back panel stays loose: it becomes the door.
+   back panel stays loose: glue the six screw blocks into the back edge (corners and the middle of
+   top and bottom, flush), and screw the panel on last (step 15).
 4. **Fit the bottom** — box upside down; glue in the backing plate, then the stand cup, the two
    threaded inserts and the four feet (and the fold-out legs, if fitted).
 5. **Paint** — two coats of matte black, inside too.
@@ -504,7 +506,7 @@ Seventeen steps in four stages; the drawings are in the
 
 **C — Electronics** (low voltage only — nothing in here can give you a shock)
 
-10. **Lay out the electronics** on the bottom panel (§8); fit both USB-C sockets in the door now.
+10. **Lay out the electronics** on the bottom panel (§8); fit both USB-C sockets in the back panel now.
     Solder the 10 kΩ OE pull-up (§4.2).
 11. **Power wiring** — POWER socket → PD board → 5 A fuse → converter (1 mm²) → fuse box (2.5 mm²);
     the TVS across the socket's + and −; −Vin bonded to −V; the charging module behind its 3 A fuse.
@@ -521,12 +523,12 @@ Seventeen steps in four stages; the drawings are in the
 
 **D — Finish**
 
-15. **Close up** — hook the door in at the bottom, tilt it shut, drive in the two T20 door screws. Handles
+15. **Close up** — put the back panel on and drive in its six T20 screws. Handles
     on top, metal corners at the front, rubber guards at the back, the plug in the horn hole.
 16. **Set it up** — on the table with a strap through each handle around the table's back edge, on a
     speaker stand, or on a tripod or light stand (sandbag on its feet). Charger into POWER, the
     tablet cable into DATA.
-17. **Open it** — unplug the charger, undo the two T20 door screws, tilt the door back, lift it off its hooks.
+17. **Open it** — unplug the charger, undo the six T20 screws, lift the back panel off.
     Swapping the SD card or a fuse takes under a minute.
 
 ---
@@ -687,7 +689,7 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 **In the box or the kit bag:**
 
 - **2 spare modules from the same order** (H) — a module ordered a year later rarely matches.
-- Spare **5 A fuses** (4, on the door) and a 3 A fuse; the fuse map on the door.
+- Spare **5 A fuses** (4, inside the back panel) and a 3 A fuse; the fuse map inside the back panel.
 - A **pre-imaged spare SD card** (M) in a labelled case, refreshed with every image release.
 - 2 spare HUB75 ribbons and 2 module power leads.
 - One known-good **single-port PD charger, 65 W or more**, labelled "board only", with a labelled
@@ -695,13 +697,13 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 - A **micro-HDMI to HDMI cable** (about €5) and a USB-C network adapter for the club laptop. The
   laptop on the DATA cable reaches everything the board serves (console, Diagnostics, `/logs`,
   SSH), but only once the Pi has booted far enough to bring its network up; the DATA port carries
-  no picture (the Pi 4's USB-C has no video). For a Pi that will not boot: open the door and plug
-  a monitor into the Pi's micro-HDMI next to the door, or swap in the spare SD card.
-- A **T20 key** (L-key or small screwdriver) for the back door.
+  no picture (the Pi 4's USB-C has no video). For a Pi that will not boot: take the back panel off and
+  plug a monitor into the Pi's micro-HDMI, next to the back edge, or swap in the spare SD card.
+- A **T20 key** (L-key or small screwdriver) for the back panel.
 - The USB-C power meter, a small torch, silica gel.
 - A printed **swap card**.
 
-**Swapping a module** (a few minutes): unplug the charger → open the door → read the dead module's
+**Swapping a module** (a few minutes): unplug the charger → take the back panel off → read the dead module's
 number on the module-number screen or the map → photograph the cables → lift the module off its
 magnets → move power plug and ribbons to the spare (the arrow is the data direction) → power on →
 run the module-number screen → note the swap in the inventory. Dead pixels: swap at the hall;

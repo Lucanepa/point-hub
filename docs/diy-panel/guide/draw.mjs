@@ -146,7 +146,7 @@ export function step1() {
   }
   const lx = ox + 1250 * s + 26;
   b += txt(lx, 36, '6 mm poplar plywood', 'tlb', 'start') + txt(lx, 54, 'one sheet 1250 × 1250 mm', 'tl', 'start');
-  const rows = [['A', 'front', '1020 × 380'], ['B', 'back (service door)', '1020 × 380'], ['C', 'top + bottom ×2', '1020 × 208'],
+  const rows = [['A', 'front', '1020 × 380'], ['B', 'back (screwed on)', '1020 × 380'], ['C', 'top + bottom ×2', '1020 × 208'],
     ['D', 'ends ×2', '208 × 368'], ['Y', 'backing plate', '208 × 140']];
   rows.forEach(([L, n, d], i) => { const y = 92 + i * 30; b += badge(lx + 9, y - 4, L) + txt(lx + 26, y, n, 'tl', 'start') + txt(lx + 26, y + 13, d + ' mm', 'tm', 'start'); });
   b += lines(lx, 262, ['Hand this list to the store saw', '(straight cuts only), or have the', 'whole sheet laser-cut, windows', 'included.'], 'tl');
@@ -165,11 +165,11 @@ export function step2() {
     if (!i) b += badge(x + 2, y - 4, 'D');
   }
   b += count(520, 70, '×2') + lines(516, 92, ['window', '160 × 320', '24 mm border'], 'ts', 'start', 12);
-  // B seen from outside (the service door): ports bottom-left, horn hole, vents
+  // B seen from outside (screwed on, the way in): ports bottom-left, horn hole, vents, 6 screw holes
   const bx = 20, by = 182, Bz = (z) => by + (380 - z) * s, Bx = x => bx + x * s;
   b += rect(bx, by, 1020 * s, 380 * s, 'o p0') + badge(bx + 2, by - 4, 'B');
   for (let i = 0; i < 8; i++) b += rect(Bx(300 + i * 55), Bz(349), 40 * s, 8 * s, 'o hatchf thin');
-  b += circ(Bx(60), Bz(350), 3, 'o hatchf') + circ(Bx(960), Bz(350), 3, 'o hatchf');
+  for (const [x, z] of [[14, 14], [510, 14], [1006, 14], [14, 366], [510, 366], [1006, 366]]) b += circ(Bx(x), Bz(z), 2.5, 'o hatchf');
   b += circ(Bx(890), Bz(310), 15 * s, 'o hatchf') + txt(Bx(890), Bz(310) - 9, 'Ø30', 'tt');
   for (const [x, cls, l, a, dx] of [[60, 'ringb', 'DATA', 'end', -4], [120, 'ringg', 'POWER', 'start', 4]]) {
     b += circ(Bx(x), Bz(40), 6, cls) + rect(Bx(x) - 2.4, Bz(40) - 1.3, 4.8, 2.6, 'o dark thin', 1) + txt(Bx(x) + dx, Bz(40) - 10, l, 'tt', a);
@@ -185,8 +185,8 @@ export function step2() {
   for (const x of [240, 360, 660, 780]) b += circ(Tx(x), Ty(104), 2.2, 'o hatchf');
   b += txt(Tx(510), Ty(104) + 18, '4 × Ø4.5 for the handles', 'tt');
   // legend
-  b += lines(356, 196, ['Cut-outs', 'Ø45  stand cup', 'Ø8  ¼″ camera insert', 'Ø12  ⅜″ stand insert', 'Ø30  horn hole, plug it', 'Ø4.5  door screws ×2 (B)', 'USB-C  13 × 7 + 2 × Ø3', 'vents  8 × 40 × 8'], 'tl', 'start', 16);
-  return svg(640, 410, b, 'Windows and holes: front window, two end windows, back door with the ports, horn hole and vents, bottom and top holes');
+  b += lines(356, 196, ['Cut-outs', 'Ø45  stand cup', 'Ø8  ¼″ camera insert', 'Ø12  ⅜″ stand insert', 'Ø30  horn hole, plug it', 'Ø4  back screws ×6 (B)', 'USB-C  13 × 7 + 2 × Ø3', 'vents  8 × 40 × 8'], 'tl', 'start', 16);
+  return svg(640, 410, b, 'Windows and holes: front window, two end windows, back panel with the ports, horn hole, vents and six screw holes, bottom and top holes');
 }
 
 export function step3() {
@@ -435,7 +435,7 @@ export function step13() {
 
 export function step14() {
   let b = '';
-  // back door open + SD
+  // back panel off + SD
   b += rect(24, 70, 150, 150, 'o p0') + rect(54, 150, 60, 50, 'o dark');
   b += `<g transform="rotate(-24 54 150)">${rect(54, 100, 60, 50, 'o p1')}</g>`;
   b += path('M88 104 l10 0 l6 6 l0 16 l-16 0 Z', 'o p0') + arrow([96, 132], [96, 170], 'ar', 8) + badge(130, 116, 'M');
@@ -451,7 +451,7 @@ export function step14() {
   b += poly(fSide(P, 30, 30, 160, 320, 1020), 'o lit');
   b += clock(330, 40, '30 min') + ok(470, 40, 12) + txt(490, 45, 'warm is fine', 'tl', 'start');
   b += no(470, 270, 12) + txt(490, 275, 'hot or smelly → unplug', 'tl', 'start');
-  return svg(640, 296, b, 'With the back door open, put in the prepared SD card, power up with a laptop charger, run the test pattern for 30 minutes');
+  return svg(640, 296, b, 'With the back panel off, put in the prepared SD card, power up with a laptop charger, run the test pattern for 30 minutes');
 }
 
 export function step15() {
@@ -461,7 +461,7 @@ export function step15() {
   b += poly(fSide(P, 30, 30, 160, 320, 1020), 'o lit');
   b += poly(fFront(P, 6, 6, 1008, 368, 40), 'o p2m');
   b += hole(fFront(P, 0, 0, 1020, 380, 6), fFront(P, 6, 6, 1008, 368, 6), 'o p1');
-  for (const x of [200, 820]) b += poly(fFront(P, x, 6, 40, 14, 4), 'o al');
+  for (const [x, z] of [[6, 6], [502, 6], [999, 6], [6, 359], [502, 359], [999, 359]]) b += poly(fFront(P, x, z, 15, 15, 6), 'o p1');
   for (const [x, z] of [[0, 350], [990, 350], [0, 0], [990, 0]]) b += poly(fTop(P, x, 6, 30, 30, z ? 380 : 0), 'o dark');
   b += poly(fSide(P, 6, 0, 30, 30, 1020), 'o dark') + poly(fSide(P, 6, 350, 30, 30, 1020), 'o dark');
   const by = -230;
@@ -470,16 +470,15 @@ export function step15() {
   for (let i = 0; i < 8; i++) b += poly(fFront(P, 300 + i * 55, 341, 40, 8, by), 'o dark thin');
   const hp = F(890, 310); b += circ(hp[0], hp[1], 6, 'o p2');
   for (const [x, cls, l, a, dx] of [[60, 'ringb', 'DATA', 'end', -3], [120, 'ringg', 'POWER', 'start', 3]]) { const p = F(x, 40); b += circ(p[0], p[1], 6, cls) + txt(p[0] + dx, p[1] - 9, l, 'tt', a); }
-  for (const x of [60, 960]) { const k = F(x, 350); b += torx(k[0], k[1], 6.5); }
+  for (const [x, z] of [[14, 14], [510, 14], [1006, 14], [14, 366], [510, 366], [1006, 366]]) { const k = F(x, z); b += torx(k[0], k[1], 5.5); }
   b += arrow(P(220, by + 10, -10), P(220, -10, -10)) + arrow(P(840, by + 10, -10), P(840, -10, -10));
-  b += carrow(F(1060, 300), P(1100, -100, 420), P(1050, -10, 380));
   for (const hx of [210, 690]) {
     const a = P(hx, 110, 470), c = P(hx + 120, 110, 470);
     b += path(`M${R(a[0])} ${R(a[1])} Q${R((a[0] + c[0]) / 2)} ${R(a[1] - 34)} ${R(c[0])} ${R(c[1])}`, 'o handle');
     b += arrow(P(hx + 60, 110, 455), P(hx + 60, 110, 392), 'ar', 8);
   }
   b += badge(22, 160, 'B');
-  b += mag(560, 150, 48, F(960, 350), (() => {
+  b += mag(560, 150, 48, F(1006, 366), (() => {
     let g = rect(512, 150, 96, 12, 'o p0') + rect(540, 162, 40, 30, 'o p1') + rect(552, 120, 16, 30, 'o p2');
     for (let i = 0; i < 6; i++) g += ln([552, 124 + i * 4.5], [568, 126 + i * 4.5], 'o thin');
     // button head with a T20 recess
@@ -487,9 +486,9 @@ export function step15() {
     return g + carrow([594, 104], [606, 116], [596, 128], 'ar', 6);
   })());
   b += badge(536, 40, 'V') + count(550, 47, '×2') + txt(536, 66, 'M4 × 16 T20 ×8', 'tm', 'start');
-  b += badge(518, 222, 'X') + count(532, 229, '×2') + txt(562, 228, 'T20', 'ts', 'start');
-  b += txt(64, 362, 'hooks ×2 at the bottom', 'ts', 'start') + txt(300, 362, 'rubber guards on the back corners', 'ts', 'start');
-  return svg(640, 372, b, 'Hook the back door in at the bottom, tilt it shut, drive in two T20 door screws; fit handles, corners and rubber guards');
+  b += count(430, 300, '×6') + txt(458, 299, 'T20 3.5 × 16', 'ts', 'start');
+  b += txt(64, 362, 'blocks: 4 corners + 2 mid', 'ts', 'start') + txt(300, 362, 'rubber guards on the back corners', 'ts', 'start');
+  return svg(640, 372, b, 'Put the back panel on and drive in six T20 screws; fit handles, corners and rubber guards');
 }
 
 export function step17() {
@@ -504,20 +503,20 @@ export function step17() {
   for (const x of [650, 680, 710]) b += poly(fTop(P, x, 70, 16, 14, 40), 'o dark thin');
   b += box(P, 105, 14, 6, 36, 30, 12, 'o p0', 'o p0', 'o p2');
   b += hole(fFront(P, 0, 0, 1020, 380, 6), fFront(P, 6, 6, 1008, 368, 6), 'o p1');
-  for (const x of [200, 820]) b += poly(fFront(P, x, 6, 40, 14, 4), 'o al');
+  for (const [x, z] of [[6, 6], [502, 6], [999, 6], [6, 359], [502, 359], [999, 359]]) b += poly(fFront(P, x, z, 15, 15, 6), 'o p1');
   const lf = P(415, 140, 40), lp = P(680, 40, 50), lc = P(250, 60, 60), lo = P(123, 20, 30);
   b += txt(lf[0], lf[1] - 10, 'fuses', 'tt halo') + txt(lp[0], lp[1] - 12, 'Pi + SD', 'tt halo') + txt(lc[0], lc[1] - 8, 'converter', 'tt halo') + txt(lo[0], lo[1] - 6, 'USB-C', 'tt halo');
-  for (const x of [60, 960]) { const k = P(x, 6, 350); b += torx(k[0], k[1], 6) + carrow([k[0] - 12, k[1] - 14], [k[0], k[1] - 24], [k[0] + 12, k[1] - 14], 'ar', 6); }
-  // the door, inside face, set aside
+  for (const [x, z] of [[14, 14], [510, 14], [1006, 14], [14, 366], [510, 366], [1006, 366]]) { const k = P(x, 6, z); b += torx(k[0], k[1], 4.5); }
+  // the back panel, inside face, set aside
   const dx = 470, dy = 222;
   b += arrow([430, 196], [470, 226]);
   b += rect(dx, dy, 160, 64, 'o p0') + rect(dx + 8, dy + 8, 70, 30, 'o p1 thin');
   ['1', '2', '3', '4', '5', '6', 'L', 'R', 'Pi'].forEach((l, i) => { b += txt(dx + 13 + (i % 5) * 14, dy + 19 + Math.floor(i / 5) * 13, l, 'tt'); });
   for (let i = 0; i < 4; i++) b += rect(dx + 90 + i * 9, dy + 10, 6, 14, 'o fuse thin', 1);
   b += path(`M${dx + 92} ${dy + 34} l14 0 l5 5 l0 18 l-19 0 Z`, 'o p0') + rect(dx + 88, dy + 31, 30, 6, 'o p1 thin', 1);
-  b += txt(dx + 43, dy + 54, 'fuse map', 'tt') + txt(dx + 110, dy + 80, 'spare fuses + SD', 'tt') + txt(dx + 80, dy + 98, 'inside of the door', 'ts');
-  b += ok(40, 34, 12) + txt(60, 39, 'T20 key: two screws, tilt, lift', 'tl', 'start');
-  return svg(640, 340, b, 'Open the box: undo two T20 screws, tilt the door back and lift it off; the door carries a fuse map, spare fuses and a spare SD card');
+  b += txt(dx + 43, dy + 54, 'fuse map', 'tt') + txt(dx + 110, dy + 80, 'spare fuses + SD', 'tt') + txt(dx + 92, dy + 110, 'inside of the back panel', 'ts');
+  b += ok(40, 34, 12) + txt(60, 39, 'T20 key: six screws, lift off', 'tl', 'start');
+  return svg(640, 340, b, 'Open the box: undo six T20 screws and lift the back panel off; it carries a fuse map, spare fuses and a spare SD card');
 }
 
 function miniBoard(P) {
@@ -599,7 +598,6 @@ export const icons = {
   V: I(path('M24 54 Q60 6 96 54', 'o handle') + rect(16, 52, 18, 6, 'o al') + rect(86, 52, 18, 6, 'o al')),
   W: I(path('M40 60 L40 28 L72 28', 'o p0') + path('M40 28 L52 16 L84 16 L72 28 Z', 'o p1') + path('M72 28 L84 16 L84 48 L72 60 Z', 'o p2') + rect(40, 28, 32, 32, 'o p0')),
   X: I(torx(42, 40, 16) + torx(84, 40, 12)),
-  hook: I(path('M30 24 L30 56 L62 56', 'o thick nf') + path('M70 24 L70 56 L102 56', 'o thick nf') + screw(30, 34) + screw(70, 34)),
   guard: I(path('M36 58 L36 26 L84 26', 'o nf') + path('M30 62 L30 20 L90 20 L90 30 L42 30 L42 62 Z', 'o dark')),
   Y: I(rect(28, 22, 64, 40, 'o p0')),
   Z: I(circ(60, 40, 16, 'o p2') + circ(60, 40, 10, 'o p1')),
