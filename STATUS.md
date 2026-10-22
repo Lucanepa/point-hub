@@ -44,7 +44,9 @@ Verified on the real panel:
   brightness (#111827, #000000) paints its name and digits light grey and its box border in the
   same hue scaled up; team-coloured text of 26 px and under is lifted towards white just far
   enough to give pure red's light (at brightness 40 that touches #2563eb and #6366f1). Big digits
-  and borders keep the exact colour. The console and its mirror always show the chosen colours.
+  and borders keep the exact colour. The console and its mirror always show the chosen colours,
+  and a line under the team cards says when the two will look alike (also to red-green
+  colour-blind eyes) or one is too dark for the LEDs, with a one-tap preset that fixes it.
 - **VS pre-match screen** — team names + "VS", scores blanked. (Basic; the good version is the
   logo screen below.)
 - **Settings page** (persisted on the Pi, survives restart): blink on/off + length, countdown
