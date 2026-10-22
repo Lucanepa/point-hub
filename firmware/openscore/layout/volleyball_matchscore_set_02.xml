@@ -1,6 +1,7 @@
-<?xml version="1.0"?>
-<layout extended="true" name="volleyball_matchscore_set_02">
-	
-	<section type="image" src="" name="media" x="96" y="32" width="192" height="64" align="center" valign="center"></section>
-	
+<?xml version='1.0'?>
+<layout name="volleyball_matchscore_set_02" modifier="">
+  <!-- A whole-panel picture, under the name the vendor app uses for its set screen. Our own
+       layout: one image section that fills the panel; `src` is whatever was uploaded (nothing
+       until then, which draws a black panel). -->
+  <section name="media" type="image" x="0" y="0" width="192" height="64" visible="true" private="false" enable="true" src="" align="center" valign="middle"></section>
 </layout>

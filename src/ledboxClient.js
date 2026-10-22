@@ -9,6 +9,7 @@ import { EventEmitter } from 'node:events'
 import { encode, StreamDecoder } from './ledboxProtocol.js'
 import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight } from './volleyballMapper.js'
 import { log } from './logStore.js'
+import { ledSafeSections, textColor, sectionPx } from './ledColor.js'
 
 const CONTROL_PORT = 8889
 const HOTSPOT_IP = '172.24.1.1'
@@ -122,6 +123,9 @@ export class LedboxClient extends EventEmitter {
     // Per-set allowances — drive the counter colours (set live from operator settings).
     totalTimeouts = 2,
     totalSubs = 6,
+    // Panel brightness (settings, 1-100; 0 = panel off). Team colours are floored against it on
+    // their way to the panel (src/ledColor.js), so it has to be the brightness the driver runs at.
+    brightness = 40,
     // When true, a fresh boot (nothing scored yet) settles on the idle/crest screen after
     // the handshake instead of a blank match layout. Set by the appliance.
     defaultIdle = false,
@@ -136,7 +140,7 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, viewerTimeoutMs, idleTickMs, idleQr, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, defaultIdle, bootMessage })
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, viewerTimeoutMs, idleTickMs, idleQr, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, brightness, defaultIdle, bootMessage })
     this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
@@ -507,8 +511,8 @@ export class LedboxClient extends EventEmitter {
 
   // Update the per-set allowances that drive the counter colours (from operator settings),
   // and repaint so the change shows immediately.
-  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, idleQr, intervalHistory } = {}) {
-    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, idleQr, intervalHistory })
+  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, idleQr, intervalHistory, brightness } = {}) {
+    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, idleQr, intervalHistory, brightness })
     if (typeof idleQr === 'boolean') this.idleQr = idleQr
     if (typeof intervalHistory === 'boolean') this.intervalHistory = intervalHistory
     if (Number.isFinite(totalTimeouts)) this.totalTimeouts = totalTimeouts
@@ -518,6 +522,8 @@ export class LedboxClient extends EventEmitter {
     if (Number.isFinite(matchFontMaxLeft)) this.matchFontMaxLeft = matchFontMaxLeft
     if (Number.isFinite(matchFontMaxRight)) this.matchFontMaxRight = matchFontMaxRight
     if (typeof clubName === 'string') this.clubName = clubName
+    // The repaint below then re-floors the team colours at the new level.
+    if (Number.isFinite(brightness)) this.brightness = brightness
     // If the crest screen is what's currently up, repaint it so a name-style change shows
     // immediately instead of waiting for the next time someone toggles idle.
     // Not while the sport-switch confirmation holds the panel: it settles back to idle itself. Nor
@@ -1174,7 +1180,9 @@ export class LedboxClient extends EventEmitter {
     // Software blink: alternate the section's colour between the team colour and off. The
     // board's native `blinking` can't do team colours (it uses the layout default), so we
     // drive it ourselves. Ends settled on the team colour.
-    const team = color || '255,255,255'
+    // The same floor the full paint applies (see _forPanel), or a blink would flash a dark team's
+    // number back to its invisible shirt colour and settle there.
+    const team = textColor(color || '255,255,255', sectionPx(this.currentLayout || this.layout, section), { brightness: this.brightness })
     const OFF = '0,0,0'
     const prev = this._pulses.get(section)
     if (prev) prev.cancel() // re-scoring restarts, never stacks
@@ -1280,6 +1288,7 @@ export class LedboxClient extends EventEmitter {
   // worst case one wasted round trip on a screen that was blank anyway. The condition being waited
   // on is now the board's own answer rather than a number we guessed.
   async sendSections(sections, opts) {
+    sections = this._forPanel(sections)
     try {
       return await this.send('SetSections', sections, {}, opts)
     } catch (err) {
@@ -1292,6 +1301,15 @@ export class LedboxClient extends EventEmitter {
       await new Promise((r) => setTimeout(r, this.layoutSettleMs))
       return this.send('SetSections', sections, {}, opts)
     }
+  }
+
+  // Team colours as the LEDs can show them (src/ledColor.js): a dark team's text goes light grey,
+  // small dim text is lifted, borders keep the exact colour unless it would not light. Applied
+  // here and only here, so the console's mirror (built from the mapper output) keeps the colours
+  // the operator picked. `currentLayout` is the layout being painted: every caller switches to it
+  // (setLayoutIfNeeded) before it writes, and the match paint only runs while it is up or unknown.
+  _forPanel(sections) {
+    return ledSafeSections(sections, { layout: this.currentLayout || this.layout, brightness: this.brightness })
   }
 
   // Periodically re-assert the scoreboard layout and repaint, so a desync self-corrects.

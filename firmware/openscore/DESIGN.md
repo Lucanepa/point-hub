@@ -22,7 +22,8 @@ control UI + bridge (open, Node)  ─8889/gzip-JSON─▶  openscore.py (open, P
 > panel driver (`firmware/flushbuffer/`) and the real board's observed behaviour. It is an
 > independent re-implementation by a maintainer who **had** seen the decompiled vendor code
 > (from recovering the board, `../RECOVERY.md`) — not a two-team clean room — and **no vendor
-> code was copied, translated or ported**. Details, including where the layouts come from:
+> code was copied, translated or ported**. The vendor's own layout files left the repo on 2026-10-22; every layout
+> under `layout/` is ours, written to the names and section names the bridge uses. Details:
 > [`PROVENANCE.md`](PROVENANCE.md). Where the vendor's exact behaviour is unknown
 > (e.g. the `bar` section, text placement) the choice is documented as provisional and deferred
 > to on-glass calibration.
@@ -128,16 +129,16 @@ Adding any of these is a localised change in `Device.handle()` — the dispatch 
 
 ## 5. Section types — every type, and how we render each
 
-Types seen across the open `layouts/*.xml` are `text`, `image`, `rectangle`, `circle`; the
+Types the layout format uses are `text`, `image`, `rectangle`, `circle`; the
 protocol brief also names `bar`. All five are handled. Each section is a fixed box positioned on
 the 192×64 canvas via `x, y, width, height`, aligned with `align`/`valign`.
 
 | Type | Rendering |
 |---|---|
-| **text** | The element's text, drawn at `(x,y)` with a Pillow anchor from `align`×`valign` (`left/center/right` × `top/middle/bottom`). **Shrink-to-fit**: if `width>0`, the TTF size is reduced until the string fits the box (min 6 px) — long club names scale down instead of clipping, which the vendor's fixed-`fontsize` lever could not do. `color`, `fontsize`. |
+| **text** | The element's text, drawn at `(x,y)` with a Pillow anchor from `align`×`valign` (`left/center/right` × `top/middle/bottom`; `middle` sits on the cap-height centre to within half a pixel, so a name stays centred in its row at any size). **Shrink-to-fit**: if `width>0`, the TTF size is reduced until the string fits the box (min 6 px), measured in the face it is drawn in — long club names scale down instead of clipping, which the vendor's fixed-`fontsize` lever could not do. **LED text**: at `SMALL_TEXT_PX` (26 px) and under, Liberation Sans **Bold** with anti-aliasing off (Pillow `fontmode "1"`, BASIC layout so 1-bit letters stay evenly spaced); above it Regular, anti-aliased. `color`, `fontsize`. |
 | **image** | PNG/JPG (via Pillow) **scaled to fit** the box preserving aspect ratio, then positioned inside it by `align`/`valign`, alpha-composited. A **missing `src` is skipped silently** (an operator may not have uploaded a media placeholder; the blanked vendor `banner.jpg` is expected to be absent). |
 | **rectangle** | Filled with `color`, outlined with `bordercolor`. A **black fill with a border** renders as a hollow coloured frame over the black background (how the score boxes and serve indicators are drawn). |
-| **circle / ellipse** | Filled ellipse inside the box, `bordercolor` outline — the tennis layout's serve dots. |
+| **circle / ellipse** | Filled ellipse inside the box, `bordercolor` outline (no shipped layout uses one; `render_samples.py` draws them in `06_shapes`). |
 | **bar** | *Provisional* (no shipped layout uses it yet): `bordercolor` draws the track outline, `color` fills a fraction of it. The fraction is read from the section text (`0..100` percent or `0..1`); horizontal when wider than tall, vertical otherwise. Forward-compatible; to be calibrated if a real `bar` layout ever appears. |
 
 ### Section attributes understood
@@ -156,7 +157,8 @@ is RGB; the panel is RGB.
 `ImageFont.truetype`, so `fontsize` is a TrueType size, not a step on a bitmap ladder (the
 bitmap-ladder reading of the APK's `fontsizearray` in PROTOCOL.md does not match what the board
 does). We render with the bundled
-**Liberation Sans** (`fonts/`), metric-compatible with Arial, so widths match. Arial is not bundled
+**Liberation Sans** (`fonts/`), metric-compatible with Arial, so widths match: Bold without anti-aliasing at 26 px and under
+(whole, fully lit pixels read better on LEDs), Regular and anti-aliased above. Arial is not bundled
 and will not be: it is proprietary. What still differs is **placement** — our text sits a few
 pixels higher than the vendor's — which is the calibration task in the ROADMAP (Phase 2), not a
 protocol issue.
@@ -224,13 +226,13 @@ firmware/openscore/
 ├── openscore.py     the firmware: StreamDecoder · Layout/Section model + XML loader ·
 │                     Renderer (→ www/buffer.png) · Device (command dispatch) · Server (:8889)
 ├── setting.ini       [DISPLAY] width/height (+ flushBuffer2 tuning) · [TCP] port
-├── layout/           the rendered layouts (open XML)
+├── layout/           the rendered layouts (open XML, all ours; the vendor's own files are not in
+│   │                 this repo, and these answer to the same names the vendor app and bridge use)
 │   ├── volleyball_matchscore_02.xml            the match screen
-│   ├── volleyball_matchscore_timeout_02.xml    vendor countdown
+│   ├── volleyball_matchscore_timeout_02.xml    the fallback countdown
 │   ├── volleyball_matchscore_set_02.xml        image-only set screen
 │   ├── kscw_idle.xml / kscw_crest.xml          club idle screens
 │   ├── kscw_break.xml                          our full-panel break screen
-│   ├── tennis_matchscore.xml                   exercises the `circle` type
 │   ├── openvolley_timeout.xml
 │   └── system/waiting.xml                      no-client idle (crest + QRs)
 ├── media/            kscw_crest.png · wifi_qr.png · ui_qr.png

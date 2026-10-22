@@ -189,7 +189,8 @@ export async function startAppliance(config = loadConfig()) {
   // (blink off, wrong allowance, horn silent) is answered by this one line. The PIN is
   // redacted by the log store, so this is safe to hand to anyone.
   log.info('settings loaded', settings.values)
-  // Seed the counter-colour thresholds from saved settings before the first paint.
+  // Seed the counter-colour thresholds, and the brightness the team-colour floor works against
+  // (src/ledColor.js), from saved settings before the first paint.
   ledbox.setLimits({
     totalTimeouts: settings.values.totalTimeouts,
     totalSubs: settings.values.totalSubs,
@@ -200,6 +201,7 @@ export async function startAppliance(config = loadConfig()) {
     clubName: settings.values.clubName,
     idleQr: settings.values.idleQr,
     intervalHistory: settings.values.intervalHistory,
+    brightness: settings.values.brightness,
   })
   // Cable trust (see cableTrust.js): on unless the config says false — a hand-built test config
   // gets it too, which is harmless: nothing a test sends arrives on 192.168.5.1.

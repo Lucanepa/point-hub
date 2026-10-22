@@ -101,8 +101,9 @@ fi
 # needs no restart. Nothing was copying these at all, which is how 33_kscw_clock.xml came to exist
 # only on the board and the repo's crest layout came to be missing its QR sections for weeks.
 #
-# Only the layouts this repo authors. The vendor's own files stay untouched, and the specular /
-# tennis experiments in layouts/ are deliberately not shipped to the hall.
+# Only the layouts this repo authors. The vendor's own files stay untouched on the board (they are
+# not in this repo at all), and openscore's layouts under firmware/openscore/ are not for this
+# firmware.
 scp "${J[@]}" "$REPO"/layouts/*_kscw_*.xml \
   "$REPO"/layouts/*_beach_matchscore.xml \
   "$REPO"/layouts/*_basketball_matchscore.xml \
@@ -128,6 +129,7 @@ ssh "${J[@]}" "$BOARD" "
   # Prove the NEW code is what is actually running — not merely that something started.
   grep -q SELF-CLOCKED     $DEST/src/ledboxClient.js; chk \$? 'self-clocked blink'
   grep -q showSportConfirm $DEST/src/ledboxClient.js; chk \$? 'sport confirmation'
+  grep -q ledSafeSections  $DEST/src/ledboxClient.js; chk \$? 'LED colour floor'
   grep -q sport-switch     $DEST/src/appliance.js;    chk \$? 'sport-switch marker'
   grep -q LAST_STATUS      $DEST/web/index.html;      chk \$? 'UI status-merge'
   test -f $DEST/web/logs.html;                        chk \$? '/logs viewer'

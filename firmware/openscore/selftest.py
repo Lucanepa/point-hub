@@ -194,6 +194,59 @@ def main():
     finally:
         olb.os.replace = real_replace
 
+    # --- text for LEDs: Bold without anti-aliasing at SMALL_TEXT_PX and under ---
+    if olb._HAVE_PIL:
+        from PIL import Image, ImageDraw
+        rt = olb.Renderer(cfg["width"], cfg["height"], os.path.join(tmpd, "t", "buffer.png"), HERE)
+        orange = (255, 69, 0)
+
+        def colours(size, text="WIEDIKON 18"):
+            lay = olb.Layout(name="t", sections=[olb.Section(name="t", type="text", x=2, y=2, fontsize=size,
+                                                             color=orange, text=text)])
+            rt.render(lay)
+            with Image.open(rt.buffer_path) as im:
+                return set(im.convert("RGB").getdata()) - {(0, 0, 0)}
+
+        small = colours(olb.SMALL_TEXT_PX)
+        check("text at %d px: every lit pixel is the exact colour (no AA blends)" % olb.SMALL_TEXT_PX,
+              small == {orange}, sorted(small)[:6])
+        big = colours(olb.SMALL_TEXT_PX + 14, "18")
+        check("text at %d px keeps its anti-aliasing" % (olb.SMALL_TEXT_PX + 14), len(big) > 1, len(big))
+        face = lambda size: os.path.basename(getattr(rt._font(size), "path", "") or "")  # noqa: E731
+        check("small text is Liberation Sans Bold, big text Regular",
+              face(olb.SMALL_TEXT_PX) == "LiberationSans-Bold.ttf"
+              and face(olb.SMALL_TEXT_PX + 1) == "LiberationSans-Regular.ttf",
+              (face(olb.SMALL_TEXT_PX), face(olb.SMALL_TEXT_PX + 1)))
+        # Shrink-to-fit measures in the face it draws: a name that fits its box in Regular but not
+        # in the wider Bold must still come out inside the box.
+        d = ImageDraw.Draw(Image.new("RGB", (192, 64)))
+        name = "Volley Zürich"
+        reg = olb.ImageFont.truetype(rt._font_path, 20)
+        box = int(d.textlength(name, font=reg)) + 1   # exactly what Regular 20 needs
+        font, size = rt._fit_font(d, name, 20, box)
+        check("shrink-to-fit uses Bold widths (%r fits %d px in Regular 20; Bold comes out at %d, %.0f px)"
+              % (name, box, size, d.textlength(name, font=font)),
+              size < 20 and d.textlength(name, font=font) <= box < d.textlength(name, font=rt._font(size + 1)),
+              size)
+
+    # --- our layouts answer to the names and sections the bridge writes ---
+    lays = olb.load_layouts(cfg["layout_dir"])
+    want = {
+        "volleyball_matchscore_02": ["team1", "team2", "score1", "score2", "bg_score1", "bg_score2", "set1", "set2",
+                                     "vs", "timeout1", "timeout2", "sub1", "sub2", "lbl_to", "lbl_sub", "serve1", "serve2"],
+        "volleyball_matchscore_timeout_02": ["media", "lbl", "timer", "score1", "score2", "bg_score1", "bg_score2",
+                                             "set1", "set2", "sep"],
+        "volleyball_matchscore_set_02": ["media"],
+    }
+    for lname, secs in want.items():
+        lay = lays.get(lname)
+        missing = [n for n in secs if lay is None or lay.get(n) is None]
+        check("layout %s has every section the bridge writes" % lname, not missing, missing)
+    vm = lays.get("volleyball_matchscore_02")
+    check("its captions are T and S", vm and vm.get("lbl_to").text == "T" and vm.get("lbl_sub").text == "S")
+    check("its names and scores carry a width (shrink-to-fit)",
+          vm and all(vm.get(n).width > 0 for n in ("team1", "team2", "score1", "score2")))
+
     passed = sum(1 for _, ok in checks if ok)
     total = len(checks)
     print("\n%d/%d checks passed" % (passed, total))

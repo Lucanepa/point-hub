@@ -39,6 +39,9 @@ Make the headless PNGs look *right* — the protocol is done, this is pixels. Al
   Sans**, which is metric-compatible with Arial, so the advance widths `volleyballMapper.js`
   encodes still hold. **Arial itself is never bundled**: it is Monotype's and not redistributable
   ([`fonts/README.md`](fonts/README.md)).
+  Text of 26 px and under is Bold with no anti-aliasing, bigger text Regular and anti-aliased, and
+  shrink-to-fit measures in the face it draws (2026-10-22). Still to do on the glass: compare
+  against anti-aliased Regular, then decide whether a bitmap face (Spleen, BSD-2) earns its place.
 - ⬜ **Text placement.** Same metrics, different placement: at size 24 openscore's ink sits about
   4 px (≈0.17 em) higher than the vendor's. That cannot come from the font, so it is a placement
   rule in the vendor app. Derive it from captured vendor frames at several sizes (14/18/24/26/55)

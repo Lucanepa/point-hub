@@ -46,6 +46,14 @@ Verified on the real panel:
   Toggleable.
 - **Counter limit colours** — timeout counter goes dark red at 2; substitution counter amber at
   5, dark red at 6 (FIVB per-set maximums).
+- **LED colour floor** (added 2026-10-22, to be checked on the glass) — `src/ledColor.js`, applied
+  where the bridge sends to the panel. A team colour the LEDs cannot light at the current
+  brightness (#111827, #000000) paints its name and digits light grey and its box border in the
+  same hue scaled up; team-coloured text of 26 px and under is lifted towards white just far
+  enough to give pure red's light (at brightness 40 that touches #2563eb and #6366f1). Big digits
+  and borders keep the exact colour. The console and its mirror always show the chosen colours,
+  and a line under the team cards says when the two will look alike (also to red-green
+  colour-blind eyes) or one is too dark for the LEDs, with a one-tap preset that fixes it.
 - **VS pre-match screen** — team names + "VS", scores blanked. (Basic; the good version is the
   logo screen below.)
 - **Settings page** (persisted on the Pi, survives restart): blink on/off + length, countdown
@@ -127,8 +135,11 @@ that renders). So every remaining item needs a **shell on the board** to drop a 
 | **Split** score-left / clock-right countdown | same custom layout (section `x`/`y` are NOT settable live — fixed in the layout XML) |
 
 **Built and ready to install:** the idle image is generated (crest + KSC/WIEDIKON, 192×64) and
-the source logos are in the repo. All six stock layout XMLs are backed up in `layouts/` — the
-ground truth for geometry and the restore path.
+the source logos are in the repo. The vendor's own layout XMLs are **not** in this repo (removed
+2026-10-22): the board keeps running them from its own disk, and its restore path is the board-side
+backup `/home/pi/ledbox-config-backup/layout.tar.gz` (firmware/RECOVERY.md). `layouts/` holds only
+the layouts we author (`*_kscw_*`, beach, basketball, `20_openvolley_timeout`); openscore's
+volleyball screens under `firmware/openscore/layout/` are our own, written to the same names.
 
 ### The unblock recipe (once we have board SSH)
 
@@ -143,7 +154,7 @@ sudo mount -o remount,rw /path # make the layout/media dir writable
 # then: scp the image into the media dir, and/or drop a custom layout XML next to the stock ones
 ```
 
-Custom layouts are plain XML (see `layouts/*.xml`); sections carry `x y fontsize color
+Custom layouts are plain XML (see `layouts/*_kscw_*.xml`); sections carry `x y fontsize color
 bordercolor align animation src`. `animation`/`color`/`fontsize`/`bordercolor`/`src` are also
 settable **live** over `SetSections`; `x`/`y` are only honoured from the layout file.
 

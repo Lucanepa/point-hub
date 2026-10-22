@@ -1,1 +1,41 @@
-<?xml version='1.0'?><layout name="volleyball_matchscore_02" modifier=""><section name="team1" type="text" x="0" y="-4" visible="true" private="false" enable="true" fontsize="18" color="0, 0, 255" align="left" animation="" animation_params="">TEAM A</section><section name="bg_score1" type="rectangle" x="0" y="17" visible="true" private="true" enable="true" color="0, 0, 0" bordercolor="0, 0, 255" width="64" height="46" animation="" animation_params="">section2</section><section name="score1" type="text" x="32" y="2" visible="true" private="false" enable="true" fontsize="55" color="0, 0, 255" align="center" animation="" animation_params="">0</section><section name="set1" type="text" x="91" y="-5" visible="true" private="false" enable="true" fontsize="26" color="0, 0, 255" align="right" animation="" animation_params="">0</section><section name="vs" type="text" x="97" y="-1" visible="true" private="false" enable="true" fontsize="18" color="255, 255, 255" align="center" animation="" animation_params="">-</section><section name="set2" type="text" x="102" y="-5" visible="true" private="false" enable="true" fontsize="26" color="255, 69, 0" align="left" animation="" animation_params="">0</section><section name="timeout1" type="text" x="78" y="23" visible="true" private="false" enable="true" fontsize="18" color="255, 255, 255" align="center" animation="" animation_params="">0</section><section name="lbl_to" type="text" x="96" y="26" visible="true" private="true" enable="true" fontsize="14" color="255, 255, 255" align="center" animation="" animation_params="">T</section><section name="timeout2" type="text" x="115" y="23" visible="true" private="false" enable="true" fontsize="18" color="255, 255, 255" align="center" animation="" animation_params="">0</section><section name="sub1" type="text" x="78" y="39" visible="true" private="false" enable="true" fontsize="18" color="255, 255, 255" align="center" animation="" animation_params="">0</section><section name="lbl_sub" type="text" x="96" y="42" visible="true" private="true" enable="true" fontsize="14" color="255, 255, 255" align="center" animation="" animation_params="">S</section><section name="sub2" type="text" x="115" y="39" visible="true" private="false" enable="true" fontsize="18" color="255, 255, 255" align="center" animation="" animation_params="">0</section><section name="serve1" type="rectangle" x="70" y="60" visible="true" private="false" enable="true" color="255, 255, 255" bordercolor="0, 0, 0" width="16" height="5" animation="" animation_params="">section13</section><section name="serve2" type="rectangle" x="107" y="60" visible="true" private="false" enable="true" color="0,0,0" bordercolor="0, 0, 0" width="16" height="5" animation="" animation_params="">section14</section><section name="team2" type="text" x="192" y="-4" visible="true" private="false" enable="true" fontsize="18" color="255, 69, 0" align="right" animation="" animation_params="">TEAM B</section><section name="bg_score2" type="rectangle" x="127" y="17" visible="true" private="true" enable="true" color="0, 0, 0" bordercolor="255, 69, 0" width="64" height="46" animation="" animation_params="">section16</section><section name="score2" type="text" x="160" y="2" visible="true" private="false" enable="true" fontsize="55" color="255, 69, 0" align="center" animation="" animation_params="">0</section><section name="mode" type="text" x="0" y="0" visible="false" private="false" enable="true" fontsize="10" color="255, 255, 255" align="left" animation="" animation_params="">section18</section></layout>
+<?xml version='1.0'?>
+<layout name="volleyball_matchscore_02" modifier="">
+  <!-- Indoor volleyball scoreboard for openscore on the 192x64 panel. Our own layout: the NAME
+       and the section names are the ones the vendor app and the bridge (src/volleyballMapper.js
+       toSections / toIdleSections, src/simpleMapper.js) write, so it is a drop-in; the geometry
+       is drawn for openscore's text (Bold, no anti-aliasing at 26 px and under).
+
+         rows  0-14   team1 ................................................ team2
+         rows 16-63   [ score1 ]   set1 - set2            [ score2 ]
+                      [  box   ]   timeout1  T  timeout2  [  box   ]
+                      [        ]   sub1      S  sub2      [        ]
+                      [        ]   serve1       serve2    [        ]
+
+       Text is anchored by its middle (valign="middle"), so a name the bridge sizes from 9 to 28 px
+       stays centred in its row instead of hanging from the top. Names and scores carry a width:
+       openscore shrinks anything wider than its box, measured in the face it draws, so the Bold
+       never runs into the set score or out of the box the way an Arial-sized string could.
+       The real C0270 does not read this file; it runs the vendor's own layout from its disk. -->
+  <section name="team1" type="text" x="1" y="7" width="86" visible="true" private="false" enable="true" fontsize="18" color="37, 99, 235" align="left" valign="middle"></section>
+  <section name="team2" type="text" x="191" y="7" width="86" visible="true" private="false" enable="true" fontsize="18" color="239, 68, 68" align="right" valign="middle"></section>
+  <!-- Score boxes: black fill, border in the team colour (the bridge writes bordercolor). -->
+  <section name="bg_score1" type="rectangle" x="0" y="16" width="61" height="47" visible="true" private="true" enable="true" color="0, 0, 0" bordercolor="37, 99, 235"></section>
+  <section name="bg_score2" type="rectangle" x="130" y="16" width="61" height="47" visible="true" private="true" enable="true" color="0, 0, 0" bordercolor="239, 68, 68"></section>
+  <section name="score1" type="text" x="31" y="39" width="58" visible="true" private="false" enable="true" fontsize="50" color="37, 99, 235" align="center" valign="middle">0</section>
+  <section name="score2" type="text" x="161" y="39" width="58" visible="true" private="false" enable="true" fontsize="50" color="239, 68, 68" align="center" valign="middle">0</section>
+  <!-- Centre column (x 62-129): set score, then the timeout and substitution counters with their
+       captions, then the serve bars. `vs` is the dash between the set counts ("VS" pre-match). -->
+  <section name="set1" type="text" x="89" y="24" visible="true" private="false" enable="true" fontsize="20" color="37, 99, 235" align="right" valign="middle">0</section>
+  <section name="vs" type="text" x="96" y="24" visible="true" private="false" enable="true" fontsize="16" color="255, 255, 255" align="center" valign="middle">-</section>
+  <section name="set2" type="text" x="103" y="24" visible="true" private="false" enable="true" fontsize="20" color="239, 68, 68" align="left" valign="middle">0</section>
+  <section name="timeout1" type="text" x="76" y="39" visible="true" private="false" enable="true" fontsize="15" color="200, 200, 200" align="center" valign="middle">0</section>
+  <section name="lbl_to" type="text" x="96" y="39" visible="true" private="true" enable="true" fontsize="12" color="150, 150, 150" align="center" valign="middle">T</section>
+  <section name="timeout2" type="text" x="116" y="39" visible="true" private="false" enable="true" fontsize="15" color="200, 200, 200" align="center" valign="middle">0</section>
+  <section name="sub1" type="text" x="76" y="52" visible="true" private="false" enable="true" fontsize="15" color="200, 200, 200" align="center" valign="middle">0</section>
+  <section name="lbl_sub" type="text" x="96" y="52" visible="true" private="true" enable="true" fontsize="12" color="150, 150, 150" align="center" valign="middle">S</section>
+  <section name="sub2" type="text" x="116" y="52" visible="true" private="false" enable="true" fontsize="15" color="200, 200, 200" align="center" valign="middle">0</section>
+  <!-- Serve bars: lit in the serving team's colour, 30,30,30 when off. No border, so the whole
+       bar is the colour. -->
+  <section name="serve1" type="rectangle" x="66" y="60" width="20" height="3" visible="true" private="false" enable="true" color="30, 30, 30"></section>
+  <section name="serve2" type="rectangle" x="106" y="60" width="20" height="3" visible="true" private="false" enable="true" color="30, 30, 30"></section>
+</layout>

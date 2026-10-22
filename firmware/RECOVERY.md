@@ -69,8 +69,10 @@ libraries. They are installed to `/home/pi/ledbox/lib` and reached via
 
 Note the board is **armhf** userland on an arm64 kernel — use armhf packages.
 
-**3. Layouts** — restored from `../layouts/` (`02/03/04_volleyball_*`, `20_openvolley_timeout`).
-`volleyball-matchscore-02-specular.xml` was deliberately skipped: it declares the *same*
+**3. Layouts** — restored at the time from the then backups of the vendor's own layouts
+(`02/03/04_volleyball_*`) plus our `20_openvolley_timeout`. The vendor files have since left this
+public repo (2026-10-22); restore them from the board-side `layout.tar.gz` listed below.
+The specular variant was deliberately skipped: it declares the *same*
 layout name as `02_…`, which would make the loader pick whichever it scanned first.
 
 **4. Boot** — `bin/startledbox` now runs `python3 -u ledbox.py` with `LD_LIBRARY_PATH`

@@ -1152,7 +1152,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         applyBrightness(updated.brightness)
       }
       // The counter-colour thresholds live on the client; push the new totals so the board
-      // recolours immediately.
+      // recolours immediately. Brightness too: the client floors dark team colours against it.
       if (ledbox && typeof ledbox.setLimits === 'function') {
         ledbox.setLimits({
           totalTimeouts: updated.totalTimeouts,
@@ -1164,6 +1164,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           clubName: updated.clubName,
           idleQr: updated.idleQr,
           intervalHistory: updated.intervalHistory,
+          brightness: updated.brightness,
         })
       }
       return sendJson(res, 200, { ...updated, scorerPin: '', ...pinSettingsView(req) })
