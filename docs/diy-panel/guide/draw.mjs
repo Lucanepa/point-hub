@@ -245,7 +245,8 @@ export function step5() {
   const P = proj(FRONT, 60, 286, 0.42); let b = '';
   b += box(P, 0, 6, 374, 1020, 208, 6);
   b += poly(fSide(P, 6, 6, 208, 368, 1020), 'o p2') + poly(fSide(P, 30, 30, 160, 320, 1020), 'o dark') + poly(fTop(P, 1014, 6, 6, 208, 374), 'o p1');
-  b += poly(fSide(P, 0, 0, 6, 380, 1020), 'o p2') + poly(fTop(P, 0, 0, 1020, 6, 380), 'o p1') + poly(fFront(P, 0, 0, 1020, 380, 0), 'o p0') + poly(fFront(P, 30, 30, 960, 320, 0), 'o dark');
+  b += poly(fSide(P, 0, 0, 6, 380, 1020), 'o p2') + poly(fTop(P, 0, 0, 1020, 6, 380), 'o p1') + poly(fFront(P, 0, 0, 1020, 380, 0), 'o gl') + poly(fFront(P, 30, 30, 960, 320, 0), 'o dark') + ln(P(60, 0, 360), P(200, 0, 360), 'glare') + ln(P(60, 0, 344), P(140, 0, 344), 'glare');
+  const gl = P(510, 0, -40), mt = P(1080, 110, 200); b += txt(gl[0], gl[1] + 12, 'front face: gloss black', 'ts') + txt(mt[0] + 8, mt[1], 'everything else: matte', 'ts', 'start');
   // spray can
   const x = 560, y = 120;
   b += rect(x, y, 38, 86, 'o p0', 7) + rect(x + 4, y - 14, 30, 16, 'o p1', 4) + rect(x + 12, y - 22, 12, 9, 'o p2', 2) + rect(x + 8, y + 26, 22, 34, 'o dark', 2);
@@ -487,8 +488,8 @@ export function step15() {
   })());
   b += badge(536, 40, 'V') + count(550, 47, '×2') + txt(536, 66, 'M4 × 16 T20 ×8', 'tm', 'start');
   b += count(330, 300, '×6') + txt(358, 299, 'T20 3.5 × 16', 'ts', 'start');
-  b += txt(64, 362, 'blocks: 4 corners + 2 mid', 'ts', 'start') + txt(300, 362, 'rubber guards on the back corners', 'ts', 'start');
-  return svg(640, 372, b, 'Put the back panel on and drive in six T20 screws; fit handles, corners and rubber guards');
+  b += txt(64, 362, 'blocks: 4 corners + 2 mid', 'ts', 'start') + txt(300, 362, 'rubber caps on the four front corners', 'ts', 'start');
+  return svg(640, 372, b, 'Put the back panel on and drive in six T20 screws; fit the handles and the front corner caps');
 }
 
 export function step17() {
@@ -596,7 +597,7 @@ export const icons = {
   T: I(rect(30, 22, 18, 34, 'o p2', 2) + rect(66, 18, 24, 40, 'o p2', 2) + Array.from({ length: 5 }, (_, i) => ln([30, 28 + i * 6], [48, 30 + i * 6], 'o thin') + ln([66, 25 + i * 7], [90, 27 + i * 7], 'o thin')).join('')),
   U: I(path('M22 50 Q34 30 46 50 Z', 'o p2') + path('M52 50 Q64 30 76 50 Z', 'o p2') + path('M82 50 Q94 30 106 50 Z', 'o p2')),
   V: I(path('M24 54 Q60 6 96 54', 'o handle') + rect(16, 52, 18, 6, 'o al') + rect(86, 52, 18, 6, 'o al')),
-  W: I(path('M40 60 L40 28 L72 28', 'o p0') + path('M40 28 L52 16 L84 16 L72 28 Z', 'o p1') + path('M72 28 L84 16 L84 48 L72 60 Z', 'o p2') + rect(40, 28, 32, 32, 'o p0')),
+  W: I(path('M36 62 L36 30 Q36 18 48 18 L84 18 L84 30 L52 30 Q48 30 48 34 L48 62 Z', 'o dark') + path('M40 58 L40 31 Q40 22 49 22', 'glare')),
   X: I(torx(42, 40, 16) + torx(84, 40, 12)),
   guard: I(path('M36 58 L36 26 L84 26', 'o nf') + path('M30 62 L30 20 L90 20 L90 30 L42 30 L42 62 Z', 'o dark')),
   Y: I(rect(28, 22, 64, 40, 'o p0')),

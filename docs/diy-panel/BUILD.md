@@ -38,7 +38,7 @@ which is withdrawn; it is in the git history if you need it.
 | Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | none fitted, wiring provisioned |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **€525** |
+| Parts | about **€535** |
 | Build time | 12–15 h plus a day for paint to dry |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
@@ -70,7 +70,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | A–D, Y | Plywood | 6 mm poplar, one 1250 × 1250 sheet, store-cut (cut list §8) | 1 | 30 |
 | E | Battens | 15 × 15, 2 × 1008 + corner blocks | 1 set | 5 |
 | F | Steel bars | 20 × 3 × 368, galvanised — must be steel, the module magnets hold on them | 3 | 6 |
-| G | Polycarbonate | 3 mm, light grey; 990 × 350 + 2 × 172 × 332 | 3 | 30 |
+| G | Polycarbonate | 3 mm, **smoked grey** (about 50 % light transmission); 990 × 350 + 2 × 172 × 332 | 3 | 40 |
 | H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch | 10 | 120 |
 | I | Raspberry Pi 4 | **1 GB** — enough for the stack; the 2 GB rose to $67.50 on 1 Oct 2026 | 1 | 40 |
 | J | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs | 1 | 14 |
@@ -84,13 +84,13 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | S | Stand cup | 35 mm, with M4 screws | 1 | 8 |
 | T | Threaded inserts | ¼″-20 and ⅜″-16 | 2 | 4 |
 | U | Rubber feet | | 4 | 3 |
-| V | Handles | | 2 | 8 |
-| W | Metal corners | 30 mm, front corners only | 4 | 5 |
+| V | Handles | black bow handles, 128 mm | 2 | 8 |
+| W | Corner caps | black rubber, 20 mm, front corners only | 4 | 5 |
 | Z | Blanking plug | Ø30, for the horn hole | 1 | 2 |
 
 | Small parts and wire | Spec | ~EUR |
 |---|---|---|
-| Screws and fittings | 66 × wood screw 3.5 × 16 T20 (6 hold the back panel), 12 × M4 × 16 T20 + nuts, 4 × M2.5 standoffs, 8 turn buttons, 4 rubber corner guards | 9 |
+| Screws and fittings | 66 × wood screw 3.5 × 16 T20 (6 hold the back panel), 12 × M4 × 16 T20 + nuts, 4 × M2.5 standoffs, 8 turn buttons | 8 |
 | Straps | 2 × Velcro strap with buckle, 50 mm × 1 m | 8 |
 | Tablet hub | small USB-C hub with **Ethernet (RTL8153)** and a **USB-PD pass-through charging input**, + 15 cm patch cable | 25 |
 | Tablet charging module | USB-C PD source module, 12–24 V in, PD out limited to about 18 W | 14 |
@@ -98,12 +98,12 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Aluminium plate | 200 × 150 × 2, under the converter and the fuse box | 6 |
 | Protection | 5 A inline fuse + holder, 3 A fuse + holder, TVS diode SMBJ22A, 10 kΩ resistor, snap-on ferrites | 6 |
 | Wire | red + black: 2.5 mm² 1 m, 1 mm² 2 m, 1.5 mm² for extensions; ferrules; Wago 221 | 8 |
-| Paint, glue | matte black, two coats; wood glue | 8 |
+| Paint, glue | matte black for the box, gloss black for the front face, two coats each; wood filler, 120-grit sandpaper; wood glue | 16 |
 | Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
-| **Total** | | **≈ 525** |
+| **Total** | | **≈ 535** |
 
 The total assumes about €12 per module. Modules sell for €10–28; at €15–25 each the board costs
-about **€550–650**.
+about **€565–665**.
 
 **Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
 bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
@@ -439,8 +439,11 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
 
 ### Design
 
-- **Front:** 3 mm light-grey polycarbonate (G) drops into the front frame from inside and sits
-  **tight on the LED mask** (within 2–3 mm, so there is no halo or parallax from the side). The
+- **Front:** 3 mm **smoked grey** polycarbonate (G, about 50 % light transmission) drops into the front
+  frame from inside and sits **tight on the LED mask** (within 2–3 mm, so there is no halo or parallax
+  from the side). The smoke hides the module grid and magnets, and roughly doubles the contrast in a
+  bright hall, because room light passes the tint twice and the LEDs only once; run the brightness
+  about a fifth higher than behind clear. The
   modules lie on it, recessed behind the 6 mm frame. Same for the two small end sheets. Keep the
   outer protective film on until the very end.
 - **Modules on magnets:** three **steel bars** (F) are screwed across the two long battens; the
@@ -454,8 +457,9 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   Everything inside is in reach once it is off. If it gets opened often and a hole wears, move the
   screw a few millimetres along the block. The back panel carries the **fuse map, four spare fuses
   and a spare SD card** on its inside.
-- **Corners:** 30 mm **metal corners on the front** only — at the back they would block the back panel,
-  so the back corners get **rubber guards**.
+- **Corners:** every outside edge is rounded with sandpaper (about 3 mm). The four front corners get
+  **black rubber caps** against knocks in transport; the back corners stay bare, so the back panel
+  lifts straight off.
 - **Handles** (×2) on top. On a table, a **Velcro strap through each handle and around the table's
   back edge** keeps a ball hit from pushing the box off.
 - **Bottom:** a **35 mm speaker-stand cup** (4 × M4 × 16) and **¼″-20 and ⅜″-16 threaded inserts**
@@ -465,7 +469,11 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   a stand is the bigger win, though: it also clears the heads of people standing in front of it.
 - **Torx throughout** (plain, not security Torx): T20 for the wood screws and M4 machine screws,
   T10 for the small parts. Pre-drill Ø2.5 near every edge.
-- **Matte black** inside and out, two coats, so nothing reflects behind the LEDs.
+- **Matte black** inside and out, two coats, so nothing reflects behind the LEDs — except the **front
+  face, gloss black**: behind the smoked sheet, the screen and its 30 mm border then read as one black
+  surface when the board is off. Fill the plywood grain on the front face first, or it shows through.
+- **Wordmark** (optional): a small light-grey "POINT HUB" in vinyl or stencil on the bottom-right of
+  the front border.
 - **Electronics** lie on the bottom panel behind the modules: converter and fuse box on the
   aluminium plate; Pi and bonnet on M2.5 standoffs; the PD board by the POWER socket, the hub and the
   charging module by the DATA socket; RTC and temperature sensor; the horn switch by the plugged horn
@@ -492,7 +500,8 @@ Seventeen steps in four stages; the drawings are in the
    top and bottom, flush), and screw the panel on last (step 15).
 4. **Fit the bottom** — box upside down; glue in the backing plate, then the stand cup, the two
    threaded inserts and the four feet (and the fold-out legs, if fitted).
-5. **Paint** — two coats of matte black, inside too.
+5. **Paint** — round every outside edge (120 grit), then two coats of matte black, inside too; the
+   front face gloss black.
 
 **B — Panels** (the box lies face-down on a blanket)
 
@@ -524,7 +533,7 @@ Seventeen steps in four stages; the drawings are in the
 **D — Finish**
 
 15. **Close up** — put the back panel on and drive in its six T20 screws. Handles
-    on top, metal corners at the front, rubber guards at the back, the plug in the horn hole.
+    on top, a black rubber cap on each front corner, the plug in the horn hole.
 16. **Set it up** — on the table with a strap through each handle around the table's back edge, on a
     speaker stand, or on a tripod or light stand (sandbag on its feet). Charger into POWER, the
     tablet cable into DATA.

@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const CREST = '__CREST__';
-const W = 1.02, H = 0.38, D = 0.22, T = 0.006;
+const W = 1.02, H = 0.38, D = 0.22;
 
 const host = document.getElementById('stage3d');
 const poster = document.getElementById('poster');
@@ -94,117 +94,119 @@ function drawTest(cols, rows) {
 }
 
 async function main() {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   host.appendChild(renderer.domElement);
 
-  try { await Promise.all([document.fonts.load(F(44)), document.fonts.load(F(12))]); } catch (e) { /* fallback font */ }
+  try { await Promise.all([document.fonts.load(F(44)), document.fonts.load(F(12)), document.fonts.load('600 30px "Instrument Sans"')]); } catch (e) { /* fallback font */ }
 
+  // The stage's gradient is CSS (it follows the page theme); the canvas stays transparent.
   const scene = new THREE.Scene();
-  const stage = getComputedStyle(document.documentElement).getPropertyValue('--stage').trim() || '#0e1013';
-  scene.background = new THREE.Color(stage);
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50);
-  camera.position.set(0.85, 0.5, 1.3);
+  const camera = new THREE.PerspectiveCamera(24, 1, 0.01, 50);
+  camera.position.set(1.0, 0.55, 1.55);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 0.19, 0);
-  controls.enableDamping = true; controls.minDistance = 0.55; controls.maxDistance = 4.2;
+  controls.target.set(0, 0.17, 0);
+  controls.enableDamping = true; controls.minDistance = 0.7; controls.maxDistance = 5;
   controls.maxPolarAngle = Math.PI * 0.64;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  controls.autoRotate = !reduce; controls.autoRotateSpeed = 0.6;
+  controls.autoRotate = !reduce; controls.autoRotateSpeed = 0.45;
   let goal = null;
   controls.addEventListener('start', () => { controls.autoRotate = false; goal = null; });
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.7);
-  key.position.set(1.3, 2.4, 1.7); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
-  Object.assign(key.shadow.camera, { left: -1.3, right: 1.3, top: 1.3, bottom: -1.7, near: 0.5, far: 7 });
+  const key = new THREE.DirectionalLight(0xffffff, 1.6);
+  key.position.set(1.2, 2.6, 1.9); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+  Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 1.4, bottom: -1.8, near: 0.5, far: 7 });
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
   scene.add(key);
-  scene.add(new THREE.HemisphereLight(0xc8d6ff, 0x161616, 0.35));
+  const rim = new THREE.DirectionalLight(0xdfe8ff, 1.1); rim.position.set(-2.2, 1.4, -2.0); scene.add(rim);
+  scene.add(new THREE.HemisphereLight(0xdfe6f2, 0x1a1a1a, 0.28));
 
-  const mBody = new THREE.MeshStandardMaterial({ color: 0x1c1d20, roughness: 0.8, metalness: 0, envMapIntensity: 0.55 });
-  const mMetal = new THREE.MeshStandardMaterial({ color: 0xc6cad0, roughness: 0.3, metalness: 1 });
-  const mDark = new THREE.MeshStandardMaterial({ color: 0x060607, roughness: 0.6 });
-  const mRubber = new THREE.MeshStandardMaterial({ color: 0x0d0d0e, roughness: 0.92 });
-  const mPC = new THREE.MeshPhysicalMaterial({ color: 0x0b0b0b, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.2, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
+  // Finish: matte black body, gloss black front and ends, smoked polycarbonate, black hardware.
+  const mBody = new THREE.MeshStandardMaterial({ color: 0x16171a, roughness: 0.74, metalness: 0, envMapIntensity: 0.55 });
+  const mGloss = new THREE.MeshPhysicalMaterial({ color: 0x07080a, roughness: 0.16, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.25 });
+  const mSmoke = new THREE.MeshPhysicalMaterial({ color: 0x0b0c0e, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.26, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.5, depthWrite: false });
+  const mHw = new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.42, metalness: 0.45 });
+  const mDark = new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.6 });
+  const mRubber = new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.93 });
 
   const board = new THREE.Group(); scene.add(board);
   const add = (geo, mat, x, y, z, parent = board) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
 
-  function frameGeo(w, h, hx0, hy0, hx1, hy1, depth) {
-    const s = new THREE.Shape();
-    s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0); s.lineTo(w / 2, h); s.lineTo(-w / 2, h); s.lineTo(-w / 2, 0);
-    const hole = new THREE.Path();
-    hole.moveTo(hx0, hy0); hole.lineTo(hx0, hy1); hole.lineTo(hx1, hy1); hole.lineTo(hx1, hy0); hole.lineTo(hx0, hy0);
+  // A face plate: a rounded rectangle with a window, a hair proud of the body, edges eased.
+  function plateGeo(w, h, y0, hx0, hy0, hx1, hy1, r) {
+    const s = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y1 = y0 + h;
+    s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r); s.lineTo(x1, y1 - r);
+    s.quadraticCurveTo(x1, y1, x1 - r, y1); s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r);
+    s.quadraticCurveTo(x0, y0, x0 + r, y0);
+    const hole = new THREE.Path(); hole.moveTo(hx0, hy0); hole.lineTo(hx0, hy1); hole.lineTo(hx1, hy1); hole.lineTo(hx1, hy0); hole.lineTo(hx0, hy0);
     s.holes.push(hole);
-    return new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false });
+    return new THREE.ExtrudeGeometry(s, { depth: 0.0012, bevelEnabled: true, bevelThickness: 0.0007, bevelSize: 0.0007, bevelSegments: 2, curveSegments: 6 });
   }
-  // case: front frame, back, top, bottom, two ends with windows
-  add(frameGeo(W, H, -0.48, 0.03, 0.48, 0.35, T), mBody, 0, 0, D / 2 - T);
-  add(new THREE.BoxGeometry(W, H, T), mBody, 0, H / 2, -D / 2 + T / 2);
-  add(new THREE.BoxGeometry(W, T, D - 2 * T), mBody, 0, H - T / 2, 0);
-  add(new THREE.BoxGeometry(W, T, D - 2 * T), mBody, 0, T / 2, 0);
-  const endGeo = frameGeo(D - 2 * T, H - 2 * T, -0.08, 0.03 - T, 0.08, 0.35 - T, T);
-  const eL = add(endGeo, mBody, -W / 2, T, 0); eL.rotation.y = Math.PI / 2;
-  const eR = add(endGeo, mBody, W / 2 - T, T, 0); eR.rotation.y = Math.PI / 2;
-  // dark interior so the windows never show the void
-  add(new THREE.BoxGeometry(W - 2 * T - 0.01, H - 2 * T - 0.01, D - 2 * T - 0.01), mDark, 0, H / 2, 0);
+  const RC = 0.006;                      // the sanded edge radius
+  add(new RoundedBoxGeometry(W, H, D, 5, RC), mBody, 0, H / 2, 0);
+  const front = plateGeo(W - 2 * RC + 0.002, H - 2 * RC + 0.002, RC - 0.001, -0.48, 0.03, 0.48, 0.35, 0.002);
+  add(front, mGloss, 0, 0, D / 2 - 0.0004);
+  const endGeo = plateGeo(D - 2 * RC + 0.002, H - 2 * RC + 0.002, RC - 0.001, -0.08, 0.03, 0.08, 0.35, 0.002);
+  const eL = add(endGeo, mGloss, -W / 2 + 0.0004, 0, 0); eL.rotation.y = -Math.PI / 2;
+  const eR = add(endGeo, mGloss, W / 2 - 0.0004, 0, 0); eR.rotation.y = Math.PI / 2;
 
-  // LED faces
-  const ledMat = () => new THREE.MeshBasicMaterial({ toneMapped: false });
-  const front = add(new THREE.PlaneGeometry(0.96, 0.32), ledMat(), 0, 0.19, D / 2 - T - 0.0035);
-  front.castShadow = false;
-  add(new THREE.PlaneGeometry(0.99, 0.35), mPC, 0, 0.19, D / 2 - T - 0.0015).castShadow = false;
-  const benchL = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), -W / 2 + T + 0.0035, 0.19, 0); benchL.rotation.y = -Math.PI / 2; benchL.castShadow = false;
-  const benchR = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), W / 2 - T - 0.0035, 0.19, 0); benchR.rotation.y = Math.PI / 2; benchR.castShadow = false;
-  const pcL = add(new THREE.PlaneGeometry(0.17, 0.33), mPC, -W / 2 + T + 0.0015, 0.19, 0); pcL.rotation.y = -Math.PI / 2; pcL.castShadow = false;
-  const pcR = add(new THREE.PlaneGeometry(0.17, 0.33), mPC, W / 2 - T - 0.0015, 0.19, 0); pcR.rotation.y = Math.PI / 2; pcR.castShadow = false;
+  // LED faces, set just behind the smoked sheet
+  const ledMat = () => { const m = new THREE.MeshBasicMaterial({ toneMapped: false }); m.color.setScalar(0.9); return m; };
+  const screen = add(new THREE.PlaneGeometry(0.96, 0.32), ledMat(), 0, 0.19, D / 2 + 0.0002); screen.castShadow = false;
+  add(new THREE.PlaneGeometry(0.96, 0.32), mSmoke, 0, 0.19, D / 2 + 0.0007).castShadow = false;
+  const benchL = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), -W / 2 - 0.0002, 0.19, 0); benchL.rotation.y = -Math.PI / 2; benchL.castShadow = false;
+  const benchR = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), W / 2 + 0.0002, 0.19, 0); benchR.rotation.y = Math.PI / 2; benchR.castShadow = false;
+  const pcL = add(new THREE.PlaneGeometry(0.16, 0.32), mSmoke, -W / 2 - 0.0007, 0.19, 0); pcL.rotation.y = -Math.PI / 2; pcL.castShadow = false;
+  const pcR = add(new THREE.PlaneGeometry(0.16, 0.32), mSmoke, W / 2 + 0.0007, 0.19, 0); pcR.rotation.y = Math.PI / 2; pcR.castShadow = false;
 
-  // flight-case corners
-  const cg = new RoundedBoxGeometry(0.03, 0.03, 0.03, 2, 0.004);
-  for (const sx of [-1, 1]) for (const sy of [0, 1]) for (const sz of [-1, 1]) {
-    add(cg, sz > 0 ? mMetal : mRubber, sx * (W / 2 - 0.0135), sy ? H - 0.0135 : 0.0135, sz * (D / 2 - 0.0135));
-  }
-  // handles on top
+  // black rubber caps on the four front corners
+  const cap = new RoundedBoxGeometry(0.022, 0.022, 0.022, 3, 0.007);
+  for (const sx of [-1, 1]) for (const sy of [0, 1]) add(cap, mRubber, sx * (W / 2 - 0.0095), sy ? H - 0.0095 : 0.0095, D / 2 - 0.0095);
+  // black bow handles on top
   for (const hx of [-0.3, 0.3]) {
-    const h = add(new THREE.TorusGeometry(0.06, 0.0075, 12, 40, Math.PI), mRubber, hx, H + 0.004, 0); h.scale.y = 0.55;
-    for (const bx of [-0.06, 0.06]) add(new THREE.BoxGeometry(0.026, 0.007, 0.032), mMetal, hx + bx, H + 0.0035, 0);
+    const h = add(new THREE.TorusGeometry(0.064, 0.0065, 14, 48, Math.PI), mHw, hx, H + 0.003, 0); h.scale.y = 0.5;
+    for (const bx of [-0.064, 0.064]) add(new THREE.CylinderGeometry(0.009, 0.009, 0.006, 20), mHw, hx + bx, H + 0.003, 0);
   }
   // feet
-  for (const fx of [-0.45, 0.45]) for (const fz of [-0.08, 0.08]) add(new THREE.CylinderGeometry(0.012, 0.014, 0.008, 20), mRubber, fx, -0.004, fz);
+  for (const fx of [-0.45, 0.45]) for (const fz of [-0.08, 0.08]) add(new THREE.CylinderGeometry(0.012, 0.014, 0.008, 24), mRubber, fx, -0.004, fz);
 
-  // small print on the front border
-  function labelTex(text, w, h, color, font) {
+  function labelTex(text, w, h, color, font, track = 0) {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const x = c.getContext('2d'); x.clearRect(0, 0, w, h); x.fillStyle = color; x.font = font; x.textBaseline = 'middle';
-    const tw = x.measureText(text).width; x.fillText(text, (w - tw) / 2, h / 2);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    const widths = [...text].map(ch => x.measureText(ch).width);
+    const tw = widths.reduce((a, b) => a + b, 0) + track * (text.length - 1);
+    let px = (w - tw) / 2;
+    [...text].forEach((ch, i) => { x.fillText(ch, px, h / 2); px += widths[i] + track; });
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
   }
-  const print = add(new THREE.PlaneGeometry(0.28, 0.014), new THREE.MeshBasicMaterial({ map: labelTex('KSC WIEDIKON  ·  POINT HUB', 1024, 52, '#9aa1aa', '600 30px "Archivo", Arial, sans-serif'), transparent: true }), 0, 0.015, D / 2 + 0.0004);
-  print.castShadow = false;
+  // the wordmark on the front border
+  const mark = add(new THREE.PlaneGeometry(0.12, 0.012), new THREE.MeshBasicMaterial({ map: labelTex('POINT HUB', 1024, 104, '#7b8188', '600 64px "Instrument Sans", Arial, sans-serif', 26), transparent: true }), 0.405, 0.0155, D / 2 + 0.0024);
+  mark.castShadow = false;
 
   // back panel (screwed on, the way in): two USB-C ports, horn plug, vents, six T20 screws
   const back = -D / 2;
-  for (const p of [{ x: 0.39, c: 0xf2b705, t: 'POWER' }, { x: 0.45, c: 0x3b74ff, t: 'DATA' }]) {
+  for (const p of [{ x: 0.39, c: 0xe0a800, t: 'POWER' }, { x: 0.45, c: 0x3b74ff, t: 'DATA' }]) {
     const slot = add(new RoundedBoxGeometry(0.0135, 0.0062, 0.004, 2, 0.0028), mDark, p.x, 0.045, back - 0.0004); slot.castShadow = false;
-    const ring = add(new THREE.TorusGeometry(0.0105, 0.0017, 10, 36), new THREE.MeshStandardMaterial({ color: p.c, roughness: 0.4, emissive: p.c, emissiveIntensity: 0.25 }), p.x, 0.045, back - 0.0012);
+    const ring = add(new THREE.TorusGeometry(0.0105, 0.0014, 10, 36), new THREE.MeshStandardMaterial({ color: p.c, roughness: 0.4, emissive: p.c, emissiveIntensity: 0.18 }), p.x, 0.045, back - 0.001);
     ring.castShadow = false;
-    const lab = add(new THREE.PlaneGeometry(0.05, 0.012), new THREE.MeshBasicMaterial({ map: labelTex(p.t, 400, 96, '#d8dde3', '700 56px "Archivo", Arial, sans-serif'), transparent: true }), p.x, 0.07, back - 0.0005);
+    const lab = add(new THREE.PlaneGeometry(0.05, 0.01), new THREE.MeshBasicMaterial({ map: labelTex(p.t, 400, 80, '#9aa0a7', '600 44px "Instrument Sans", Arial, sans-serif', 8), transparent: true }), p.x, 0.068, back - 0.0005);
     lab.rotation.y = Math.PI; lab.castShadow = false;
   }
-  add(new THREE.CylinderGeometry(0.017, 0.017, 0.004, 28), mRubber, -0.38, 0.31, back - 0.002).rotation.x = Math.PI / 2;
-  for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.345, back - 0.0008).castShadow = false;
-  for (const x of [-0.496, 0, 0.496]) for (const y of [0.014, H - 0.014]) add(new THREE.CylinderGeometry(0.0045, 0.0045, 0.002, 20), mMetal, x, y, back - 0.001).rotation.x = Math.PI / 2;
+  add(new THREE.CylinderGeometry(0.017, 0.017, 0.004, 32), mRubber, -0.38, 0.31, back - 0.0015).rotation.x = Math.PI / 2;
+  for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.345, back - 0.0004).castShadow = false;
+  for (const x of [-0.496, 0, 0.496]) for (const y of [0.014, H - 0.014]) add(new THREE.CylinderGeometry(0.0042, 0.0042, 0.0015, 20), mHw, x, y, back - 0.0006).rotation.x = Math.PI / 2;
 
   // mounts
   const mounts = {};
-  const mStand = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.45, metalness: 0.7 });
-  const shadowMat = new THREE.ShadowMaterial({ opacity: 0.38 });
+  const mStand = new THREE.MeshStandardMaterial({ color: 0x26282c, roughness: 0.38, metalness: 0.75 });
+  const shadowMat = new THREE.ShadowMaterial({ opacity: 0.26 });
   function rod(a, b, r, mat, parent) {
     const v = new THREE.Vector3().subVectors(b, a), len = v.length();
     const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 16), mat);
@@ -213,11 +215,12 @@ async function main() {
     m.castShadow = true; parent.add(m); return m;
   }
   function floor(y, parent) { const f = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), shadowMat); f.rotation.x = -Math.PI / 2; f.position.y = y; f.receiveShadow = true; parent.add(f); }
+  { const g = new THREE.Group(); scene.add(g); mounts.studio = g; floor(-0.008, g); }
   {
     const g = new THREE.Group(); scene.add(g); mounts.table = g;
-    const top = add(new THREE.BoxGeometry(1.9, 0.035, 0.8), new THREE.MeshStandardMaterial({ color: 0x8f949b, roughness: 0.62 }), 0, -0.008 - 0.0175, 0.05, g);
+    const top = add(new THREE.BoxGeometry(1.5, 0.035, 0.7), new THREE.MeshStandardMaterial({ color: 0x6f7378, roughness: 0.7 }), 0, -0.008 - 0.0175, 0.05, g);
     top.castShadow = false;
-    for (const lx of [-0.88, 0.88]) for (const lz of [-0.3, 0.38]) add(new THREE.BoxGeometry(0.045, 0.74, 0.045), mStand, lx, -0.42, lz, g);
+    for (const lx of [-0.69, 0.69]) for (const lz of [-0.26, 0.34]) add(new THREE.BoxGeometry(0.045, 0.74, 0.045), mStand, lx, -0.42, lz, g);
     floor(-0.79, g);
   }
   {
@@ -253,7 +256,7 @@ async function main() {
   };
   async function setScreen(name) {
     const [f, l, r] = await screens[name]();
-    for (const [mesh, c] of [[front, f], [benchL, l], [benchR, r]]) {
+    for (const [mesh, c] of [[screen, f], [benchL, l], [benchR, r]]) {
       if (mesh.material.map) mesh.material.map.dispose();
       mesh.material.map = tex(c); mesh.material.needsUpdate = true;
     }
@@ -261,16 +264,16 @@ async function main() {
   function setMount(name) { for (const k in mounts) mounts[k].visible = k === name; }
 
   const views = {
-    front: [0, 0.22, 1.4], bench: [-1.2, 0.28, 0.5], back: [0.75, 0.42, -1.25], three: [0.85, 0.5, 1.3], low: [0.9, -0.25, 1.6],
+    front: [0, 0.2, 1.8], bench: [-1.5, 0.3, 0.62], back: [0.95, 0.5, -1.55], three: [1.0, 0.55, 1.55], low: [1.1, -0.28, 1.95],
   };
   function setView(name) { goal = new THREE.Vector3(...views[name]); controls.autoRotate = false; }
 
-  await setScreen('match'); setMount('table');
+  await setScreen('match'); setMount('studio');
 
   document.querySelectorAll('[data-screen]').forEach(b => b.addEventListener('click', () => { setScreen(b.dataset.screen); press(b); }));
   document.querySelectorAll('[data-mount]').forEach(b => b.addEventListener('click', () => {
     setMount(b.dataset.mount); press(b);
-    if (b.dataset.mount !== 'table') setView('low');
+    if (b.dataset.mount === 'speaker' || b.dataset.mount === 'tripod') setView('low');
   }));
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { setView(b.dataset.view); press(b); }));
   function press(b) { b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }
@@ -279,7 +282,7 @@ async function main() {
     const w = host.clientWidth, h = host.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false); camera.aspect = w / h;
-    camera.fov = w / h < 1.2 ? 40 : 30; camera.updateProjectionMatrix();
+    camera.fov = w / h < 1.2 ? 36 : 24; camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(host); resize();
 
