@@ -121,12 +121,17 @@ build() { # $1 = iptables or ip6tables
   [ "$v6" = 0 ] && a $B -A $CHAIN -i wlan0 -p udp --dport 67 -j ACCEPT   # DHCP server for clients
   [ "$v6" = 0 ] && a $B -A $CHAIN -i wlan0 -p icmp --icmp-type echo-request -j ACCEPT
 
-  # ── eth0: the Pi link. Management path and the fallback default route.
+  # ── eth0: the board's network port — the console tablet's cable (USB-C Ethernet adapter), a
+  #    laptop, or the old Pi link. Management path and the fallback default route. Tablet or laptop
+  #    ONLY: never a hall/school switch (setup-cable-dhcp.sh says why).
   a $B -A $CHAIN -i eth0 -p tcp --dport 22   -j ACCEPT
   a $B -A $CHAIN -i eth0 -p tcp --dport 8890 -j ACCEPT
+  # The tablet's address on the cable (setup-cable-dhcp.sh: dnsmasq serves 192.168.5.50-99 here,
+  # with no router and no DNS option). Mirrors the wlan0 line; harmless before that is applied.
+  [ "$v6" = 0 ] && a $B -A $CHAIN -i eth0 -p udp --dport 67 -j ACCEPT   # DHCP server for the cable
   # Parity with 8890 so the cable is not the one path where the https URL mysteriously hangs.
-  # Note the port being open is necessary but NOT sufficient over here: dnsmasq is deliberately
-  # bound to wlan0 (see harden-board.sh), so the board does not answer DNS on the cable and the
+  # Note the port being open is necessary but NOT sufficient over here: the board answers no DNS on
+  # the cable (:53 is not accepted on eth0, even once dnsmasq serves DHCP there), so the
   # certificate's name will not resolve. Reach it by name with a hosts entry on the laptop:
   #   192.168.5.1  ledbox-c0270.<tailnet>.ts.net
   # Using the bare IP instead gets a certificate warning, because the cert is for the name.
