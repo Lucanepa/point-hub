@@ -19,6 +19,8 @@
 #   ./setup-wlan1-client.sh --hall ["SSID"]  # open hall Wi-Fi (default Free_WLAN_KTZH) + its DNS fix
 #   ./setup-wlan1-client.sh --login ["SSID"] # hall Wi-Fi with a username + password (default SCHULEN_KTZH)
 #   ./setup-wlan1-client.sh --forget-login   # remove that one again
+#   ./setup-wlan1-client.sh --hotspot ["SSID"] # a volunteer's phone hotspot (default KSCW-Board), PSK asked
+#   ./setup-wlan1-client.sh --forget-hotspot # remove that one again
 set -uo pipefail
 
 CON=ledbox-uplink
@@ -559,6 +561,111 @@ forget_login() {
   fi
 }
 
+# Any volunteer's phone hotspot as the board's uplink, with no SSH and no board setup on the day
+# (research product-03). The profile is written once, ahead of time; on the day a volunteer renames
+# their phone's hotspot to KSCW-Board with the passphrase on the hall card, switches it on, and the
+# board has internet — live scoring, the match-log upload, NTP and the tailnet.
+#
+#   - Saved as its own NM connection 'phone-hotspot'. Priority 6: ABOVE Free_WLAN_KTZH (hall-uplink,
+#     5), because a hotspot somebody deliberately switched on should beat a hall network stuck
+#     behind its SMS login page; BELOW the school login (hall-login, 8) and the house (10). Metric 58.
+#   - NO band pin, unlike every other profile here. Many Android hotspots are 2.4 GHz only, and an
+#     iPhone's is 5 GHz unless "Maximize Compatibility" is on — either must work. On 2.4 GHz it
+#     shares the air with the board's AP, which is acceptable for a fallback.
+#   - WPA2 (wpa-psk). A phone set to WPA3-only will not be joined; WPA2 or WPA2/WPA3 is fine.
+#   - The passphrase is semi-public (it is on the hall card). Acceptable: the board is only a CLIENT
+#     here and everything it sends is HTTPS or WireGuard, so a fake 'KSCW-Board' could only deny
+#     service or see metadata. It is asked for (not echoed — use ssh -t) or read from $HOTFILE
+#     (/run/ledbox/hotspot, 0600, shredded on every exit), and only ever written into a 0600
+#     keyfile. Never into this repo.
+#   - NetworkManager does not drop a WORKING connection for a higher-priority one that appears later.
+#     A board already on Free_WLAN_KTZH takes the hotspot at its next (re)connect, not at once:
+#     `sudo nmcli connection up phone-hotspot` (or a power cycle) when it matters.
+#   - The console tablet must NOT be the phone giving the hotspot: it stays on the board's own AP.
+#   - Idempotent: a re-run with the same passphrase writes nothing; with a new one it replaces the
+#     keyfile (the old one is kept, 0600, under /var/backups/ledbox/). Undo: --forget-hotspot.
+HOT_CON=phone-hotspot
+HOT_SSID_DEFAULT=KSCW-Board
+HOT_PRIO=6
+HOT_METRIC=58
+HOT_KEYFILE=$NM_DIR/${HOT_CON}.nmconnection
+HOTFILE=${HOTFILE:-/run/ledbox/hotspot}
+hotspot() {
+  trap 'shred1 "$HOTFILE"' EXIT
+  local ssid="${1:-$HOT_SSID_DEFAULT}"
+  case "$ssid" in *[[:cntrl:]]*) echo "!! SSID contains a control character — refusing"; exit 1 ;; esac
+  local pass
+  if [ -s "$HOTFILE" ]; then
+    local owner mode
+    owner=$(stat -c %U "$HOTFILE" 2>/dev/null || echo '?'); mode=$(stat -c %a "$HOTFILE" 2>/dev/null || echo '?')
+    { [ "$owner" = "$(id -un)" ] || [ "$owner" = root ]; } || { echo "!! $HOTFILE is owned by '$owner' — refusing"; exit 1; }
+    case "$mode" in 600|400) ;; *) echo "!! $HOTFILE is mode $mode, must be 0600 — refusing"; exit 1 ;; esac
+    IFS= read -r pass < "$HOTFILE"
+    echo "  passphrase from $HOTFILE"
+  elif [ -t 0 ]; then
+    IFS= read -r -s -p "  passphrase for '$ssid' (as printed on the hall card): " pass; echo
+  else
+    echo "!! nothing staged at $HOTFILE and no terminal to ask on — use: ssh -t <board> ..."; exit 1
+  fi
+  pass=${pass%$'\r'}
+  if [ "${#pass}" -lt 8 ] || [ "${#pass}" -gt 63 ]; then echo "!! a WPA passphrase is 8-63 chars (got ${#pass})"; exit 1; fi
+  case "$pass" in *[[:cntrl:]]*) echo "!! passphrase contains a control character — refusing"; exit 1 ;; esac
+
+  local body
+  body="[connection]
+id=$HOT_CON
+type=wifi
+interface-name=wlan1
+autoconnect=true
+autoconnect-priority=$HOT_PRIO
+
+[wifi]
+mode=infrastructure
+ssid=$(kfesc "$ssid")
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=$(kfesc "$pass")
+
+[ipv4]
+method=auto
+route-metric=$HOT_METRIC
+
+[ipv6]
+method=auto
+addr-gen-mode=default
+route-metric=$HOT_METRIC"
+  pass=""
+  if sudo test -f "$HOT_KEYFILE" && [ "$(sudo cat "$HOT_KEYFILE")" = "$body" ]; then
+    echo "  '$HOT_CON' already saved with exactly these settings — nothing written"
+  else
+    if sudo test -f "$HOT_KEYFILE"; then
+      local bk; bk=/var/backups/ledbox/setup-wlan1-client-$(date +%Y%m%d-%H%M%S)
+      sudo install -d -m 0700 /var/backups/ledbox "$bk" && sudo cp -a "$HOT_KEYFILE" "$bk/" \
+        || { echo "!! could not back up the existing $HOT_KEYFILE — not replacing it"; exit 1; }
+      echo "  previous profile kept at $bk/"
+    fi
+    printf '%s\n' "$body" | sudo sh -c 'umask 077; exec cat > "$1"' sh "$HOT_KEYFILE" || { echo "!! could not write $HOT_KEYFILE"; exit 1; }
+    sudo chown root:root "$HOT_KEYFILE"; sudo chmod 600 "$HOT_KEYFILE"
+    sudo nmcli connection reload || { echo "!! nmcli reload failed"; exit 1; }
+    echo "  saved '$HOT_CON': SSID '$ssid', WPA2, any band, priority $HOT_PRIO, metric $HOT_METRIC (keyfile 0600)"
+  fi
+  body=""
+  shred1 "$HOTFILE"
+  nmcli -t -f NAME,AUTOCONNECT-PRIORITY connection show 2>/dev/null | grep -E "^(ledbox-uplink|hall-login|$HOT_CON|hall-uplink):" \
+    | sort -t: -k2 -nr | sed 's/^/  order: /'
+  echo "  not brought up now. When the phone's hotspot is on, it joins by itself — at once if wlan1 is idle,"
+  echo "  else at its next reconnect:  sudo nmcli connection up $HOT_CON"
+}
+
+forget_hotspot() {
+  if sudo nmcli connection delete "$HOT_CON" >/dev/null 2>&1; then
+    echo "  '$HOT_CON' deleted"
+  else
+    echo "  no '$HOT_CON' connection"
+  fi
+}
+
 verify() {
   say "wlan1 state"
   nmcli -f GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS,IP4.GATEWAY device show wlan1 2>/dev/null \
@@ -612,5 +719,7 @@ case "${1:---check}" in
   --hall)    hall "${2:-}" ;;
   --login)   login "${2:-}" ;;
   --forget-login) forget_login ;;
-  *) echo "usage: $0 [--check|--scan|--connect \"SSID\" [sae|wpa-psk] [a|bg|auto]|--verify|--hall [\"SSID\"]|--login [\"SSID\"]|--forget-login]"; exit 1 ;;
+  --hotspot) hotspot "${2:-}" ;;
+  --forget-hotspot) forget_hotspot ;;
+  *) echo "usage: $0 [--check|--scan|--connect \"SSID\" [sae|wpa-psk] [a|bg|auto]|--verify|--hall [\"SSID\"]|--login [\"SSID\"]|--forget-login|--hotspot [\"SSID\"]|--forget-hotspot]"; exit 1 ;;
 esac

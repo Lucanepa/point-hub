@@ -62,3 +62,11 @@ android/captures/
 # Gradle outputs of every module (app, shared, desktop) and Kotlin caches.
 android/*/build/
 android/.kotlin/
+
+# On-site kit outputs (docs/onsite-2026-10-23.md). A Node tarball staged for update-node.sh is a
+# 26 MB download, not source. A board traffic recording holds real team names and match data, and
+# its frames come off a live panel — copy what openscore needs into fixtures/ deliberately, after
+# looking at every frame; never commit a recording wholesale.
+provisioning/node-v*-linux-*.tar.*
+board-traffic-*/
+ledbox-record/
