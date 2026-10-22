@@ -10,7 +10,8 @@ we reconciled against; it is provenance for the protocol findings and deliberate
 The appliance runs **on the board itself** under systemd — see Key addresses below; the
 `openvolley` Pi is no longer in the path and must not run it.
 
-`firmware/openscore/` is the clean-room replacement renderer, already versioned
+`firmware/openscore/` is the independently written open replacement renderer (provenance:
+`firmware/openscore/PROVENANCE.md`), already versioned
 **`openscore-1.0.0`** (`build_config()` in `openscore.py`). It is **not deployed** — swapping it in is a separate,
 deliberate change, and this line is what should be updated on the day it happens.
 

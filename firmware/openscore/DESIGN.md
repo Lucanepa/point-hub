@@ -1,6 +1,6 @@
 # openscore — architecture & design
 
-A **clean-room, fully-open reimplementation** of the Tech4Sport LedBox board's firmware app.
+An **independent, fully-open reimplementation** of the Tech4Sport LedBox board's firmware app.
 It replaces the one closed layer left in the KSCW scoreboard stack (Tech4Sport's decompiled,
 proprietary Python renderer) with our own renderer that speaks the **same** TCP `:8889`
 protocol — so the existing open bridge keeps working **unchanged**.
@@ -16,13 +16,16 @@ control UI + bridge (open, Node)  ─8889/gzip-JSON─▶  openscore.py (open, P
                                                      192×64 HUB75 panel
 ```
 
-> **Clean-room provenance.** Every design decision below is derived **only** from open
-> sources: `PROTOCOL.md`, `DESIGN-appliance.md`, the bridge's own wire code
-> (`src/ledboxProtocol.js`, `src/ledboxClient.js`, `src/volleyballMapper.js`,
-> `src/mockLedbox.js`), the public layout XML (`layouts/*.xml`) and the open panel driver
-> (`firmware/flushbuffer/`). **No decompiled vendor Python was read, translated or copied.**
-> Where the vendor's exact behaviour is unknown (e.g. the `bar` section, the `fontsize`
-> ladder) the choice is documented as provisional and deferred to on-glass calibration.
+> **Provenance.** The design below works from `PROTOCOL.md`, `DESIGN-appliance.md`, the
+> bridge's own wire code (`src/ledboxProtocol.js`, `src/ledboxClient.js`,
+> `src/volleyballMapper.js`, `src/mockLedbox.js`), the layout XML (`layouts/*.xml`), the open
+> panel driver (`firmware/flushbuffer/`) and the real board's observed behaviour. It is an
+> independent re-implementation by a maintainer who **had** seen the decompiled vendor code
+> (from recovering the board, `../RECOVERY.md`) — not a two-team clean room — and **no vendor
+> code was copied, translated or ported**. Details, including where the layouts come from:
+> [`PROVENANCE.md`](PROVENANCE.md). Where the vendor's exact behaviour is unknown
+> (e.g. the `bar` section, text placement) the choice is documented as provisional and deferred
+> to on-glass calibration.
 
 ---
 
@@ -229,5 +232,5 @@ firmware/openscore/
 ├── www/              buffer.png output (flushBuffer2 polls this)
 ├── selftest.py       real-socket protocol proof (handshake + parse + error codes + render)
 ├── render_samples.py drives every screen → samples/*.png for eyeball validation (no panel)
-├── DESIGN.md · ROADMAP.md · README.md · PANEL-AND-DIY.md
+├── DESIGN.md · ROADMAP.md · README.md · PROVENANCE.md · PANEL-AND-DIY.md
 ```

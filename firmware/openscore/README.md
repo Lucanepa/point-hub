@@ -2,10 +2,11 @@
 
 Replaces the **one closed layer** left in the KSCW scoreboard stack. The board's stock firmware
 (`/home/pi/ledbox/ledbox.py` + friends) is Tech4Sport's proprietary app **decompiled and
-hand-ported to Python** — the only closed/legally-grey layer, and the reason the repo is private.
-`openscore.py` is a **clean-room, from-scratch** reimplementation (designed only from the open
-protocol docs, the bridge's wire code and the public layout XML — **no vendor code was read**)
-that speaks the same protocol and renders the same layouts, so the whole stack becomes open:
+hand-ported to Python**; that port is not in this repository.
+`openscore.py` is an **independent re-implementation**, written from the protocol docs, the
+bridge's wire code, the layout XML and the board's observed behaviour by a maintainer who had seen
+the decompiled vendor code — **no vendor code was copied** (see [`PROVENANCE.md`](PROVENANCE.md)).
+It speaks the same protocol and renders the same layouts, so the whole stack becomes open:
 
 ```
 control UI + bridge (open)  ->  openscore.py (open)  ->  flushBuffer2 (open)  ->  LED panel
@@ -112,5 +113,6 @@ playlist/practice plugins, native animations) are intentionally omitted and fail
 ## Files
 
 `openscore.py` (the firmware) · `selftest.py` · `render_samples.py` · `setting.ini` · `layout/` ·
-`media/` · `www/` (output) · `DESIGN.md` · `ROADMAP.md` · `PANEL-AND-DIY.md` (rebuild an
-equivalent panel from open parts).
+`media/` · `www/` (output) · `DESIGN.md` · `ROADMAP.md` · `PROVENANCE.md` (where the code and
+each layout come from) · `PANEL-AND-DIY.md` (the measured panel; building one from open parts is
+[`docs/diy-panel/BUILD.md`](../../docs/diy-panel/BUILD.md)).
