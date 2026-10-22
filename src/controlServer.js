@@ -27,6 +27,8 @@ import { zurichDate } from './schedule.js'
 import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 import { PortalProxy } from './portalProxy.js'
 import { toRow } from './livePush.js'
+import { toOverlay } from './overlay.js'
+import { EventEmitter } from 'node:events'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -61,6 +63,15 @@ const TAKES_PANEL = new Set(['/api/action', '/api/manual', '/api/link', '/api/co
 // How long the test screen stays up when the console does not say (it does not); and the bounds.
 const PANEL_TEST_DEFAULT_S = 20
 const PANEL_TEST_MAX_S = 60
+
+// Open /api/overlay/stream connections, at most. The route is open (no PIN, like every read), and
+// each stream is a socket held for hours; a production has one or two. Past the cap the page falls
+// back to polling /api/overlay.json, which costs nothing to hold.
+const MAX_OVERLAY_STREAMS = 8
+// The scorebug is meant to be read from anywhere a production builds its graphics: a vMix machine,
+// an OBS scene, a page of the producer's own on another origin. Its data is the public /live row
+// (see overlay.js), so unlike every other read on this board it answers cross-origin reads too.
+const OVERLAY_CORS = { 'Access-Control-Allow-Origin': '*' }
 
 // A team colour ends up inside a `style` attribute in the console and as a SetSections colour on
 // the panel. Only a #rrggbb literal is ever legitimate, and anything else is either a mistake or
@@ -285,6 +296,15 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // waits for every active one — so a /logs tab left open on some laptop held every shutdown (sport
   // switch, deploy, poweroff) until systemd's stop timeout SIGKILLed us. closeStreams() ends them.
   const streams = new Set()
+  // The livestream overlay (overlay.js): every change that can move the scorebug says so here, and
+  // each open /api/overlay/stream sends a frame if its object actually changed. The board's state
+  // (every scored action, a link, a reset), the countdown starting and ending, and a linked match
+  // going away are all it takes.
+  const overlayBus = new EventEmitter()
+  overlayBus.setMaxListeners(0) // bounded by MAX_OVERLAY_STREAMS, not by the default warning
+  const overlayChanged = () => overlayBus.emit('change')
+  sourceManager.on('state', overlayChanged)
+  let overlayStreams = 0
   // Scorer lock: with a PIN set, mutating requests must carry it (X-Scorer-Pin header) — a
   // spectator who scanned the QR can watch but not score. GET reads stay open.
   // Brute-force gate — see pinGate.js. Without it, /api/unlock is an oracle that answers
@@ -348,6 +368,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   function startCountdown(seconds, label, content = 'full', team = '', side = null) {
     clog.info(`countdown started: ${label || '(no label)'} ${seconds}s`, { seconds, label: String(label || ''), content, team: String(team || ''), side })
     countdown = { label: String(label || ''), content, team: String(team || ''), side, endsAt: Date.now() + seconds * 1000 }
+    overlayChanged()
     if (cdTicker) clearInterval(cdTicker)
     const tick = () => {
       const remainingMs = countdown ? countdown.endsAt - Date.now() : -1
@@ -380,6 +401,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       expired, label: countdown.label, horn: !!(expired && opt('hornOnCountdownEnd')), repaint, prematch,
     })
     countdown = null
+    overlayChanged()
     if (cdTicker) { clearInterval(cdTicker); cdTicker = null }
     const cleared = ledbox && typeof ledbox.pushCountdown === 'function'
       ? Promise.resolve(ledbox.pushCountdown(null, '', { repaint })).catch(() => {})
@@ -596,6 +618,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       const resultUp = !!(ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout)
       clog.warn(`linked match ${matchId} was deleted by the scorer — unlinked, board ${resultUp ? 'keeps the result' : 'on the clock'}`, { matchId, resultUp })
       sourceManager.clear('the linked match was deleted')
+      overlayChanged() // clear() emits no state: the scorebug would keep the deleted match
       if (!resultUp) { try { await holdClock() } catch { /* the log has it */ } }
     })
   }
@@ -659,6 +682,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Pretty route for the log viewer.
       if (pathname === '/logs') return serveStatic(res, '/logs.html', webDir)
 
+      // The livestream scorebug: an OBS browser source (1920x1080, transparent). Reads
+      // /api/overlay/stream, so it needs no PIN and nothing else from the board.
+      if (pathname === '/overlay') return serveStatic(res, '/overlay.html', webDir)
+
       // The tablet app (android/). Open like every read, and deliberately no PIN: /app is what a
       // fresh tablet opens in Chrome to install the app at all, and the app's self-update fetches
       // the other two with no scorer PIN to send. Nothing here is secret — the APK is signed, and
@@ -703,7 +730,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   async function handleApi(req, res, pathname) {
     // Any API traffic means an operator has the control UI open (it polls /api/status every
     // 1.5s). The board uses this to drop the "how do I connect" QR codes for a wall clock.
-    if (ledbox && typeof ledbox.noteViewer === 'function') ledbox.noteViewer()
+    // Except the livestream overlay's: an OBS scene or a vMix machine reads it all evening with
+    // nobody at the console, and counting it would keep the QR codes off the panel for good.
+    if (ledbox && typeof ledbox.noteViewer === 'function' && !pathname.startsWith('/api/overlay')) ledbox.noteViewer()
     // A web page open on some other device must not be able to drive the board. Both guards are
     // free for the real client: a same-origin fetch sends no Origin header at all, and every
     // caller we ship already sends `content-type: application/json`. What they stop is a page on
@@ -736,6 +765,64 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // GET /api/board — the exact section map pushed to the LedBox (1:1 mirror for the web view)
     if (pathname === '/api/board' && req.method === 'GET') {
       return sendJson(res, 200, board())
+    }
+    // GET /api/overlay.json — the livestream scorebug as one flat object (overlay.js): a vMix Data
+    // Source, or anything else that reads JSON. Open like every read, and cross-origin as well (see
+    // OVERLAY_CORS); never cached, since a stale score on a broadcast is the one thing it must not be.
+    if (pathname === '/api/overlay.json' && req.method === 'GET') {
+      return send(res, 200, JSON.stringify(overlayView()), {
+        ...OVERLAY_CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+      })
+    }
+    // GET /api/overlay/stream — the same object as Server-Sent Events: one frame on connect, then one
+    // per change (a frame is sent only when the object actually differs). What /overlay listens to.
+    // SSE for the reason /api/logs/stream is: no WebSocket dependency in production, and an
+    // EventSource reconnects by itself (retry: 3 s). Capped at MAX_OVERLAY_STREAMS; past it a 503,
+    // and the page polls the JSON instead.
+    if (pathname === '/api/overlay/stream' && req.method === 'GET') {
+      if (overlayStreams >= MAX_OVERLAY_STREAMS) {
+        clog.warn(`refused an overlay stream — ${overlayStreams} already open`, { ip: clientIp(req) })
+        res.setHeader('Retry-After', '30')
+        return send(res, 503, JSON.stringify({ error: 'too many overlay streams — read /api/overlay.json instead' }), {
+          ...OVERLAY_CORS, 'Content-Type': 'application/json; charset=utf-8',
+        })
+      }
+      overlayStreams++
+      res.writeHead(200, {
+        ...res._cors, ...OVERLAY_CORS,
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      })
+      // Headers out now (see /api/logs/stream), and how soon to come back after a drop.
+      res.write('retry: 3000\n\n')
+      let last = ''
+      const frame = () => {
+        const json = JSON.stringify(overlayView())
+        if (json === last) return
+        last = json
+        try { res.write(`data: ${json}\n\n`) } catch { /* client went away */ }
+      }
+      frame()
+      overlayBus.on('change', frame)
+      const keepAlive = setInterval(() => { try { res.write(': keep-alive\n\n') } catch { /* ignore */ } }, 20000)
+      if (keepAlive.unref) keepAlive.unref()
+      streams.add(res)
+      clog.info(`overlay stream opened (${overlayStreams} open)`, { ip: clientIp(req), open: overlayStreams })
+      let closed = false
+      const done = () => {
+        if (closed) return
+        closed = true
+        overlayStreams--
+        clearInterval(keepAlive)
+        overlayBus.off('change', frame)
+        streams.delete(res)
+        clog.info(`overlay stream closed (${overlayStreams} open)`, { ip: clientIp(req), open: overlayStreams })
+      }
+      res.on('close', done)
+      req.on('error', done)
+      return
     }
     // GET /api/matches
     if (pathname === '/api/matches' && req.method === 'GET') {
@@ -1769,6 +1856,16 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       countdown: countdownView(),
       screen: matchScreen(),
     }
+  }
+
+  // The livestream scorebug (overlay.js) for the match on the board, and the countdown the panel is
+  // showing, if any — the same one countdownView() serves the mirror.
+  function overlayView() {
+    const cd = countdownView()
+    return toOverlay(sourceManager.getState(), {
+      sport: activeSport(),
+      countdown: cd ? { label: cd.label, team: countdown ? countdown.team : '', remainingMs: cd.remainingMs } : null,
+    })
   }
 
   // The match screen exactly as the real paint builds it — same mapper, same options — so

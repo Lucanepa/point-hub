@@ -249,6 +249,55 @@ friendly). The scorer PIN, the Directus token and any phone number are redacted 
 is written.
 Design notes: [`docs/logging-DESIGN.md`](./docs/logging-DESIGN.md).
 
+## Livestream overlay — `/overlay` and `/api/overlay.json`
+The board serves the score for a livestream, so nobody has to type it into the streaming software
+a second time. Read-only and open (no PIN for a GET), and it carries nothing the club's public
+`/live` page does not already show: team names, colours, sets, points, who serves, the finished
+sets, and the countdown the panel is showing (time-out, interval, warm-up). Built from the same row
+livePush publishes (`src/overlay.js` on top of `toRow`), so no player, referee or roster data can
+reach it.
+
+- **OBS** — Sources ▸ + ▸ *Browser*, URL `http://<board>:8890/overlay`, width **1920**, height
+  **1080**. The page is transparent; only the scorebug in one corner is drawn. Options in the URL:
+  `?corner=tl|tr|bl|br` (default `tl`), `?scale=1.5` (0.5–3), `?history=0` (hide the finished
+  sets), `?preview=1` (a chequered backdrop, to judge it in an ordinary browser). The bug is hidden
+  while the board has no match on it.
+- **vMix** — Data Sources ▸ + ▸ *JSON*, URL `http://<board>:8890/api/overlay.json`, then bind a
+  title's fields to its columns. One flat object, every key always present (blank or `0` when it
+  does not apply):
+
+  | Key | |
+  |---|---|
+  | `team_a`, `team_b` | the short code as the panel shows it (else the name), capitals |
+  | `team_a_name`, `team_b_name`, `team_a_color`, `team_b_color` | full name; `#rrggbb` |
+  | `points_a/b`, `sets_a/b`, `timeouts_a/b`, `fouls_a/b` | numbers (fouls: basketball) |
+  | `serving` | `a`, `b` or empty |
+  | `period`, `period_label` | `2`, `SET 2` (basketball `Q2`, `OT1`) |
+  | `status` | `idle` (no match), `live`, `final` |
+  | `set_scores`, `set1_a` … `set5_b` | `25-21  23-25`, and each set on its own |
+  | `break`, `break_team`, `break_seconds`, `break_clock` | `TIME OUT`, `KSCW`, `23`, `0:23` |
+
+  Teams are A and B as `/live` has them: on the board's own scoring, A is the team on the panel's
+  left (a change of ends swaps them, as on the panel); a linked OpenVolley match keeps A fixed.
+- **Live updates** — `/overlay` listens to `GET /api/overlay/stream` (Server-Sent Events: a frame on
+  connect, then one per change) and polls the JSON every 3 s while the stream is down. At most 8
+  streams at once (a 503 past that; the page then polls). Both endpoints answer cross-origin reads
+  (`Access-Control-Allow-Origin: *`) — unlike every other read here — so a producer's own graphics
+  page can use them. Overlay reads do not count as someone at the console: the panel's "Join WiFi /
+  Open UI" QR codes are not hidden by a streaming PC left running.
+- **Reaching the board** — the streaming laptop needs the internet, and the board's own Wi-Fi
+  (`ledbox_C0270`) has none; a public hall Wi-Fi usually keeps its clients apart, so a laptop there
+  rarely reaches the board either. What works: the board's **tailnet name** with Tailscale on the
+  laptop; a **cable** to the board's ethernet (`http://192.168.5.1:8890/overlay`) while the laptop's
+  Wi-Fi carries the stream; or the laptop on `ledbox_C0270` with its internet from a phone over
+  **USB tethering**. A producer who cannot reach the board at all needs a page on kscw.ch reading
+  the public `live_scores` row instead (the same read `/live` makes) — not built here.
+- **Delay** — the overlay follows the board, which follows the scorer: a few seconds behind the
+  rally. To line it up with the picture, delay the camera by the same amount (OBS: the camera's
+  *Render Delay* filter, and the same *Sync Offset* on its audio).
+- Where the stream goes (and who processes the players' images there) is the club's decision; the
+  overlay itself adds team names and the score only. `npm run test:overlay`.
+
 ## Deploy on the Pi (systemd)
 ```bash
 # on the Pi (reachable as `ssh openvolley`):
