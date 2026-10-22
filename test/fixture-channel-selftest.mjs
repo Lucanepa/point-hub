@@ -15,7 +15,8 @@
 //       live_history refusing game_id: the row is sent again without it
 //   [9] KSCW vs KSCW: the season copy holds the home team's row, and only that id is written
 //  [10] end to end on a booted appliance: schedule start, change of ends, a hand-typed game, then a
-//       linked OpenVolley match — which never borrows the game the board was set up for
+//       linked OpenVolley match — which never borrows the game the board was set up for — and the
+//       game surviving a restart (Continue mid-match, a pre-match restored at boot)
 // Needs the `ws` devDependency (npm install).
 
 import http from 'node:http'
@@ -432,13 +433,15 @@ console.log('\n[10] end to end on a booted appliance')
     process.env.DIRECTUS_URL = `http://127.0.0.1:${directus.address().port}`
     process.env.LIVE_PUBLISH_TOKEN = 'tok'
     process.env.LIVE_CHANNEL = 'kscw'
-    app = await startAppliance({
+    const boot = () => startAppliance({
       stateDir, relayUrl: '', relayHttpUrl: '', matchId: '',
       ledboxHost: '127.0.0.1', ledboxPort: addr.port, ledboxAlias: 'test', ledboxApiVersion: 2,
       reconnectMs: 200, mock: false, controlPort: 0, debug: false,
       uplinkProbeUrl: 'http://127.0.0.1:9/generate_204', uplinkPortalUrl: 'http://127.0.0.1:9',
     })
-    const base = `http://127.0.0.1:${app.server.address().port}`
+    app = await boot()
+    let base = `http://127.0.0.1:${app.server.address().port}`
+    const reboot = async () => { await app.close(); app = null; app = await boot(); base = `http://127.0.0.1:${app.server.address().port}`; await sleep(300) }
     const post = async (route, body) => {
       const r = await fetch(base + route, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: JSON.stringify(body || {}) })
       return { status: r.status, body: await r.json().catch(() => null) }
@@ -488,6 +491,28 @@ console.log('\n[10] end to end on a booted appliance')
     ok(last('kscw')?.team_a_name === AWAY && last('kscw')?.points_a === 3, 'the board row mirrors OpenVolley as before (A = its team A)')
     const perFlush = to('game-9').slice(before)
     ok(perFlush.every((w) => w.method === 'PATCH'), 'one PATCH per change — no second writer, no re-create')
+
+    // A restart forgets which game the board was set up for; the resume slot does not.
+    const schedTeams = { left: { name: HOME, short: GAME.homeShort }, right: { name: AWAY, short: GAME.awayShort } }
+    r = await post('/api/game', { choice: 'new', teams: schedTeams, gameId: 9 })
+    await act({ type: 'point', side: 'left', delta: 1 }); await wait()
+    ok(last('game-9')?.points_a === 1 && last('game-9')?.points_b === 0, 'a new schedule start, 1-0 on the game row')
+    await reboot() // a deploy mid-match: a clean stop, so the console offers Continue
+    r = await post('/api/game', { choice: 'continue' })
+    ok(r.status === 200 && r.body.gameId === 9, `Continue after the restart: the board knows the game again (${r.body?.gameId})`)
+    await act({ type: 'point', side: 'right', delta: 1 }); await wait()
+    ok(last('game-9')?.points_a === 1 && last('game-9')?.points_b === 1, `the next point reaches the game row (${last('game-9')?.points_a}-${last('game-9')?.points_b})`)
+
+    // A deploy during the pre-match: the pre-match comes back at boot, and the match it starts is
+    // still that game's.
+    r = await post('/api/game', { choice: 'new', teams: schedTeams, prematch: true, gameId: 9 })
+    await reboot()
+    const st = await (await fetch(base + '/api/status')).json()
+    ok(st.prematch === true && String(st.prematchGameId) === '9', 'the pre-match is restored at boot')
+    await act({ type: 'point', side: 'left', delta: 1 }); await act({ type: 'point', side: 'left', delta: 1 }); await wait()
+    const after = await (await fetch(base + '/api/status')).json()
+    ok(after.prematch === false && after.gameId === 9, `the first point starts the match — still game 9 (${after.gameId})`)
+    ok(last('game-9')?.points_a === 2 && last('game-9')?.points_b === 0, `and it is published under game-9 (${last('game-9')?.points_a}-${last('game-9')?.points_b})`)
   } catch (err) {
     fail++
     console.log(`  ❌ threw: ${err?.stack || err}`)

@@ -257,7 +257,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (matchUpload && (event === 'match-end' || event === 'game-end')) matchUpload.matchFinished()
     try {
       if (event === 'match-end' || event === 'game-end') resume.clear(activeSport())
-      else resume.save(activeSport(), state, nowStamp(), { prematch, gameId: prematch ? prematchGameId : null })
+      else resume.save(activeSport(), state, nowStamp(), { prematch, gameId: currentGameId() })
     } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
   }
   // PRE-MATCH: a game started from the schedule is set up (names, 0-0) but not yet on the panel —
@@ -393,7 +393,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     clearUndo()
     try {
       const state = manualSource ? manualSource.getState() : null
-      if (state) resume.save(activeSport(), state, nowStamp(), { prematch: false })
+      if (state) resume.save(activeSport(), state, nowStamp(), { prematch: false, gameId: currentGameId() })
     } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
     clog.info(`match started from the pre-match clock (${reason})`, { reason })
     if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
@@ -1264,6 +1264,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
         if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
         sourceManager.setSource(manualSource, { mode: 'manual' })
+        // A continued match is still the game it was started for — after a restart the log has
+        // forgotten it, the slot has not. Before the state goes up, so its first publish has it.
+        if (saved) restoreGame(sport)
         manualSource.apply(saved ? { type: 'set-state', state: saved } : { type: 'reset' })
         clearUndo()
         // Starting fresh discards the old slot; it refills from the first point of the new match.
@@ -1546,7 +1549,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     history.setGame(gameId)
     // A new game on the board: fetch its sheet now, while there may be an uplink.
     gameSheet.refresh().catch(() => {})
-    try { resume.save(sport, state, nowStamp(), { prematch: pre, gameId: pre ? gameId : null }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
+    try { resume.save(sport, state, nowStamp(), { prematch: pre, gameId }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
     touchedSinceStart = false
     // One paint, of the new state. Lifting idle repaints from the state the client now holds;
     // already on the scoreboard, push it. A pre-match paints nothing: the clock stays up.
@@ -1620,8 +1623,19 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // The schedule's id for it, saved with the slot: without it a restored pre-match is known only
     // by its names, and one left over from an earlier slot could never give way (autoBoardFree).
     prematchGameId = resume.prematchGameId(sport)
+    // …and the match about to start is that game's, as after the schedule tap itself. Without this
+    // the first point (which ends the pre-match) left the board with no game at all: the match log
+    // went up without its game_id and the game's live row was never written.
+    history.setGame(prematchGameId)
     touchedSinceStart = false
     clog.info('pre-match restored — the board keeps the clock until the match starts', { sport })
+  }
+  // The saved game's schedule id back on the match log (history.setGame), which a restart empties.
+  // Only when the slot has one: a slot saved without it (typed by hand, or by an older build) leaves
+  // the log as it is.
+  function restoreGame(sport) {
+    const id = resume.gameId(sport)
+    if (id != null) history.setGame(id)
   }
   async function restorePrematch(res, sport, saved) {
     await applyPrematch(sport, saved)
@@ -1860,6 +1874,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
     sourceManager.setSource(manualSource, { mode: 'manual' })
+    restoreGame(sport) // see the continue branch of POST /api/game
     manualSource.apply({ type: 'set-state', state: saved })
     clearUndo()
     touchedSinceStart = false
