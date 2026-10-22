@@ -1,0 +1,15 @@
+[Unit]
+Description=Watch the KSCW LED scoreboard (tailnet last-seen, health, nightly log pull) and alert on ntfy
+Documentation=file:///home/lucanepa/stacks/board-monitor/board-monitor.sh
+Wants=network-online.target
+After=network-online.target tailscaled.service
+
+[Service]
+Type=oneshot
+User=lucanepa
+ExecStart=/home/lucanepa/stacks/board-monitor/board-monitor.sh
+# A full log export over a weak hall uplink can take a while; a normal run is a few seconds.
+TimeoutStartSec=20min
+Nice=10
+NoNewPrivileges=yes
+ProtectSystem=full
