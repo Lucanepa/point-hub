@@ -60,9 +60,11 @@ const WRITES = {
   'gameSheet.js': [4, 'data/gamesheet.json (controlServer, from dataDir)'],
   'hallLogin.js': [3, 'data/uplink.json (controlServer, from dataDir)'],
   'matchUpload.js': [3, 'data/match-uploads.json (appliance, from dataDir)'],
-  // The two that are NOT appliance state: PANEL_OFF and setting.ini belong to the panel firmware and
-  // are read by it (and by ledbox-watchdog.sh) at those fixed paths, so moving them would break it.
-  'controlServer.js': [6, '.sport-switch beside settings.json; plus the FIRMWARE\'s own PANEL_OFF flag and setting.ini (fixed paths the firmware reads)'],
+  'controlServer.js': [1, '.sport-switch beside settings.json'],
+  // NOT appliance state: PANEL_OFF and setting.ini belong to the panel firmware and are read by it
+  // (and by ledbox-watchdog.sh) at those fixed paths, and /run/ledbox-panel/brightness is the live
+  // driver's control file on tmpfs, so moving any of them would break the driver.
+  'panelBrightness.js': [9, 'the FIRMWARE\'s own setting.ini and PANEL_OFF flag, and the live driver\'s /run/ledbox-panel/brightness (fixed paths the driver reads)'],
 }
 const WRITE_RE = /\bfs(?:\.promises)?\.(?:writeFileSync|appendFileSync|mkdirSync|renameSync|rmSync|unlinkSync|createWriteStream|copyFileSync|writeFile|appendFile|mkdir|rename|rm|unlink|copyFile|symlinkSync|truncateSync|openSync)\(/g
 const found = {}
