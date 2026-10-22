@@ -214,7 +214,9 @@ console.log('\n[6] logging in: the number goes to the board once and is gone')
   ok(io.statusRefreshed > 0, 'and the header is re-read at once')
   ok(io.stored.length === 0, 'nothing was written to localStorage or sessionStorage on the way')
   const everyBody = JSON.stringify(io.calls.filter((c) => c.path !== '/api/uplink/login').map((c) => c.body))
-  ok(!/079|791234567/.test(everyBody), 'and the number went to no other request')
+  // The whole number, in any spelling: a bare /079/ also matched the tablet-clock timestamps the other
+  // bodies carry (about 1 run in 100).
+  ok(!/0?79[\s.-]?123[\s.-]?45[\s.-]?67/.test(everyBody), 'and the number went to no other request')
 }
 
 console.log('\n[7] refusals come back in words')
