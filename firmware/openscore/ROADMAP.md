@@ -34,10 +34,11 @@ SetSections` handshake against it. See README §"Prove the handshake".
 
 Make the headless PNGs look *right* — the protocol is done, this is pixels. All off-hardware.
 
-- ⬜ **Font choice & metrics.** The vendor uses bitmap fonts on a discrete `fontsize` ladder; we
-  render scalable TTF, so sizes won't match 1:1. Pick the font (DejaVuSans-Bold today; consider
-  bundling the panel's own `ARIAL.TTF` whose advance widths the bridge already encodes in
-  `volleyballMapper.js`) and settle the size mapping.
+- 🟡 **Font choice & metrics.** Liberation Sans is bundled (Arial-metric, OFL; Arial itself is
+  proprietary and stays out). Text of 26 px and under is Bold with no anti-aliasing, bigger text
+  Regular and anti-aliased, and shrink-to-fit measures in the face it draws (2026-10-22). Still to
+  do on the glass: compare against anti-aliased Regular, then decide whether a bitmap face
+  (Spleen, BSD-2) or a bold digit face earns its place.
 - ⬜ **Per-section calibration** of the score/set/timeout/sub boxes in `volleyball_matchscore_02`
   and the break/countdown layouts: baseline (note the intentional negative `y`), centering,
   rectangle inclusive-vs-exclusive edge (Pillow `rectangle` is inclusive → boxes are +1 px).

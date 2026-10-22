@@ -28,6 +28,8 @@ BETTER / LESS ERROR-PRONE THAN THE VENDOR FIRMWARE
       by a stray file in the layout folder (the `f.split('.')` foot-gun).
     * Shrink-to-fit text: long club names scale down to fit their box instead of clipping
       (the stock `fontsize` lever couldn't do this).
+    * Text drawn for LEDs: 26 px and under in Bold with no anti-aliasing (crisp, fully lit
+      strokes), bigger text anti-aliased. See SMALL_TEXT_PX.
     * UTF-8 throughout (umlauts survive); structured logging; no serial/BT/plugin cruft.
 
 STATUS
@@ -261,10 +263,25 @@ _FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ]
+_BOLD_FONT_CANDIDATES = [
+    os.path.join(_HERE, "fonts", "LiberationSans-Bold.ttf"),
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+]
+
+# Text at or under this size is drawn in Bold with anti-aliasing OFF (Pillow fontmode "1").
+# On the panel an anti-aliased edge pixel is not a smooth edge: the driver maps every channel
+# through CIE 1931 at the brightness and shows only the top 7 of 11 bit planes, so at brightness
+# 40 white has 14 levels and a 50 % edge of the orange 255,69,0 loses its green entirely and turns
+# into a red fringe; anything under about 45/255 is not lit at all. Regular strokes at a 12-13 px
+# cap height are 1.5 px wide, too thin at hall distance. Bold 1-bit glyphs are whole, fully lit
+# pixels. Above this size (the 40-55 px score digits) the strokes are thick enough that
+# anti-aliasing smooths the curves without eating them, so big text keeps it, in Regular.
+SMALL_TEXT_PX = 26
 
 
 class Renderer:
-    def __init__(self, width, height, buffer_path, base_dir, font_path=None):
+    def __init__(self, width, height, buffer_path, base_dir, font_path=None, bold_font_path=None):
         self.width = width
         self.height = height
         self.buffer_path = buffer_path
@@ -276,14 +293,25 @@ class Renderer:
         # write a doomed .tmp to the SD card on every frame just to watch the rename fail.
         self._in_place = False
         self._font_path = font_path or next((p for p in _FONT_CANDIDATES if os.path.exists(p)), None)
+        # A --font override has no known bold sibling, so it then draws the small text too (still
+        # without anti-aliasing); otherwise small text uses the bundled Bold.
+        self._bold_path = bold_font_path or (font_path if font_path else
+                                             next((p for p in _BOLD_FONT_CANDIDATES if os.path.exists(p)), None))
         self._font_cache = {}
         self._img_cache = {}
 
     def _font(self, size):
+        """The face for `size`: Bold at SMALL_TEXT_PX and under, Regular above."""
         size = max(6, int(size) or 12)
         if size not in self._font_cache:
-            if self._font_path and _HAVE_PIL:
-                self._font_cache[size] = ImageFont.truetype(self._font_path, size)
+            small = size <= SMALL_TEXT_PX
+            path = self._bold_path if small else self._font_path
+            if path and _HAVE_PIL:
+                # Small text uses the BASIC layout engine: its hinted, whole-pixel advances keep
+                # 1-bit letters evenly spaced. Raqm's fractional advances, rounded glyph by glyph,
+                # opened a visible gap inside names at 11-12 px ("WIE DIKON").
+                engine = {"layout_engine": ImageFont.Layout.BASIC} if small else {}
+                self._font_cache[size] = ImageFont.truetype(path, size, **engine)
             else:
                 self._font_cache[size] = ImageFont.load_default()
         return self._font_cache[size]
@@ -294,7 +322,11 @@ class Renderer:
         return h + v
 
     def _fit_font(self, draw, text, size, box_w):
-        """Shrink the font until `text` fits `box_w` (min 6px). box_w<=0 means no limit."""
+        """Shrink the font until `text` fits `box_w` (min 6px). box_w<=0 means no limit.
+        Measured with the face each size is drawn in, so Bold (about 4-10 % wider than the
+        Regular/Arial widths the bridge sizes names with) still fits its box.
+        Returns (font, size)."""
+        size = max(6, int(size) or 12)
         font = self._font(size)
         if box_w and box_w > 0 and text:
             while size > 6:
@@ -303,7 +335,7 @@ class Renderer:
                     break
                 size -= 1
                 font = self._font(size)
-        return font
+        return font, size
 
     def _load_image(self, src):
         path = src if os.path.isabs(src) else os.path.join(self.base_dir, src)
@@ -353,7 +385,9 @@ class Renderer:
     def _draw_text(self, draw, s):
         if not s.text:
             return
-        font = self._fit_font(draw, s.text, s.fontsize or 12, s.width)
+        font, size = self._fit_font(draw, s.text, s.fontsize or 12, s.width)
+        # "1" = no anti-aliasing: every pixel is the exact colour or untouched (see SMALL_TEXT_PX).
+        draw.fontmode = "1" if size <= SMALL_TEXT_PX else "L"
         draw.text((s.x, s.y), s.text, fill=s.color, font=font, anchor=self._anchor(s.align, s.valign))
 
     def _draw_image(self, img, s):
@@ -770,7 +804,9 @@ def main():
                     help="firmware dir holding layout/, www/, setting.ini (default: this dir)")
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=None)
-    ap.add_argument("--font", default=None, help="TTF font path (default: DejaVuSans-Bold if present)")
+    ap.add_argument("--font", default=None,
+                    help="TTF font for all text (default: the bundled Liberation Sans, Bold for "
+                         "text of %d px and under)" % SMALL_TEXT_PX)
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

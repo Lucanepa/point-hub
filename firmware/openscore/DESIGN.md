@@ -131,7 +131,7 @@ the 192×64 canvas via `x, y, width, height`, aligned with `align`/`valign`.
 
 | Type | Rendering |
 |---|---|
-| **text** | The element's text, drawn at `(x,y)` with a Pillow anchor from `align`×`valign` (`left/center/right` × `top/middle/bottom`). **Shrink-to-fit**: if `width>0`, the TTF size is reduced until the string fits the box (min 6 px) — long club names scale down instead of clipping, which the vendor's fixed-`fontsize` lever could not do. `color`, `fontsize`. |
+| **text** | The element's text, drawn at `(x,y)` with a Pillow anchor from `align`×`valign` (`left/center/right` × `top/middle/bottom`; `middle` sits on the cap-height centre to within half a pixel, so a name stays centred in its row at any size). **Shrink-to-fit**: if `width>0`, the TTF size is reduced until the string fits the box (min 6 px), measured in the face it is drawn in — long club names scale down instead of clipping, which the vendor's fixed-`fontsize` lever could not do. **LED text**: at `SMALL_TEXT_PX` (26 px) and under, Liberation Sans **Bold** with anti-aliasing off (Pillow `fontmode "1"`, BASIC layout so 1-bit letters stay evenly spaced); above it Regular, anti-aliased. `color`, `fontsize`. |
 | **image** | PNG/JPG (via Pillow) **scaled to fit** the box preserving aspect ratio, then positioned inside it by `align`/`valign`, alpha-composited. A **missing `src` is skipped silently** (an operator may not have uploaded a media placeholder; the blanked vendor `banner.jpg` is expected to be absent). |
 | **rectangle** | Filled with `color`, outlined with `bordercolor`. A **black fill with a border** renders as a hollow coloured frame over the black background (how the score boxes and serve indicators are drawn). |
 | **circle / ellipse** | Filled ellipse inside the box, `bordercolor` outline — the tennis layout's serve dots. |
@@ -151,8 +151,9 @@ is RGB; the panel is RGB.
 
 **`fontsize` caveat**: the vendor panel uses **bitmap** fonts with a discrete height ladder
 (PROTOCOL.md notes `fontsizearray`), so vendor `fontsize` values are calibrated to *those* glyphs.
-We render **scalable TTF** (DejaVuSans-Bold by default), so the numbers won't match 1:1 — this is
-the main calibration task in the ROADMAP (Phase 2), not a protocol issue.
+We render **scalable TTF** (the bundled Liberation Sans: Bold without anti-aliasing at 26 px and
+under, Regular above), so the numbers won't match 1:1 — this is the main calibration task in the
+ROADMAP (Phase 2), not a protocol issue. Arial itself is proprietary and is not bundled.
 
 ## 6. Behaviours the bridge relies on
 

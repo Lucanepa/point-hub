@@ -36,6 +36,7 @@ See **`DESIGN.md`** for the architecture and a table of every protocol message a
 | `noresend: true` → bridge **stalls 5 s** on a redundant `SetLayout` | `noresend: false`, **always replies** — no stalls |
 | layout scanner `f.split('.')` **crashes** on any multi-dot filename | globs `*.xml` + `os.path.splitext` — bad files skipped with a warning |
 | `fontsize` clips long names (fixed bitmap boxes) | **shrink-to-fit** text scales names down to their box |
+| anti-aliased edges the LEDs turn into dim, off-colour fringes | text of 26 px and under in **Bold, no anti-aliasing** |
 | accepts the malformed READ shape silently | rejects it with **error 9**, exactly like real hardware |
 | py2 remnants, latin-1 umlaut breakage | UTF-8 throughout, structured logging |
 
