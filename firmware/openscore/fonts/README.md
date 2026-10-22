@@ -1,6 +1,13 @@
 # Bundled fonts
 
-**Liberation Sans** (Regular + Bold) — metric-compatible with Arial (the font the vendor
-board renders with), so openscore matches the original spacing/positioning and works with
-no system fonts installed. Liberation fonts are licensed under the SIL Open Font License 1.1
-(© Red Hat, Inc.). openscore uses `LiberationSans-Regular.ttf` by default.
+**Liberation Sans** (Regular + Bold, version 2.1.5) — metric-compatible with Arial (the font the
+vendor board renders with), so openscore matches the original spacing/positioning and works with
+no system fonts installed. openscore uses `LiberationSans-Regular.ttf` by default.
+
+Liberation fonts are © 2010 Google Corporation and © 2012 Red Hat, Inc., licensed under the
+SIL Open Font License 1.1 — the full text, which has to travel with the fonts, is in
+[`OFL.txt`](./OFL.txt). "Liberation" is a Reserved Font Name: a modified copy of these files must
+be renamed.
+
+**Arial is not bundled and must not be.** The board's own `ARIAL.TTF` is a proprietary Monotype
+font that may not be redistributed; Liberation Sans exists precisely so that it does not have to be.

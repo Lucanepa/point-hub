@@ -2,6 +2,7 @@
   "name": "@openvolley/ledbox-bridge",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Mirror OpenVolley live match state onto a Tech4Sport LedBox scoreboard.",
   "bin": {

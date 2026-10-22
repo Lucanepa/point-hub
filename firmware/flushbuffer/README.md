@@ -50,6 +50,19 @@ identical thing:
 Native armhf build (board has `g++`/`make`). No cross-compiler, no cmake, no
 GraphicsMagick-dev. The last line prints `ldd` — confirm only stock libs.
 
+## Licence: the binary is GPL-2.0-only
+
+`flushbuffer.cc`, `build.sh`, `startled` and `stopled` are MIT like the rest of the repo. The
+**built `flushBuffer2` binary is not**: it links hzeller's `rpi-rgb-led-matrix`, which is licensed
+under the GPL **version 2 only** (no "or later"), so the binary as a whole is **GPL-2.0-only**.
+
+Building it on the board, as today, distributes nothing. The moment a `flushBuffer2` binary leaves
+the club — copied to another club's board, or inside a ready-to-flash SD image — the corresponding
+source has to go with it: the `rpi-rgb-led-matrix` tarball at the commit pinned in `build.sh`,
+`stb_image.h` at its pinned commit, and `flushbuffer.cc` + `build.sh` from this directory. An SD
+image also carries the OS's own source obligations. The third-party list is in the repo's
+[`NOTICE`](../../NOTICE).
+
 ## ⚠️ Testing — REQUIRES eyes on the physical panel
 
 `flushBuffer2` drives the panel over GPIO. If the geometry/mapping is wrong the panel

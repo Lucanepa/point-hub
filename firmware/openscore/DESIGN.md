@@ -1,6 +1,6 @@
 # openscore — architecture & design
 
-A **clean-room, fully-open reimplementation** of the Tech4Sport LedBox board's firmware app.
+An **independent, fully-open reimplementation** of the Tech4Sport LedBox board's firmware app.
 It replaces the one closed layer left in the KSCW scoreboard stack (Tech4Sport's decompiled,
 proprietary Python renderer) with our own renderer that speaks the **same** TCP `:8889`
 protocol — so the existing open bridge keeps working **unchanged**.
@@ -16,13 +16,16 @@ control UI + bridge (open, Node)  ─8889/gzip-JSON─▶  openscore.py (open, P
                                                      192×64 HUB75 panel
 ```
 
-> **Clean-room provenance.** Every design decision below is derived **only** from open
-> sources: `PROTOCOL.md`, `DESIGN-appliance.md`, the bridge's own wire code
-> (`src/ledboxProtocol.js`, `src/ledboxClient.js`, `src/volleyballMapper.js`,
-> `src/mockLedbox.js`), the public layout XML (`layouts/*.xml`) and the open panel driver
-> (`firmware/flushbuffer/`). **No decompiled vendor Python was read, translated or copied.**
-> Where the vendor's exact behaviour is unknown (e.g. the `bar` section, the `fontsize`
-> ladder) the choice is documented as provisional and deferred to on-glass calibration.
+> **Provenance.** The design below works from `PROTOCOL.md`, `DESIGN-appliance.md`, the
+> bridge's own wire code (`src/ledboxProtocol.js`, `src/ledboxClient.js`,
+> `src/volleyballMapper.js`, `src/mockLedbox.js`), the layout XML (`layouts/*.xml`), the open
+> panel driver (`firmware/flushbuffer/`) and the real board's observed behaviour. It is an
+> independent re-implementation by a maintainer who **had** seen the decompiled vendor code
+> (from recovering the board, `../RECOVERY.md`) — not a two-team clean room — and **no vendor
+> code was copied, translated or ported**. Details, including where the layouts come from:
+> [`PROVENANCE.md`](PROVENANCE.md). Where the vendor's exact behaviour is unknown
+> (e.g. the `bar` section, text placement) the choice is documented as provisional and deferred
+> to on-glass calibration.
 
 ---
 
@@ -149,10 +152,14 @@ required for parity; it is a later enhancement.
 **Colour format**: `"R,G,B"` decimal strings (`_to_rgb` also tolerates `;`-separated). Rendering
 is RGB; the panel is RGB.
 
-**`fontsize` caveat**: the vendor panel uses **bitmap** fonts with a discrete height ladder
-(PROTOCOL.md notes `fontsizearray`), so vendor `fontsize` values are calibrated to *those* glyphs.
-We render **scalable TTF** (DejaVuSans-Bold by default), so the numbers won't match 1:1 — this is
-the main calibration task in the ROADMAP (Phase 2), not a protocol issue.
+**Font and `fontsize`**: the vendor app draws text with the board's `ARIAL.TTF` through Pillow's
+`ImageFont.truetype`, so `fontsize` is a TrueType size, not a step on a bitmap ladder (the
+bitmap-ladder reading of the APK's `fontsizearray` in PROTOCOL.md does not match what the board
+does). We render with the bundled
+**Liberation Sans** (`fonts/`), metric-compatible with Arial, so widths match. Arial is not bundled
+and will not be: it is proprietary. What still differs is **placement** — our text sits a few
+pixels higher than the vendor's — which is the calibration task in the ROADMAP (Phase 2), not a
+protocol issue.
 
 ## 6. Behaviours the bridge relies on
 
@@ -198,7 +205,7 @@ All of these are already exercised by `render_samples.py` / `selftest.py`:
 | `:8889` **wedges ~80 s** when a client dies without `Disconnect` | dead socket dropped at once; new client always accepted; idle-timeout reaps silent clients |
 | `noresend:true` → bridge **stalls 5 s** on a redundant `SetLayout` | always replies |
 | layout scanner **crashes** on any multi-dot filename | globs `*.xml`, skips bad files with a warning |
-| `fontsize` **clips** long names (fixed bitmap boxes) | shrink-to-fit TTF |
+| `fontsize` **clips** long names (one fixed size per box) | shrink-to-fit TTF |
 | latin-1 / py2 umlaut breakage | UTF-8 throughout; structured logging |
 | accepting the READ shape silently | rejects it with **error 9**, exactly like real hardware (fidelity) |
 
@@ -207,7 +214,8 @@ All of these are already exercised by `render_samples.py` / `selftest.py`:
 - No GPIO / panel driving (that is flushBuffer2's job, already done).
 - No media/layout **upload** service (`:12345`), no network-admin commands, no vendor plugins.
 - No native animation engine (software blink covers the bridge's needs).
-- Pixel-exact parity with the vendor's bitmap fonts — deferred to on-glass calibration (ROADMAP).
+- Pixel-exact parity with the vendor's text placement — deferred to calibration against captured
+  vendor frames (ROADMAP Phase 2).
 
 ## 10. File map
 
@@ -229,5 +237,5 @@ firmware/openscore/
 ├── www/              buffer.png output (flushBuffer2 polls this)
 ├── selftest.py       real-socket protocol proof (handshake + parse + error codes + render)
 ├── render_samples.py drives every screen → samples/*.png for eyeball validation (no panel)
-├── DESIGN.md · ROADMAP.md · README.md · PANEL-AND-DIY.md
+├── DESIGN.md · ROADMAP.md · README.md · PROVENANCE.md · PANEL-AND-DIY.md
 ```

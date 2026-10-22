@@ -10,7 +10,8 @@ we reconciled against; it is provenance for the protocol findings and deliberate
 The appliance runs **on the board itself** under systemd — see Key addresses below; the
 `openvolley` Pi is no longer in the path and must not run it.
 
-`firmware/openscore/` is the clean-room replacement renderer, already versioned
+`firmware/openscore/` is the independently written open replacement renderer (provenance:
+`firmware/openscore/PROVENANCE.md`), already versioned
 **`openscore-1.0.0`** (`build_config()` in `openscore.py`). It is **not deployed** — swapping it in is a separate,
 deliberate change, and this line is what should be updated on the day it happens.
 
@@ -19,6 +20,12 @@ deliberate change, and this line is what should be updated on the day it happens
 before deciding the board is broken, so it lives here rather than only in a print template. The
 order is: panel driver splash (`POINT HUB`, gold) → the firmware's `waiting` crest+QR screen →
 `kscw_crest` once the bridge handshakes. Anything under a minute is normal.
+
+**2026-10-22 — a second board is designed, not built.** The **LedBox XL**, the club's own
+successor to the C0270 (192×64 at 5 mm pitch plus a panel facing each bench, USB-C power only,
+the same software stack), is written up in [`docs/diy-panel/BUILD.md`](./docs/diy-panel/BUILD.md):
+parts, wiring, safety case, build steps, bring-up, and the software still to write before it can
+play a match (§10.6 there). The rest of this file is about the C0270.
 
 ---
 

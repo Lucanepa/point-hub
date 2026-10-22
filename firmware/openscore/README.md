@@ -2,10 +2,11 @@
 
 Replaces the **one closed layer** left in the KSCW scoreboard stack. The board's stock firmware
 (`/home/pi/ledbox/ledbox.py` + friends) is Tech4Sport's proprietary app **decompiled and
-hand-ported to Python** — the only closed/legally-grey layer, and the reason the repo is private.
-`openscore.py` is a **clean-room, from-scratch** reimplementation (designed only from the open
-protocol docs, the bridge's wire code and the public layout XML — **no vendor code was read**)
-that speaks the same protocol and renders the same layouts, so the whole stack becomes open:
+hand-ported to Python**; that port is not in this repository.
+`openscore.py` is an **independent re-implementation**, written from the protocol docs, the
+bridge's wire code, the layout XML and the board's observed behaviour by a maintainer who had seen
+the decompiled vendor code — **no vendor code was copied** (see [`PROVENANCE.md`](PROVENANCE.md)).
+It speaks the same protocol and renders the same layouts, so the whole stack becomes open:
 
 ```
 control UI + bridge (open)  ->  openscore.py (open)  ->  flushBuffer2 (open)  ->  LED panel
@@ -35,7 +36,7 @@ See **`DESIGN.md`** for the architecture and a table of every protocol message a
 | Port `:8889` **wedges ~80 s** when a client dies without `Disconnect` (needs a power-cycle) | dead socket dropped immediately; new client always accepted; falls back to idle |
 | `noresend: true` → bridge **stalls 5 s** on a redundant `SetLayout` | `noresend: false`, **always replies** — no stalls |
 | layout scanner `f.split('.')` **crashes** on any multi-dot filename | globs `*.xml` + `os.path.splitext` — bad files skipped with a warning |
-| `fontsize` clips long names (fixed bitmap boxes) | **shrink-to-fit** text scales names down to their box |
+| `fontsize` clips long names (one fixed size per box) | **shrink-to-fit** text scales names down to their box |
 | accepts the malformed READ shape silently | rejects it with **error 9**, exactly like real hardware |
 | py2 remnants, latin-1 umlaut breakage | UTF-8 throughout, structured logging |
 
@@ -81,8 +82,8 @@ just to confirm the wire protocol.
 ## Deploy on the board (replaces ledbox.py) — see ROADMAP Phase 3–4
 
 > ⚠️ Do this **with eyes on the panel** — a wrong render is invisible over the network, and
-> fonts/positions will need calibration (the vendor tuned `fontsize` to bitmap fonts; we render
-> scalable TTF). Keep the stock firmware as a fallback; **never** put a backup file inside
+> text positions will need calibration (same metrics as the vendor's Arial, but our text sits a
+> few pixels higher — ROADMAP Phase 2). Keep the stock firmware as a fallback; **never** put a backup file inside
 > `layout/` (that scan is fragile). Full checklist in `ROADMAP.md`.
 
 1. `sudo apt install -y python3-pil` (or `pip3 install --break-system-packages pillow`).
@@ -112,5 +113,6 @@ playlist/practice plugins, native animations) are intentionally omitted and fail
 ## Files
 
 `openscore.py` (the firmware) · `selftest.py` · `render_samples.py` · `setting.ini` · `layout/` ·
-`media/` · `www/` (output) · `DESIGN.md` · `ROADMAP.md` · `PANEL-AND-DIY.md` (rebuild an
-equivalent panel from open parts).
+`media/` · `www/` (output) · `DESIGN.md` · `ROADMAP.md` · `PROVENANCE.md` (where the code and
+each layout come from) · `PANEL-AND-DIY.md` (the measured panel; building one from open parts is
+[`docs/diy-panel/BUILD.md`](../../docs/diy-panel/BUILD.md)).
