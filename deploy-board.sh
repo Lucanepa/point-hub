@@ -32,7 +32,8 @@
 #
 # NOT shipped: the firmware's crest+QR idle screen (lives on the board's own disk and survives
 # power cycles — see firmware/idle-crest-qr/), settings.json (the board's operator preferences)
-# and data/ (its match history).
+# and data/ (its match history) — beside the code by default, or wherever the board's STATE_DIR
+# (in its .env) puts them.
 # Run ./drift-check.sh first, with the same BOARD/JUMP: this script overwrites without looking, and
 # the board has run code the repo never had (2026-09-23).
 set -euo pipefail

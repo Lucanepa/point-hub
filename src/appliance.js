@@ -11,7 +11,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import https from 'node:https'
 import { X509Certificate } from 'node:crypto'
-import { loadConfig } from './config.js'
+import { loadConfig, stateRootOf } from './config.js'
 import { LedboxClient } from './ledboxClient.js'
 import { MockLedbox } from './mockLedbox.js'
 import { getSport, DEFAULT_SPORT } from './sports.js'
@@ -25,12 +25,16 @@ import { log as logStore, installProcessLogging } from './logStore.js'
 export async function startAppliance(config = loadConfig()) {
   const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'web')
   // Everything this process persists — settings.json, data/ (logs, history, the resume slot) and
-  // the two boot markers — hangs off one root. In production that is the checkout, but a test that
+  // the two boot markers — hangs off one root. By default that is the checkout, but a test that
   // pointed at it would read the board's real PIN and scribble on the real match history, which is
   // exactly why test/appliance-selftest.mjs sat excluded from `npm test` and rotted. Pass
-  // `stateDir` to send it all somewhere disposable.
-  const stateDir = config.stateDir ? path.resolve(config.stateDir) : path.resolve(webDir, '..')
+  // `stateDir` to send it all somewhere disposable — or, on a board with a read-only root, onto its
+  // persistent data partition (STATE_DIR, see config.js). Nothing below writes anywhere else.
+  const stateDir = stateRootOf(config)
   const dataDir = path.resolve(stateDir, 'data')
+  // Created up front (a fresh /data partition starts empty) and checked once, before anything is
+  // written, so the verdict can go in the log as soon as there is one.
+  const stateCheck = checkStateDir(stateDir)
 
   // Logging is configured FIRST, so everything from here on — including a failure to load
   // settings or reach the board — lands in data/logs and on the /logs page. DEBUG=1 opens the
@@ -50,11 +54,19 @@ export async function startAppliance(config = loadConfig()) {
     ledboxHosts: config.ledboxHosts,
     mock: config.mock,
     logLevel: logStore.level,
+    stateDir,
   })
+  // A state dir that cannot be written must not stop the board scoring — every store here already
+  // falls back to memory — but it is the one fault that only shows up later, as "the PIN and the
+  // settings were gone after the power cut". On a read-only root it means the data partition did
+  // not mount and STATE_DIR is a bare mount point on the overlay. Said at boot, at error level.
+  if (!stateCheck.ok) {
+    log.error(`state dir ${stateDir} is not writable (${stateCheck.error}) — settings, match history and the resume slot will NOT survive a restart`, { stateDir, error: stateCheck.error })
+  }
 
   // Load settings first: the active sport selects the Source, the match layout and the
-  // state→sections mapper built below (see src/sports.js). Preferences live beside the code so
-  // they survive restarts and reboots.
+  // state→sections mapper built below (see src/sports.js). Preferences live in the state dir (the
+  // checkout unless STATE_DIR moves them) so they survive restarts and reboots.
   const settings = new Settings(path.resolve(stateDir, 'settings.json'))
   const sport = getSport(settings.values.sport || DEFAULT_SPORT)
   log.info(`sport: ${sport.key} (${sport.label})`, { sport: sport.key, layouts: sport.layouts })
@@ -349,6 +361,19 @@ export async function startAppliance(config = loadConfig()) {
   })())
 
   return { server, sourceManager, manualSource, ledbox, livePush, close }
+}
+
+// Make sure the state dir exists and can be written, without writing anything into it: access(2)
+// with W_OK answers EROFS on a read-only mount and EACCES on a permission problem, so this costs no
+// write to the card. mkdir is a no-op for the default (the checkout always exists).
+export function checkStateDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    fs.accessSync(dir, fs.constants.W_OK)
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: (err && (err.code || err.message)) || 'unknown' }
+  }
 }
 
 // The https origin a certificate is good for: its first DNS subjectAltName, plus the port unless

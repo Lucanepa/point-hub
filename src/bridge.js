@@ -4,9 +4,8 @@
 //
 // Run: node src/bridge.js   (configure via environment; see .env.example)
 
-import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { loadConfig } from './config.js'
+import { loadConfig, stateRootOf } from './config.js'
 import { LedboxClient } from './ledboxClient.js'
 import { RelaySubscriber } from './relaySubscriber.js'
 import { MockLedbox } from './mockLedbox.js'
@@ -14,9 +13,10 @@ import { log as logStore, installProcessLogging } from './logStore.js'
 
 export async function startBridge(config = loadConfig()) {
   // The headless bridge gets the same log store as the appliance, in its own file — it has no
-  // web UI, so this trail plus journalctl is all there is.
+  // web UI, so this trail plus journalctl is all there is. Under the same state dir (STATE_DIR,
+  // else the checkout), so a read-only root keeps this trail on its data partition too.
   logStore.configure({
-    file: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'logs', 'bridge.jsonl'),
+    file: path.resolve(stateRootOf(config), 'data', 'logs', 'bridge.jsonl'),
     level: config.logLevel || (config.debug ? 'debug' : 'info'),
   })
   const log = logStore.child('bridge')
