@@ -127,6 +127,7 @@ ssh "${J[@]}" "$BOARD" "
   # Prove the NEW code is what is actually running — not merely that something started.
   grep -q SELF-CLOCKED     $DEST/src/ledboxClient.js; chk \$? 'self-clocked blink'
   grep -q showSportConfirm $DEST/src/ledboxClient.js; chk \$? 'sport confirmation'
+  grep -q ledSafeSections  $DEST/src/ledboxClient.js; chk \$? 'LED colour floor'
   grep -q sport-switch     $DEST/src/appliance.js;    chk \$? 'sport-switch marker'
   grep -q LAST_STATUS      $DEST/web/index.html;      chk \$? 'UI status-merge'
   test -f $DEST/web/logs.html;                        chk \$? '/logs viewer'

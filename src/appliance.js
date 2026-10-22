@@ -171,7 +171,8 @@ export async function startAppliance(config = loadConfig()) {
   // (blink off, wrong allowance, horn silent) is answered by this one line. The PIN is
   // redacted by the log store, so this is safe to hand to anyone.
   log.info('settings loaded', settings.values)
-  // Seed the counter-colour thresholds from saved settings before the first paint.
+  // Seed the counter-colour thresholds, and the brightness the team-colour floor works against
+  // (src/ledColor.js), from saved settings before the first paint.
   ledbox.setLimits({
     totalTimeouts: settings.values.totalTimeouts,
     totalSubs: settings.values.totalSubs,
@@ -180,6 +181,7 @@ export async function startAppliance(config = loadConfig()) {
     matchFontMaxLeft: settings.values.matchFontMaxLeft,
     matchFontMaxRight: settings.values.matchFontMaxRight,
     clubName: settings.values.clubName,
+    brightness: settings.values.brightness,
   })
   const server = createControlServer({
     sourceManager,

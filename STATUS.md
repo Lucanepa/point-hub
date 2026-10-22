@@ -39,6 +39,12 @@ Verified on the real panel:
   Toggleable.
 - **Counter limit colours** — timeout counter goes dark red at 2; substitution counter amber at
   5, dark red at 6 (FIVB per-set maximums).
+- **LED colour floor** (added 2026-10-22, to be checked on the glass) — `src/ledColor.js`, applied
+  where the bridge sends to the panel. A team colour the LEDs cannot light at the current
+  brightness (#111827, #000000) paints its name and digits light grey and its box border in the
+  same hue scaled up; team-coloured text of 26 px and under is lifted towards white just far
+  enough to give pure red's light (at brightness 40 that touches #2563eb and #6366f1). Big digits
+  and borders keep the exact colour. The console and its mirror always show the chosen colours.
 - **VS pre-match screen** — team names + "VS", scores blanked. (Basic; the good version is the
   logo screen below.)
 - **Settings page** (persisted on the Pi, survives restart): blink on/off + length, countdown
