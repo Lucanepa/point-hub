@@ -486,7 +486,7 @@ export function step15() {
     return g + carrow([594, 104], [606, 116], [596, 128], 'ar', 6);
   })());
   b += badge(536, 40, 'V') + count(550, 47, '×2') + txt(536, 66, 'M4 × 16 T20 ×8', 'tm', 'start');
-  b += count(430, 300, '×6') + txt(458, 299, 'T20 3.5 × 16', 'ts', 'start');
+  b += count(330, 300, '×6') + txt(358, 299, 'T20 3.5 × 16', 'ts', 'start');
   b += txt(64, 362, 'blocks: 4 corners + 2 mid', 'ts', 'start') + txt(300, 362, 'rubber guards on the back corners', 'ts', 'start');
   return svg(640, 372, b, 'Put the back panel on and drive in six T20 screws; fit handles, corners and rubber guards');
 }
