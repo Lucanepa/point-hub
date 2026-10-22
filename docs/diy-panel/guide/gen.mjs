@@ -19,7 +19,6 @@ const parts = [
   ['I', 'Raspberry Pi 4', '1 GB is plenty', 1],
   ['J', 'Driver board', 'Adafruit Triple Bonnet (6358)', 1],
   ['K', 'Stacking header', '40 pin, tall', 1],
-  ['L', 'Wi-Fi stick', 'MT7612U chip', 1],
   ['M', 'microSD card', '32 GB, prepared by us; one spare', 2],
   ['N', 'Converter', 'Mean Well RSD-60G-5', 1],
   ['O', 'USB-C power board', 'STUSB4500', 1],
@@ -81,7 +80,7 @@ const stages = [
     [9, 'Bench panels', d.step9(), 'One module behind each end window, arrows up. Twist four turn buttons over its edges.', [N('Stand the box upright again after this step.')]],
   ]],
   ['C', 'Electronics', 'Low voltage only: nothing in here can give you a shock.', [
-    [10, 'Lay out the electronics', d.step10(), 'On the bottom panel behind the modules. Converter and fuse box sit on the aluminium plate. The DATA socket goes through a small USB-C hub to the Pi’s network port; the charging module feeds the hub, so the tablet charges over the same cable. Fit the two USB-C sockets in the back panel now; their cables reach inside.', [N('Leave 15 cm of slack on every cable so the back door can come off.'), N('One 10 kΩ resistor keeps the panels dark while the Pi boots, so a weak charger can’t trip. The spot is marked on the wiring card.')]],
+    [10, 'Lay out the electronics', d.step10(), 'On the bottom panel behind the modules. Converter and fuse box sit on the aluminium plate. The DATA socket goes through a small USB-C hub to the Pi’s network port; the charging module feeds the hub, so the tablet charges over the same cable. Fit the two USB-C sockets in the back panel now; their cables reach inside. Put the Pi close to the back door: its built-in Wi-Fi is the board’s only link to the internet.', [N('Leave 15 cm of slack on every cable so the back door can come off.'), N('One 10 kΩ resistor keeps the panels dark while the Pi boots, so a weak charger can’t trip. The spot is marked on the wiring card.')]],
     [11, 'Power wiring', d.step11(), 'POWER socket → USB-C board → 5 A fuse → converter (1 mm²) → fuse box (2.5 mm²). A ferrule on every wire end. The small TVS diode goes across the POWER socket’s + and −.', [N('Connect the converter’s −Vin to −V: the USB-C board talks to the Pi and needs a shared ground.')]],
     [12, 'First power-up', d.step12(), 'Nothing else connected. Plug a small phone charger into POWER and measure at the fuse box.', [N('A weak charger is the safety net: it cannot push enough current to damage anything.')]],
     [13, 'Connect everything', d.step13(), 'Every panel and the Pi gets its own 5 A fuse. Ribbon OUT 1 to module 1, OUT 2 to module 4, OUT 3 to the left bench panel and on to the right one. The USB-C board, clock and temperature sensor share the I²C wires to pins 27 and 28 of the tall header.', [N('Panel power leads that don’t reach: extend with 1.5 mm².')]],
@@ -89,7 +88,7 @@ const stages = [
   ]],
   ['D', 'Finish', 'Ready for the hall.', [
     [15, 'Close up', d.step15(), 'Hook the door’s bottom edge behind the two hooks, tilt it shut and turn the two thumb screws by hand. Handles on top, metal corners at the front, rubber guards at the back, and the plug in the horn hole.', [N('The horn hole stays plugged: horn wiring is ready inside if you ever want one.')]],
-    [16, 'Set it up', d.step16(), 'On the table, on a speaker stand, or on a tripod or light stand. On the table, loop a strap through each handle and around the back edge of the table. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it. The board’s Wi-Fi stays as a backup.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), N('Optional: fold out the two back legs to tilt it 10–15° toward the referee. Raising it on a stand helps more against people in the way.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet only.'), N('On a stand, put a sandbag on the feet instead of the strap.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
+    [16, 'Set it up', d.step16(), 'On the table, on a speaker stand, or on a tripod or light stand. On the table, loop a strap through each handle and around the back edge of the table. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it. The board joins the hall’s Wi-Fi for live scores, but has no Wi-Fi of its own: a laptop for setup or OpenVolley takes the same cable.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), N('Optional: fold out the two back legs to tilt it 10–15° toward the referee. Raising it on a stand helps more against people in the way.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet or a laptop only.'), N('On a stand, put a sandbag on the feet instead of the strap.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
 
     [17, 'Open it', d.step17(), 'Unplug the charger. Two thumb screws, tilt the door back, lift it off the hooks: everything inside is in reach. The door carries the fuse map, four spare fuses and a spare SD card.', [OK('Swapping the SD card or a fuse takes under a minute.'), N('The two USB-C cables can stay plugged in: set the door down next to the box.')]],  ]],
 ];
@@ -279,7 +278,7 @@ footer.end { margin-top: 56px; padding-block: 22px 48px; border-top: 3px solid v
       <div><dt>Bench panels</dt><dd>2 × 32 × 64 LEDs</dd></div>
       <div><dt>Power</dt><dd>USB-C charger, 65 W+ ideal</dd></div>
       <div><dt>Ports</dt><dd>2 × USB-C, nothing else</dd></div>
-      <div><dt>Parts</dt><dd>about €550</dd></div>
+      <div><dt>Parts</dt><dd>about €525</dd></div>
       <div><dt>Build time</dt><dd>12–15 h + drying</dd></div>
     </dl>
   </header>

@@ -352,7 +352,6 @@ export function step10() {
   b += rect(X(306), Y(134), 93 * s, 68 * s, 'o p0', 3) + rect(X(300), Y(140), 85 * s, 56 * s, 'o p1', 3);
   for (const x of [318, 343, 368]) b += rect(X(x), Y(134) - 4, 18 * s, 7, 'o dark thin');
   b += txt(X(352), Y(170), 'Pi + driver', 'tt halo') + badge(X(306) - 12, Y(134) - 14, 'I') + badge(X(306) + 10, Y(134) - 14, 'J');
-  b += rect(X(399), Y(155), 75 * s, 15 * s, 'o p1', 3) + badge(X(474) + 12, Y(162), 'L');
   b += fuseBox(X(520), Y(54), 10, 170 * s) + badge(X(520) - 12, Y(54) + 6, 'Q');
   b += rect(X(720), Y(128), 100 * s, 52 * s, 'o p1', 2); for (let i = 0; i < 6; i++) b += circ(X(735 + i * 14), Y(150), 2, 'o p2 thin');
   b += rect(X(720), Y(128), 12 * s, 52 * s, 'o p2') + badge(X(820) + 12, Y(130), 'N');
@@ -372,7 +371,7 @@ export function step10() {
   b += lines(470, 220, ['Pi on 4 standoffs (M2.5).', 'Everything else: 3.5 × 16 T20.'], 'ts', 'start', 13);
   b += badge(24, 244, 'K') + txt(38, 248, 'tall stacking header between Pi and driver', 'ts', 'start');
   b += badge(24, 266, 'P') + count(38, 272, '×2') + txt(70, 270, 'USB-C extensions', 'ts', 'start');
-  return svg(640, 282, b, 'Electronics on the bottom panel, seen from above: Pi with driver board, Wi-Fi stick, fuse box, converter, USB-C power board, horn switch');
+  return svg(640, 282, b, 'Electronics on the bottom panel, seen from above: Pi with driver board, fuse box, converter, USB-C power board, horn switch');
 }
 
 export function step11() {

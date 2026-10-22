@@ -34,10 +34,11 @@ which is withdrawn; it is in the git history if you need it.
 | Front | 3 mm polycarbonate, tight on the LED mask |
 | Power | **USB-C PD charger, 18–100 W**; 65 W or more for full brightness while charging the tablet |
 | Ports | **2 × USB-C, nothing else**: POWER and DATA (to the scorer tablet: network + charging) |
+| Wi-Fi | **out only**: the Pi's built-in radio joins the hall's Wi-Fi for internet; the board has no Wi-Fi network of its own |
 | Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | none fitted, wiring provisioned |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **€550** |
+| Parts | about **€525** |
 | Build time | 12–15 h plus a day for paint to dry |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
@@ -74,7 +75,6 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | I | Raspberry Pi 4 | **1 GB** — enough for the stack; the 2 GB rose to $67.50 on 1 Oct 2026 | 1 | 40 |
 | J | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs | 1 | 14 |
 | K | Stacking header | 40-pin, tall, between Pi and bonnet | 1 | 3 |
-| L | Wi-Fi stick | MT7612U (the board's access point) | 1 | 30 |
 | M | microSD | 32 GB, prepared image; one spare | 2 | 14 |
 | N | Converter | **Mean Well RSD-60G-5**: 9–36 V in, 5 V 12 A (60 W) out | 1 | 55 |
 | O | USB-C PD sink board | **STUSB4500** (e.g. SparkFun DEV-15801, contract-gated output) | 1 | 30 |
@@ -101,10 +101,10 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Wire | red + black: 2.5 mm² 1 m, 1 mm² 2 m, 1.5 mm² for extensions; ferrules; Wago 221 | 8 |
 | Paint, glue | matte black, two coats; wood glue | 8 |
 | Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
-| **Total** | | **≈ 550** |
+| **Total** | | **≈ 525** |
 
 The total assumes about €12 per module. Modules sell for €10–28; at €15–25 each the board costs
-about **€580–680**.
+about **€550–650**.
 
 **Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
 bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
@@ -392,9 +392,15 @@ graph LR
   serves **`192.168.5.1`** and DHCP exactly like the C0270's cable. The tablet sees an ordinary USB-C
   Ethernet dongle (the RTL8153 shows up as `eth0`, which Android adopts) and is charged through the
   same cable by the PD source module (§5.1), up to about 18 W.
-- **The cable is the primary scorer link**; the board's own Wi-Fi access point stays as the backup.
-  A tablet on the cable is **trusted without the scorer PIN** — the console change for that is still
-  to be made (§10.6).
+- **The cable is the only way in.** The board has no Wi-Fi network of its own (owner decision,
+  22.10.2026: the board connects out to the internet; nothing connects in over the air). The scoring
+  tablet, a laptop running OpenVolley, or the club laptop for setup and repairs take the DATA cable,
+  one at a time. Remotely, the board is reached over Tailscale once it is online.
+- A device on the cable is **trusted without the scorer PIN** (the console's cable trust: on by
+  default, `CABLE_TRUST=0` switches it off). Wi-Fi never reaches the console, so the PIN only guards
+  Tailscale access.
+- **If the tablet or the cable fails mid-match** there is no phone fallback: keep scoring on the flip
+  board (§11), which the rules require anyway, and swap in the laptop on the cable.
 - **Never connect the DATA port to a hall network switch.** It hands out addresses and, once the
   change above lands, grants PIN-free control.
 - The tablet charges only on a 20 V contract (the charging module needs ≥ 12 V); on a 9 V charger
@@ -460,9 +466,10 @@ thumb screws · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along th
 - **Electronics** lie on the bottom panel behind the modules: converter and fuse box on the
   aluminium plate; Pi and bonnet on M2.5 standoffs; the PD board by the POWER socket, the hub and the
   charging module by the DATA socket; RTC and temperature sensor; the horn switch by the plugged horn
-  hole. The Wi-Fi stick goes on one of the Pi's **USB 2.0** ports (or a short USB 2.0 extension) —
-  USB 3 traffic is noisy right on the 2.4 GHz band — with its antennas outside the shadow of the
-  module PCBs.
+  hole. **Put the Pi close to the back door**: its built-in Wi-Fi is the board's only internet link,
+  and its antenna cannot see through the modules and the steel bars, while plywood lets the signal
+  out. Keep USB 3 devices off the blue ports if the hall uplink is weak (USB 3 traffic is noisy on
+  the 2.4 GHz band).
 
 ---
 
@@ -557,10 +564,17 @@ resistor/diode of the common ZS-042 module) and power it from 3.3 V.
 
 **Networking:**
 
-- Wi-Fi country **CH** on both radios (`raspi-config`, and `country_code=CH` for the access point).
-- The **MT7612U is the board's access point**, on 5 GHz channels 36–48 indoors; the built-in radio
-  is the client for a hall's Wi-Fi uplink, on 2.4 GHz.
-- The board gets **its own Wi-Fi name and passphrase** and its own identity — never the C0270's, and never "LedBox": that is Tech4Sport's product name. Use **Point Hub** for the board and `PointHub` for its Wi-Fi.
+- Wi-Fi country **CH** (`raspi-config`).
+- **One radio, client only.** The built-in radio joins the hall's Wi-Fi, with the captive-portal
+  login as on the C0270, plus the low-priority phone-hotspot fallback profile. No access point: no
+  hostapd, and dnsmasq serves `eth0` only. `provisioning/setup-wlan1-client.sh` and the console's
+  hall login (`src/hallLogin.js`) assume the uplink is `wlan1`, so name the built-in radio `wlan1`
+  with a systemd `.link` file (`[Match] Driver=brcmfmac`, `[Link] Name=wlan1`) and both work
+  unchanged.
+- The board gets **its own identity** (`boardId` and label in settings.json) — never the C0270's,
+  and never "LedBox": that is Tech4Sport's product name. Call it **Point Hub**.
+- Idle screen: set `idleQr` off — there is no board network to join, so the crest and clock show
+  instead of the connect QR codes.
 - `eth0`: **192.168.5.1/24 with a DHCP server** for the tablet (§7).
 
 ### 10.2 Driver library, first light
@@ -654,14 +668,14 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 
 | Piece | Where | Status |
 |---|---|---|
-| Power governor, live brightness, budget file in `/run` (§5.5) | flushBuffer2 | **must** — not written |
+| Power governor, live brightness, budget file in `/run` (§5.5) | flushBuffer2 | written 22.10.2026, not yet run on glass |
 | PD contract read (`RDO_STATUS`) → budget; contract shown in `/api/status` and the console | appliance | **must** — not written |
 | SHT40 derating 50 °C / blank 60 °C | appliance → budget | **must** — not written |
 | Module-number test screen (bring-up, swap card) | openscore | **must** — not written |
 | Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | before the first glass run |
 | Bench screens: 192 × 96 canvas (or a `Remap` canvas of 256 × 64), content from the live match sections | openscore | feature — not written |
-| Cable tablet trusted without the scorer PIN (§7) | console | owner decision — not written |
-| Own Wi-Fi name/passphrase and board identity | provisioning | **must** |
+| Cable tablet trusted without the scorer PIN (§7) | console | done (cable trust, 22.10.2026) |
+| Board identity (`boardId`, label; built 22.10.2026) and the client-only Wi-Fi setup (`.link` file, no AP) | provisioning | **must** |
 | Read-only root with a persistent `/data` partition and a `STATE_DIR` setting | image, appliance | planned; until then the card stays read-write, because match state and the resume file must survive a power cut |
 
 ---
@@ -716,8 +730,7 @@ kein Produkt, wird ohne Gewähr veröffentlicht und ist keine Rechtsberatung.
   organisierten Verleih an andere Vereine oder Verbände beim ESTI nachfragen.
 - **Betrieb:** nur mit einem zertifizierten USB-C-PD-Netzteil (höchstens 100 W); Sicherungen nie
   überbrücken oder durch stärkere ersetzen; nie in praller Sonne oder an einem sonnigen Fenster
-  betreiben; vor dem Öffnen das Netzteil ausstecken; WLAN-Ländereinstellung CH, Originalantennen des
-  WLAN-Sticks.
+  betreiben; vor dem Öffnen das Netzteil ausstecken; WLAN-Ländereinstellung CH.
 
 ---
 
