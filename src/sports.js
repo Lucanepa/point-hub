@@ -13,6 +13,13 @@
 // Two optional flags let a row opt OUT of what only makes sense for a real match (both default on):
 //   history:  false — nothing it scores goes into the match log (History tab / export).
 //   livePush: false — never published to the club's /live page, whatever Settings says.
+// And one opts IN (default off):
+//   linkBreaks: true — a LINKED match's timeouts and set intervals run the board's own countdowns
+//               (lanSource.js break edges, controlServer watchLinkedMatch). Only where the linked
+//               eScoresheet is known to publish them over the relay: OpenVolley's indoor
+//               scoreboard. OpenBeach pushes no live state over the relay today (and signals its
+//               technical timeout apart, `tto_active`), and no basketball eScoresheet publishes to
+//               one at all — so a beach, basketball or simple link stays exactly as it was.
 
 import { ManualSource } from './manualSource.js'
 import { BeachSource } from './beachSource.js'
@@ -59,6 +66,7 @@ export const SPORTS = {
     Source: ManualSource,
     layouts: { layout: 'volleyball_matchscore_02', ...IDLE_LAYOUTS },
     mapper: volleyMapper,
+    linkBreaks: true,
   },
   beach: {
     key: 'beach',
