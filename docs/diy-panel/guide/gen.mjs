@@ -41,10 +41,11 @@ const hardware = [
   ['strap', 'Velcro strap, buckle', '50 mm × 1 m, for the table edge', 2],
   ['lan', 'USB-C hub: Ethernet + charging', 'RTL8153 with PD charging input, 15 cm patch cable', 1],
   ['pdsrc', 'Tablet charging module', 'USB-C PD out, about 18 W', 1],
-  ['legs', 'Tilt legs (optional)', 'plywood, hinges with a stop, 10–15°', 2],
+  ['legs', 'Tilt legs (optional)', '40 × 50 mm plywood under the front edge, hinge with a stop', 2],
   ['sensor', 'Clock + temperature', 'DS3231 RTC, SHT40 sensor', 2],
   ['plate', 'Aluminium plate', '200 × 150 × 2, under converter + fuses', 1],
   ['small', 'Small parts', '5 A inline fuse, TVS SMBJ22A, 10 kΩ resistor', 1],
+  ['sticker', 'Stickers', '“POINT HUB” lettering for the front, label for the back', 2],
   ['wire', 'Wire, red + black', '2.5 mm² 1 m · 1 mm² 2 m · ferrules', 1],
 ];
 const toolList = [
@@ -84,8 +85,8 @@ const stages = [
     [14, 'Test', d.step14(), 'With the back still open, slide in the SD card we prepared. Power up with a laptop charger: a test pattern runs on all eight modules. Leave it for 30 minutes.', []],
   ]],
   ['D', 'Finish', 'Ready for the hall.', [
-    [15, 'Close up', d.step15(), 'Put the back panel on and drive in the six T20 screws. Handles on top, a black rubber cap on each front corner, and the plug in the horn hole. The back corners stay bare, so the back panel lifts straight off.', [N('The horn hole stays plugged: horn wiring is ready inside if you ever want one.')]],
-    [16, 'Set it up', d.step16(), 'On the table, on a speaker stand, or on a tripod or light stand. On the table, loop a strap through each handle and around the back edge of the table. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it. The board joins the hall’s Wi-Fi for live scores, but has no Wi-Fi of its own: a laptop for setup or OpenVolley takes the same cable.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), N('Optional: fold out the two back legs to tilt it 10–15° toward the referee. Raising it on a stand helps more against people in the way.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet or a laptop only.'), N('On a stand, put a sandbag on the feet instead of the strap.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
+    [15, 'Close up', d.step15(), 'Put the back panel on and drive in the six T20 screws. Handles on top, a black rubber cap on each front corner, and the plug in the horn hole. The back corners stay bare, so the back panel lifts straight off. The POINT HUB lettering goes on the bottom-right of the front border, the label beside the ports.', [N('The horn hole stays plugged: horn wiring is ready inside if you ever want one.')]],
+    [16, 'Set it up', d.step16(), 'On the table, on a speaker stand, or on a tripod or light stand. On the table, loop a strap through each handle and around the back edge of the table. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it. The board joins the hall’s Wi-Fi for live scores, but has no Wi-Fi of its own: a laptop for setup or OpenVolley takes the same cable.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), N('Optional: fold out the two legs under the front edge. They lift the front 5.5 cm, so the screen tilts 15° up toward the first referee on the stand. It then leans on its back feet: keep the strap on. Raising it on a stand helps more against people in the way.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet or a laptop only.'), N('On a stand, put a sandbag on the feet instead of the strap.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
 
     [17, 'Open it', d.step17(), 'Unplug the charger. Undo the six T20 screws and lift the back panel off: everything inside is in reach. The back panel carries the fuse map, four spare fuses and a spare SD card.', [OK('Swapping the SD card or a fuse takes under a minute.'), N('The back takes a T20 key on purpose: in a public hall, anything that opens by hand gets opened. Keep the key in the kit bag.'), N('The two USB-C cables can stay plugged in: set the back panel down next to the box.')]],  ]],
 ];
@@ -149,6 +150,7 @@ const html = `<title>Point Hub Assembly</title>
   --stage-hi: #1a1c20; --stage-lo: #08090a; --stage-ink: #e6e8eb; --stage-mute: #8b929a; --stage-btn: rgba(22,24,27,.82); --stage-line: rgba(255,255,255,.12);
   color-scheme: dark; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
 .wrap { max-width: 1200px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
@@ -320,7 +322,7 @@ footer.end { margin-top: 72px; padding-block: 24px 56px; border-top: 1px solid v
   </div>
   <div class="bar">
     <div class="seg" role="group" aria-label="Screen"><button type="button" data-screen="match" aria-pressed="true">Match</button><button type="button" data-screen="idle" aria-pressed="false">Idle</button><button type="button" data-screen="test" aria-pressed="false">Test</button></div>
-    <div class="seg" role="group" aria-label="Mount"><button type="button" data-mount="studio" aria-pressed="true">Studio</button><button type="button" data-mount="table" aria-pressed="false">Table</button><button type="button" data-mount="speaker" aria-pressed="false">Speaker stand</button><button type="button" data-mount="tripod" aria-pressed="false">Tripod</button></div>
+    <div class="seg" role="group" aria-label="Mount"><button type="button" data-mount="studio" aria-pressed="true">Studio</button><button type="button" data-mount="table" aria-pressed="false">Table</button><button type="button" data-mount="tilt" aria-pressed="false">Tilted 15°</button><button type="button" data-mount="speaker" aria-pressed="false">Speaker stand</button><button type="button" data-mount="tripod" aria-pressed="false">Tripod</button></div>
     <div class="seg" role="group" aria-label="View"><button type="button" data-view="three" aria-pressed="true">¾</button><button type="button" data-view="front" aria-pressed="false">Front</button><button type="button" data-view="bench" aria-pressed="false">Bench</button><button type="button" data-view="back" aria-pressed="false">Back</button></div>
     <span id="stage-status">Loading the 3D view…</span>
   </div>
@@ -334,7 +336,7 @@ footer.end { margin-top: 72px; padding-block: 24px 56px; border-top: 1px solid v
     <div><dt>Bench panels</dt><dd>2 × 32 × 64 LEDs</dd></div>
     <div><dt>Power</dt><dd>USB-C charger, 65 W+</dd></div>
     <div><dt>Ports</dt><dd>2 × USB-C</dd></div>
-    <div><dt>Parts</dt><dd>about €535</dd></div>
+    <div><dt>Parts</dt><dd>about €550</dd></div>
     <div><dt>Build time</dt><dd>12–15 h + drying</dd></div>
   </dl>
   <p class="draft">Sizes in the steps still depend on the exact parts that arrive.</p>

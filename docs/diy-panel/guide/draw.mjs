@@ -558,7 +558,19 @@ export function step16() {
   b += path(strapD, 'strap0') + path(strapD, 'strap1');
   b += rect(12, 340, 14, 10, 'o p0 thin', 2);
   b += lines(350, 344, ['Strap through each handle,', 'around the back edge of the table.', 'A hit from the court can’t push it off.'], 'tl', 'start', 16);
-  return svg(640, 420, b, 'Three ways to set it up: on the table, on a speaker stand, on a tripod or light stand');
+  // tilt inset: side view, the two legs out under the front edge, the screen 15° up toward the first referee
+  const ty = 566, k2 = 0.26, bx0 = 70, bw = 220 * k2, bh = 380 * k2, th = -15 * Math.PI / 180;
+  const rot = ([x, y]) => [bx0 + (x - bx0) * Math.cos(th) - (y - ty) * Math.sin(th), ty + (x - bx0) * Math.sin(th) + (y - ty) * Math.cos(th)];
+  b += ln([20, 432], [620, 432], 'o thin dash');
+  b += rect(20, ty, 300, 8, 'o p1') + rect(44, ty + 8, 8, 18, 'o p2') + txt(316, ty - 6, 'court →', 'ts', 'end');
+  b += `<g transform="rotate(-15 ${bx0} ${ty})">` + rect(bx0, ty - bh, bw, bh, 'o p0') + rect(bx0 + bw - 3.5, ty - bh + 8, 3.5, bh - 16, 'o dark')
+    + path(`M${R(bx0 + bw / 2 - 12)} ${R(ty - bh)} Q${R(bx0 + bw / 2)} ${R(ty - bh - 16)} ${R(bx0 + bw / 2 + 12)} ${R(ty - bh)}`, 'o nf thick')
+    + rect(bx0 + bw - 12, ty, 4, 50 * k2, 'o dark') + circ(bx0 + bw - 10, ty + 1, 1.8, 'o p0') + '</g>';
+  const a1 = rot([bx0 + 78, ty]); b += ln([bx0 + bw, ty], [bx0 + 84, ty], 'o thin dash') + ln(rot([bx0 + bw, ty]), rot([bx0 + 84, ty]), 'o thin dash') + path(`M${bx0 + 78} ${ty} A78 78 0 0 0 ${R(a1[0])} ${R(a1[1])}`, 'o nf thin') + txt(bx0 + 92, ty - 6, '15°', 'tb', 'start');
+  const sc = rot([bx0 + bw, ty - bh / 2]), dir = [Math.cos(th), Math.sin(th)];
+  b += arrow([sc[0] + 6 * dir[0], sc[1] + 6 * dir[1]], [sc[0] + 150 * dir[0], sc[1] + 150 * dir[1]], 'ar', 8);
+  b += lines(350, 500, ['Legs out: the front lifts 5.5 cm and', 'the screen tilts 15° up, toward the', 'first referee on the stand.'], 'tl', 'start', 16);
+  return svg(640, 590, b, 'Three ways to set it up: on the table, on a speaker stand, on a tripod or light stand; and on the table tilted 15° up on the two front legs');
 }
 
 export function poster() {
@@ -612,7 +624,8 @@ export const icons = {
   plate: I(path('M14 52 L76 52 L104 30 L42 30 Z', 'o al') + path('M14 52 L14 56 L76 56 L104 34 L104 30 L76 52', 'o p2')),
   small: I(rect(14, 34, 22, 12, 'o fuse', 2) + ln([8, 40], [14, 40], 'o') + ln([36, 40], [42, 40], 'o') + rect(52, 36, 18, 8, 'o p1', 1) + ln([46, 40], [52, 40]) + ln([70, 40], [76, 40]) + rect(84, 34, 14, 12, 'o dark', 1) + ln([86, 46], [86, 54]) + ln([96, 46], [96, 54])),
   pdsrc: I(rect(26, 26, 50, 30, 'o fuse', 3) + rect(76, 34, 12, 12, 'o dark thin', 3) + path('M40 41 l8 -8 l0 6 l8 0 l-8 8 l0 -6 Z', 'ah')),
-  legs: I(path('M30 20 L30 60 M30 20 L58 62', 'o thick nf') + path('M70 20 L70 60 M70 20 L98 62', 'o thick nf') + circ(30, 20, 3, 'o p2') + circ(70, 20, 3, 'o p2')),
+  legs: I(`<g transform="rotate(-15 20 58)">${rect(20, 30, 80, 28, 'o p0')}${rect(94, 58, 4, 14, 'o p2')}</g>` + ln([10, 62], [112, 62], 'o') + path('M58 62 A38 38 0 0 0 56.7 52.2', 'o nf thin')),
+  sticker: I(rect(10, 26, 100, 22, 'o p1', 4) + txt(60, 41, 'POINT HUB', 'tb') + rect(30, 54, 60, 14, 'o p0 thin', 3)),
   wire: I(path('M16 30 C40 10 70 50 104 26', 'wr') + path('M16 44 C40 24 70 64 104 40', 'wb') + rect(98, 22, 10, 8, 'o p0 thin') + rect(98, 36, 10, 8, 'o p0 thin')),
 };
 

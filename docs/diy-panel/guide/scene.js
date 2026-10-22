@@ -174,6 +174,22 @@ async function main() {
     const h = add(new THREE.TorusGeometry(0.064, 0.0065, 14, 48, Math.PI), mHw, hx, H + 0.003, 0); h.scale.y = 0.5;
     for (const bx of [-0.064, 0.064]) add(new THREE.CylinderGeometry(0.009, 0.009, 0.006, 20), mHw, hx + bx, H + 0.003, 0);
   }
+  // fold-out tilt legs: two 50 × 55 mm plywood legs hinged under the front edge (shown when tilted)
+  // The box leans back on its back feet; the legs, hinged 35 mm in from the front edge, are just long
+  // enough to hold the front up at 15°.
+  const TILT = -15 * Math.PI / 180, PIV = new THREE.Vector3(0, -0.008, -0.08), ZH = D / 2 - 0.035;
+  const LEG = -PIV.y - (ZH - PIV.z) * Math.tan(TILT);
+  const legs = new THREE.Group(); board.add(legs); legs.visible = false;
+  for (const lx of [-0.3, 0.3]) {
+    add(new RoundedBoxGeometry(0.04, LEG, 0.006, 2, 0.0025), mBody, lx, -LEG / 2, ZH, legs);
+    add(new THREE.CylinderGeometry(0.003, 0.003, 0.04, 12), mHw, lx, -0.0015, ZH, legs).rotation.z = Math.PI / 2;
+    add(new RoundedBoxGeometry(0.04, 0.004, 0.008, 2, 0.0018), mRubber, lx, -LEG, ZH, legs);
+  }
+  function setTilt(on) {
+    const a = on ? TILT : 0, c = Math.cos(a), si = Math.sin(a);
+    board.rotation.x = a; legs.visible = on;
+    board.position.set(0, PIV.y - (PIV.y * c - PIV.z * si), PIV.z - (PIV.y * si + PIV.z * c));
+  }
   // feet
   for (const fx of [-0.45, 0.45]) for (const fz of [-0.08, 0.08]) add(new THREE.CylinderGeometry(0.012, 0.014, 0.008, 24), mRubber, fx, -0.004, fz);
 
@@ -261,10 +277,14 @@ async function main() {
       mesh.material.map = tex(c); mesh.material.needsUpdate = true;
     }
   }
-  function setMount(name) { for (const k in mounts) mounts[k].visible = k === name; }
+  function setMount(name) {
+    const m = name === 'tilt' ? 'table' : name;
+    for (const k in mounts) mounts[k].visible = k === m;
+    setTilt(name === 'tilt');
+  }
 
   const views = {
-    front: [0, 0.2, 1.8], bench: [-1.5, 0.3, 0.62], back: [0.95, 0.5, -1.55], three: [1.0, 0.55, 1.55], low: [1.1, -0.28, 1.95],
+    front: [0, 0.2, 1.8], bench: [-1.5, 0.3, 0.62], tilt: [1.75, 0.16, 0.85], back: [0.95, 0.5, -1.55], three: [1.0, 0.55, 1.55], low: [1.1, -0.28, 1.95],
   };
   function setView(name) { goal = new THREE.Vector3(...views[name]); controls.autoRotate = false; }
 
@@ -274,6 +294,7 @@ async function main() {
   document.querySelectorAll('[data-mount]').forEach(b => b.addEventListener('click', () => {
     setMount(b.dataset.mount); press(b);
     if (b.dataset.mount === 'speaker' || b.dataset.mount === 'tripod') setView('low');
+    if (b.dataset.mount === 'tilt') setView('tilt');
   }));
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { setView(b.dataset.view); press(b); }));
   function press(b) { b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }

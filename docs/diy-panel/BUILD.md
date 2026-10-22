@@ -38,7 +38,7 @@ which is withdrawn; it is in the git history if you need it.
 | Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | none fitted, wiring provisioned |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **€535** |
+| Parts | about **€550** |
 | Build time | 12–15 h plus a day for paint to dry |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
@@ -92,6 +92,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 |---|---|---|
 | Screws and fittings | 66 × wood screw 3.5 × 16 T20 (6 hold the back panel), 12 × M4 × 16 T20 + nuts, 4 × M2.5 standoffs, 8 turn buttons | 8 |
 | Straps | 2 × Velcro strap with buckle, 50 mm × 1 m | 8 |
+| Stickers | "POINT HUB" cut-vinyl lettering for the front, back label for the ports | 15 |
 | Tablet hub | small USB-C hub with **Ethernet (RTL8153)** and a **USB-PD pass-through charging input**, + 15 cm patch cable | 25 |
 | Tablet charging module | USB-C PD source module, 12–24 V in, PD out limited to about 18 W | 14 |
 | Clock + temperature | DS3231 RTC (breakout without a charging circuit) + SHT40 sensor breakout | 10 |
@@ -100,10 +101,10 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Wire | red + black: 2.5 mm² 1 m, 1 mm² 2 m, 1.5 mm² for extensions; ferrules; Wago 221 | 8 |
 | Paint, glue | matte black for the box, gloss black for the front face, two coats each; wood filler, 120-grit sandpaper; wood glue | 16 |
 | Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
-| **Total** | | **≈ 535** |
+| **Total** | | **≈ 550** |
 
 The total assumes about €12 per module. Modules sell for €10–28; at €15–25 each the board costs
-about **€565–665**.
+about **€580–680**.
 
 **Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
 bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
@@ -464,16 +465,21 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   back edge** keeps a ball hit from pushing the box off.
 - **Bottom:** a **35 mm speaker-stand cup** (4 × M4 × 16) and **¼″-20 and ⅜″-16 threaded inserts**
   for tripods and light stands, on the glued backing plate (Y); four rubber feet.
-- **Fold-out back legs (optional, about €10):** two plywood legs hinged under the back edge, with a
-  stop, tilt the box back 10–15° towards the first referee's raised stand. Raising the whole box on
+- **Fold-out front legs (optional, about €10):** two 40 × 50 mm plywood legs hinged under the
+  **front** edge, 35 mm in from it and 300 mm either side of the middle, each with a stop at 90° to the bottom. Folded,
+  they lie flat between the feet. Out, they lift the front 5.5 cm: the box leans back on its back feet
+  and the screen tilts **15° up**, towards the first referee on the raised stand across the court
+  (from a scorer's table about 10 m away, the referee's eyes are 10–15° above the board). Tilted, the
+  box tips backwards more easily: keep the strap on. Raising the whole box on
   a stand is the bigger win, though: it also clears the heads of people standing in front of it.
 - **Torx throughout** (plain, not security Torx): T20 for the wood screws and M4 machine screws,
   T10 for the small parts. Pre-drill Ø2.5 near every edge.
 - **Matte black** inside and out, two coats, so nothing reflects behind the LEDs — except the **front
   face, gloss black**: behind the smoked sheet, the screen and its 30 mm border then read as one black
   surface when the board is off. Fill the plywood grain on the front face first, or it shows through.
-- **Wordmark** (optional): a small light-grey "POINT HUB" in vinyl or stencil on the bottom-right of
-  the front border.
+- **Stickers:** a light-grey matte cut-vinyl **"POINT HUB"** lettering (about 120 × 10 mm) on the
+  bottom-right of the front border, and a small back label (about 80 × 40 mm: "Point Hub · KSC
+  Wiedikon", POWER and DATA) beside the ports.
 - **Electronics** lie on the bottom panel behind the modules: converter and fuse box on the
   aluminium plate; Pi and bonnet on M2.5 standoffs; the PD board by the POWER socket, the hub and the
   charging module by the DATA socket; RTC and temperature sensor; the horn switch by the plugged horn
