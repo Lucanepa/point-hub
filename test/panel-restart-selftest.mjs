@@ -1,5 +1,6 @@
-// Self-test for controlServer's PANEL_RESTART (the brightness change's driver bounce), run against
-// the watchdog's own start_panel (zero deps; needs bash, flock, pgrep — i.e. Linux).
+// Self-test for panelBrightness.js's PANEL_RESTART (the brightness change's driver bounce, for a
+// driver that cannot take brightness live), run against the watchdog's own start_panel (zero deps;
+// needs bash, flock, pgrep — i.e. Linux).
 //
 // Both starters share /home/pi/ledbox/panel.lock, and the brightness path used to take it too
 // late and let go of it too early: the SIGTERM went out BEFORE the lock (so the watchdog could see
@@ -18,6 +19,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { PANEL_RESTART } from '../src/panelBrightness.js'
 
 let pass = 0, fail = 0
 const ok = (cond, label) => { if (cond) { pass++; console.log(`  ✅ ${label}`) } else { fail++; console.log(`  ❌ ${label}`) } }
@@ -25,15 +27,7 @@ const ok = (cond, label) => { if (cond) { pass++; console.log(`  ✅ ${label}`) 
 if (process.platform !== 'linux') { console.log('skipped: needs Linux (flock, pgrep, /proc)'); process.exit(0) }
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const server = fs.readFileSync(path.join(repo, 'src', 'controlServer.js'), 'utf8')
 const watchdog = fs.readFileSync(path.join(repo, 'firmware', 'ledbox-watchdog.sh'), 'utf8')
-
-// PANEL_START / PANEL_RESTART are module-private string constants; evaluate just those two.
-const from = server.indexOf('const PANEL_START =')
-const to = server.indexOf('function applyBrightness')
-if (from < 0 || to < 0) { console.log('  ❌ could not find PANEL_START / PANEL_RESTART in controlServer.js'); process.exit(1) }
-// eslint-disable-next-line no-new-func
-const PANEL_RESTART = new Function(`${server.slice(from, to)}; return PANEL_RESTART`)()
 
 console.log('▶ PANEL_RESTART shape')
 ok(/^flock -o /.test(PANEL_RESTART), 'the whole restart runs under `flock -o` (the driver never inherits the lock)')
