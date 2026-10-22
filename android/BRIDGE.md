@@ -228,6 +228,17 @@ screen ever misbehaves at a match).
 - **Dialogs.** `alert` and `confirm` work (they are native dialogs). `window.open`, file pickers,
   geolocation, camera and microphone are refused.
 
+## The scorer PIN on the cable
+
+A tablet on the board's **cable** (it arrived on `192.168.5.1` from `192.168.5.0/24`, the board's
+`CABLE_*` settings) is never asked for the scorer PIN: the board lets its writes through whatever
+`X-Scorer-Pin` says, and answers it as a board that needs no PIN — `/api/status` `pinRequired:false`
+with `pinTrust:"cable"`, `/api/settings` `pinSet:false`. Both fields keep their old meaning ("this
+client must send a PIN"), so the shipped app (1.1.x) needs no change: its start-up PIN screen stays
+down and its padlock hidden. `pinConfigured` says whether the board has a PIN at all. The board
+decides from the TCP connection only; the app sends nothing for it. On the Wi-Fi (or https over
+it) nothing changes.
+
 ## Board-side endpoints the app uses
 
 These are served by the board (the server agent's side):

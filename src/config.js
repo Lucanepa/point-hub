@@ -115,5 +115,14 @@ export function loadConfig(env = process.env) {
     // overlay, a write anywhere else lands in RAM and is gone at the next power cut — which is the
     // one event the resume slot exists to survive. Read once at boot. See stateRootOf.
     stateDir: String(env.STATE_DIR || '').trim(),
+    // Cable trust (src/cableTrust.js): a tablet plugged into the board by cable is never asked for
+    // the scorer PIN — a request that arrived on CABLE_ADDRESS (the board's eth0) from inside
+    // CABLE_SUBNET passes every PIN gate, on http and https. Decided from the TCP connection only,
+    // never from anything the client sends. On by default; CABLE_TRUST=0 switches it off (a board
+    // whose cable faces something other than the scorer's table). A malformed address or subnet
+    // switches it off too, and says so at boot.
+    cableTrust: !/^(0|false|no|off)$/i.test(String(env.CABLE_TRUST ?? '').trim()),
+    cableAddress: String(env.CABLE_ADDRESS || '').trim() || '192.168.5.1',
+    cableSubnet: String(env.CABLE_SUBNET || '').trim() || '192.168.5.0/24',
   }
 }

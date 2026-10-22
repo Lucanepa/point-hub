@@ -20,6 +20,7 @@ import { matchUploadFromEnv } from './matchUpload.js'
 import { SourceManager } from './sourceManager.js'
 import { createControlServer } from './controlServer.js'
 import { Settings } from './settings.js'
+import { makeCableTrust } from './cableTrust.js'
 import { log as logStore, installProcessLogging } from './logStore.js'
 
 export async function startAppliance(config = loadConfig()) {
@@ -193,6 +194,12 @@ export async function startAppliance(config = loadConfig()) {
     matchFontMaxRight: settings.values.matchFontMaxRight,
     clubName: settings.values.clubName,
   })
+  // Cable trust (see cableTrust.js): on unless the config says false — a hand-built test config
+  // gets it too, which is harmless: nothing a test sends arrives on 192.168.5.1.
+  const cableTrust = makeCableTrust({ enabled: config.cableTrust !== false, address: config.cableAddress, subnet: config.cableSubnet })
+  if (cableTrust.enabled) log.info(`cable trust on: a tablet on ${cableTrust.address} from ${cableTrust.subnet} needs no scorer PIN`, { address: cableTrust.address, subnet: cableTrust.subnet })
+  else if (cableTrust.off === 'invalid') log.warn(`cable trust OFF — not a usable address/subnet: ${cableTrust.address} ${cableTrust.subnet}`, { address: cableTrust.address, subnet: cableTrust.subnet })
+  else log.info('cable trust off (CABLE_TRUST=0): a cabled tablet is asked for the PIN like any other')
   const server = createControlServer({
     sourceManager,
     manualSource,
@@ -225,6 +232,7 @@ export async function startAppliance(config = loadConfig()) {
     // Test hook only: { now, trusted } for the automatic pre-match (test/auto-prepare-selftest.mjs).
     autoPrepare: config.autoPrepare || null,
     matchUpload,
+    cableTrust,
   })
 
   // The default screen on a fresh boot (the KSC Wiedikon crest) is asserted by the client

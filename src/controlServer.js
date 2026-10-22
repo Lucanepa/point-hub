@@ -19,6 +19,7 @@ import { PER_SPORT_KEYS, PIN_RE } from './settings.js'
 import { log, LEVELS } from './logStore.js'
 import { systemInfo } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
+import { makeCableTrust } from './cableTrust.js'
 import { GameSheet } from './gameSheet.js'
 import { ClockSync } from './clockSync.js'
 import { SeasonSchedule } from './seasonSchedule.js'
@@ -194,7 +195,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -280,6 +281,16 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // Brute-force gate — see pinGate.js. Without it, /api/unlock is an oracle that answers
   // "is this PIN right?" to anyone, unthrottled.
   const pinGate = new PinGate()
+  // A tablet on the board's cable is never asked for the PIN (owner decision, see cableTrust.js):
+  // decided from the TCP connection alone — the address it arrived on and the one it came from —
+  // never from a header. Off unless the appliance hands one in.
+  const cable = cableTrust && typeof cableTrust.trusts === 'function' ? cableTrust : makeCableTrust({ enabled: false })
+  // 'cable' for a cable-trusted request, else null. Cached on the request: asked several times each.
+  const trustOf = (req) => {
+    if (!req) return null
+    if (req._pinTrust === undefined) req._pinTrust = cable.trusts(req.socket) ? 'cable' : null
+    return req._pinTrust
+  }
   // Shared by pinOk and /api/unlock so guesses against either path count towards the same lock.
   // Returns { ok, locked, retryAfterMs }.
   const tryPin = (req, supplied) => {
@@ -297,6 +308,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     return { ok, locked: false, retryAfterMs: 0 }
   }
   const pinOk = (req) => {
+    // Cable-trusted: through every PIN gate, whatever the header says (a stale PIN the app still
+    // holds from the Wi-Fi included). Not counted by the brute-force gate either way.
+    if (trustOf(req)) return true
     const r = tryPin(req, req.headers['x-scorer-pin'] || '')
     // A locked board rejecting a phone is normally a spectator poking at it, but it is also
     // what a scorer sees when they mistype — either way it belongs in the record.
@@ -312,6 +326,23 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       return sendJson(res, 429, { error: `too many wrong PINs — try again in ${secs}s`, retryAfterMs: r.retryAfterMs })
     }
     return sendJson(res, 403, { error: 'scorer PIN required' })
+  }
+  // The PIN as one requester sees it, for /api/status. `pinRequired` is per requester: true when
+  // this client's writes need a PIN — never for a cable-trusted one, which is how the tablet app
+  // (1.1.x reads exactly this) shows no padlock and dims nothing on the cable. `pinTrust` says
+  // why: 'cable', or null. `pinConfigured` is the board's own fact — a PIN exists — for a console
+  // that has to word Settings ▸ Access right whatever its own connection is.
+  function pinView(req) {
+    const configured = !!(settings && settings.values.scorerPin)
+    const trust = trustOf(req)
+    return { pinRequired: configured && !trust, pinTrust: trust, pinConfigured: configured }
+  }
+  // The same for /api/settings. `pinSet` keeps the meaning every shipped client gives it — "this
+  // board will ask you for a PIN" — so the tablet app's start-up lock (it reads pinSet and nothing
+  // else) stays down on the cable. Whether one exists at all is `pinConfigured`.
+  function pinSettingsView(req) {
+    const v = pinView(req)
+    return { pinSet: v.pinRequired, pinTrust: v.pinTrust, pinConfigured: v.pinConfigured }
   }
   // Ephemeral display countdown (timeout 30s / set interval / side switch). Owned here
   // so it reaches every surface from ONE source: the control UI banner, the
@@ -715,7 +746,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
     // GET /api/status
     if (pathname === '/api/status' && req.method === 'GET') {
-      return sendJson(res, 200, status())
+      return sendJson(res, 200, status(req))
     }
     // GET /api/board — the exact section map pushed to the LedBox (1:1 mirror for the web view)
     if (pathname === '/api/board' && req.method === 'GET') {
@@ -816,7 +847,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (prematch) await beginMatch('manual mode')
       if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
       sourceManager.setSource(manualSource, { mode: 'manual' })
-      return sendJson(res, 200, status())
+      return sendJson(res, 200, status(req))
     }
     // POST /api/action { action }
     if (pathname === '/api/action' && req.method === 'POST') {
@@ -899,7 +930,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Never hand the PIN to a client — expose only whether one is set.
       // perSportKeys tells the UI which fields belong to the active sport (settings.values already
       // carries the active sport's values, since it's a flat merged view).
-      return sendJson(res, 200, { ...settings.values, scorerPin: '', pinSet: !!settings.values.scorerPin, perSportKeys: PER_SPORT_KEYS })
+      return sendJson(res, 200, { ...settings.values, scorerPin: '', ...pinSettingsView(req), perSportKeys: PER_SPORT_KEYS })
     }
     // POST /api/settings — partial update; unknown keys are dropped and numbers clamped
     if (pathname === '/api/settings' && req.method === 'POST') {
@@ -970,7 +1001,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           clubName: updated.clubName,
         })
       }
-      return sendJson(res, 200, { ...updated, scorerPin: '', pinSet: !!updated.scorerPin })
+      return sendJson(res, 200, { ...updated, scorerPin: '', ...pinSettingsView(req) })
     }
     // GET /api/sport — the active sport + the pickable list (drives the UI's sport selector).
     if (pathname === '/api/sport' && req.method === 'GET') {
@@ -1039,7 +1070,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       const lan = new LanSource({ relayUrl: wsUrl, matchId, reconnectMs })
       watchLinkedMatch(lan, matchId)
       sourceManager.setSource(lan, { mode: 'lan', matchId })
-      return sendJson(res, 200, { ...status(), relay: { address: relayHostLabel(wsUrl), source: target.source } })
+      return sendJson(res, 200, { ...status(req), relay: { address: relayHostLabel(wsUrl), source: target.source } })
     }
     // POST /api/countdown { seconds, label, content, swapFirst } — start the shared timer.
     // swapFirst (the set interval) applies next-set FIRST — swap ends + reset points — with the
@@ -1109,7 +1140,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       if (was && countdown) await stopCountdown({ expired: false })
       const started = was && (prematch ? await beginMatch('start now') : true)
       if (was) alog.info('start match now', { ip: clientIp(req) })
-      return sendJson(res, 200, { ok: true, started, ...status() })
+      return sendJson(res, 200, { ok: true, started, ...status(req) })
     }
     // POST /api/gamesheet { refresh? } — Game info + the KSCW roster for the game on the board, so
     // the scorer can copy them into the eScoresheet. Game info is the public schedule. The roster
@@ -1132,6 +1163,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       else if (!(settings && settings.values.scorerPin)) roster = { ok: false, error: 'Set a scorer PIN first (Settings) — the roster holds birthdates, so the board only shows it behind the PIN.' }
       // No PIN sent = a locked tablet asking for the card, not a guess: it must not count towards
       // the lock-out, or a tablet left on this tab would lock itself out by polling.
+      // On the cable the roster's PIN gate is passed like every other (cableTrust.js); the rule above
+      // — no roster at all on a board with no PIN — stays, as it is about the board, not the asker.
+      else if (trustOf(req)) roster = await gameSheet.view({ refresh: !!(body && body.refresh) })
       else if (!req.headers['x-scorer-pin']) roster = { ok: false, locked: true, error: 'The roster holds birthdates — enter the scorer PIN to see it.' }
       else if (!pinOk(req)) {
         const d = req._pinDenial || {}
@@ -1142,6 +1176,14 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // POST /api/unlock { pin } — verify a scorer PIN without performing an action.
     if (pathname === '/api/unlock' && req.method === 'POST') {
       const body = await readJson(req)
+      // On the cable there is nothing to unlock. A PIN that is offered is still checked truthfully
+      // (a client that stores whatever "worked" must not carry a wrong one back onto the Wi-Fi),
+      // but never counted towards a lock-out: there is no guessing to slow down on a cable.
+      if (trustOf(req)) {
+        const need = settings ? settings.values.scorerPin : ''
+        const offered = String((body && body.pin) || '')
+        return sendJson(res, 200, { ok: !need || !offered || safeEqual(offered, need), trusted: 'cable' })
+      }
       // Goes through the same gate as the header path — this endpoint is the cheapest oracle on
       // the board, so guesses here must count towards the same lock, not get their own budget.
       const r = tryPin(req, (body && body.pin) || '')
@@ -1202,12 +1244,12 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         clog.info(clears ? 'saved game deleted — board cleared to the clock' : 'saved game deleted — board left as it is', {
           sport, hadSaved: !!saved, showingSaved, cleared: clears, ip: clientIp(req),
         })
-        return sendJson(res, 200, { ok: true, saved: null, cleared: clears, ...status() })
+        return sendJson(res, 200, { ok: true, saved: null, cleared: clears, ...status(req) })
       }
       // "Just show the clock": park the panel on the clock without touching the score.
       if (choice === 'clock') {
         await holdClock()
-        return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+        return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status(req) })
       }
       if (choice === 'new' || choice === 'continue') {
         const saved = choice === 'continue' ? resume.get(sport) : null
@@ -1216,7 +1258,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         if (teams) return startScheduledGame(res, req, sport, teams, { prematch: !!(body && body.prematch === true), gameId: cleanGameId(body && body.gameId) })
         // Continuing a game saved during its pre-match goes back to the pre-match: names set,
         // 0-0, the clock on the panel.
-        if (saved && resume.isPrematch(sport)) return restorePrematch(res, sport, saved)
+        if (saved && resume.isPrematch(sport)) return restorePrematch(res, req, sport, saved)
         dropPrematch(choice === 'new' ? 'new game' : 'continued a saved game')
         // Lift idle FIRST: pushState is deliberately suppressed while an idle screen is up, so
         // restoring the state before this would leave the crest on the panel and the scoreboard
@@ -1244,7 +1286,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           if (keepsHistory()) try { history.record({ type: 'reset' }, manualSource.getState(), null, nowStamp(), nowClock()) } catch (e) { log.error('history', `record failed: ${e && e.message}`, e) }
         }
         touchedSinceStart = false
-        return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+        return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status(req) })
       }
       return sendJson(res, 400, { error: 'choice must be new, continue, delete or clock' })
     }
@@ -1300,9 +1342,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           winner: line(body.winner, 24), score: line(body.score, 24), history: line(body.history, 60), color,
         })
         : false
-      if (!ok) return sendJson(res, 200, { ok: false, error: 'the board has no result screen', ...status() })
+      if (!ok) return sendJson(res, 200, { ok: false, error: 'the board has no result screen', ...status(req) })
       clog.info(`result screen shown: ${line(body.winner, 24)} ${line(body.score, 24)}`)
-      return sendJson(res, 200, { ok: true, ...status() })
+      return sendJson(res, 200, { ok: true, ...status(req) })
     }
     // GET /api/history — completed matches (newest first) for the History tab + export
     if (pathname === '/api/history' && req.method === 'GET') {
@@ -1479,7 +1521,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // new match reaches the panel — and the match itself is painted later by beginMatch().
   async function startScheduledGame(res, req, sport, teams, { prematch: pre = false, gameId = null } = {}) {
     await setupScheduledGame(sport, teams, { prematch: pre, gameId, why: 'schedule', ip: clientIp(req) })
-    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status(req) })
   }
   // The part of the schedule start that the automatic pre-match shares (see autoPrepare.js):
   // exactly the same board, with no HTTP request behind it.
@@ -1591,12 +1633,12 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     touchedSinceStart = false
     clog.info('pre-match restored — the board keeps the clock until the match starts', { sport })
   }
-  async function restorePrematch(res, sport, saved) {
+  async function restorePrematch(res, req, sport, saved) {
     await applyPrematch(sport, saved)
-    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status() })
+    return sendJson(res, 200, { ok: true, saved: resume.summary(sport), ...status(req) })
   }
 
-  function status() {
+  function status(req = null) {
     const { mode, matchId } = sourceManager.status
     return {
       mode, matchId,
@@ -1611,7 +1653,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Where the scorer sits (settings.js). The console mirrors its team cards by it; nothing on
       // the server side changes with it.
       orientation: settings ? settings.values.orientation : 'behind',
-      pinRequired: !!(settings && settings.values.scorerPin),
+      // Whether THIS requester needs the PIN to write, and why not when it doesn't (see pinView).
+      ...pinView(req),
       build: consoleBuild,
       httpsOrigin: httpsOrigin && !(httpsValidTo && Date.now() >= httpsValidTo) ? httpsOrigin : null,
       // So the console knows whether its clock is wanted. `synchronized:false` is the console's
