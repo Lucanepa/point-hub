@@ -25,7 +25,7 @@ const parts = [
   ['O', 'USB-C power board', 'STUSB4500', 1],
   ['P', 'USB-C extension', 'panel mount, 30 cm', 2],
   ['Q', 'Fuse box', '12-way, 5 A fuses ×14 (4 spare)', 1],
-  ['R', 'Horn switch', 'MOSFET board + plug, no horn', 1],
+  ['R', 'Horn switch', 'MOSFET + I²C switch chip, plug, no horn', 1],
   ['S', 'Stand cup', '35 mm, with M4 screws', 1],
   ['T', 'Threaded inserts', '¼″ and ⅜″', 2],
   ['U', 'Rubber feet', '', 4],

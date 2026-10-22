@@ -188,7 +188,7 @@ async function main() {
   const print = add(new THREE.PlaneGeometry(0.28, 0.014), new THREE.MeshBasicMaterial({ map: labelTex('KSC WIEDIKON  ·  POINT HUB', 1024, 52, '#9aa1aa', '600 30px "Archivo", Arial, sans-serif'), transparent: true }), 0, 0.015, D / 2 + 0.0004);
   print.castShadow = false;
 
-  // back: two USB-C ports, hatch, horn plug, vents, screws
+  // back (the service door): two USB-C ports, horn plug, vents, thumb screws
   const back = -D / 2;
   for (const p of [{ x: 0.39, c: 0xf2b705, t: 'POWER' }, { x: 0.45, c: 0x3b74ff, t: 'DATA' }]) {
     const slot = add(new RoundedBoxGeometry(0.0135, 0.0062, 0.004, 2, 0.0028), mDark, p.x, 0.045, back - 0.0004); slot.castShadow = false;

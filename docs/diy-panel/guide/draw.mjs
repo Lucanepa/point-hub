@@ -170,7 +170,7 @@ export function step2() {
     if (!i) b += badge(x + 2, y - 4, 'D');
   }
   b += count(520, 70, '×2') + lines(516, 92, ['window', '160 × 320', '24 mm border'], 'ts', 'start', 12);
-  // B seen from outside: ports bottom-left, hatch, horn, vents
+  // B seen from outside (the service door): ports bottom-left, horn hole, vents
   const bx = 20, by = 182, Bz = (z) => by + (380 - z) * s, Bx = x => bx + x * s;
   b += rect(bx, by, 1020 * s, 380 * s, 'o p0') + badge(bx + 2, by - 4, 'B');
   for (let i = 0; i < 8; i++) b += rect(Bx(300 + i * 55), Bz(349), 40 * s, 8 * s, 'o hatchf thin');
@@ -191,7 +191,7 @@ export function step2() {
   b += txt(Tx(510), Ty(104) + 18, '4 × Ø4.5 for the handles', 'tt');
   // legend
   b += lines(356, 196, ['Cut-outs', 'Ø45  stand cup', 'Ø8  ¼″ camera insert', 'Ø12  ⅜″ stand insert', 'Ø30  horn hole, plug it', 'Ø6  thumb screws ×2 (B)', 'USB-C  13 × 7 + 2 × Ø3', 'vents  8 × 40 × 8'], 'tl', 'start', 16);
-  return svg(640, 410, b, 'Windows and holes: front window, two end windows, back panel ports, hatch and vents, bottom and top holes');
+  return svg(640, 410, b, 'Windows and holes: front window, two end windows, back door with the ports, horn hole and vents, bottom and top holes');
 }
 
 export function step3() {
@@ -308,7 +308,7 @@ export function step8() {
   })()) + txt(560, 142, 'magnets snap on', 'tm');
   b += badge(24, 40, 'F') + count(38, 47, '×3');
   b += txt(24, 72, 'Steel bars: the modules’', 'ts', 'start') + txt(24, 84, 'own magnets hold them', 'ts', 'start');
-  return svg(640, 364, b, 'Screw two battens along the long walls, then three aluminium bars across the modules');
+  return svg(640, 364, b, 'Screw two battens along the long walls, then three steel bars across the modules');
 }
 
 export function step9() {
@@ -414,7 +414,7 @@ export function step13() {
   let b = '';
   b += fuseBox(24, 132, 10, 170);
   ['1', '2', '3', '4', '5', '6', 'L', 'R', 'Pi', '·'].forEach((l, i) => { b += txt(24 + 9 + i * 15.4 + 5, 200, l, 'tt'); });
-  // front modules mini, U layout
+  // front modules mini: OUT 1 top row, OUT 2 bottom row, OUT 3 benches
   const mx = 300, my = 40, mw = 70, mh = 34;
   const pos = [[0, 0, 1, 1], [1, 0, 2, 1], [2, 0, 3, 1], [0, 1, 4, 1], [1, 1, 5, 1], [2, 1, 6, 1]];
   for (const [c, r, n, d] of pos) {
@@ -436,12 +436,12 @@ export function step13() {
   b += rect(470, 220, 40, 30, 'o p0') + txt(490, 266, 'O', 'tb') + path('M470 236 L420 236', 'wd dash');
   b += circ(600, 236, 8, 'ringb') + txt(600, 262, 'DATA', 'tt') + path('M592 236 C580 280 560 284 548 284', 'wd') + rect(520, 276, 28, 16, 'o p1', 2) + path('M520 284 C470 286 430 280 420 256', 'wd') + txt(534, 304, 'hub → Pi network port · tablet charges', 'tt');
   b += badge(24, 260, 'Q') + txt(40, 264, '5 A fuses ×10', 'ts', 'start');
-  return svg(640, 300, b, 'Connect panel power through the fuses, ribbon OUT 1 to the front modules and OUT 2 to the bench panels, I2C and data cables');
+  return svg(640, 300, b, 'Connect panel power through the fuses, ribbon OUT 1 to the top row, OUT 2 to the bottom row and OUT 3 to the bench panels, then the I2C and data cables');
 }
 
 export function step14() {
   let b = '';
-  // hatch open + SD
+  // back door open + SD
   b += rect(24, 70, 150, 150, 'o p0') + rect(54, 150, 60, 50, 'o dark');
   b += `<g transform="rotate(-24 54 150)">${rect(54, 100, 60, 50, 'o p1')}</g>`;
   b += path('M88 104 l10 0 l6 6 l0 16 l-16 0 Z', 'o p0') + arrow([96, 132], [96, 170], 'ar', 8) + badge(130, 116, 'M');
@@ -457,7 +457,7 @@ export function step14() {
   b += poly(fSide(P, 30, 30, 160, 320, 1020), 'o lit');
   b += clock(330, 40, '30 min') + ok(470, 40, 12) + txt(490, 45, 'warm is fine', 'tl', 'start');
   b += no(470, 270, 12) + txt(490, 275, 'hot or smelly → unplug', 'tl', 'start');
-  return svg(640, 296, b, 'Put the prepared SD card in through the hatch, power up with a laptop charger, run the test pattern for 30 minutes');
+  return svg(640, 296, b, 'With the back door open, put in the prepared SD card, power up with a laptop charger, run the test pattern for 30 minutes');
 }
 
 export function step15() {
