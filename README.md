@@ -143,6 +143,24 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   `kscw_result`); an undo of the end brings the score back. When the scorer deletes the match
   (`match-deleted`), the board unlinks (mode `idle`) and holds the clock — or keeps the result if
   it is already up — instead of freezing the last score. Relay `error` frames are logged.
+- **Breaks of a linked match** — with one scorer at the OpenVolley laptop, the board runs the
+  breaks itself, on the same break screen, clock and horn as a console tap: the scorer's timeout
+  puts up **TIME OUT** with the calling team (the one whose timeout count went up), a set end the
+  **INTERVAL** with the set score, each for the length in Settings ▸ Countdowns. Each is timed from
+  the moment the board sees it, never from the laptop's `*_started_at`. The laptop's end takes it
+  down — silently when the scorer stopped it early, with the horn when it lands within 3 s of the
+  board's zero — and when that end never comes (a link drop), the board's own zero ends it. A
+  timeout is on while `timeout_active` is; OpenVolley sets `set_interval_active` on the set_end
+  frame only, so the next set's line-ups do not end the interval, and End interval, Start set, an
+  undo or a rally in the new set do. A console tap wins: a skip stays skipped, a countdown the
+  operator starts over it is theirs, and nothing starts over Show clock or with Settings ▸ Show on
+  timeout / Show on set interval off. A match end ends any break before the result goes up.
+  Indoor volleyball only (`sports.js` `linkBreaks`); beach, basketball and simple links are as
+  before.
+- **Live-state order** — OpenVolley numbers every live state it pushes (`_seq`, within the
+  `_session` of one scoring page; a reload starts again at 1). A state older than the newest one
+  the board has taken is dropped (`src/relaySubscriber.js`), so the relay's replay after a
+  reconnect can neither roll the score back nor start a break twice.
 
 - **Undo** — one button beside the set strip takes back the last action, whatever it was
   (point, timeout, sub, swap, next set, reset), up to 30 steps; it reads what it will undo
