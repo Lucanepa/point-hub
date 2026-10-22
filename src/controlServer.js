@@ -31,6 +31,9 @@ import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 import { PortalProxy } from './portalProxy.js'
 import { fixtureOf } from './liveFixture.js'
 import { applyBrightness, PANEL_PATHS } from './panelBrightness.js'
+import { toRow } from './livePush.js'
+import { toOverlay } from './overlay.js'
+import { EventEmitter } from 'node:events'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -69,6 +72,23 @@ const ACTION_TYPES = new Set(['point', 'set', 'timeout', 'sub', 'serve', 'serve-
 // board's own zero: that is still time's up, and it gets the horn. An earlier end is the scorer
 // stopping the break, silent like a skip on the console.
 const LINK_END_GRACE_MS = 3000
+// The routes that put something on the panel. While the panel test is up, each of them first ends
+// it — the panel goes back to what it showed — and only then does its own work, so a point scored
+// or a countdown started during a test is on the glass at once instead of 20 s later.
+const TAKES_PANEL = new Set(['/api/action', '/api/manual', '/api/link', '/api/countdown', '/api/idle',
+  '/api/prematch', '/api/game', '/api/message', '/api/result'])
+// How long the test screen stays up when the console does not say (it does not); and the bounds.
+const PANEL_TEST_DEFAULT_S = 20
+const PANEL_TEST_MAX_S = 60
+
+// Open /api/overlay/stream connections, at most. The route is open (no PIN, like every read), and
+// each stream is a socket held for hours; a production has one or two. Past the cap the page falls
+// back to polling /api/overlay.json, which costs nothing to hold.
+const MAX_OVERLAY_STREAMS = 8
+// The scorebug is meant to be read from anywhere a production builds its graphics: a vMix machine,
+// an OBS scene, a page of the producer's own on another origin. Its data is the public /live row
+// (see overlay.js), so unlike every other read on this board it answers cross-origin reads too.
+const OVERLAY_CORS = { 'Access-Control-Allow-Origin': '*' }
 
 // A team colour ends up inside a `style` attribute in the console and as a SetSections colour on
 // the panel. Only a #rrggbb literal is ever legitimate, and anything else is either a mistake or
@@ -215,6 +235,15 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // waits for every active one — so a /logs tab left open on some laptop held every shutdown (sport
   // switch, deploy, poweroff) until systemd's stop timeout SIGKILLed us. closeStreams() ends them.
   const streams = new Set()
+  // The livestream overlay (overlay.js): every change that can move the scorebug says so here, and
+  // each open /api/overlay/stream sends a frame if its object actually changed. The board's state
+  // (every scored action, a link, a reset), the countdown starting and ending, and a linked match
+  // going away are all it takes.
+  const overlayBus = new EventEmitter()
+  overlayBus.setMaxListeners(0) // bounded by MAX_OVERLAY_STREAMS, not by the default warning
+  const overlayChanged = () => overlayBus.emit('change')
+  sourceManager.on('state', overlayChanged)
+  let overlayStreams = 0
   // Scorer lock: with a PIN set, mutating requests must carry it (X-Scorer-Pin header) — a
   // spectator who scanned the QR can watch but not score. GET reads stay open.
   // Brute-force gate — see pinGate.js. Without it, /api/unlock is an oracle that answers
@@ -335,6 +364,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   function startCountdown(seconds, label, content = 'full', team = '', side = null, { link = null } = {}) {
     clog.info(`countdown started: ${label || '(no label)'} ${seconds}s${link ? ' (linked match)' : ''}`, { seconds, label: String(label || ''), content, team: String(team || ''), side, link })
     countdown = { label: String(label || ''), content, team: String(team || ''), side, link, endsAt: Date.now() + seconds * 1000 }
+    overlayChanged()
     if (cdTicker) clearInterval(cdTicker)
     const tick = () => {
       const remainingMs = countdown ? countdown.endsAt - Date.now() : -1
@@ -369,6 +399,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       expired, label: countdown.label, horn: !!(expired && opt('hornOnCountdownEnd')), repaint, prematch, link: countdown.link,
     })
     countdown = null
+    overlayChanged()
     if (cdTicker) { clearInterval(cdTicker); cdTicker = null }
     const cleared = ledbox && typeof ledbox.pushCountdown === 'function'
       ? Promise.resolve(ledbox.pushCountdown(null, '', { repaint })).catch(() => {})
@@ -664,6 +695,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       const resultUp = !!(ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout)
       clog.warn(`linked match ${matchId} was deleted by the scorer — unlinked, board ${resultUp ? 'keeps the result' : 'on the clock'}`, { matchId, resultUp })
       sourceManager.clear('the linked match was deleted')
+      overlayChanged() // clear() emits no state: the scorebug would keep the deleted match
       if (!resultUp) { try { await holdClock() } catch { /* the log has it */ } }
     })
   }
@@ -727,6 +759,10 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // Pretty route for the log viewer.
       if (pathname === '/logs') return serveStatic(res, '/logs.html', webDir)
 
+      // The livestream scorebug: an OBS browser source (1920x1080, transparent). Reads
+      // /api/overlay/stream, so it needs no PIN and nothing else from the board.
+      if (pathname === '/overlay') return serveStatic(res, '/overlay.html', webDir)
+
       // The tablet app (android/). Open like every read, and deliberately no PIN: /app is what a
       // fresh tablet opens in Chrome to install the app at all, and the app's self-update fetches
       // the other two with no scorer PIN to send. Nothing here is secret — the APK is signed, and
@@ -771,7 +807,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   async function handleApi(req, res, pathname) {
     // Any API traffic means an operator has the control UI open (it polls /api/status every
     // 1.5s). The board uses this to drop the "how do I connect" QR codes for a wall clock.
-    if (ledbox && typeof ledbox.noteViewer === 'function') ledbox.noteViewer()
+    // Except the livestream overlay's: an OBS scene or a vMix machine reads it all evening with
+    // nobody at the console, and counting it would keep the QR codes off the panel for good.
+    if (ledbox && typeof ledbox.noteViewer === 'function' && !pathname.startsWith('/api/overlay')) ledbox.noteViewer()
     // A web page open on some other device must not be able to drive the board. Both guards are
     // free for the real client: a same-origin fetch sends no Origin header at all, and every
     // caller we ship already sends `content-type: application/json`. What they stop is a page on
@@ -791,6 +829,12 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         return sendJson(res, 415, { error: 'Content-Type: application/json required' })
       }
     }
+    // A panel test on the glass gives the panel back first (see TAKES_PANEL). Behind the PIN like
+    // the route itself, so a refused request cannot cut somebody's test short either.
+    if (req.method === 'POST' && TAKES_PANEL.has(pathname) && ledbox && typeof ledbox.testView === 'function' && ledbox.testView()) {
+      if (!pinOk(req)) return denyPin(res, req)
+      await ledbox.endTest(`${pathname} took the panel`)
+    }
     // GET /api/status
     if (pathname === '/api/status' && req.method === 'GET') {
       return sendJson(res, 200, status(req))
@@ -798,6 +842,64 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // GET /api/board — the exact section map pushed to the LedBox (1:1 mirror for the web view)
     if (pathname === '/api/board' && req.method === 'GET') {
       return sendJson(res, 200, board())
+    }
+    // GET /api/overlay.json — the livestream scorebug as one flat object (overlay.js): a vMix Data
+    // Source, or anything else that reads JSON. Open like every read, and cross-origin as well (see
+    // OVERLAY_CORS); never cached, since a stale score on a broadcast is the one thing it must not be.
+    if (pathname === '/api/overlay.json' && req.method === 'GET') {
+      return send(res, 200, JSON.stringify(overlayView()), {
+        ...OVERLAY_CORS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+      })
+    }
+    // GET /api/overlay/stream — the same object as Server-Sent Events: one frame on connect, then one
+    // per change (a frame is sent only when the object actually differs). What /overlay listens to.
+    // SSE for the reason /api/logs/stream is: no WebSocket dependency in production, and an
+    // EventSource reconnects by itself (retry: 3 s). Capped at MAX_OVERLAY_STREAMS; past it a 503,
+    // and the page polls the JSON instead.
+    if (pathname === '/api/overlay/stream' && req.method === 'GET') {
+      if (overlayStreams >= MAX_OVERLAY_STREAMS) {
+        clog.warn(`refused an overlay stream — ${overlayStreams} already open`, { ip: clientIp(req) })
+        res.setHeader('Retry-After', '30')
+        return send(res, 503, JSON.stringify({ error: 'too many overlay streams — read /api/overlay.json instead' }), {
+          ...OVERLAY_CORS, 'Content-Type': 'application/json; charset=utf-8',
+        })
+      }
+      overlayStreams++
+      res.writeHead(200, {
+        ...res._cors, ...OVERLAY_CORS,
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      })
+      // Headers out now (see /api/logs/stream), and how soon to come back after a drop.
+      res.write('retry: 3000\n\n')
+      let last = ''
+      const frame = () => {
+        const json = JSON.stringify(overlayView())
+        if (json === last) return
+        last = json
+        try { res.write(`data: ${json}\n\n`) } catch { /* client went away */ }
+      }
+      frame()
+      overlayBus.on('change', frame)
+      const keepAlive = setInterval(() => { try { res.write(': keep-alive\n\n') } catch { /* ignore */ } }, 20000)
+      if (keepAlive.unref) keepAlive.unref()
+      streams.add(res)
+      clog.info(`overlay stream opened (${overlayStreams} open)`, { ip: clientIp(req), open: overlayStreams })
+      let closed = false
+      const done = () => {
+        if (closed) return
+        closed = true
+        overlayStreams--
+        clearInterval(keepAlive)
+        overlayBus.off('change', frame)
+        streams.delete(res)
+        clog.info(`overlay stream closed (${overlayStreams} open)`, { ip: clientIp(req), open: overlayStreams })
+      }
+      res.on('close', done)
+      req.on('error', done)
+      return
     }
     // GET /api/matches
     if (pathname === '/api/matches' && req.method === 'GET') {
@@ -1061,6 +1163,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           matchFontMaxRight: updated.matchFontMaxRight,
           clubName: updated.clubName,
           idleQr: updated.idleQr,
+          intervalHistory: updated.intervalHistory,
         })
       }
       return sendJson(res, 200, { ...updated, scorerPin: '', ...pinSettingsView(req) })
@@ -1461,6 +1564,61 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       setTimeout(() => { execFile('sudo', ['systemctl', 'reboot'], () => {}) }, 700)
       return
     }
+    // POST /api/paneltest { action: 'start' | 'stop' | 'horn', seconds? } — Diagnostics ▸ Panel test,
+    // the volunteer's self-check of the hardware: the test screen (each module numbered 1 | 2 | 3,
+    // colour bars, a frame per module) for `seconds` (default 20), back to normal at once, or one
+    // blast of the horn. PIN-gated like every write.
+    //
+    // `start` and `horn` are refused (409, in words) while a match is being played or a countdown
+    // runs: a test screen hides the score and a horn stops play. The horn honours Settings ▸ Horn
+    // when a countdown ends — switched off, the test does not sound it either, and says why, since
+    // a silent horn is then the setting and not a fault. `stop` is never refused. The test screen
+    // always goes back by itself (see LedboxClient.showTest), so nothing here can strand the panel.
+    if (pathname === '/api/paneltest' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req) || {}
+      const action = body.action
+      if (action === 'stop') {
+        const stopped = ledbox && typeof ledbox.endTest === 'function' ? await ledbox.endTest('back to normal from the console') : false
+        if (stopped) alog.info('panel test: back to the normal screen', { ip: clientIp(req) })
+        return sendJson(res, 200, { ok: true, stopped, ...status() })
+      }
+      if (action !== 'start' && action !== 'horn') return sendJson(res, 400, { error: 'action must be start, stop or horn' })
+      if (!ledbox || ledbox.ready !== true) {
+        return sendJson(res, 200, { ok: false, error: 'The board is not connected — there is no panel to test yet.' })
+      }
+      const busy = panelTestRefusal()
+      if (busy) {
+        clog.info(`panel test ${action} refused: ${busy}`, { action, ip: clientIp(req) })
+        return sendJson(res, 409, { ok: false, error: busy })
+      }
+      if (action === 'horn') {
+        if (!opt('hornOnCountdownEnd')) {
+          alog.info('panel test: horn not sounded — it is switched off in Settings', { ip: clientIp(req) })
+          return sendJson(res, 200, { ok: false, horn: 'off', error: 'The horn is switched off: Settings ▸ Countdowns ▸ Horn when a countdown ends. Switch it on to test it.' })
+        }
+        const r = typeof ledbox.horn === 'function' ? await ledbox.horn(1, 0.3) : false
+        const sounded = r !== false
+        alog.info(sounded ? 'panel test: horn sounded' : 'panel test: the board did not take the horn command', { ip: clientIp(req), sounded })
+        return sendJson(res, 200, sounded
+          ? { ok: true, horn: 'sounded' }
+          : { ok: false, horn: 'failed', error: 'The board did not take the horn command — check /logs.' })
+      }
+      const s = Number(body.seconds)
+      const seconds = Number.isFinite(s) && s > 0 ? Math.min(PANEL_TEST_MAX_S, Math.max(1, Math.round(s))) : PANEL_TEST_DEFAULT_S
+      const r = typeof ledbox.showTest === 'function' ? await ledbox.showTest({ ms: seconds * 1000 }) : { ok: false, reason: 'missing' }
+      if (!r.ok) {
+        const why = {
+          missing: 'The board has no test screen yet — it arrives with the next board update (layouts/36_kscw_test.xml).',
+          busy: 'Something else just took the panel — try again in a moment.',
+          'not-ready': 'The board is not connected — there is no panel to test yet.',
+        }[r.reason] || 'The test screen did not reach the panel — check /logs.'
+        clog.warn(`panel test could not start: ${r.reason}${r.error ? ` (${r.error})` : ''}`, { reason: r.reason, ip: clientIp(req) })
+        return sendJson(res, 200, { ok: false, error: why, ...status() })
+      }
+      alog.info(`panel test: test screen up for ${seconds}s`, { seconds, ip: clientIp(req) })
+      return sendJson(res, 200, { ok: true, endsAt: r.endsAt, seconds, ...status() })
+    }
 
     // ── /logs ────────────────────────────────────────────────────────────────
     // GET /api/logs?level=&scope=&q=&sinceId=&limit= — filtered slice of the ring buffer,
@@ -1690,6 +1848,29 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     return { free: true, reason: fresh ? 'fresh' : 'match-over' }
   }
 
+  // May the panel test (or its horn) take the panel right now? null = yes, else the refusal in the
+  // words the console shows. The rule is "never over a match being played": not during a countdown
+  // (a timeout, an interval, a warm-up — the hall is reading that clock), not on a linked match
+  // (its score can arrive any second and would sit behind the test), and not while the scoreboard
+  // shows a match that has started and is not over. Everything else is fine — the clock, the crest,
+  // a pre-match, a fresh 0-0, a finished result: the test goes back to exactly that afterwards.
+  function panelTestRefusal() {
+    if (countdown) return 'A countdown is running — try again once it has ended.'
+    if (sourceManager.status.mode === 'lan') return 'A linked match is on the board — the test would hide its score. Unlink it first.'
+    const onScoreboard = !!ledbox && !ledbox._idle && (!ledbox.currentLayout || ledbox.currentLayout === ledbox.layout)
+    if (onScoreboard && matchInPlay(sourceManager.getState())) {
+      return 'A match is being played — the test would hide the score. Run it between matches, or put the clock up first (Game ▸ Clock).'
+    }
+    return null
+  }
+  // Started (anything scored) and not over, by the same rule the /live page uses (livePush toRow).
+  function matchInPlay(state) {
+    if (!state) return false
+    const started = count(state.points_a) || count(state.points_b) || count(state.sets_won_a) || count(state.sets_won_b)
+    if (!started) return false
+    try { return !toRow(state, null, activeSport()).over } catch { return true }
+  }
+
   // Bring back a game saved during its pre-match (Continue, or a restart — see
   // server.resumeInterruptedGame): the state goes in behind the held clock, and the pre-match is on
   // again exactly as it was left.
@@ -1752,6 +1933,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         connected: ledbox.ready === true, host: ledbox.host, port: ledbox.port, layout: ledbox.currentLayout,
         // What the idle screen is doing, so the console can show 'Show clock' as the active choice.
         idle: !!ledbox._idle, clockHeld: !!(ledbox._idle && ledbox._clockHeld),
+        // The panel test, while it is on the glass: { endsAt, remainingMs }; else null.
+        test: typeof ledbox.testView === 'function' ? ledbox.testView() : null,
       },
       // The name sizes the match screen is painted with, per PANEL side — the operator's ceiling
       // after the mapper's shrink-to-fit — so the console's preview draws the names at the board's
@@ -1802,6 +1985,16 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       countdown: countdownView(),
       screen: matchScreen(),
     }
+  }
+
+  // The livestream scorebug (overlay.js) for the match on the board, and the countdown the panel is
+  // showing, if any — the same one countdownView() serves the mirror.
+  function overlayView() {
+    const cd = countdownView()
+    return toOverlay(sourceManager.getState(), {
+      sport: activeSport(),
+      countdown: cd ? { label: cd.label, team: countdown ? countdown.team : '', remainingMs: cd.remainingMs } : null,
+    })
   }
 
   // The match screen exactly as the real paint builds it — same mapper, same options — so

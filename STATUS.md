@@ -70,6 +70,24 @@ Verified on the real panel:
 - **`STATE_DIR`** moves everything the appliance writes off the checkout (for a read-only root);
   unset on the C0270, so its paths are unchanged.
 
+## Built, waiting for the glass (2026-10-22)
+
+In the repo and green in `npm test` against the mock board; not yet seen on the real panel. Move
+each line up to "Working on the board today" once it has been.
+
+- **Panel test** (Diagnostics ▸ Panel test, `layouts/36_kscw_test.xml`) — check: the three
+  modules read 1 | 2 | 3 left to right; each white frame is closed on all four sides (the
+  rectangle border's last row/column is the one guess in the geometry); the four bars are red,
+  green, blue, grey; it goes back by itself after 20 s and on "Back to normal now"; Test horn
+  beeps once.
+- **Livestream overlay** (`/overlay`, `/api/overlay.json`) — check from a laptop on the tailnet or
+  the cable: OBS browser source at 1920×1080 shows the scorebug over a transparent page and follows
+  a point within a second.
+- **Finished sets on the interval screen** (Settings ▸ Display, off by default; `hist1`/`hist2` in
+  `31_kscw_break.xml`) — check the two 9px lines sit under the interval clock without touching it
+  or the score boxes. A changed layout file may need one panel restart before the firmware sees the
+  new sections; until then the lines are simply missing (logged once per connection).
+
 ## Working in the appliance / infra
 
 - **Control UI** — phone/tablet page, landscape or portrait (stacked teams); game / link /

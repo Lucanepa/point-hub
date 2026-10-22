@@ -61,6 +61,10 @@ export const GLOBAL_DEFAULTS = {
   // Set up the pre-match on its own an hour before a home game in the season schedule (see
   // autoPrepare.js). Shared: it is about the hall's evening, not about one sport's rules.
   autoPrepare: true,
+  // The finished sets ("25-21  23-25") under the clock on the set-interval screen, for the board's
+  // own scoring (a linked OpenVolley match sends none). Off by default: it needs the kscw_break
+  // layout that carries `hist1`/`hist2`, and it is new on the glass. Shared: it is about the panel.
+  intervalHistory: false,
   // The scorer laptop's OpenVolley relay, as host[:port] (port 8080 when left out), or wss://host
   // for a relay on the internet. Empty = RELAY_URL from .env if set, else look for the laptop on
   // the board's own networks (see relayAddress.js). Shared: it is about the hall, not the sport.
@@ -121,7 +125,7 @@ export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
 // about what a valid PIN is.
 export const PIN_RE = /^\d{1,8}$/
 
-const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare', 'idleQr']
+const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare', 'idleQr', 'intervalHistory']
 const NUMS = {
   idleFontMax: [10, 30], matchFontMaxLeft: [10, 30], matchFontMaxRight: [10, 30],
   brightness: [0, 100], blinkMs: [200, 10000],

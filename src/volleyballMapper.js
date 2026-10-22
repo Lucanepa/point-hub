@@ -210,6 +210,43 @@ export function toBreakSections(state, {
   return out
 }
 
+// The finished sets on the set-interval screen (Settings ▸ Display ▸ Finished sets on the interval
+// screen; off by default). Two short lines under the clock in kscw_break's centre column, `hist1`
+// and `hist2`, two sets to a line:
+//
+//    [ set  ]    INTERVAL     [ set  ]
+//    [score ]      2:41       [score ]
+//    [ box  ]  25-21  23-25   [ box  ]     centre column x 64..127, between the two boxes
+//    [      ]  25-19          [      ]
+//
+// In PANEL order — the left team's score first, like the boxes the set score sits in. The manual
+// and beach sources keep their set results per physical side (swapped with the ends), and a state
+// with side_a 'right' is turned round here like everywhere else. An interval comes before set 2 to
+// 5, so four finished sets is the most it ever has to show; anything older is left off rather than
+// shrunk. Both lines at one size, fitted to the 64px column. No set results (a linked OpenVolley
+// match, a fresh match) = both lines blank — written blank, because the board keeps section values.
+const BREAK_HISTORY_WIDTH = 62
+export const BREAK_HISTORY_COLOR = '170,170,170' // the result screen's history grey
+
+export function breakHistoryLines(state) {
+  const sets = (state && Array.isArray(state.set_results) ? state.set_results : []).filter((r) => r && typeof r === 'object')
+  const aLeft = !state || (state.side_a || 'left') === 'left'
+  const n = (v) => (Number.isFinite(Number(v)) ? String(Math.max(0, Math.round(Number(v)))) : '0')
+  const pairs = sets.slice(-4).map((r) => (aLeft ? `${n(r.a)}-${n(r.b)}` : `${n(r.b)}-${n(r.a)}`))
+  return [pairs.slice(0, 2).join('  '), pairs.slice(2, 4).join('  ')]
+}
+
+export function toBreakHistorySections(state) {
+  const [l1, l2] = breakHistoryLines(state)
+  const size = Math.min(...[l1, l2].filter(Boolean).map((l) => fitFontSize(l, BREAK_HISTORY_WIDTH, { max: 9, min: 6 })), 9)
+  const out = []
+  for (const [name, line] of [['hist1', l1], ['hist2', l2]]) {
+    out.push(attr(name, 'text', line))
+    if (line) out.push(attr(name, 'color', BREAK_HISTORY_COLOR), attr(name, 'fontsize', size))
+  }
+  return out
+}
+
 // Pre-match / between-matches screen on the ordinary match layout: the two team names with
 // "VS" between them, everything else blanked. No image upload needed — this is the version
 // that works today. A logo screen (full-panel image) is the eventual upgrade once the board
@@ -374,6 +411,38 @@ export function toMessageSections(text, { color = CLUB_GOLD } = {}) {
   put('msgbig', stacked ? '' : phrase, oneSize)
   put('msg1', stacked ? split.a : '', twoSize)
   put('msg2', stacked ? split.b : '', twoSize)
+  return out
+}
+
+// The panel self-check (`kscw_test`, Diagnostics ▸ Panel test): every module numbered, a frame
+// around each one, and four colour bars under each number.
+//
+// The C0270 is three 64x64 modules in one chain, numbered 1 | 2 | 3 from the left as the hall sees
+// them. The faults a volunteer can actually spot are per module — a module dark, a frame with a gap
+// (a dead row or column), one bar missing (a dead colour line on that module's ribbon), the numbers
+// in the wrong order (a ribbon swapped) — so everything here is drawn once per module rather than
+// across the panel.
+//
+// Red, green and blue at full single-channel drive, because each one tests its own line on the
+// ribbon and a single channel never draws more than the team colours of a match screen do. The
+// fourth bar is all three channels together, at half drive: a white block is what draws the most
+// current, and a full-white bar adds nothing to what the frame already shows.
+//
+// Every value is written, not left to the layout file: the board keeps section values in memory
+// for as long as the panel runs, so the XML's defaults say nothing about what is on the glass.
+export const TEST_MODULES = 3
+export const TEST_FRAME = '255,255,255'
+export const TEST_BARS = { r: '255,0,0', g: '0,255,0', b: '0,0,255', w: '128,128,128' }
+
+export function toTestSections() {
+  const out = []
+  for (let m = 1; m <= TEST_MODULES; m++) {
+    out.push(attr(`frame${m}`, 'color', '0,0,0'), attr(`frame${m}`, 'bordercolor', TEST_FRAME))
+    out.push(...text(`mod${m}`, String(m), TEST_FRAME))
+    for (const [k, c] of Object.entries(TEST_BARS)) {
+      out.push(attr(`bar${m}${k}`, 'color', c), attr(`bar${m}${k}`, 'bordercolor', c))
+    }
+  }
   return out
 }
 

@@ -199,6 +199,7 @@ export async function startAppliance(config = loadConfig()) {
     matchFontMaxRight: settings.values.matchFontMaxRight,
     clubName: settings.values.clubName,
     idleQr: settings.values.idleQr,
+    intervalHistory: settings.values.intervalHistory,
   })
   // Cable trust (see cableTrust.js): on unless the config says false — a hand-built test config
   // gets it too, which is harmless: nothing a test sends arrives on 192.168.5.1.

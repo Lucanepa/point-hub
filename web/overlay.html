@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- The livestream scorebug, served by the board at /overlay.
+
+     Made for an OBS "Browser" source at 1920x1080: the page is transparent, and only the bug in one
+     corner is drawn. It reads /api/overlay/stream (Server-Sent Events) and falls back to polling
+     /api/overlay.json every 3 s while the stream is down, so a board restart or a Wi-Fi hiccup heals
+     by itself. No PIN, no fonts or scripts from the internet (the board has none), and nothing on it
+     but what the club's public /live page shows: team names, colours and the score.
+
+     URL options, all optional:
+       ?corner=tl|tr|bl|br   which corner (default tl, top left)
+       ?scale=1.5            size, 0.5 to 3 (default 1, laid out for 1920x1080)
+       ?history=0            hide the line of finished sets
+       ?preview=1            a chequered backdrop, to judge it in an ordinary browser tab
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scorebug</title>
+<style>
+  :root{
+    --bug-bg:rgba(12,14,19,.88); --bug-line:rgba(255,255,255,.14); --bug-fg:#ffffff;
+    --bug-muted:rgba(255,255,255,.72); --pts-bg:#ffffff; --pts-fg:#0a0b0d;
+    --sets-bg:rgba(255,255,255,.16); --brk-bg:#ffc832; --brk-fg:#0a0b0d;
+    --scale:1;
+  }
+  /* Transparent everywhere: OBS composites the page over the camera, and anything painted here
+     that is not the bug would cover the picture. */
+  html,body{margin:0;padding:0;background:transparent;overflow:hidden}
+  body{width:100vw;height:100vh;font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  body.preview{background:repeating-conic-gradient(#8a8f99 0 25%,#c4c8cf 0 50%) 0 0/40px 40px}
+
+  .bug{position:absolute;top:48px;left:48px;transform-origin:top left;transform:scale(var(--scale));
+    min-width:520px;color:var(--bug-fg);transition:opacity .4s ease}
+  body.c-tr .bug{left:auto;right:48px;transform-origin:top right}
+  body.c-bl .bug{top:auto;bottom:48px;transform-origin:bottom left}
+  body.c-br .bug{top:auto;left:auto;bottom:48px;right:48px;transform-origin:bottom right}
+  .bug.off{opacity:0}
+
+  .tag{display:inline-block;background:var(--bug-bg);color:var(--bug-muted);font-size:20px;font-weight:800;
+    letter-spacing:.12em;padding:4px 14px;border-radius:6px 6px 0 0}
+  .tag:empty{display:none}
+  .rows{background:var(--bug-bg);border-radius:0 8px 8px 8px;overflow:hidden}
+  .tag:empty + .rows{border-radius:8px}
+  .row{display:flex;align-items:stretch;height:64px;border-top:1px solid var(--bug-line)}
+  .row:first-child{border-top:0}
+  .chip{flex:0 0 12px}
+  .name{flex:1 1 auto;min-width:0;display:flex;align-items:center;padding:0 18px;font-size:34px;font-weight:800;
+    letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .serve{flex:0 0 28px;display:flex;align-items:center;justify-content:center}
+  .serve i{display:block;width:14px;height:14px;border-radius:50%;background:var(--bug-fg);visibility:hidden}
+  .serve.on i{visibility:visible}
+  .sets{flex:0 0 56px;display:flex;align-items:center;justify-content:center;background:var(--sets-bg);
+    font-size:32px;font-weight:700}
+  .pts{flex:0 0 92px;display:flex;align-items:center;justify-content:center;background:var(--pts-bg);
+    color:var(--pts-fg);font-size:42px;font-weight:900}
+  body.nosets .sets{display:none}
+
+  .hist{margin-top:6px;display:inline-block;background:var(--bug-bg);color:var(--bug-muted);font-size:20px;
+    font-weight:700;letter-spacing:.04em;padding:4px 14px;border-radius:6px;white-space:pre}
+  .hist:empty,body.nohist .hist{display:none}
+  .brk{margin-top:6px;display:flex;align-items:center;gap:16px;background:var(--brk-bg);color:var(--brk-fg);
+    font-size:26px;font-weight:900;letter-spacing:.06em;padding:8px 18px;border-radius:6px;text-transform:uppercase}
+  .brk[hidden]{display:none}
+  .brk .bclock{margin-left:auto;font-size:30px}
+</style>
+</head>
+<body>
+<div class="bug off" id="bug">
+  <div class="tag" id="tag"></div>
+  <div class="rows">
+    <div class="row" id="rowA">
+      <span class="chip" id="chipA"></span>
+      <span class="name" id="nameA"></span>
+      <span class="serve" id="serveA"><i></i></span>
+      <span class="sets" id="setsA">0</span>
+      <span class="pts" id="ptsA">0</span>
+    </div>
+    <div class="row" id="rowB">
+      <span class="chip" id="chipB"></span>
+      <span class="name" id="nameB"></span>
+      <span class="serve" id="serveB"><i></i></span>
+      <span class="sets" id="setsB">0</span>
+      <span class="pts" id="ptsB">0</span>
+    </div>
+  </div>
+  <div class="hist" id="hist"></div>
+  <div class="brk" id="brk" hidden><span id="brkLabel"></span><span id="brkTeam"></span><span class="bclock" id="brkClock"></span></div>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const corner = ["tl", "tr", "bl", "br"].includes(q.get("corner")) ? q.get("corner") : "tl";
+  document.body.classList.add("c-" + corner);
+  const scale = Number(q.get("scale"));
+  if (Number.isFinite(scale) && scale >= 0.5 && scale <= 3) document.documentElement.style.setProperty("--scale", String(scale));
+  if (q.get("history") === "0") document.body.classList.add("nohist");
+  if (q.get("preview") === "1") document.body.classList.add("preview");
+
+  // Only a #rrggbb literal ever reaches a style; the board checks it too, this is the second lock.
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+  const SET_SPORTS = ["volleyball", "beach"];
+  let cdEnd = 0, cdTimer = null;
+  const mmss = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+
+  // Everything goes in through textContent: team names are typed by people and end up on a broadcast.
+  function render(o) {
+    if (!o || typeof o !== "object") return;
+    const live = o.status === "live" || o.status === "final";
+    $("bug").classList.toggle("off", !live);
+    document.body.classList.toggle("nosets", !SET_SPORTS.includes(o.sport));
+    $("tag").textContent = o.status === "final" ? "FINAL" : (o.period_label || "");
+    for (const k of ["a", "b"]) {
+      const K = k.toUpperCase();
+      $("name" + K).textContent = o["team_" + k] || (k === "a" ? "HOME" : "AWAY");
+      const c = o["team_" + k + "_color"];
+      $("chip" + K).style.background = HEX.test(String(c || "")) ? c : "transparent";
+      $("sets" + K).textContent = String(Number(o["sets_" + k]) || 0);
+      $("pts" + K).textContent = String(Number(o["points_" + k]) || 0);
+      $("serve" + K).classList.toggle("on", o.serving === k && o.status === "live");
+    }
+    $("hist").textContent = o.set_scores || "";
+    const secs = Number(o.break_seconds) || 0;
+    if (o.break && secs > 0) {
+      $("brkLabel").textContent = o.break;
+      $("brkTeam").textContent = o.break_team || "";
+      cdEnd = Date.now() + secs * 1000;
+      $("brk").hidden = false;
+      tickBreak();
+      if (!cdTimer) cdTimer = setInterval(tickBreak, 250);
+    } else {
+      stopBreak();
+    }
+  }
+  function tickBreak() {
+    const left = Math.ceil((cdEnd - Date.now()) / 1000);
+    if (left <= 0) { stopBreak(); return; }
+    $("brkClock").textContent = mmss(left);
+  }
+  function stopBreak() {
+    cdEnd = 0;
+    if (cdTimer) { clearInterval(cdTimer); cdTimer = null; }
+    $("brk").hidden = true;
+  }
+
+  // Live: the stream, and the JSON every 3 s for as long as the stream is down. An EventSource
+  // retries by itself after a drop; after a refusal (the board caps open streams) it gives up for
+  // good, so a closed one is reopened once a minute while the poll carries on.
+  let es = null, poll = null;
+  async function fetchOnce() {
+    try {
+      const r = await fetch("/api/overlay.json", { cache: "no-store" });
+      if (r.ok) render(await r.json());
+    } catch { /* the board is away; the next tick tries again */ }
+  }
+  const startPoll = () => { if (!poll) { poll = setInterval(fetchOnce, 3000); fetchOnce(); } };
+  const stopPoll = () => { if (poll) { clearInterval(poll); poll = null; } };
+  function connect() {
+    if (typeof EventSource !== "function") { startPoll(); return; }
+    if (es) { try { es.close(); } catch {} }
+    es = new EventSource("/api/overlay/stream");
+    es.onopen = stopPoll;
+    es.onmessage = (e) => {
+      stopPoll();
+      let o; try { o = JSON.parse(e.data); } catch { return; }
+      render(o);
+    };
+    es.onerror = startPoll;
+  }
+  setInterval(() => { if (es && es.readyState === 2) connect(); }, 60000);
+  connect();
+})();
+</script>
+</body>
+</html>

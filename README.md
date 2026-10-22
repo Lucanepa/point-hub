@@ -246,6 +246,30 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   `/hall-login/`), so it is still the board that logs in: `POST /api/uplink/portal` (PIN) opens it
   for that tablet for ten minutes, its scripts run sandboxed away from the console's storage, and
   its cookies stay on the board. An offline `/api/uplink` also names the Wi-Fi and says `why`.
+- **Panel test** — **Diagnostics ▸ Panel test** is the volunteer's self-check of the LED hardware,
+  on the glass: **Show test screen** puts up `kscw_test` (`layouts/36_kscw_test.xml`), which
+  numbers the C0270's three 64×64 modules **1 | 2 | 3** from the left, frames each one in white and
+  draws red, green, blue and white bars under each number. A dark module, a frame with a gap, a
+  missing bar or numbers out of order point at that module or its ribbon. **Test horn** sounds the
+  horn once — unless Settings ▸ Horn when a countdown ends is off, which it then says. Both are
+  refused during a match (the scoreboard showing a started, unfinished match, or a linked match)
+  and during a countdown. The test screen goes back to exactly what was there (the held clock,
+  the crest, the scoreboard, the result) after 20 s, on **Back to normal now**, and the moment
+  anything else wants the panel (a point, a countdown, Show clock…); a reconnect, the layout guard
+  and the idle ticker each take down a test screen with no test behind it, so nothing can leave the
+  panel on it. `POST /api/paneltest { action: 'start' | 'stop' | 'horn', seconds? }` (PIN; 409 with
+  the reason when refused); `/api/status` carries `ledbox.test: { endsAt, remainingMs } | null`.
+  The layout ships with `deploy-board.sh` like every `*_kscw_*.xml`. `npm run test:paneltest`.
+- **Finished sets on the interval screen** — **Settings ▸ Display ▸ Finished sets on the interval
+  screen** (off by default) puts each finished set (`25-21  23-25`, two to a line, the left team's
+  score first) under the clock on the set-interval screen, in two new `kscw_break` sections,
+  `hist1`/`hist2`. Only for matches scored on the board: a linked OpenVolley match sends no set
+  scores. Written apart from the break screen itself, so a board whose `kscw_break` predates the
+  two sections (layout not deployed, or the panel not restarted since) loses only these lines —
+  refused once per connection and logged, the interval screen painted as before. Timeouts and the
+  warm-up show none. A deliberately static line rather than a rotating carousel: the hall and the
+  referees read the interval clock, and frames that change underneath it are motion for the camera.
+  `npm run test:interval`.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
 - **Theme** — **Settings ▸ Theme**: Light (the default), Dark, or E-ink — greyscale, paper white
@@ -306,6 +330,55 @@ Persisted to `data/logs/*.jsonl`, rotated at 5 MB × 3 files (**15 MB ceiling**,
 friendly). The scorer PIN, the Directus token and any phone number are redacted before anything
 is written.
 Design notes: [`docs/logging-DESIGN.md`](./docs/logging-DESIGN.md).
+
+## Livestream overlay — `/overlay` and `/api/overlay.json`
+The board serves the score for a livestream, so nobody has to type it into the streaming software
+a second time. Read-only and open (no PIN for a GET), and it carries nothing the club's public
+`/live` page does not already show: team names, colours, sets, points, who serves, the finished
+sets, and the countdown the panel is showing (time-out, interval, warm-up). Built from the same row
+livePush publishes (`src/overlay.js` on top of `toRow`), so no player, referee or roster data can
+reach it.
+
+- **OBS** — Sources ▸ + ▸ *Browser*, URL `http://<board>:8890/overlay`, width **1920**, height
+  **1080**. The page is transparent; only the scorebug in one corner is drawn. Options in the URL:
+  `?corner=tl|tr|bl|br` (default `tl`), `?scale=1.5` (0.5–3), `?history=0` (hide the finished
+  sets), `?preview=1` (a chequered backdrop, to judge it in an ordinary browser). The bug is hidden
+  while the board has no match on it.
+- **vMix** — Data Sources ▸ + ▸ *JSON*, URL `http://<board>:8890/api/overlay.json`, then bind a
+  title's fields to its columns. One flat object, every key always present (blank or `0` when it
+  does not apply):
+
+  | Key | |
+  |---|---|
+  | `team_a`, `team_b` | the short code as the panel shows it (else the name), capitals |
+  | `team_a_name`, `team_b_name`, `team_a_color`, `team_b_color` | full name; `#rrggbb` |
+  | `points_a/b`, `sets_a/b`, `timeouts_a/b`, `fouls_a/b` | numbers (fouls: basketball) |
+  | `serving` | `a`, `b` or empty |
+  | `period`, `period_label` | `2`, `SET 2` (basketball `Q2`, `OT1`) |
+  | `status` | `idle` (no match), `live`, `final` |
+  | `set_scores`, `set1_a` … `set5_b` | `25-21  23-25`, and each set on its own |
+  | `break`, `break_team`, `break_seconds`, `break_clock` | `TIME OUT`, `KSCW`, `23`, `0:23` |
+
+  Teams are A and B as `/live` has them: on the board's own scoring, A is the team on the panel's
+  left (a change of ends swaps them, as on the panel); a linked OpenVolley match keeps A fixed.
+- **Live updates** — `/overlay` listens to `GET /api/overlay/stream` (Server-Sent Events: a frame on
+  connect, then one per change) and polls the JSON every 3 s while the stream is down. At most 8
+  streams at once (a 503 past that; the page then polls). Both endpoints answer cross-origin reads
+  (`Access-Control-Allow-Origin: *`) — unlike every other read here — so a producer's own graphics
+  page can use them. Overlay reads do not count as someone at the console: the panel's "Join WiFi /
+  Open UI" QR codes are not hidden by a streaming PC left running.
+- **Reaching the board** — the streaming laptop needs the internet, and the board's own Wi-Fi
+  (`ledbox_C0270`) has none; a public hall Wi-Fi usually keeps its clients apart, so a laptop there
+  rarely reaches the board either. What works: the board's **tailnet name** with Tailscale on the
+  laptop; a **cable** to the board's ethernet (`http://192.168.5.1:8890/overlay`) while the laptop's
+  Wi-Fi carries the stream; or the laptop on `ledbox_C0270` with its internet from a phone over
+  **USB tethering**. A producer who cannot reach the board at all needs a page on kscw.ch reading
+  the public `live_scores` row instead (the same read `/live` makes) — not built here.
+- **Delay** — the overlay follows the board, which follows the scorer: a few seconds behind the
+  rally. To line it up with the picture, delay the camera by the same amount (OBS: the camera's
+  *Render Delay* filter, and the same *Sync Offset* on its audio).
+- Where the stream goes (and who processes the players' images there) is the club's decision; the
+  overlay itself adds team names and the score only. `npm run test:overlay`.
 
 ## Deploy on the Pi (systemd)
 ```bash
