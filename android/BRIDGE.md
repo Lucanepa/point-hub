@@ -179,6 +179,15 @@ screen ever misbehaves at a match).
 - **Scorer PIN:** the app keeps it. The console reads `PointHubApp.scorerPin()` for every write it
   makes, and reports a PIN it learned or forgot with `setScorerPin(pin)`. A 403 on a console write
   calls `pinRejected()`, and the app opens its PIN pad.
+- **First PIN (a board that must have one and has none yet):** the board answers `pinSetup:true`
+  and refuses writes from the Wi-Fi with a 403 that carries `pinSetup:true` and words naming
+  Settings. The app can only *type* a PIN, so setting the first one is the console's: it shows its
+  own "Set a scorer PIN" screen (not hidden in embed mode), calls `showTab("settings")` once to come
+  in front of the Game tab, and never `pinRejected()` for such a 403. Once the PIN is set it calls
+  `setScorerPin(pin)`, `settingsChanged()` and `showTab("game")`. Meanwhile the app 1.1.x, unchanged,
+  shows its padlock (`pinRequired:true`), no start-up lock screen (`pinSet:false`), a toast with the
+  board's words on a refused tap, and in its PIN pad the same words (`/api/unlock` answers 409 with
+  them). On the cable nothing of this blocks; Settings ▸ Access only reminds.
 - **Theme:** Settings ▸ Theme stays in the console. The console reports the current theme at boot
   and on every change with `setTheme(theme)`, and the app's native screens follow it.
 - **Settings:** after a successful save the console calls `settingsChanged()`, so the native Game
