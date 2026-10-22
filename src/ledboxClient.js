@@ -213,6 +213,9 @@ export class LedboxClient extends EventEmitter {
         // from it succeeded, where "unknown" lets a paint through to its error-6 self-heal.
         const reported = info && info.current_layout
         this.currentLayout = this._ownLayouts().has(reported) ? reported : null
+        // What the board said it is (deviceName, firmware version) — /api/status names the
+        // renderer from it (boardIdentity.js). Kept across a disconnect: still the same board.
+        this.deviceInfo = info && typeof info === 'object' ? info : null
         this.emit('ready', info)
         // Re-ask once per connect: a board can gain the layouts between sessions (a reflash and
         // restore, or a firmware layout drop), and it should not need a bridge restart to notice.

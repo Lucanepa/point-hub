@@ -20,6 +20,8 @@ import { log, LEVELS } from './logStore.js'
 import { systemInfo } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
 import { makeCableTrust } from './cableTrust.js'
+import { boardIdentity, readPanelGeometry } from './boardIdentity.js'
+import os from 'node:os'
 import { GameSheet } from './gameSheet.js'
 import { ClockSync } from './clockSync.js'
 import { SeasonSchedule } from './seasonSchedule.js'
@@ -201,7 +203,7 @@ function applyBrightness(value) {
   })
 }
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false }) {
+export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, hostname = null, settingIni = SETTING_INI }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -228,6 +230,15 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // `httpsValidTo` is the cert's expiry: past it the origin is no longer offered, even if the
   // renewal never arrived to replace it.
   let httpsOrigin = null, httpsValidTo = null
+  // Which board this is (gap-07, boardIdentity.js). The hostname and the panel size are read once:
+  // neither changes under a running board. Both injectable so a test is not about the machine it
+  // runs on.
+  const boardHost = hostname != null ? String(hostname) : (() => { try { return os.hostname() } catch { return '' } })()
+  const panelGeometry = readPanelGeometry(settingIni)
+  const identity = () => boardIdentity({
+    boardId: opt('boardId'), boardLabel: opt('boardLabel'), hostname: boardHost,
+    sports: SPORT_LIST.map((s) => s.key), panel: panelGeometry, info: ledbox && ledbox.deviceInfo,
+  })
   // Completed-match log (History tab + CSV/JSON export).
   const history = new HistoryStore({ file: path.resolve(stateHome, 'history.json'), sport: () => activeSport() })
   // Each finished match's play-by-play goes to wiedisync for the club's stats (matchUpload.js):
@@ -1724,7 +1735,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // The name sizes the match screen is painted with, per PANEL side — the operator's ceiling
       // after the mapper's shrink-to-fit — so the console's preview draws the names at the board's
       // own size instead of guessing (and a long name no longer runs into the set score there).
-      board: { fontsize: matchFontsize() },
+      // …and, beside it, which board this is and what it can do (boardIdentity.js): id, idSource,
+      // label, caps { sports, panel, renderer }. Added, nothing renamed: fontsize stays where it was.
+      board: { fontsize: matchFontsize(), ...identity() },
       state: sourceManager.getState(),
       ...undoView(),
       ...logView(),

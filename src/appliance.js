@@ -236,6 +236,10 @@ export async function startAppliance(config = loadConfig()) {
     cableTrust,
     // loadConfig sets it; a hand-built test config leaves it off (see config.js).
     pinMandatory: config.pinMandatory === true,
+    // Test hooks only: the board identity's hostname and the firmware setting.ini it reads the panel
+    // size from (boardIdentity.js). Unset = this machine's hostname and /home/pi/ledbox/setting.ini.
+    ...(config.hostname != null ? { hostname: config.hostname } : {}),
+    ...(config.settingIni ? { settingIni: config.settingIni } : {}),
   })
   if (config.pinMandatory === true && !settings.values.scorerPin) {
     log.warn('no scorer PIN set — writes from the Wi-Fi are refused until the first operator sets one in the console (the cable is exempt)')

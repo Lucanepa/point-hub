@@ -254,7 +254,7 @@ These are served by the board (the server agent's side):
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/status` | Discovery. A 200 with a JSON **object** body means "this is the board". Redirects count as failures. |
+| `GET /api/status` | Discovery. A 200 with a JSON **object** body means "this is the board". Redirects count as failures. `board.id` (with `board.label` and `board.caps`) says WHICH board it is — every board answers at the same 172.24.1.1 / 192.168.5.1, so pairing a tablet to one board means remembering this id, not an address. |
 | `GET /app/version.json` | The update manifest: `{"versionCode":13,"versionName":"1.0.4","sha256":"<64 hex>","url":"/app/pointhub.apk","notes":"…","size":5234567}`. `url` must be `/app/…` or an absolute URL on the same board origin. |
 | `GET /app/pointhub.apk` | The APK. Serve it as `application/vnd.android.package-archive` with `Cache-Control: no-store`. |
 
