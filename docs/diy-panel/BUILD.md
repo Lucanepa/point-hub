@@ -82,7 +82,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Q | Fuse box | 12-way **standard blade (ATO/ATC)** with a negative bus, 14 × 5 A fuses (4 spare); a 12-way MINI box with a negative bus was not on sale in Oct 2026 | 1 | 30 |
 | R | Horn switch | MOSFET board + **TCA9534** I²C output breakout + 10 kΩ gate pull-down + plug, no horn | 1 | 7 |
 | S | Stand cup | 35 mm, with M4 screws | 1 | 8 |
-| T | Threaded inserts | ¼″-20 and ⅜″-16 | 2 | 4 |
+| T | Tripod threads | 2 × M10 T-nut + K&M 21980 adapter (M10 → ⅜″-16), one with a K&M 21770 reducer (⅜″ → ¼″-20); inch wood inserts are not sold in CH | 2 | 22 |
 | U | Rubber feet | | 4 | 3 |
 | V | Handles | black bow handles, 128 mm | 2 | 8 |
 | W | Corner caps | black rubber, 20 mm, front corners only | 4 | 5 |
@@ -425,21 +425,35 @@ POWER and DATA are both on the back, colour-ringed (gold POWER, blue DATA) and l
 
 ## 8. The case
 
+### Sheets and thicknesses
+
+| Material | Thickness | What it becomes |
+|---|---|---|
+| Poplar plywood, B/BB, indoor glue | **6 mm** | the shell: front frame, back panel, top, bottom, ends (A–D) |
+| the same plywood, two layers glued | **12 mm** | the backing plate (Y) and the two tilt legs: screws and bolts need more than 6 mm |
+| Smoked polycarbonate (G) | **3 mm** | the front sheet and the two end sheets |
+| Pine battens (E) | **15 × 15 mm** | the shell joints, the six back-panel screw blocks, the corner blocks |
+| Steel flat bar (F) | **20 × 4 mm** | the three bars the module magnets hold on to |
+| Aluminium sheet | **1.5 mm** | the plate under the converter and the fuse box |
+
 ### Cut list — one sheet of 6 mm poplar plywood, 1250 × 1250
 
-| Part | Size (mm) | Notes |
-|---|---|---|
-| A front frame | 1020 × 380 | window **960 × 320**, 30 mm border all round |
-| B back panel | 1020 × 380 | **screwed on, the way in**; ports, horn hole, vents, 6 screw holes |
-| C top + bottom | 2 × 1020 × 208 | top: 4 × Ø4.5 for the handles; bottom: stand cup and inserts |
-| D ends | 2 × 208 × 368 | window **160 × 320**, 24 mm border |
-| Y backing plate | 208 × 140 | glued inside the bottom, under cup and inserts |
+(Or two 1200 × 600 sheets for A + C and B + C, and one 600 × 600 for D, Y and the legs.)
+
+| Part | Size (mm) | Thickness | Notes |
+|---|---|---|---|
+| A front frame | 1020 × 380 | 6 | window **960 × 320**, 30 mm border all round |
+| B back panel | 1020 × 380 | 6 | **screwed on, the way in**; ports, horn hole, vents, 6 screw holes |
+| C top + bottom | 2 × 1020 × 208 | 6 | top: 4 × Ø4.5 for the handles; bottom: stand flange and tripod threads |
+| D ends | 2 × 208 × 368 | 6 | window **160 × 320**, 24 mm border |
+| Y backing plate | 2 × 208 × 140 | 6 + 6 | glued together and inside the bottom: the stand flange bolts (M8) and the T-nuts sit in 18 mm |
+| L tilt legs | 4 × 40 × 50 | 6 + 6 | glued in pairs: two 12 mm legs, so the hinge screws hold |
 
 Hand the list to the store saw (straight cuts only) or have the sheet laser-cut, windows included.
 Birch instead of poplar adds about 1.5 kg. Polycarbonate (G) is sawn or CNC-cut, never laser-cut
 (it melts).
 
-**Cut-outs:** Ø45 stand cup, Ø8 ¼″ insert, Ø12 ⅜″ insert (bottom) · Ø30 horn hole, plugged · Ø4 × 6
+**Cut-outs:** Ø45 stand flange, 2 × Ø12 for the M10 T-nuts (bottom) · Ø30 horn hole, plugged · Ø4 × 6
 back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the back panel.
 
 ### Design
@@ -467,9 +481,9 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   lifts straight off.
 - **Handles** (×2) on top. On a table, a **Velcro strap through each handle and around the table's
   back edge** keeps a ball hit from pushing the box off.
-- **Bottom:** a **35 mm speaker-stand cup** (4 × M4 × 16) and **¼″-20 and ⅜″-16 threaded inserts**
+- **Bottom:** a **35 mm speaker-stand flange** (M8 bolts) and **⅜″-16 and ¼″-20 tripod threads** (M10 T-nuts with adapters)
   for tripods and light stands, on the glued backing plate (Y); four rubber feet.
-- **Fold-out front legs (optional, about €10):** two 40 × 50 mm plywood legs hinged under the
+- **Fold-out front legs (optional, about €10):** two 40 × 50 mm legs (12 mm: two layers glued) hinged under the
   **front** edge, 35 mm in from it and 300 mm either side of the middle, each with a stop at 90° to the bottom. Folded,
   they lie flat between the feet. Out, they lift the front 5.5 cm: the box leans back on its back feet
   and the screen tilts **15° up**, towards the first referee on the raised stand across the court
@@ -510,7 +524,7 @@ Seventeen steps in four stages; the drawings are in the
    back panel stays loose: glue the six screw blocks into the back edge (corners and the middle of
    top and bottom, flush), and screw the panel on last (step 15).
 4. **Fit the bottom** — box upside down; glue in the backing plate, then the stand cup, the two
-   threaded inserts and the four feet (and the fold-out legs, if fitted).
+   tripod threads and the four feet (and the fold-out legs, if fitted).
 5. **Paint** — round every outside edge (120 grit), then two coats of matte black, inside too; the
    front face gloss black.
 

@@ -26,11 +26,11 @@ const parts = [
   ['Q', 'Fuse box', '12-way, 5 A fuses ×14 (4 spare)', 1],
   ['R', 'Horn switch', 'MOSFET + I²C switch chip, plug, no horn', 1],
   ['S', 'Stand cup', '35 mm, with M4 screws', 1],
-  ['T', 'Threaded inserts', '¼″ and ⅜″', 2],
+  ['T', 'Tripod threads', 'M10 T-nuts with ⅜″ and ¼″ adapters', 2],
   ['U', 'Rubber feet', '', 4],
   ['V', 'Handles', 'black, 128 mm', 2],
   ['W', 'Corner caps', 'black rubber, front corners', 4],
-  ['Y', 'Backing plate', '208 × 140 plywood', 1],
+  ['Y', 'Backing plate', '208 × 140, two layers glued: 12 mm', 2],
   ['Z', 'Blanking plug', 'Ø30', 1],
 ];
 const hardware = [
@@ -41,7 +41,7 @@ const hardware = [
   ['strap', 'Velcro strap, buckle', '50 mm × 1 m, for the table edge', 2],
   ['lan', 'USB-C hub: Ethernet + charging', 'RTL8153 with PD charging input, 15 cm patch cable', 1],
   ['pdsrc', 'Tablet charging module', 'USB-C PD out, about 18 W', 1],
-  ['legs', 'Tilt legs (optional)', '40 × 50 mm plywood under the front edge, hinge with a stop', 2],
+  ['legs', 'Tilt legs (optional)', '40 × 50 mm, 12 mm (two layers glued), hinge with a stop', 2],
   ['sensor', 'Clock + temperature', 'DS3231 RTC, SHT40 sensor', 2],
   ['plate', 'Aluminium plate', '200 × 150 × 2, under converter + fuses', 1],
   ['small', 'Small parts', '5 A inline fuse, TVS SMBJ22A, 10 kΩ resistor', 1],
@@ -65,10 +65,10 @@ const OK = (t) => `<li class="n-ok"><span class="ni" aria-hidden="true">✓</spa
 const NO = (t) => `<li class="n-no"><span class="ni" aria-hidden="true">✕</span><span>${t}</span></li>`;
 const stages = [
   ['A', 'Case', 'Plywood, glue, paint. About 5 hours plus a day to dry.', [
-    [1, 'Cut the parts', d.step1(), 'Seven rectangles from one 1250 × 1250 sheet of 6 mm poplar plywood. The store saw at Jumbo or Hornbach does these straight cuts.', [N('Poplar keeps the box light. Birch works too and adds about 1.5 kg.')]],
+    [1, 'Cut the parts', d.step1(), 'Twelve pieces from one 1250 × 1250 sheet of 6 mm poplar plywood, or from two 1200 × 600 sheets and one 600 × 600. The store saw at Jumbo or Hornbach does these straight cuts. The backing plate and the legs are two layers each, glued to 12 mm.', [N('Poplar keeps the box light. Birch works too and adds about 1.5 kg.')]],
     [2, 'Cut windows and holes', d.step2(), 'Drill a hole in each window corner and join them with the jigsaw. Round holes with a hole saw or wood bit.', [OK('Masking tape on the cut line, good side down: no splinters.'), N('Check the USB-C cut-out against the sockets that actually arrive.')]],
     [3, 'Glue the shell', d.step3(), 'Glue and screw the bottom, both ends, the top and the front frame to the battens. The back panel B stays loose: it is screwed on last. Glue a 15 mm block into each corner of the back edge and one in the middle of the top and the bottom, flush with the edge: the back panel screws into them.', [N('Pre-drill Ø2.5 for every screw near an edge.')]],
-    [4, 'Fit the bottom', d.step4(), 'Turn the box over. Glue the backing plate Y inside, then fit the stand cup, the two threaded inserts and the four feet.', []],
+    [4, 'Fit the bottom', d.step4(), 'Turn the box over. Glue the two layers of the backing plate Y together and inside the bottom, then fit the stand flange, the two tripod threads and the four feet. Screws and bolts need the 12 mm plate: the 6 mm plywood alone is too thin to hold them.', []],
     [5, 'Paint', d.step5(), 'Round every outside edge with 120-grit sandpaper, about 3 mm. Then two coats of matte black, inside too, so nothing reflects behind the LEDs. The front face alone gets gloss black: behind the smoked sheet, the screen and its border read as one black surface when the board is off.', [N('Spray outdoors, or roll water-based paint indoors. Fill the plywood grain on the front face first, or it shows through the gloss.')]],
   ]],
   ['B', 'Panels', 'The box lies face-down from here until the electronics.', [

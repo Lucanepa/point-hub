@@ -137,19 +137,22 @@ export function step1() {
   const M = (x, y) => [ox + x * s, oy + y * s];
   let b = rect(ox, oy, 1250 * s, 1250 * s, 'o hatchf');
   const parts = [['A', 10, 10, 1020, 380], ['B', 10, 394, 1020, 380], ['C', 10, 778, 1020, 208], ['C', 10, 990, 1020, 208],
-    ['D', 1034, 10, 208, 368], ['D', 1034, 382, 208, 368], ['Y', 1034, 754, 208, 140]];
+    ['D', 1034, 10, 208, 368], ['D', 1034, 382, 208, 368], ['Y', 1034, 754, 208, 140], ['Y', 1034, 898, 208, 140],
+    ['L', 1034, 1042, 40, 50], ['L', 1078, 1042, 40, 50], ['L', 1122, 1042, 40, 50], ['L', 1166, 1042, 40, 50]];
   for (const [L, x, y, w, h] of parts) {
     const [px, py] = M(x, y); b += rect(px, py, w * s, h * s, 'o p0');
+    if (w * s < 20) continue;
     const [cx, cy] = M(x + w / 2, y + h / 2), big = h * s > 50;
     b += badge(cx, cy - (big ? 8 : 0), L);
     if (big) b += txt(cx, cy + 17, `${w} × ${h}`, 'tm');
   }
+  { const [px, py] = M(1210, 1067); b += badge(px + 12, py, 'L'); }
   const lx = ox + 1250 * s + 26;
   b += txt(lx, 36, '6 mm poplar plywood', 'tlb', 'start') + txt(lx, 54, 'one sheet 1250 × 1250 mm', 'tl', 'start');
   const rows = [['A', 'front', '1020 × 380'], ['B', 'back (screwed on)', '1020 × 380'], ['C', 'top + bottom ×2', '1020 × 208'],
-    ['D', 'ends ×2', '208 × 368'], ['Y', 'backing plate', '208 × 140']];
+    ['D', 'ends ×2', '208 × 368'], ['Y', 'backing plate ×2, glued', '208 × 140'], ['L', 'tilt legs ×4, glued in pairs', '40 × 50']];
   rows.forEach(([L, n, d], i) => { const y = 92 + i * 30; b += badge(lx + 9, y - 4, L) + txt(lx + 26, y, n, 'tl', 'start') + txt(lx + 26, y + 13, d + ' mm', 'tm', 'start'); });
-  b += lines(lx, 262, ['Hand this list to the store saw', '(straight cuts only), or have the', 'whole sheet laser-cut, windows', 'included.'], 'tl');
+  b += lines(lx, 284, ['Hand this list to the store saw', '(straight cuts only), or have the', 'whole sheet laser-cut, windows', 'included.'], 'tl');
   return svg(640, 384, b, 'Cut list: seven rectangles from one sheet of plywood');
 }
 
@@ -237,8 +240,8 @@ export function step4() {
   b += badge(540, 160, 'S') + txt(554, 164, 'M4 × 16 T20 ×4', 'tm', 'start');
   b += badge(126, 32, 'T') + txt(140, 36, '×2', 'tc', 'start');
   const f = M(960, 180); b += badge(f[0] + 20, f[1] + 10, 'U') + count(f[0] + 34, f[1] + 16, '×4');
-  b += badge(yp[0] - 14, yp[1] + 8, 'Y') + txt(ox, oy + 220 * s + 18, 'Y: glue the backing plate inside, under the cup and inserts', 'ts', 'start');
-  return svg(640, 310, b, 'Turn the box over; fit the stand cup, the two threaded inserts and four rubber feet');
+  b += badge(yp[0] - 14, yp[1] + 8, 'Y') + txt(ox, oy + 220 * s + 18, 'Y: two layers glued (12 mm), inside, under the flange and the tripod threads', 'ts', 'start');
+  return svg(640, 310, b, 'Turn the box over; fit the stand flange, the two tripod threads and four rubber feet');
 }
 
 export function step5() {
