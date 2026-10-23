@@ -38,7 +38,7 @@ which is withdrawn; it is in the git history if you need it.
 | Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | none fitted, wiring provisioned |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **CHF 815**, each part where it is cheapest (a Swiss shop or a German delivery address), plus shipping; CHF 920 from Swiss shops only (October 2026) |
+| Parts | about **CHF 750**, each part where it is cheapest (AliExpress, a Swiss shop or a German delivery address), plus shipping; about CHF 865 with everything delivered to Switzerland (October 2026) |
 | Build time | 12–15 h plus a day for paint to dry |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
@@ -69,9 +69,9 @@ Letters match the illustrated manual. Quantities include the spares that live in
 |---|---|---|---|---|
 | A–D, Y | Plywood | 6 mm poplar, one 1250 × 1250 sheet, store-cut (cut list §8) | 1 | 30 |
 | E | Battens | 15 × 15, 2 × 1008 + corner blocks | 1 set | 5 |
-| F | Steel bars | 20 × 3 × 368, galvanised — must be steel, the module magnets hold on them | 3 | 6 |
+| F | Steel bars | 20 × 4 × 368 steel flat bar (galvanised 20 × 3 is not stocked) — must be steel, the module magnets hold on them | 3 | 6 |
 | G | Polycarbonate | 3 mm, **smoked grey** (about 50–60 % light transmission); 990 × 350 + 2 × 172 × 332 | 3 | 40 |
-| H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch (about CHF 18.50 each on AliExpress, Oct 2026) | 10 | 185 |
+| H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch (about CHF 18.50 each on AliExpress, Oct 2026; that seller confirmed ICN2037 drivers with 74HC138 decoders), plus 4 M3 magnetic screws each, bought separately | 10 | 185 |
 | I | Raspberry Pi 4 | **1 GB** is enough (CHF 34.90 when in stock); out of stock everywhere in Oct 2026, so the 2 GB (CHF 60) | 1 | 60 |
 | J | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs | 1 | 14 |
 | K | Stacking header | 40-pin, tall, between Pi and bonnet | 1 | 3 |
@@ -82,7 +82,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Q | Fuse box | 12-way **standard blade (ATO/ATC)** with a negative bus, 14 × 5 A fuses (4 spare); a 12-way MINI box with a negative bus was not on sale in Oct 2026 | 1 | 30 |
 | R | Horn switch | MOSFET board + **TCA9534** I²C output breakout + 10 kΩ gate pull-down + plug, no horn | 1 | 7 |
 | S | Stand cup | 35 mm, with M4 screws | 1 | 8 |
-| T | Tripod threads | 2 × M10 T-nut + K&M 21980 adapter (M10 → ⅜″-16), one with a K&M 21770 reducer (⅜″ → ¼″-20); inch wood inserts are not sold in CH | 2 | 22 |
+| T | Tripod threads | one ¼″-20 and one ⅜″-16 **threaded insert for wood** (hex drive, 13–15 mm long; AliExpress, sold in tens). From Swiss shops instead: 2 × M10 T-nut + K&M 21980 adapter (M10 → ⅜″-16), one with a K&M 21770 reducer (⅜″ → ¼″-20) | 2 | 7 |
 | U | Rubber feet | | 4 | 3 |
 | V | Handles | black bow handles, 128 mm | 2 | 8 |
 | W | Corner caps | black rubber, 20 mm, front corners only | 4 | 5 |
@@ -104,10 +104,13 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | **Total** | | **≈ 550** |
 
 The €-figures above were the first estimate, at AliExpress and EU prices. With real prices (October
-2026), buying each part where it is cheapest — a Swiss shop, or delivery to a German address with
-8.1 % Swiss import VAT on top — comes to about **CHF 815 plus shipping**; from Swiss shops only it is
-about CHF 920. Germany wins on the polycarbonate, the Pi 4 1 GB, the fuse box, the network adapter and
-one Hornbach.de basket of paint and fittings; DigiKey, the stand hardware and the wood stay Swiss.
+2026), buying each part where it is cheapest — AliExpress, a Swiss shop, or delivery to a German
+address with 8.1 % Swiss import VAT on top — comes to about **CHF 750 plus shipping**; with everything
+delivered to Switzerland it is about CHF 865. AliExpress wins on the modules and the small hardware
+(magnets, tripod inserts, turn buttons, handles, standoffs, the clock module); Germany on the
+polycarbonate, the Pi 4 1 GB, the fuse box, the network adapter and one Hornbach.de basket of paint
+and fittings. Parts that must be genuine (converter, PD board, bonnet, sensors) stay at DigiKey CH,
+and the stand flange and the wood stay Swiss.
 The shopping list has every item, both offers and today's prices.
 
 **Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
@@ -134,7 +137,7 @@ driver ICs on the back of a module, before paying:**
 | LEDs | **black-body SMD2121**, black mask (not white-body SMD3528) | off pixels stay black under hall light, at no power cost |
 | Brightness, angle | ≥ 1000 nits, ≥ 140° | readable from the sideline |
 | Batch | **all 10 from one production batch** | modules from different batches differ visibly in colour and brightness; a seam runs through the score digits |
-| Mounting | magnets on the back (or order M3 magnet standoffs from the same seller) | the modules hang on steel bars, no screws |
+| Mounting | four **M3 magnetic screws, size 1313** (Ø 13 mm, 8 mm body, M3 × 5 mm thread) per module; sellers rarely include them | the modules hang on steel bars, no screws |
 
 Avoid 1/8-scan "outdoor" P5 modules (they may need multiplexing calibration nobody has done) and
 skip GOB modules — the polycarbonate front already takes the ball. Note each listing's maximum
@@ -446,14 +449,14 @@ POWER and DATA are both on the back, colour-ringed (gold POWER, blue DATA) and l
 | B back panel | 1020 × 380 | 6 | **screwed on, the way in**; ports, horn hole, vents, 6 screw holes |
 | C top + bottom | 2 × 1020 × 208 | 6 | top: 4 × Ø4.5 for the handles; bottom: stand flange and tripod threads |
 | D ends | 2 × 208 × 368 | 6 | window **160 × 320**, 24 mm border |
-| Y backing plate | 2 × 208 × 140 | 6 + 6 | glued together and inside the bottom: the stand flange bolts (M8) and the T-nuts sit in 18 mm |
+| Y backing plate | 2 × 208 × 140 | 6 + 6 | glued together and inside the bottom: the stand flange bolts (M8) and the tripod inserts sit in 18 mm |
 | L tilt legs | 4 × 40 × 50 | 6 + 6 | glued in pairs: two 12 mm legs, so the hinge screws hold |
 
 Hand the list to the store saw (straight cuts only) or have the sheet laser-cut, windows included.
 Birch instead of poplar adds about 1.5 kg. Polycarbonate (G) is sawn or CNC-cut, never laser-cut
 (it melts).
 
-**Cut-outs:** Ø45 stand flange, 2 × Ø12 for the M10 T-nuts (bottom) · Ø30 horn hole, plugged · Ø4 × 6
+**Cut-outs:** Ø45 stand flange, Ø8 + Ø12 for the ¼″ and ⅜″ inserts (bottom; the insert's own pilot size wins; 2 × Ø12 for M10 T-nuts) · Ø30 horn hole, plugged · Ø4 × 6
 back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the back panel.
 
 ### Design
@@ -466,7 +469,9 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   modules lie on it, recessed behind the 6 mm frame. Same for the two small end sheets. Keep the
   outer protective film on until the very end.
 - **Modules on magnets:** three **steel bars** (F) are screwed across the two long battens; the
-  modules' own magnets snap onto them. No screws — a module swaps out in seconds. The bench modules
+  magnets screwed into the modules snap onto them. No screws — a module swaps out in seconds. The
+  bars must touch the magnet faces, 8 mm behind the module backs: pack them out with batten offcuts
+  where the battens sit lower. The bench modules
   sit behind the end windows, arrows up, held by four turn buttons each.
 - **Back panel, six T20 screws, no door:** the back panel (B) sits on six 15 mm blocks glued into
   the shell's back edge, flush with it (four corners, the middle of the top and of the bottom; batten
@@ -481,7 +486,7 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   lifts straight off.
 - **Handles** (×2) on top. On a table, a **Velcro strap through each handle and around the table's
   back edge** keeps a ball hit from pushing the box off.
-- **Bottom:** a **35 mm speaker-stand flange** (M8 bolts) and **⅜″-16 and ¼″-20 tripod threads** (M10 T-nuts with adapters)
+- **Bottom:** a **35 mm speaker-stand flange** (M8 bolts) and **⅜″-16 and ¼″-20 tripod threads** (wood inserts, or M10 T-nuts with adapters)
   for tripods and light stands, on the glued backing plate (Y); four rubber feet.
 - **Fold-out front legs (optional, about €10):** two 40 × 50 mm legs (12 mm: two layers glued) hinged under the
   **front** edge, 35 mm in from it and 300 mm either side of the middle, each with a stop at 90° to the bottom. Folded,

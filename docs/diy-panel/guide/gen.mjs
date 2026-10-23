@@ -13,7 +13,7 @@ const parts = [
   ['C', 'Top and bottom', '1020 × 208', 2],
   ['D', 'Ends', '208 × 368, window 160 × 320', 2],
   ['E', 'Battens 15 × 15', '2 × 1008 + corner blocks', 1],
-  ['F', 'Steel bars', '20 × 3 × 368, galvanised', 3],
+  ['F', 'Steel bars', '20 × 4 × 368, steel flat bar', 3],
   ['G', 'Polycarbonate 3 mm, smoked', '990 × 350 + 2 × 172 × 332, about half the light through', 3],
   ['H', 'LED module P5', '64 × 32, black-body SMD, one batch (2 spare)', 10],
   ['I', 'Raspberry Pi 4', '1 GB is plenty', 1],
@@ -26,7 +26,7 @@ const parts = [
   ['Q', 'Fuse box', '12-way, 5 A fuses ×14 (4 spare)', 1],
   ['R', 'Horn switch', 'MOSFET + I²C switch chip, plug, no horn', 1],
   ['S', 'Stand cup', '35 mm, with M4 screws', 1],
-  ['T', 'Tripod threads', 'M10 T-nuts with ⅜″ and ¼″ adapters', 2],
+  ['T', 'Tripod threads', '¼″-20 and ⅜″-16 wood inserts', 2],
   ['U', 'Rubber feet', '', 4],
   ['V', 'Handles', 'black, 128 mm', 2],
   ['W', 'Corner caps', 'black rubber, front corners', 4],
@@ -74,7 +74,7 @@ const stages = [
   ['B', 'Panels', 'The box lies face-down from here until the electronics.', [
     [6, 'Front sheet in', d.step6(), 'Lay the box face-down on a blanket. Peel the film off the inner face of the smoked polycarbonate and drop it into the front frame. Same for the two small end sheets.', [N('Keep the outer film on until the very end: it protects against scratches.'), N('Smoked sheet: run the brightness about a fifth higher than behind clear. The contrast in a bright hall is much better.')]],
     [7, 'Six modules', d.step7(), 'Lay the modules on the sheet, LEDs down, all arrows pointing the same way. Connect the short ribbons 1 → 2 → 3 and 4 → 5 → 6.', [OK('Leave the IN of modules 1 and 4 free: the driver plugs in there.'), N('Before ordering, get a photo of the driver chips: plain chips like ICN2037 or FM6124 work, “S-PWM” chips like ICN2153 do not.')]],
-    [8, 'Bars across', d.step8(), 'Lay three steel bars across the modules and screw them into the two long battens. The modules’ own magnets snap onto the bars: no screws, so a module swaps out in seconds.', [N('If your modules come without magnets, order M3 magnet standoffs from the same seller.')]],
+    [8, 'Bars across', d.step8(), 'Lay three steel bars across the modules and screw them into the two long battens. The modules’ own magnets snap onto the bars: no screws, so a module swaps out in seconds.', [N('Screw four M3 magnetic screws (size 1313) into each module first. The bars must touch the magnet faces: pack them out with batten offcuts if they sit low.')]],
     [9, 'Bench panels', d.step9(), 'One module behind each end window, arrows up. Twist four turn buttons over its edges.', [N('Stand the box upright again after this step.')]],
   ]],
   ['C', 'Electronics', 'Low voltage only: nothing in here can give you a shock.', [
@@ -336,7 +336,7 @@ footer.end { margin-top: 72px; padding-block: 24px 56px; border-top: 1px solid v
     <div><dt>Bench panels</dt><dd>2 × 32 × 64 LEDs</dd></div>
     <div><dt>Power</dt><dd>USB-C charger, 65 W+</dd></div>
     <div><dt>Ports</dt><dd>2 × USB-C</dd></div>
-    <div><dt>Parts</dt><dd>about CHF 815</dd></div>
+    <div><dt>Parts</dt><dd>about CHF 750</dd></div>
     <div><dt>Build time</dt><dd>12–15 h + drying</dd></div>
   </dl>
   <p class="draft">Sizes in the steps still depend on the exact parts that arrive.</p>
