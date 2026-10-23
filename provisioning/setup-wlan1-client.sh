@@ -279,7 +279,8 @@ hall() {
 #     presents the old password, ~2 strikes (auth-retries=1 above).
 #
 # The credentials come from $LOGINFILE (line 1 username, line 2 password, shredded on every exit)
-# or, when that is absent, are asked for with the password not echoed — so run it as `ssh -t`.
+# or, when that is absent, are asked for — the password IS echoed, so a typo is seen before it costs
+# a strike; mind who is watching the screen. Run it as `ssh -t`.
 # They go into a 0600 keyfile, never onto a command line.
 #
 # The attempt takes wlan1 down, so this refuses to run from a session carried by wlan1 (Tailscale
@@ -382,7 +383,9 @@ login() {
   # Ctrl-C or a dropped session while NM is still trying must not leave a half-tried profile
   # behind: NM carries on after nmcli dies. LOGIN_PENDING spans write → confirmed success.
   LOGIN_PENDING=0
-  trap '[ "$LOGIN_PENDING" = 1 ] && sudo nmcli connection delete "$LOGIN_CON" >/dev/null 2>&1; shred1 "$LOGINFILE"' EXIT
+  # The device autoconnect is given back on every exit: the `device disconnect` below blocks it, and
+  # a board left like that after a typo would sit off every network until the next reboot.
+  trap '[ "$LOGIN_PENDING" = 1 ] && sudo nmcli connection delete "$LOGIN_CON" >/dev/null 2>&1; sudo nmcli device set wlan1 autoconnect yes >/dev/null 2>&1; shred1 "$LOGINFILE"' EXIT
   trap 'exit 130' INT TERM HUP
   local ssid="${1:-$LOGIN_SSID_DEFAULT}"
   [ -d /sys/class/net/wlan1 ] || { echo "!! wlan1 absent — plug the adapter in first"; exit 1; }
@@ -414,6 +417,11 @@ login() {
     [ -n "$domain" ] && [ -z "$ca" ] && ca=/etc/ssl/certs/ca-certificates.crt
   fi
 
+  # Quiet wlan1 first. hall-uplink autoconnects to Free_WLAN_KTZH, gets no DHCP lease, fails and
+  # starts over every ~20 s; each round holds a scan, so wpa_supplicant rejected every scan the
+  # attempt needed ("Reject scan trigger since one is already pending") and NM gave up with
+  # ssid-not-found (23.10, KWI). Disconnected, the same attempt went through first time.
+  sudo nmcli device disconnect wlan1 >/dev/null 2>&1
   sudo nmcli device wifi rescan ifname wlan1 2>/dev/null
   sleep 4
   # SECURITY and FREQ first and SSID last, unescaped: the first two never hold a ':', so whatever
@@ -449,8 +457,12 @@ login() {
 
   # The board has no RTC. A clock far off fails the server certificate's dates — harmless for the
   # account (the TLS tunnel fails before the password is sent), but the login fails all the same.
-  if [ "$kind" = eap ] && [ -n "$ca" ] && [ "$(date +%Y)" -lt 2026 ]; then
-    echo "!! the board's clock says $(date) — fix it first (the console sets it: open it on the tablet)"; exit 1
+  # The year alone is not enough: on 23.10 the board booted at 02.10 (its last shutdown) and passed.
+  # This script's own mtime is a floor — it cannot have been deployed in the future.
+  if [ "$kind" = eap ] && [ -n "$ca" ] \
+     && { [ "$(date +%Y)" -lt 2026 ] || [ "$(date +%s)" -lt "$(stat -c %Y "$0" 2>/dev/null || echo 0)" ]; }; then
+    echo "!! the board's clock says $(date) — fix it first (the console sets it: open it on the tablet)"
+    echo "   or from the laptop: ssh pi@172.24.1.1 \"sudo date -u -s '\$(date -u +%Y-%m-%dT%H:%M:%S)'\""; exit 1
   fi
 
   # The credentials: the staged file, else ask.
@@ -465,7 +477,8 @@ login() {
   elif [ -t 0 ]; then
     [ "$ssid" = SCHULEN_KTZH ] && echo "  username looks like vorname.nachname.kwi; password is the Sek II intranet one"
     IFS= read -r -p "  username: " user
-    IFS= read -r -s -p "  password: " pass; echo
+    # Echoed on purpose: a typo here costs a strike, and seeing it before Enter is the cheap check.
+    IFS= read -r -p "  password (shown as you type): " pass
   else
     echo "!! nothing staged at $LOGINFILE and no terminal to ask on — use: ssh -t <board> ..."; exit 1
   fi
@@ -529,17 +542,21 @@ login() {
     printf '%s\n' "$jl" | tail -25 | sed 's/^/  /'
     echo "  '$LOGIN_CON' removed again — NM will not retry it on its own"
     local strikes; strikes=$(printf '%s\n' "$jl" | grep -c 'CTRL-EVENT-EAP-FAILURE')
-    local cert_only=0
+    local nothing_sent=0
     if printf '%s\n' "$jl" | grep -qiE 'TLS-CERT-ERROR|Domain suffix mismatch|certificate verify'; then
       echo "  >> the SERVER CERTIFICATE was refused — the password was NOT sent. Safe to fix and retry."
-      cert_only=1
+      nothing_sent=1
     elif [ "$strikes" -gt 0 ]; then
       echo "  >> the server REFUSED the credentials ($strikes time(s) — each one counts towards the lockout)."
+    elif ! printf '%s\n' "$jl" | grep -q 'CTRL-EVENT-EAP-STARTED'; then
+      echo "  >> it never reached the access point (no EAP started) — the password was NOT sent. Safe to retry;"
+      echo "     if it says ssid-not-found again, replug the Netgear stick or move it nearer the access point."
+      nothing_sent=1
     fi
     if nmcli -t -f NAME connection show | grep -qxF "$HALL_CON"; then
       sudo nmcli connection up "$HALL_CON" ifname wlan1 >/dev/null 2>&1 && echo "  back on $HALL_CON"
     fi
-    [ "$kind" = eap ] && [ "$cert_only" = 0 ] && echo "  !! read the log above before trying again: repeated refusals lock the account for up to 8 h"
+    [ "$kind" = eap ] && [ "$nothing_sent" = 0 ] && echo "  !! read the log above before trying again: repeated refusals lock the account for up to 8 h"
     exit 1
   fi
 
