@@ -174,7 +174,7 @@ async function main() {
     const h = add(new THREE.TorusGeometry(0.064, 0.0065, 14, 48, Math.PI), mHw, hx, H + 0.003, 0); h.scale.y = 0.5;
     for (const bx of [-0.064, 0.064]) add(new THREE.CylinderGeometry(0.009, 0.009, 0.006, 20), mHw, hx + bx, H + 0.003, 0);
   }
-  // fold-out tilt legs: two 50 × 55 mm plywood legs hinged under the front edge (shown when tilted)
+  // fold-out tilt legs: two 40 × 50 mm plywood legs hinged under the front edge (shown when tilted)
   // The box leans back on its back feet; the legs, hinged 35 mm in from the front edge, are just long
   // enough to hold the front up at 15°.
   const TILT = -15 * Math.PI / 180, PIV = new THREE.Vector3(0, -0.008, -0.08), ZH = D / 2 - 0.035;
@@ -270,21 +270,9 @@ async function main() {
     idle: async () => { const f = await drawIdle(); const b = await drawIdleBench(); return [f, b, b]; },
     test: async () => [drawTest(192, 64), drawTest(32, 64), drawTest(32, 64)],
   };
-  // With the legs out the ends turn 15° in their own plane, so the board draws the bench screens
-  // turned back by the same angle (from the tilt setting or a tilt sensor): they stay level.
-  function level(src, deg) {
-    if (!deg) return src;
-    const [c, x] = srcCanvas(src.width, src.height);
-    x.imageSmoothingEnabled = true; x.translate(src.width / 2, src.height / 2); x.rotate(deg * Math.PI / 180);
-    x.drawImage(src, -src.width / 2, -src.height / 2);
-    return c;
-  }
-  let shown = 'match', tilted = false;
   async function setScreen(name) {
-    shown = name;
     const [f0, l0, r0] = await screens[name]();
-    const k = tilted ? 15 : 0;
-    const f = ledify(f0, 192, 64), l = ledify(level(l0, k), 32, 64), r = ledify(level(r0, -k), 32, 64);
+    const f = ledify(f0, 192, 64), l = ledify(l0, 32, 64), r = ledify(r0, 32, 64);
     for (const [mesh, c] of [[screen, f], [benchL, l], [benchR, r]]) {
       if (mesh.material.map) mesh.material.map.dispose();
       mesh.material.map = tex(c); mesh.material.needsUpdate = true;
@@ -294,11 +282,10 @@ async function main() {
     const m = name === 'tilt' ? 'table' : name;
     for (const k in mounts) mounts[k].visible = k === m;
     setTilt(name === 'tilt');
-    if (tilted !== (name === 'tilt')) { tilted = name === 'tilt'; setScreen(shown); }
   }
 
   const views = {
-    front: [0, 0.2, 1.8], bench: [-1.5, 0.3, 0.62], benchR: [1.5, 0.3, 0.62], tilt: [1.75, 0.16, 0.85], back: [0.95, 0.5, -1.55], three: [1.0, 0.55, 1.55], low: [1.1, -0.28, 1.95],
+    front: [0, 0.2, 1.8], bench: [-1.5, 0.3, 0.62], tilt: [1.75, 0.16, 0.85], back: [0.95, 0.5, -1.55], three: [1.0, 0.55, 1.55], low: [1.1, -0.28, 1.95],
   };
   function setView(name) { goal = new THREE.Vector3(...views[name]); controls.autoRotate = false; }
 

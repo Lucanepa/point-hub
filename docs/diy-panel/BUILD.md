@@ -474,10 +474,8 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   they lie flat between the feet. Out, they lift the front 5.5 cm: the box leans back on its back feet
   and the screen tilts **15° up**, towards the first referee on the raised stand across the court
   (from a scorer's table about 10 m away, the referee's eyes are 10–15° above the board). Tilted, the
-  box tips backwards more easily: keep the strap on. The tilt turns the two ends **within their own
-  plane**, so the bench screens would lean 15°: the board draws them turned back by 15° while the legs
-  are out, so the numbers stay level. It learns that from a console setting ("Legs out"), or by itself
-  from an optional LIS3DH tilt sensor on the I²C bus (address 0x18, about CHF 5). Raising the whole box on
+  box tips backwards more easily: keep the strap on. The bench screens lean with the box (15°): the
+  numbers stay easy to read, and nothing in the software changes. Raising the whole box on
   a stand is the bigger win, though: it also clears the heads of people standing in front of it.
 - **Torx throughout** (plain, not security Torx): T20 for the wood screws and M4 machine screws,
   T10 for the small parts. Pre-drill Ø2.5 near every edge.
@@ -700,7 +698,6 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 | Module-number test screen (bring-up, swap card) | openscore | **must** — not written |
 | Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | before the first glass run |
 | Bench screens: 192 × 96 canvas (or a `Remap` canvas of 256 × 64), content from the live match sections | openscore | feature — not written |
-| Bench screens turned back 15° while the legs are out (console setting, or the LIS3DH tilt sensor) | openscore, console | feature — not written |
 | Cable tablet trusted without the scorer PIN (§7) | console | done (cable trust, 22.10.2026) |
 | Board identity (`boardId`, label; built 22.10.2026) and the client-only Wi-Fi setup (`.link` file, no AP) | provisioning | **must** |
 | Read-only root with a persistent `/data` partition and a `STATE_DIR` setting | image, appliance | planned; until then the card stays read-write, because match state and the resume file must survive a power cut |
