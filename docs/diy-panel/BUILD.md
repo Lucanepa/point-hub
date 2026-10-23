@@ -38,7 +38,7 @@ which is withdrawn; it is in the git history if you need it.
 | Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | none fitted, wiring provisioned |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **CHF 950** at Swiss prices (October 2026), plus shipping |
+| Parts | about **CHF 815**, each part where it is cheapest (a Swiss shop or a German delivery address), plus shipping; CHF 920 from Swiss shops only (October 2026) |
 | Build time | 12–15 h plus a day for paint to dry |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
@@ -70,7 +70,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | A–D, Y | Plywood | 6 mm poplar, one 1250 × 1250 sheet, store-cut (cut list §8) | 1 | 30 |
 | E | Battens | 15 × 15, 2 × 1008 + corner blocks | 1 set | 5 |
 | F | Steel bars | 20 × 3 × 368, galvanised — must be steel, the module magnets hold on them | 3 | 6 |
-| G | Polycarbonate | 3 mm, **smoked grey** (about 50 % light transmission); 990 × 350 + 2 × 172 × 332 | 3 | 40 |
+| G | Polycarbonate | 3 mm, **smoked grey** (about 50–60 % light transmission); 990 × 350 + 2 × 172 × 332 | 3 | 40 |
 | H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch (about CHF 18.50 each on AliExpress, Oct 2026) | 10 | 185 |
 | I | Raspberry Pi 4 | **1 GB** is enough (CHF 34.90 when in stock); out of stock everywhere in Oct 2026, so the 2 GB (CHF 60) | 1 | 60 |
 | J | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs | 1 | 14 |
@@ -94,7 +94,7 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Straps | 2 × Velcro strap with buckle, 50 mm × 1 m | 8 |
 | Stickers | "POINT HUB" cut-vinyl lettering for the front, back label for the ports | 15 |
 | Tablet hub | small USB-C hub with **Ethernet (RTL8153)** and a **USB-PD pass-through charging input**, + 15 cm patch cable | 25 |
-| Tablet charging module | USB-C PD source, 12–24 V in, about 20 W PD out: a bare module (SW3518-type buck) where available, or a 12–24 V USB-C car charger with its plug cut off, wired to the fused input | 10 |
+| Tablet charging module | USB-C PD source, 12–24 V in, about 20 W PD out: a bare buck module with USB-C PD out (QIQIAZI PD65W, 12–30 V in, on Amazon.de), or a 12–24 V USB-C car charger with its plug cut off, wired to the fused input | 10 |
 | Clock + temperature | DS3231 RTC (breakout without a charging circuit) + SHT40 sensor breakout | 10 |
 | Aluminium plate | 200 × 150 × 2, under the converter and the fuse box | 6 |
 | Protection | 5 A inline fuse + holder, 3 A fuse + holder, TVS diode SMBJ22A (through-hole equivalent: **P6KE27A**, not P6KE22A, whose standoff is only 18.8 V), 10 kΩ resistor, snap-on ferrites | 6 |
@@ -103,12 +103,12 @@ Letters match the illustrated manual. Quantities include the spares that live in
 | Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
 | **Total** | | **≈ 550** |
 
-The €-figures above were the first estimate, at AliExpress and EU prices. Bought in Swiss shops in
-October 2026 the full list comes to about **CHF 945, plus CHF 50–90 shipping** (the shopping list has
-every item, shop and price). The biggest differences: the modules (CHF 185), the smoked
-polycarbonate (CHF 89), paint and filler (about CHF 78) and the Pi (CHF 60, the 1 GB is sold out).
-Connectors, ferrules, wire, magnets and inserts from AliExpress, and turn buttons cut from the
-offcuts, bring it to about CHF 850.
+The €-figures above were the first estimate, at AliExpress and EU prices. With real prices (October
+2026), buying each part where it is cheapest — a Swiss shop, or delivery to a German address with
+8.1 % Swiss import VAT on top — comes to about **CHF 815 plus shipping**; from Swiss shops only it is
+about CHF 920. Germany wins on the polycarbonate, the Pi 4 1 GB, the fuse box, the network adapter and
+one Hornbach.de basket of paint and fittings; DigiKey, the stand hardware and the wood stay Swiss.
+The shopping list has every item, both offers and today's prices.
 
 **Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
 bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
