@@ -470,7 +470,7 @@ back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × 
   outer protective film on until the very end.
 - **Modules on magnets:** three **steel bars** (F) are screwed across the two long battens; the
   magnets screwed into the modules snap onto them. No screws — a module swaps out in seconds. The
-  bars must touch the magnet faces, 8 mm behind the module backs: pack them out with batten offcuts
+  bars must touch the magnet faces (8 mm behind the module backs for size 1313, more for taller magnets): pack them out with batten offcuts
   where the battens sit lower. The bench modules
   sit behind the end windows, arrows up, held by four turn buttons each.
 - **Back panel, six T20 screws, no door:** the back panel (B) sits on six 15 mm blocks glued into
