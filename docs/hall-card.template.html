@@ -8,7 +8,7 @@
   Deliberately NOT on this card:
     - the https://…:8891 address. It needs DNS, and dies silently if the phone has Private DNS
       set. The IP always works on the AP with no DNS at all, and a card is the wrong place to
-      make someone choose. It is on the hall guide instead, labelled "club tablet only".
+      make someone choose. The club tablet's app finds the board by itself; the card only says to open it.
     - sport rules for beach and basketball. The card gets someone scoring; the guide teaches.
     - anything requiring a laptop.
 
@@ -83,12 +83,10 @@
 <!-- ─────────────────────────── FRONT ─────────────────────────── -->
 <div class="side">
   <h1>Point Hub <span>· KSC Wiedikon scoreboard</span></h1>
-
   <div class="rule">
-    <b>One rule.</b> The board makes its own wifi and runs everything itself. No other box, no cable.
+    <b>One rule.</b> The board makes its own wifi and runs everything itself. No other box, no internet needed.
     Your phone must be on <b>that</b> wifi — <b>mobile data OFF</b>.
   </div>
-
   <div class="qrs">
     <div class="qrcard">
       <span class="n">SCAN 1</span>
@@ -103,54 +101,50 @@
       <div class="val">http://172.24.1.1:8890</div>
     </div>
   </div>
-
   <h2>Cold start → scoring</h2>
   <ol class="steps">
     <li><b>Plug the board into mains.</b>
       <i>Gold POINT HUB splash, then ~45s to the crest with two QR codes. Under a minute is normal.</i></li>
     <li><b>SCAN 1</b> → join the wifi. <b>Turn mobile data OFF.</b>
       <i>The wifi has no internet. That's normal.</i></li>
-    <li><b>SCAN 2</b> → the controller opens. Bookmark it.
-      <i>Scan it BEFORE you open the page — the QRs vanish from the board once anyone connects.</i></li>
-    <li><b>Enter the PIN</b> if asked.
-      <i>With a PIN set, this covers the whole page. It cannot be looked up.</i></li>
-    <li><b>Choose the sport.</b> Tapping the one already marked <i>current</i> changes nothing.
+    <li><b>SCAN 2</b> → the controller opens. Tap <b>Tap to start</b> if it shows.
+      <i>The QRs vanish from the board once anyone is on the controller. Club tablet: just open the Point Hub app.</i></li>
+    <li><b>Enter the scorer PIN</b> ("Scoreboard locked").
+      <i>"Set a scorer PIN" instead? The board has none yet: choose one, write it down. A tablet on the cable needs no PIN.</i></li>
+    <li><b>Choose the sport.</b> Tapping the one already marked "current" changes nothing.
       <i>A different one restarts the board — about 8 seconds.</i></li>
     <li><b>Continue game</b> or <b>New game</b>.
       <i>"Continue" appears only if the board is holding a match — after a power cut, this gets it back.</i></li>
-    <li><b>Type the team names, pick colours.</b> Phone sideways, then full screen.
-      <i>Long names shrink automatically. No need to abbreviate.</i></li>
-    <li><b>Tap +</b> to score. The point blinks in that team's colour.</li>
+    <li><b>Tonight's game:</b> Link tab → <b>Today at the hall</b> → tap it → <b>Start game</b>.
+      <i>Not listed? Type the names on the Game tab. Long names shrink by themselves.</i></li>
+    <li><b>Tap +</b> to score. The point blinks in that team's colour.
+      <i>Timeouts and subs go in at once. Wrong tap? <b>Undo</b>, bottom left.</i></li>
   </ol>
-
-  <div class="warn"><b>Screen keeps sleeping?</b> Tap <b>Keep awake</b>, then tap once anywhere on the page —
-    it needs that tap to take hold. Still sleeping → set the tablet's display timeout to <b>Never</b> in Android settings.</div>
+  <div class="warn"><b>Screen keeps sleeping?</b> Tap the sun button (<b>Keep awake</b>) once.
+    Still sleeping → set the phone's display timeout to <b>Never</b>.</div>
 </div>
-
 <!-- ─────────────────────────── BACK ─────────────────────────── -->
 <div class="side">
   <h1>When it goes wrong <span>· work down the list</span></h1>
-
   <table>
     <tr><th style="width:34%">On screen</th><th>What to do</th></tr>
     <tr><td>"Board not connected"</td>
-      <td>The <b>panel</b> is unreachable — your scores are still being saved. Wait 30s. Still there after a minute → power-cycle the board, wait 45s.</td></tr>
-    <tr><td>"…frozen at HH:MM:SS"</td>
-      <td>Opposite problem: <b>your phone</b> lost the board. <b>Don't touch the board.</b> Check wifi is <code>ledbox_C0270</code>, mobile data OFF, walk closer.</td></tr>
+      <td>The <b>panel</b> is unreachable — your scores are still being saved. Wait 30s. Still there after a minute → Settings → Power → <b>Restart board</b>, wait 45s.</td></tr>
+    <tr><td>"Not connected — taps are not reaching the board"</td>
+      <td>Opposite problem: <b>your phone</b> lost the board. <b>Don't touch the board.</b> Check wifi is <code>ledbox_C0270</code>, mobile data OFF, walk closer. A tap that said "Not sent" may not have counted: check the board, fix it with <b>Undo</b>.</td></tr>
     <tr><td>Page won't open</td>
       <td>Wrong wifi, or it slipped to mobile data. Rejoin <code>ledbox_C0270</code>, data OFF, reload <code>172.24.1.1:8890</code>.</td></tr>
-    <tr><td>"Too many wrong PINs"</td>
-      <td>Lockout: 5 tries, then 30s, doubling to 5 min. <b>Wait it out</b> — nothing is broken.</td></tr>
+    <tr><td>"Set a scorer PIN" · "Too many wrong PINs"</td>
+      <td>No PIN yet: choose 1–8 digits, twice, and <b>write it down</b> for the coaches. Lockout: 5 tries, then 30s, doubling to 5 min — <b>wait it out</b>.</td></tr>
     <tr><td>Board stuck on an old score</td>
-      <td><b>Wait ~20s</b> — it repairs itself. Do <b>not</b> tap + then −: at set point that + really wins the set.</td></tr>
+      <td><b>Wait ~20s</b> — it repairs itself. Do <b>not</b> tap + then −: at set point that + really ends the set.</td></tr>
     <tr><td>Blank page / no buttons</td>
-      <td>Pull to refresh, or close the tab and scan SCAN 2 again.</td></tr>
+      <td>"Update ready" → <b>Reload now</b>. Else pull to refresh, or close the tab and scan SCAN 2 again.</td></tr>
     <tr><td>Nothing works</td>
       <td>Mains off, count to ten, on. Wait 45s, rejoin wifi, reopen. <b>Your match is not lost</b> — pick <b>Continue game</b>.</td></tr>
     <tr><td>Need to send a report</td>
       <td><b>Diagnostics</b> tab (also on the sport picker) → live log → <b>Export</b>.</td></tr>
   </table>
-
   <h2>Packing up</h2>
   <ol class="steps">
     <li><b>Settings → Power → Shut down</b>, confirm.
@@ -159,17 +153,13 @@
       <i>The phone says "Now press the power button to switch it off".</i></li>
     <li><b>Put your phone back</b> on normal wifi / mobile data.</li>
   </ol>
-
-  <div class="warn"><b>Only need it off for a while?</b> Don't shut down — Settings → <b>brightness 0</b>.
-    Panel goes dark, controller stays up, one tap to come back.</div>
-
+  <div class="warn"><b>Between matches?</b> Don't shut down — tap <b>Show clock</b>. The crest and the time go up.</div>
   <h2>Good to know</h2>
   <table>
     <tr><td>The score is safe</td><td>It lives on the board, not your phone. Lock the phone, swap phones, hand over — nothing is lost.</td></tr>
     <tr><td>Only one scorer</td><td>Several phones can watch the same match, but two people tapping + double-counts.</td></tr>
+    <tr><td>Wrong point at set end</td><td><b>Undo</b> before you tap <b>Start interval</b>.</td></tr>
     <tr><td>Settings don't auto-save</td><td>Each section has its own <b>Save</b> button. Leave without pressing it and the change is gone.</td></tr>
-    <tr><td>The board's clock</td><td>No battery clock — with no internet it can be badly wrong. Diagnostics says whether it's synced.</td></tr>
   </table>
-
-  <p class="foot">Board: Tech4Sport C0270, firmware 0.552 (KSCW build) · Console: Point Hub · wifi <code>ledbox_C0270</code> · {{WIFI_PASS}}</p>
+  <p class="foot">Tech4Sport C0270 · Point Hub, 23.10.2026 · wifi <code>ledbox_C0270</code> · {{WIFI_PASS}}</p>
 </div>
