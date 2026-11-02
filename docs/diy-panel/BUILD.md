@@ -165,7 +165,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
 | Piano hinge | steel, about **1000 × 32 mm**, along the top front edge | 1 | Hornbach.de or DIY store | 10–15 |
-| Cap hinge | hinges the bottom cap K to A's bottom edge so K can follow the floor: a second piano hinge about 1000 × 25, or 3 small butt hinges 40 × 30 | 1 set | DIY store | 5–12 |
+| Cap hinge | hinges the bottom cap K to A's bottom edge so K can follow the floor: 3 small butt hinges about 50 mm (e.g. Hettich Slim Hinge 50, black), with 3 × 12 countersunk wood screws. Glue a 6 mm plywood **doubler** (about 60 × 30) under each leaf on K and on A, so the screws have 12 mm of wood and do not come through | 3–4 | Jumbo | 10 |
 | Stay pins | **M6 × 30 hex bolt + M6 nylon lock nut** (or M6 shoulder bolts) | 2 | DIY store | 4 |
 | Rubber pads | self-adhesive **clear rubber pads 20 × 20**, about 3 mm (not felt): 4 under the box, 2 under the back end of the foot, 2 spare | 8 | DIY store | 5 |
 | Handles | **K16 recessed spring handle**, black steel, rubber grip, springs back flush. Rim 155 × 83.3 × 1.2 mm, cut-out 129 × 52 mm, 6 × Ø4.8 holes | 2 | AliExpress ("K16 folding automatic rebound … box handle") | 12 incl. shipping |
@@ -845,7 +845,7 @@ each side. The **bottom cap K** is **hinged** along the bottom of A (cap hinge, 
 rides on the box floor, so nobody sees or reaches into the box. A rigidly fixed K would dig into the
 floor from about 5°. **Depth:** at 20° the bottom of A stands about 125 mm out, so a 104 mm K only
 reaches the floor up to about 17° — cut K from the 1004 × 150 blank to the depth the dry fit shows
-(about 140 mm), not to 104. The two **triangular cheeks H** (cut from the
+(about 140 mm), not to 104. The cap hinges are small butt hinges with 3 × 12 screws; glue a 6 mm offcut doubler under each leaf on K and on A first, or the screws come through the 6 mm plywood. The two **triangular cheeks H** (cut from the
 370 × 130 blank) are fixed to the sides of A, long edge along A, and close the side gaps; at 20° the
 bottom of A is about 125 mm out, which is why the cheeks are 130 mm at the wide end. Brush seal on
 their edges closes the remaining gaps against drips and dust.
