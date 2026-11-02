@@ -71,7 +71,7 @@ console.log('\n[1] Today at the hall: rows, empty and offline')
   ] }
   await refreshSchedule(false)
   const rows = nodes['#schedule'].children
-  ok(asked === '/api/schedule?range=season', 'opens with the cached season read (an older board answering today-only still fills Today)')
+  ok(/^\/api\/schedule\?range=season&today=\d{4}-\d{2}-\d{2}$/.test(asked), `opens with the cached season read, with this tablet's date (an older board answering today-only still fills Today) (${asked})`)
   ok(rows.length === 2, 'one row per game')
   const b0 = rows[0].children[0]
   ok(b0.tag === 'button' && b0.className === 'schedrow', 'each row is one big button')
@@ -83,7 +83,7 @@ console.log('\n[1] Today at the hall: rows, empty and offline')
 
   reply = { ok: true, date: '2026-09-23', games: [] }
   await refreshSchedule(true)
-  ok(asked === '/api/schedule?range=season&refresh=1', 'Refresh bypasses the cache')
+  ok(/^\/api\/schedule\?range=season&refresh=1&today=\d{4}-\d{2}-\d{2}$/.test(asked), `Refresh bypasses the cache (${asked})`)
   ok(nodes['#schedNote'].textContent === 'No home games today.' && !nodes['#schedNote'].hidden, 'empty: "No home games today."')
 
   reply = { ok: false, error: "The board could not reach the club's schedule. It may have no internet here — type the team names instead.", games: [] }
