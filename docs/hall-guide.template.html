@@ -226,7 +226,8 @@
    Nothing is lost. More than one phone can be connected; they all show the same score. Keep <b>one</b> person scoring
    (a second scorer double-counts).
    Keep the phone on the <code>ledbox_C0270</code> wifi. Wander out of range and the page pauses; walk back and it reconnects.
-   If the screen still goes dark, tap the sun button (<b>Keep awake</b>) once, or set the phone's display timeout to <b>Never</b>.</p>
+   If the screen still goes dark, tap the sun button (<b>Keep awake</b>) once, or set the phone's display timeout to <b>Never</b>.
+   A note <b>"Board clock corrected"</b> is normal: your phone sets the board's clock.</p>
 
 <h2>4 · Packing up</h2>
 <ol class="steps">
@@ -249,9 +250,9 @@
    the phone: <b>Link</b> tab → <b>Live matches on this network</b> → <b>↻ Refresh matches</b> → tap the match. The board now
    shows the scoresheet's score, and its timeouts and set intervals run the board's own <b>TIME OUT</b> and <b>INTERVAL</b>
    clocks, horn included, by themselves. <b>Don't score on the phone as well.</b></p>
-<p class="tip"><b>Laptop not found?</b> Settings → <b>Scorer laptop</b> → type the laptop's address on the board's wifi
-   (e.g. <code>172.24.1.23</code>) → <b>Check</b>. With live scoring on, the Link tab also shows <b>This game</b>: the team
-   lists (numbers, names, licences) to copy into the scoresheet. It needs the scorer PIN.</p>
+<p class="tip"><b>Match not in the list?</b> Check the laptop is on <code>ledbox_C0270</code> with the match open, then tap
+   <b>↻ Refresh matches</b> again. With live scoring on, the Link tab also shows <b>This game</b>: the team lists (numbers,
+   names, licences) to copy into the scoresheet. It needs the scorer PIN.</p>
 
 <h2>6 · Hall internet and live scores <span class="opt">— optional</span></h2>
 <p>The scoreboard never needs the internet. With it, the board also shows the score live on
@@ -277,7 +278,7 @@
   <tr><td>Trouble 3b — Club tablet: "Looking for the scoreboard…"</td><td>The app can't reach the board. The board is almost certainly fine.</td>
     <td>Is the board on? Is the tablet on <code>ledbox_C0270</code>? Tap <b>Connect to scoreboard Wi-Fi</b> or <b>Retry</b>. Still stuck → open Chrome and type <code>172.24.1.1:8890</code> (SCAN 2 is the same address).</td></tr>
   <tr><td>Trouble 4 — PIN screens</td><td>"Set a scorer PIN": the board has none yet. "Too many wrong PINs — try again in Ns": the lockout.</td>
-    <td>No PIN yet → choose one (1–8 digits, twice) → <b>Set PIN</b>, and write it down for the coaches. Lockout → 5 tries, then 30s, doubling to 5 minutes: wait it out. The PIN <b>cannot be recovered</b>. A tablet on the cable still scores without it; setting a new one needs someone with laptop access.</td></tr>
+    <td>No PIN yet → choose one (1–8 digits, twice) → <b>Set PIN</b>, and write it down for the coaches. Lockout → 5 tries, then 30s, doubling to 5 minutes: wait it out. The PIN <b>cannot be looked up</b>. Lost it? A tablet on the cable still scores without it; for a new PIN, ask the club.</td></tr>
   <tr><td>Trouble 5 — Board stuck on an old score</td><td>The link dropped and came back.</td>
     <td><b>Wait ~20 seconds</b>: the board checks itself and repaints. Don't tap + then − to "wake it up": at set point that + really <b>ends the set</b>. If it happened, use <b>Undo</b>.</td></tr>
   <tr><td>Trouble 6 — Part of the panel dark, flickering or the wrong colour</td><td>Possibly a hardware fault in one of the three panel modules. (A team colour in light grey is only too dark for the LEDs: tap <b>Try …</b> under the team cards.)</td>
@@ -288,25 +289,15 @@
     <td>"Update ready" at the bottom → <b>Reload now</b>. Otherwise pull to refresh, or close the tab and scan SCAN 2 again.</td></tr>
   <tr><td>Trouble 9 — Nothing works</td><td>Start from zero.</td>
     <td>Off at the mains, count to ten, on again. Wait ~45s for the crest, rejoin the wifi, reopen the page. Your match is <b>not</b> lost: pick <b>Continue game</b>.</td></tr>
-  <tr><td>Trouble 10 — Dig deeper</td><td>You already have the tools, on the phone in your hand.</td>
-    <td>Open the <b>Diagnostics</b> tab (also on the sport picker): temperature, power, disk, memory, network, clock. Its <b>live log</b> has search and <b>Export</b>: that's what to send. On a laptop: <code>journalctl -u ledbox-bridge</code>.</td></tr>
+  <tr><td>Trouble 10 — Something else, or it keeps happening</td><td>Tell the club, with the board's own report.</td>
+    <td><b>Diagnostics</b> tab (also on the sport picker) → live log → <b>Export</b>. Send that file with a line on what happened and when.</td></tr>
 </table>
 
-<p class="warn"><b>The board's clock:</b> there's no battery clock in it, and match history is stamped from it. Your phone
-  sets it when you open the controller ("Board clock corrected — it was …"). Diagnostics says whether the time is
-  "synced over the network", "set from this console" or "NOT synced".</p>
-
-<h2>8 · Numbers, if you need them</h2>
+<h2>8 · Addresses</h2>
 <ul class="facts">
   <li><b>Control page</b><span>http://172.24.1.1:8890</span></li>
   <li><b>Board's wifi</b><span>ledbox_C0270<br>{{WIFI_PASS}}</span></li>
-  <li><b>Scoreboard itself</b><span>172.24.1.1</span></li>
-  <li><b>On the cable (no PIN)</b><span>192.168.5.1</span></li>
-  <li><b>Live log page</b><span>172.24.1.1:8890/logs</span></li>
-  <li><b>Get the tablet app</b><span>172.24.1.1:8890/app</span></li>
-  <li><b>Livestream scorebug (OBS, 1920×1080)</b><span>172.24.1.1:8890/overlay</span></li>
-  <li><b>Live scores online</b><span>wiedisync.kscw.ch/live</span></li>
-  <li><b>Service on the board</b><span>ledbox-bridge</span></li>
+  <li><b>Live scores, for spectators</b><span>wiedisync.kscw.ch/live</span></li>
 </ul>
 
-<p class="foot">Tech4Sport C0270, firmware 0.552 (KSCW build) · Console: Point Hub, as of 23 October 2026.</p>
+<p class="foot">Tech4Sport C0270 · Point Hub, as of 23 October 2026.</p>
