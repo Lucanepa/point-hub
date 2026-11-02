@@ -455,7 +455,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // Which of today's games the pre-match on the board belongs to (the console sends its id with the
   // schedule tap; the automatic pre-match sets it). null = unknown — then the names decide.
   let prematchGameId = null
-  // The automatic pre-match (see autoPrepare.js). Its clock probe awaits a fresh NTP answer, since
+  // Tonight's home game, suggested to the console (see autoPrepare.js). Its clock probe awaits a fresh NTP answer, since
   // nothing else polls it on a board with no console open. `autoIn` lets a test replace the clock,
   // the probe and the tick with its own.
   const autoOpts = autoIn || {}
@@ -469,9 +469,15 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     enabled: () => opt('autoPrepare') !== false,
     games: (date) => (typeof schedule.gamesFor === 'function' ? schedule.gamesFor(activeSport()) : []).filter((g) => g.date === date),
     boardFree: (game) => autoBoardFree(game, autoOpts.now ? autoOpts.now() : Date.now()),
-    prepare: (game) => setupScheduledGame(activeSport(), teamsOf(game), { prematch: true, gameId: game.id, why: 'automatic' }),
     tickMs: autoOpts.tickMs,
   })
+  // The suggestion as the console should see it NOW: the 30 s tick decided it, and a pre-match, a
+  // countdown or a linked match that began since takes it off at once rather than up to 30 s later.
+  const liveSuggestion = () => {
+    const list = autoPrepare.suggestion
+    if (!list.length || prematch || countdown || sourceManager.status.mode === 'lan') return []
+    return list
+  }
   // The KSCW match sheet for the game on the board (gameSheet.js) — roster for the scorer to copy.
   const currentGameId = () => history.gameId ?? (prematch ? prematchGameId : null)
   const gameSheet = gameSheetIn || new GameSheet({
@@ -1298,6 +1304,16 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     // clock for the 0-0 scoreboard straight away. A warm-up still running is ended without the horn
     // (the scorer called it, the clock did not run out). Answers 200 with `started:false` when there
     // is no pre-match — a second tap from another tablet is not an error.
+    // POST /api/suggestion { action: 'dismiss' } — "Not now" on the console's suggestion of tonight's
+    // game(s): none of them is offered again today (autoPrepare.js). Setting one up is the ordinary
+    // schedule start (POST /api/game with its gameId), which answers the suggestion too.
+    if (pathname === '/api/suggestion' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req)
+      if (!body || body.action !== 'dismiss') return sendJson(res, 400, { error: "action must be 'dismiss'" })
+      const ids = autoPrepare.dismiss()
+      return sendJson(res, 200, { ok: true, dismissed: ids, ...status(req) })
+    }
     if (pathname === '/api/prematch' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
@@ -1800,13 +1816,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     })
   }
 
-  // Home on the left, as the schedule tap sends it.
-  const teamsOf = (game) => ({
-    left: { name: String(game.home || ''), short: String(game.homeShort || '') },
-    right: { name: String(game.away || ''), short: String(game.awayShort || '') },
-  })
-
-  // May the automatic pre-match take the board for `game` right now? { free, reason }. The rule is
+  // May tonight's game be suggested for the board right now? { free, reason }. The rule is
   // "never interrupt a match": no countdown, no linked LAN match, and no match in the resume slot.
   //
   // The slot is the test, not the score. A match that has begun sits at 0-0 until the first rally
@@ -1913,6 +1923,9 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       prematch,
       // Which of today's games that pre-match is (a Directus id), when the board knows; else null.
       prematchGameId: prematch ? prematchGameId : null,
+      // Tonight's home game(s) the console offers to set up (autoPrepare.js): [] or
+      // [{ id, date, time, home, away, homeShort, awayShort, hall, league }] — public schedule data.
+      suggestion: liveSuggestion(),
       // The schedule game the board is set up for (a Directus id), pre-match or not; null = a hand-
       // typed game. The console's match-sheet card follows it.
       gameId: currentGameId(),

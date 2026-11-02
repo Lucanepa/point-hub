@@ -225,8 +225,9 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   served from the copy on the board's card). Tapping one sets it up behind the wall clock until
   the warm-up ends. With **Settings ▸ Prepare home games automatically** (on by default) the
   board does that tap itself 60 minutes before a game of its sport — once the clock is synced,
-  never over a match in progress or a running countdown, the earliest game when two overlap, and
-  never again for a game the scorer dismissed that day (`src/autoPrepare.js`).
+  never over a match in progress or a running countdown, never again for a game the scorer
+  dismissed that day, and only when it is the one home game of its sport that day: with two or
+  more it prepares none and the scorer picks one on the Link tab (`src/autoPrepare.js`).
 - **Hall internet** — at a hall whose Wi-Fi has a login page (the KWI hall's `Free_WLAN_KTZH`,
   a Swisscom Public WLAN), live scoring stops until the board is logged in, and the board has no
   browser to do it in. **Settings ▸ Hall internet** does it from the console: the scorer's mobile

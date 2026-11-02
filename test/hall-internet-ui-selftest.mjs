@@ -281,7 +281,7 @@ console.log('\n[7] refusals come back in words')
 
 console.log('\n[8] the rest of the console is wired to it')
 {
-  ok(/renderPrematch\(st\);\s*\n\s*renderUplinkBrief\(st\.uplink\);/.test(js), 'every status poll updates the banner / header / Diagnostics')
+  ok(/renderPrematch\(st\);\s*\n\s*renderSuggest\(st\);\s*\n\s*renderUplinkBrief\(st\.uplink\);/.test(js), 'every status poll updates the banner / header / Diagnostics')
   ok(/b\.dataset\.tab === "settings" \|\| b\.dataset\.tab === "diag"\) refreshUplink\(\)/.test(js), 'opening Settings or Diagnostics reads the full state')
   ok(/\$\("#ubLogin"\)\.addEventListener\("click", goToUplink\)/.test(js), 'the banner\'s "Log in" goes straight to the card')
   ok(!/localStorage\.setItem\([^)]*(phone|Phone|upPhone)/.test(js) && !/sessionStorage/.test(block), 'no storage call anywhere near the number')

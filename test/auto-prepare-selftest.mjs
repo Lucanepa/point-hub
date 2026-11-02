@@ -22,7 +22,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { inWindow, pickGame, LEAD_MS, GRACE_MS } from '../src/autoPrepare.js'
+import { inWindow, pickGame, severalToday, LEAD_MS, GRACE_MS } from '../src/autoPrepare.js'
 import { zurichDate, zurichEpoch, addDays } from '../src/schedule.js'
 import { MockLedbox } from '../src/mockLedbox.js'
 import { startAppliance } from '../src/appliance.js'
@@ -49,19 +49,31 @@ console.log('[1] the window')
   ok(pickGame(games, at, new Set(['1'])).id === 2, 'an already-prepared game is skipped')
   ok(pickGame(games, start - LEAD_MS - 1) === null, 'nothing due yet: null')
   ok(zurichEpoch('2026-12-01', '20:00') === Date.parse('2026-12-01T19:00:00Z'), 'and winter time is +1')
+  ok(severalToday(games) === true, 'two playable games the same day: several (the scorer chooses)')
+  ok(severalToday(games.filter((g) => g.id !== 2)) === false, 'one playable game and a cancelled one: not several')
+  ok(severalToday([]) === false && severalToday(null) === false, 'no games: not several')
 }
 
 // Today's games on the fake Directus, so the season copy (which the appliance dates by the real
 // clock) and the fake clock below agree on the date.
 const T = zurichDate()
 const row = (over) => ({ id: 1, date: T, time: '20:00:00', home_team: 'KSC Wiedikon H1', away_team: 'VBC Züri Unterland H2', status: 'scheduled', league: 'Männer 2. Liga', kscw_team: { sport: 'volleyball' }, hall: { name: 'KWI A' }, ...over })
-const ROWS = [
+// One volleyball home game today (901). The cancelled 903, the basketball 904 and tomorrow's 905 do
+// not make it "several": the board still prepares 901 by itself.
+const ONE_GAME = [
   row({ id: 901 }),
-  row({ id: 902, time: '20:15:00', home_team: 'KSC Wiedikon D2', away_team: 'Volley Näfels D1', hall: { name: 'KWI B' } }),
   row({ id: 903, time: '19:30:00', status: 'cancelled' }),
   row({ id: 904, time: '19:45:00', home_team: 'KSC Wiedikon Lions D1', away_team: 'BC Arlesheim 1LR', kscw_team: { sport: 'basketball' }, hall: { name: 'KWI C' } }),
   row({ id: 905, date: addDays(T, 1) }),
 ]
+// A second volleyball home game the same evening, in the other hall: now the board prepares none.
+const TWO_GAMES = [
+  ...ONE_GAME,
+  row({ id: 902, time: '20:15:00', home_team: 'KSC Wiedikon D2', away_team: 'Volley Näfels D1', hall: { name: 'KWI B' } }),
+]
+// What the fake Directus serves. The board reads it once per boot (start() primes the season copy),
+// so a section that changes it boots a fresh board.
+let ROWS = ONE_GAME
 const fake = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': 'application/json' })
   res.end(JSON.stringify({ data: ROWS }))
@@ -129,20 +141,27 @@ try {
   ok((await (await fetch(base() + '/api/settings')).json()).autoPrepare === false, 'the setting reads back off')
   await post('/api/settings', { autoPrepare: true })
 
-  console.log('\n[3] exactly an hour before')
+  console.log('\n[3] exactly an hour before: suggested, not set up')
   clock.now = START - LEAD_MS - 1
   r = await tick()
   ok(r.reason === 'no-game', '60 min + 1 ms before: not yet')
+  st = await status()
+  ok(Array.isArray(st.suggestion) && st.suggestion.length === 0, '/api/status: no suggestion yet')
   clock.now = START - LEAD_MS
   r = await tick()
-  ok(r.action === 'prepared' && r.gameId === 901, `60 min before: the 20:00 game (${r.gameId})`)
+  ok(r.action === 'suggest' && r.gameIds.join() === '901', `60 min before: the 20:00 game is suggested (${r.gameIds})`)
   st = await status()
-  ok(st.prematch === true && String(st.prematchGameId) === '901', `/api/status: prematch, game ${st.prematchGameId}`)
-  ok(st.state.team_a_name.toLowerCase() === 'ksc wiedikon h1' && st.state.team_a_short === 'KSCW H1' && st.state.team_b_short === 'ZÜRI H2', `home on the left, the short names (${st.state.team_a_name} ${st.state.team_a_short} v ${st.state.team_b_short})`)
-  ok(st.state.points_a === 0 && st.state.points_b === 0, '0-0')
+  ok(st.suggestion.length === 1 && st.suggestion[0].id === 901 && st.suggestion[0].homeShort === 'KSCW H1' && st.suggestion[0].hall === 'KWI A', `/api/status.suggestion: 901 with its short names and hall`)
+  ok(st.prematch === false && (!st.state || st.state.team_a_short === 'HOME') && mock.currentLayout !== MATCH, 'nothing is on the board: it only asks')
+  const line = logged.find((e) => /suggesting tonight's game 901/.test(e.msg))
+  ok(line && line.level === 'info', 'logged at info')
+  r = await tick()
+  ok(logged.filter((e) => /suggesting tonight's game 901/.test(e.msg)).length === 1, 'the next tick does not log it again')
+  // "Set up": the console's ordinary schedule start, with the game id.
+  await post('/api/game', { choice: 'new', prematch: true, gameId: 901, teams: { left: { name: 'KSC Wiedikon H1', short: 'KSCW H1' }, right: { name: 'VBC Züri Unterland H2', short: 'ZÜRI H2' } } })
+  st = await status()
+  ok(st.prematch === true && String(st.prematchGameId) === '901' && st.suggestion.length === 0, `"Set up": pre-match 901, the suggestion gone (${st.suggestion.length})`)
   ok(mock.currentLayout === 'kscw_clock' && st.ledbox.clockHeld === true, `the panel keeps the clock (${mock.currentLayout})`)
-  const line = logged.find((e) => /auto-prepared game 901/.test(e.msg))
-  ok(line && line.level === 'info' && line.data && line.data.gameId === 901, 'logged at info with the game id')
 
   console.log('\n[4] never twice, never after a dismissal')
   r = await tick()
@@ -152,13 +171,47 @@ try {
   ok(st.prematch === false, 'the scorer deleted it')
   clock.now = START - 10 * 60 * 1000
   r = await tick()
-  ok(!(r.action === 'prepared' && r.gameId === 901), `901 is not put back (${r.action} ${r.reason} ${r.gameId ?? ''})`)
-  // 902 (20:15, KWI B) is due now too, and nothing has claimed it: that one IS prepared.
-  ok(r.action === 'prepared' && r.gameId === 902, 'the other hall\'s 20:15 game is the next candidate')
-  await post('/api/game', { choice: 'delete' })
-
-  console.log('\n[5] a match in progress is never interrupted')
+  ok(r.action === 'skip' && r.reason === 'no-game' && (await status()).suggestion.length === 0, `901 is not offered again (${r.action} ${r.reason})`)
   await app.close(); app = null
+  // "Not now" on a fresh board: dismissed for the evening, across a restart.
+  const dirNo = newDir()
+  await start(dirNo)
+  r = await tick()
+  ok(r.action === 'suggest', 'a fresh board suggests 901')
+  const d = await post('/api/suggestion', { action: 'dismiss' })
+  ok(d && d.ok === true && d.dismissed.join() === '901' && d.suggestion.length === 0, `"Not now": dismissed ${d && d.dismissed}`)
+  const bad = await post('/api/suggestion', { action: 'nope' })
+  ok(bad && /action must be/.test(bad.error || ''), `a bad action is refused (${bad && bad.error})`)
+  r = await tick()
+  ok(r.reason === 'no-game' && (await status()).prematch === false, `the next tick offers nothing (${r.reason})`)
+  await app.close(); app = null
+  await start(dirNo)
+  r = await tick()
+  ok(r.reason === 'no-game', `after a restart it stays dismissed (${r.reason})`)
+  await app.close(); app = null
+
+  console.log('\n[4b] two home games the same day: both offered, the scorer picks')
+  ROWS = TWO_GAMES
+  const dirTwo = newDir()
+  await start(dirTwo)
+  clock.now = START - LEAD_MS
+  r = await tick()
+  ok(r.action === 'suggest' && r.reason === 'several-games' && r.gameIds.join() === '901,902', `60 min before 901: both of today's games offered (${r.gameIds})`)
+  st = await status()
+  ok(st.suggestion.length === 2 && st.prematch === false && (!st.state || st.state.team_a_short === 'HOME'), 'two to pick from, the board untouched')
+  ok(logged.some((e) => /2 home games today: asking the scorer which one/.test(e.msg)), 'logged: asking which one')
+  await post('/api/game', { choice: 'new', prematch: true, gameId: 902, teams: { left: { name: 'KSC Wiedikon D2', short: 'KSCW D2' }, right: { name: 'Volley Näfels D1', short: 'NÄFELS D1' } } })
+  st = await status()
+  ok(st.prematch === true && String(st.prematchGameId) === '902' && st.suggestion.length === 0, `the pick, 902, is on the board and the question is answered (${st.suggestion.length})`)
+  clock.now = START - 10 * 60 * 1000
+  r = await tick()
+  st = await status()
+  ok(r.action === 'skip' && st.suggestion.length === 0 && st.state.team_a_short === 'KSCW D2', `901 due too, but the pick stays and nothing is offered over it (${r.reason})`)
+  await post('/api/game', { choice: 'delete' })
+  await app.close(); app = null
+  ROWS = ONE_GAME
+
+  console.log('\n[5] a match in progress is never offered over')
   const dirB = newDir()
   await start(dirB)
   clock.now = START - 20 * 60 * 1000
@@ -167,19 +220,20 @@ try {
   await post('/api/action', { action: { type: 'point', side: 'left', delta: 1 } })
   await post('/api/action', { action: { type: 'point', side: 'right', delta: 1 } })
   r = await tick()
-  ok(r.action === 'skip' && r.reason === 'match-in-progress', `1-1 on the board: nothing (${r.reason})`)
+  ok(r.action === 'skip' && r.reason === 'match-in-progress' && (await status()).suggestion.length === 0, `1-1 on the board: nothing offered (${r.reason})`)
   st = await status()
   ok(st.prematch === false && st.state.points_a === 1 && st.state.points_b === 1 && st.state.team_a_short === 'FRA', 'the match is exactly as it was')
   ok(mock.currentLayout === MATCH, 'still on the scoreboard')
-  // A running countdown (a timeout, a warm-up the scorer started) is left alone too.
   await post('/api/game', { choice: 'delete' })
   await post('/api/countdown', { seconds: 30, label: 'WARM-UP' })
   r = await tick()
   ok(r.action === 'skip' && r.reason === 'countdown', `a countdown running: nothing (${r.reason})`)
   await post('/api/countdown/stop', { expired: false })
   r = await tick()
-  ok(r.action === 'prepared' && r.gameId === 901, 'once it is over, the game is prepared')
-  await post('/api/game', { choice: 'delete' })
+  ok(r.action === 'suggest' && r.gameIds.join() === '901', 'once it is over, the game is offered')
+  await post('/api/countdown', { seconds: 30, label: 'WARM-UP' })
+  ok((await status()).suggestion.length === 0, 'a countdown started since takes the offer off at once, before the next tick')
+  await post('/api/countdown/stop', { expired: false })
 
   console.log('\n[6] the scorer tapped it first')
   await app.close(); app = null
@@ -194,8 +248,7 @@ try {
   ok(r.action === 'skip' && r.reason === 'already', `the board is already in this game's pre-match (${r.reason})`)
   await post('/api/game', { choice: 'delete' })
   r = await tick()
-  ok(!(r.action === 'prepared' && r.gameId === 901), 'and after the scorer dismissed it, it stays dismissed')
-  // With the console's game id the tap files it at once, whatever the names say.
+  ok(r.action === 'skip' && r.reason === 'no-game', `and after the scorer dismissed it, it is not offered again (${r.reason})`)
   await post('/api/game', {
     choice: 'new', prematch: true, gameId: 902,
     teams: { left: { name: 'Typed Over', short: 'TYPED' }, right: { name: 'By Hand', short: 'HAND' } },
@@ -205,44 +258,46 @@ try {
   await post('/api/game', { choice: 'delete' })
   clock.now = START
   r = await tick()
-  ok(r.reason === 'no-game', `neither game is set up again (${r.reason})`)
+  ok(r.reason === 'no-game', `neither game is offered again (${r.reason})`)
 
   console.log('\n[7] SCHEDULE_HALLS, and a restart')
   await app.close(); app = null
+  // Two games today, but this board's hall filter leaves one: that one alone is offered.
+  ROWS = TWO_GAMES
   process.env.SCHEDULE_HALLS = 'KWI B'
   const dirD = newDir()
   await start(dirD)
   clock.now = START - 30 * 60 * 1000
   r = await tick()
-  ok(r.action === 'prepared' && r.gameId === 902, `SCHEDULE_HALLS=KWI B: the 20:15 in KWI B, not the earlier KWI A game (${r.gameId})`)
-  await post('/api/game', { choice: 'delete' })
+  ok(r.action === 'suggest' && r.reason === 'due' && r.gameIds.join() === '902', `SCHEDULE_HALLS=KWI B: only the 20:15 in KWI B (${r.gameIds})`)
+  await post('/api/suggestion', { action: 'dismiss' })
   await app.close(); app = null
   const onDisk = JSON.parse(fs.readFileSync(path.join(dirD, 'data', 'autoprepare.json'), 'utf8'))
-  ok(onDisk.date === T && onDisk.ids.includes('902'), `data/autoprepare.json keeps today's prepared ids (${onDisk.ids})`)
+  ok(onDisk.date === T && onDisk.ids.includes('902'), `data/autoprepare.json keeps today's dismissed ids (${onDisk.ids})`)
   await start(dirD)
   r = await tick()
   ok(r.action === 'skip' && (await status()).prematch === false, `after a restart the dismissed game stays dismissed (${r.reason})`)
   delete process.env.SCHEDULE_HALLS
+  ROWS = ONE_GAME
   await app.close(); app = null
 
   console.log('\n[8] a match that has begun at 0-0 is a match')
   const dirE = newDir()
   await start(dirE)
-  clock.now = START - 10 * 60 * 1000 // 901 (20:00, KWI A) and 902 (20:15, KWI B) both due
-  r = await tick()
-  ok(r.action === 'prepared' && r.gameId === 901, 'the 20:00 game is prepared')
+  clock.now = START - 10 * 60 * 1000
+  await post('/api/game', {
+    choice: 'new', prematch: true,
+    teams: { left: { name: 'Friendly A', short: 'FRA' }, right: { name: 'Friendly B', short: 'FRB' } },
+  })
   await post('/api/prematch', { action: 'start' })
   st = await status()
-  ok(st.prematch === false && st.state.points_a === 0 && st.state.team_a_short === 'KSCW H1', '"Start match now": the match is on, still 0-0')
+  ok(st.prematch === false && st.state.points_a === 0 && st.state.team_a_short === 'FRA', '"Start match now": the match is on, still 0-0')
   r = await tick()
-  ok(r.action === 'skip' && r.reason === 'match-in-progress', `the overlapping 20:15 is not set up over it (${r.action} ${r.reason} ${r.gameId ?? ''})`)
-  st = await status()
-  ok(st.state.team_a_short === 'KSCW H1' && mock.currentLayout === MATCH, 'the board keeps the 20:00 match on the scoreboard')
-  // Names typed by hand and New pressed: a match at 0-0 too.
+  ok(r.action === 'skip' && r.reason === 'match-in-progress', `the due 20:00 is not offered over it (${r.action} ${r.reason})`)
   await post('/api/game', { choice: 'delete' })
   await post('/api/game', { choice: 'new', teams: { left: { name: 'Typed Home', short: 'THOME' }, right: { name: 'Typed Away', short: 'TAWAY' } } })
   r = await tick()
-  ok(r.action === 'skip' && r.reason === 'match-in-progress', `a typed match at 0-0 is not replaced (${r.action} ${r.reason})`)
+  ok(r.action === 'skip' && r.reason === 'match-in-progress', `a typed match at 0-0 is not offered over (${r.action} ${r.reason})`)
   ok((await status()).state.team_a_short === 'THOME', 'the typed names stay')
   await app.close(); app = null
 
@@ -252,21 +307,22 @@ try {
   clock.now = START - 3 * 60 * 60 * 1000 // nothing due yet
   await post('/api/game', { choice: 'new', teams: { left: { name: 'Friendly A', short: 'FRA' }, right: { name: 'Friendly B', short: 'FRB' } } })
   await post('/api/action', { action: { type: 'point', side: 'left', delta: 1 } })
-  await app.close(); app = null // a clean restart: the slot waits, the live board comes up blank
+  await app.close(); app = null
   await start(dirF)
   clock.now = START - 30 * 60 * 1000
   r = await tick()
-  ok(r.action === 'skip' && r.reason === 'saved-match', `the due game is not set up over the saved match (${r.action} ${r.reason})`)
+  ok(r.action === 'skip' && r.reason === 'saved-match', `the due game is not offered over the saved match (${r.action} ${r.reason})`)
   const slot = JSON.parse(fs.readFileSync(path.join(dirF, 'data', 'resume.json'), 'utf8')).games.volleyball
   ok(slot && slot.state.points_a === 1 && slot.state.team_a_short === 'FRA', 'data/resume.json still holds the 1-0 match')
   await app.close(); app = null
 
-  console.log('\n[10] the pre-match keeps its game id across a restart')
+  console.log('\n[10] a game set up from the suggestion keeps its id across a restart')
   const dirG = newDir()
   await start(dirG)
   clock.now = START - 30 * 60 * 1000
   r = await tick()
-  ok(r.action === 'prepared' && r.gameId === 901, 'prepared 901')
+  ok(r.action === 'suggest', 'suggested 901')
+  await post('/api/game', { choice: 'new', prematch: true, gameId: 901, teams: { left: { name: 'KSC Wiedikon H1', short: 'KSCW H1' }, right: { name: 'VBC Züri Unterland H2', short: 'ZÜRI H2' } } })
   await app.close(); app = null
   await start(dirG)
   st = await status()
