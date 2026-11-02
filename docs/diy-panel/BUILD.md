@@ -197,7 +197,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 |---|---|---|---|---|
 | Clock | DS3231 module (ZS-042 type: **remove its charging resistor** before fitting the cell) + **CR2032** (Varta; buy cells in Switzerland, AliExpress cells are often fake) | 1 | AliExpress + Migros/Coop/Digitec | 9 |
 | Temperature sensor | **SHT40**, Adafruit 4885 (own pull-ups) | 1 | DigiKey CH | 5 |
-| Current sensors | **INA226** breakout × 2 for the diagnostics (§6): one in the 5 V lead with a **2 mΩ shunt** (module rated ≥ 15 A, large screw terminals; the common R100 = 0.1 Ω board stops at 0.8 A), one behind the input fuse with a **10 mΩ (R010)** shunt. Addresses `0x40` and `0x41`, never `0x44` | 2 | AliExpress (check the shunt marking R002 / R010 in the photos) | 7 |
+| Current sensors | **3 × INA226 board with an R002 (2 mΩ) shunt** and a 3-way screw terminal VIN+ / VBUS / VIN− (red board, “INA226 · R002” variant; not R100, not INA228/238): one in the 5 V lead from the converter (up to 12 A), one behind the 5 A input fuse, one spare. 2 mΩ still resolves about 1.25 mA, plenty for the self-test. Both come as `0x40`: on the input board bridge **A0 to VCC** for `0x41` | 3 | AliExpress · Shenzhen Tengsheng Technology (not Choice, CHF 3.73 shipping) | 7 + 4 |
 | Horn switch | **MCP23017 module** (CJMCU-2317 style; MCP23017, not the SPI MCP23S17), I²C `0x20` | 1 | AliExpress · Suzpng Limited Store | 6 incl. shipping |
 | Horn MOSFET | **isolated MOSFET module, variant AOD4184** (optocoupler input; not FR120N, LR7843 or an IRF520 module) | 1 | AliExpress Choice | 4 |
 | Horn | **SFM-27 active piezo buzzer, continuous** (not the "-II" intermittent type), DC 3–24 V, about 95 dB, about 30 mm across, with mounting ears | 1 (+spares) | AliExpress Choice (pack of 5) | 3 |
@@ -381,7 +381,7 @@ the bonnet's HUB75 **E** line, unused on these modules but still wired to the ri
 | `0x20` | **MCP23017** horn switch | A0, A1, A2 to GND |
 | `0x28` | STUSB4500 PD board | |
 | `0x40` | INA226, 5 V output | 2 mΩ shunt |
-| `0x41` | INA226, input | R010 shunt |
+| `0x41` | INA226, input | 2 mΩ shunt, A0 bridged to VCC |
 | `0x44` | SHT40 | **never strap an INA226 to `0x44`** |
 | `0x68` | DS3231 clock | |
 
