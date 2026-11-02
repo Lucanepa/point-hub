@@ -29,6 +29,15 @@ rpi-rgb-led-matrix, by Henner Zeller and contributors
             corresponding source with it: the library at the pinned commit, flushbuffer.cc and
             build.sh. See firmware/flushbuffer/README.md.
 
+Adafruit_Blinka_Raspberry_Pi5_Piomatter, by Adafruit Industries and contributors (includes a copy
+of Raspberry Pi Ltd's piolib)
+  Source:   https://github.com/adafruit/Adafruit_Blinka_Raspberry_Pi5_Piomatter
+  Pinned:   commit ab6cf42b2bbbf4c9d24baa196a300640011c655f (sha256-checked by build.sh)
+  Licence:  GNU General Public License, version 2 only (its README: "GPL-2-only")
+  Note:     only in the Raspberry Pi 5 build (BACKEND=piomatter ./build.sh). That flushBuffer2
+            binary is a combined work under GPL-2.0-only, with the same source obligation as above:
+            the Piomatter tarball at the pinned commit, stb_image.h, flushbuffer.cc and build.sh.
+
 stb_image.h, by Sean Barrett and contributors
   Source:   https://github.com/nothings/stb
   Pinned:   commit 2c980bb59875b0d32144a71867fbdebb2f77cd20 (sha256-checked by build.sh)
