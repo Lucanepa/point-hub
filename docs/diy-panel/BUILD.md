@@ -1,26 +1,81 @@
 # Point Hub board — DIY scoreboard build guide (KSCW)
 
 How KSC Wiedikon builds its own scoreboard from open parts: the same 192 × 64 pixels as the
-Tech4Sport LedBox C0270 at **1.67× its pitch**, a small score panel facing each bench, powered by
-**USB-C only** and driven by the same open software stack (bridge, console, openscore,
-flushBuffer2).
+Tech4Sport LedBox C0270 at **1.67× its pitch**, a small score panel facing each bench, a 10.1″
+touchscreen for the scorer in the back, powered by **USB-C only** and driven by the same open software
+stack (bridge, console, openscore, flushBuffer2).
 
-**The illustrated build manual** — parts with letters A–Z, drawings for every step, a 3D view — is
-here: **<https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8>** (draft of 22 October 2026). This page
-is the reference behind it: the electrical design, the settings, the safety case and the software.
-Where the two differ, this page is newer: the tablet-charging hub (§7) and the fold-out legs (§8)
-were decided after the drawings were made.
+This page describes **design D**, the version that is being built: a fixed 22 cm box whose **front
+panel tilts** 0–20° towards the first referee, and a **screen flap** in the back panel. It is written
+so that a club member can buy, build and run a board alone.
 
-> **Status, 22 October 2026: designed, not built.** openscore 1.0.0 has never run on real glass,
-> and several pieces of software this box depends on are still to be written (§10.6). Treat every
-> number here as a plan to be confirmed at the bench.
+> **Status, 2 November 2026: parts ordered, wood ordered, not built yet.** Nothing in design D has
+> been assembled, and the LED driver for the Raspberry Pi 5 is not written yet (§10.7). Items marked
+> **Check** are not tested or not decided: do them in the order this guide gives, and do not rely on
+> a part of the design before its check has passed.
 >
-> Prices are **approximate, EUR, 2026**, incl. shipping/VAT where a European retailer exists.
-> LED module and Raspberry Pi prices move a lot; check at purchase time. Orders from outside
-> Switzerland add import VAT and fees — put them in as few parcels as possible.
+> Prices are **approximate, CHF, October 2026**, from the club's own shopping list. LED modules and
+> Raspberry Pi prices move a lot; check at purchase time. Orders from outside Switzerland add import
+> VAT and fees — put them in as few parcels as possible.
+
+**The illustrated build manual** (<https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8>, generated from
+`docs/diy-panel/guide/`) shows design D in 3D (tilt the front, open the flap, pull the foot out) and
+in 27 drawn steps, with the same part letters as this page. Read the two side by side; for numbers
+and wiring, this page is the reference.
 
 This guide replaces the earlier recipe for a 1× panel (three 64×64 modules on a 230 V mains supply),
 which is withdrawn; it is in the git history if you need it.
+
+---
+
+## How to use this guide
+
+### Order of work
+
+| # | Stage | Where | Section |
+|---|---|---|---|
+| 1 | **Buy** the parts and check the tools | online + one DIY-store trip | §2, §3 |
+| 2 | **Bench test** one LED module on the Pi (before anything is cut) | home | §10.2 |
+| 3 | **Cut**: the plywood comes cut to size from Jumbo; windows, openings, holes, metal parts at an open workshop | GZ workshop | §8, §9 A |
+| 4 | **Dry fit** the whole case with tape and a few screws, no glue | GZ workshop or home | §9 B |
+| 5 | **Glue** the shell and the small assemblies | home | §9 C |
+| 6 | **Paint** | GZ workshop (if allowed) or a balcony | §9 D |
+| 7 | **Electronics**: power path first, then everything else | home | §5, §9 E |
+| 8 | **Software** bring-up, touchscreen and flicker test | home | §10 |
+| 9 | **Bench checklist** before the first match | home, then the hall | §6 |
+
+**Where to work.** Sawing, hole saws, metal work and rough sanding make dust and chips: do them in a
+Zürich community-centre open workshop. **GZ Hirzenbach** has a wood and a metal workshop (Tuesday
+14–21, Saturday 11–17; your own tools and material are allowed); **GZ Bachwiesen** has a wood
+workshop (Tuesday–Friday). Check the opening hours and rules with the GZ before you go. Gluing,
+wiring and soldering are done at home: no dust, and ventilate the room when you solder. Paint at the
+workshop if they allow it, otherwise outside on a balcony with a drop sheet.
+
+**Time.** The earlier, simpler design was estimated at 12–15 h. Design D adds the tilting front,
+the screen flap and the pull-out foot, so plan on roughly **20–25 h of work**: about three workshop
+sessions for cutting and metal work, and several evenings at home for gluing, wiring and software,
+plus a day per paint stage for drying and about a week before the paint is hard enough for the
+rubber pads. This is an estimate — nobody has built a design-D board yet.
+
+**Words and letters.** All sizes are in **millimetres** (W × H × D, or length × width). The
+plywood parts have letters, the same as on the cutting sheet: **A** front frame, **B** back panel,
+**C1** top, **C2** bottom, **D** ends, **F** screen flap, **P1–P3** flap pocket, **K** bottom cap,
+**H** side cheeks, **Y** backing plates, **T** pull-out foot. Other parts are named in words.
+
+### What still needs checking
+
+These have **not been tested** or **not been decided**. The guide marks each one where it comes up.
+
+| Check | What could go wrong | When | Section |
+|---|---|---|---|
+| **First light on the Pi 5 + Piomatter** | the Pi 5 driver does not work with these modules or the bonnet → fall back to a Pi 4 2 GB with the hzeller driver | before cutting | §10.2 |
+| **Screen flicker test** | the touchscreen makes the LED modules flicker → the screen stays out, the scorer uses a tablet on the DATA cable | before fitting the screen | §10.4 |
+| **Bottom cap K vs backing plates Y** | both want the front/centre of the floor | dry fit, before gluing Y | §8.6 |
+| **Soak test** (2 h at the power cap) | the box runs too hot | before the first match | §6 |
+| Cheeks H and stays vs the bench modules | the parts that close the side gaps may hit the bench modules | dry fit | §8.4 |
+| Polycarbonate sheet vs battens on A | the front sheet was cut for the earlier frame and may overlap the battens | dry fit | §8.3 |
+| Piano hinge position | A's top corner must clear the top C1 when tilting | dry fit | §8.4 |
+| Pull-out foot rails | rail length and height | dry fit | §8.8 |
 
 ---
 
@@ -28,28 +83,33 @@ which is withdrawn; it is in the git history if you need it.
 
 | | |
 |---|---|
-| Main screen | **192 × 64 LEDs at 5 mm pitch** (6 modules of 64×32, P5), 96 × 32 cm |
+| Main screen | **192 × 64 LEDs at 5 mm pitch** (6 modules of 64×32, P5), 960 × 320 mm, behind 3 mm smoked polycarbonate |
 | Bench panels | **2 × (32 × 64)**: one P5 module per end, upright, facing the benches |
-| Box | **102 × 38 × 22 cm**, 6 mm plywood, about **8 kg** |
-| Front | 3 mm polycarbonate, tight on the LED mask |
+| Box | **1020 × 380 × 220 mm** (W × H × D), 6 mm poplar plywood, about **8.5 kg** |
+| Front | the **front panel tilts 0, 5, 10, 15 or 20°**: it hangs from a piano hinge along the top edge and its bottom swings out, so the screen leans back towards the first referee. No legs; the box itself never moves |
+| Scorer screen | **10.1″ touchscreen** (1280 × 800) in a flap in the back panel, hinged at its top, swings out like an awning — **Check:** only if the flicker test passes (§10.4) |
 | Power | **USB-C PD charger, 18–100 W**; 65 W or more for full brightness while charging the tablet |
-| Ports | **2 × USB-C, nothing else**: POWER and DATA (to the scorer tablet: network + charging) |
+| Ports | **2 × USB-C, nothing else**: POWER and DATA (to the scorer tablet: network + charging), low on the back under the flap |
 | Wi-Fi | **out only**: the Pi's built-in radio joins the hall's Wi-Fi for internet; the board has no Wi-Fi network of its own |
-| Mounting | table (straps), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
-| Horn | none fitted, wiring provisioned |
+| Mounting | table (rubber pads + pull-out rear foot against tipping), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
+| Horn | **fitted**: a 5 V piezo buzzer, about 95 dB, switched over I²C |
+| Computer | **Raspberry Pi 5** (8 GB) with the Active Cooler; fallback Pi 4 2 GB (§10.2) |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **CHF 750**, each part where it is cheapest (AliExpress, a Swiss shop or a German delivery address), plus shipping; about CHF 865 with everything delivered to Switzerland (October 2026) |
-| Build time | 12–15 h plus a day for paint to dry |
+| Parts | about **CHF 850** with the screen and splash protection, each part where it is cheapest (October 2026), plus shipping; without the Pi 5 and without tools |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
 the pitch grows, from the C0270's ~3 mm to 5 mm. A score digit (fontsize 55, about 40 px) becomes
 about **20 cm** tall instead of about 12 cm. A 1.5× box is not possible (there is no 4.5 mm pitch),
-and 2× would mean twelve P3 modules with a 2× upscale: around €815 and more power than USB-C
+and 2× would mean twelve P3 modules with a 2× upscale: more cost and more power than USB-C
 delivers.
+
+**Why the front tilts.** From a scorer's table about 10 m away, the first referee's eyes are 10–15°
+above the board. Tilting only the front panel keeps the box 22 cm deep (it fits a scorer's table or
+the top of a vaulting box) and keeps the top edge flush, so nothing hides the top row of the score.
 
 **The bench panels** show the score to each bench (own team on top, timeouts and substitutions).
 openscore draws them itself from the live match sections, so the bridge, the console and the
-protocol stay unchanged (§10.6).
+protocol stay unchanged (§10.7). They sit in the fixed ends and do not tilt.
 
 **Software:**
 
@@ -62,82 +122,193 @@ console + bridge  ──TCP 8889──▶  openscore  ──buffer.png──▶ 
 
 ## 2. Bill of materials
 
-Letters match the illustrated manual. Quantities include the spares that live in the box
-(2 modules, 4 fuses, 1 SD card).
+Quantities include the spares that live in the box (2 modules, 4 fuses, 1 SD card). Shops are the
+ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Coop Bau+Hobby.
+**Check** in the price column means no price was recorded: look it up.
 
-| | Part | Spec | Qty | ~EUR |
+### 2.1 Wood, sheet and bar material
+
+| Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
-| A–D, Y | Plywood | 6 mm poplar, one 1250 × 1250 sheet, store-cut (cut list §8) | 1 | 30 |
-| E | Battens | 15 × 15, 2 × 1008 + corner blocks | 1 set | 5 |
-| F | Steel bars | 20 × 4 × 368 steel flat bar (galvanised 20 × 3 is not stocked) — must be steel, the module magnets hold on them | 3 | 6 |
-| G | Polycarbonate | 3 mm, **smoked grey** (about 50–60 % light transmission); 990 × 350 + 2 × 172 × 332 | 3 | 40 |
-| H | LED module | P5 64 × 32 indoor, to the purchase spec in §3; 8 + 2 spare, one batch (about CHF 18.50 each on AliExpress, Oct 2026; that seller confirmed ICN2037 drivers with 74HC138 decoders), plus 4 M3 magnetic screws each, bought separately | 10 | 185 |
-| I | Raspberry Pi 4 | **1 GB** is enough (CHF 34.90 when in stock); out of stock everywhere in Oct 2026, so the 2 GB (CHF 60) | 1 | 60 |
-| J | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs | 1 | 14 |
-| K | Stacking header | 40-pin, tall, between Pi and bonnet | 1 | 3 |
-| M | microSD | 32 GB, prepared image; one spare | 2 | 14 |
-| N | Converter | **Mean Well RSD-60G-5**: 9–36 V in, 5 V 12 A (60 W) out | 1 | 55 |
-| O | USB-C PD sink board | **STUSB4500** (e.g. SparkFun DEV-15801, contract-gated output) | 1 | 30 |
-| P | USB-C panel sockets | panel mount, 30 cm, data-rated (not charge-only) | 2 | 14 |
-| Q | Fuse box | 12-way **standard blade (ATO/ATC)** with a negative bus, 14 × 5 A fuses (4 spare); a 12-way MINI box with a negative bus was not on sale in Oct 2026 | 1 | 30 |
-| R | Horn switch | MOSFET board + **TCA9534** I²C output breakout + 10 kΩ gate pull-down + plug, no horn | 1 | 7 |
-| S | Stand cup | 35 mm, with M4 screws | 1 | 8 |
-| T | Tripod threads | one ¼″-20 and one ⅜″-16 **threaded insert for wood** (hex drive, 13–15 mm long; AliExpress, sold in tens). From Swiss shops instead: 2 × M10 T-nut + K&M 21980 adapter (M10 → ⅜″-16), one with a K&M 21770 reducer (⅜″ → ¼″-20) | 2 | 7 |
-| U | Rubber feet | | 4 | 3 |
-| V | Handles | black bow handles, 128 mm | 2 | 8 |
-| W | Corner caps | black rubber, 20 mm, front corners only | 4 | 5 |
-| Z | Blanking plug | Ø30, for the horn hole | 1 | 2 |
+| Plywood, cut to size | **Oecoplan poplar 6 mm (A/B)**, Jumbo online cut-to-size; the 15 pieces of the cut list (§8.2) | 1 order | Jumbo (online, store pickup) | 54 |
+| Battens | **beech 15 × 20 mm, 1 m** (15 × 15 is not stocked in Zürich) | 5 | DIY store | Check |
+| Polycarbonate, smoked | 3 mm **Makrolon UV 2760 grey** (about 62 % light), cut to 990 × 350 × 1 and 172 × 332 × 2. Not acrylic: a ball can crack it | 1 set | acrylglas-shop.com (ships to DE/AT only) or kunststoff-shop.ch (51 % light, ~CHF 89) | 42 |
+| Steel flat bar | **20 × 4 mm steel**, 1 m — must be steel, the module magnets hold on it; cut 3 bars of 360 mm (§8.3), two per 1 m bar | 2 | Hornbach.de or any DIY store | 3–5 each |
+| Aluminium flat bar | **25 × 4 mm**, 1 m, for the two ratchet stays (steel also works) | 1 | Hornbach.de or DIY store | 8 |
+| Aluminium sheet | 1.5 mm, 250 × 500, cut to about 200 × 150: the plate under the converter and the fuse box | 1 | OBI | 15 |
 
-| Small parts and wire | Spec | ~EUR |
-|---|---|---|
-| Screws and fittings | 66 × wood screw 3.5 × 16 T20 (6 hold the back panel), 12 × M4 × 16 T20 + nuts, 4 × M2.5 standoffs, 8 turn buttons | 8 |
-| Straps | 2 × Velcro strap with buckle, 50 mm × 1 m | 8 |
-| Stickers | "POINT HUB" cut-vinyl lettering for the front, back label for the ports | 15 |
-| Tablet hub | small USB-C hub with **Ethernet (RTL8153)** and a **USB-PD pass-through charging input**, + 15 cm patch cable | 25 |
-| Tablet charging module | USB-C PD source, 12–24 V in, about 20 W PD out: a bare buck module with USB-C PD out (QIQIAZI PD65W, 12–30 V in, on Amazon.de), or a 12–24 V USB-C car charger with its plug cut off, wired to the fused input | 10 |
-| Clock + temperature | DS3231 RTC (breakout without a charging circuit) + SHT40 sensor breakout | 10 |
-| Aluminium plate | 200 × 150 × 2, under the converter and the fuse box | 6 |
-| Protection | 5 A inline fuse + holder, 3 A fuse + holder, TVS diode SMBJ22A (through-hole equivalent: **P6KE27A**, not P6KE22A, whose standoff is only 18.8 V), 10 kΩ resistor, snap-on ferrites | 6 |
-| Wire | red + black: 2.5 mm² 1 m, 1 mm² 2 m, 1.5 mm² for extensions; ferrules; Wago 221 | 8 |
-| Paint, glue | matte black for the box, gloss black for the front face, two coats each; wood filler, 120-grit sandpaper; wood glue | 16 |
-| Fold-out legs *(optional)* | 2 hinges with stops; the legs come out of the plywood offcut | 10 |
-| **Total** | | **≈ 550** |
+### 2.2 LED modules and computer
 
-The €-figures above were the first estimate, at AliExpress and EU prices. With real prices (October
-2026), buying each part where it is cheapest — AliExpress, a Swiss shop, or delivery to a German
-address with 8.1 % Swiss import VAT on top — comes to about **CHF 750 plus shipping**; with everything
-delivered to Switzerland it is about CHF 865. AliExpress wins on the modules and the small hardware
-(magnets, tripod inserts, turn buttons, handles, standoffs, the clock module); Germany on the
-polycarbonate, the Pi 4 1 GB, the fuse box, the network adapter and one Hornbach.de basket of paint
-and fittings. Parts that must be genuine (converter, PD board, bonnet, sensors) stay at DigiKey CH,
-and the stand flange and the wood stay Swiss.
-The shopping list has every item, both offers and today's prices.
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| LED module | P5 64 × 32 indoor to the purchase spec in §3; **8 + 2 spare, one batch** | 10 | AliExpress · Yao Cai Xing Official Store | 185 |
+| Magnets | M3 magnetic screws, about Ø12–13 mm, 8–12 mm high (size "1313" or similar), 4 per module; the seller does not include them | 40 | AliExpress (2 packs of 20) | 12 |
+| Raspberry Pi | **Raspberry Pi 5, 8 GB** | 1 | the club's own; otherwise any Pi shop | Check |
+| Cooler | **Raspberry Pi Active Cooler** (SC1148): the Pi 5 runs hot in a closed box | 1 | DigiKey CH | 6 |
+| Fallback Pi | Raspberry Pi 4, **2 GB** — buy only if the Pi 5 bench test fails (§10.2) | (1) | welectron, pi-shop.ch | 60 |
+| Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs — not the single bonnet 3211 | 1 | DigiKey CH | 9 |
+| Stacking header | Adafruit 1979, extra-tall 2 × 20, between Pi and bonnet | 1 | DigiKey CH | 3 |
+| Standoffs | M2.5 brass standoff kit, about 11 mm | 1 | AliExpress | 6 |
+| microSD | 32 GB, prepared image; one spare | 2 | Galaxus | 14 |
 
-**Tools** — all of it fits a normal home toolbox: drill/driver with T10 + T20 bits; wood drill
-bits Ø2.5, 3.2, 4.5, 8, 12; hole saws Ø30 and Ø45; jigsaw with a fine wood blade; two clamps; ruler,
-pencil, masking tape; crimp tool for ferrules; multimeter; a **USB-C power meter** (about €12) —
-it is needed for the first power-up and to calibrate the power governor.
+### 2.3 Scorer screen
 
-The spares and fallback kit that goes with the box (charger, flip board, …) is in §11.
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Touchscreen | **Waveshare 10.1inch DSI LCD (C)**, 1280 × 800, capacitive touch (Waveshare SKU 23450). Not the 800 × 1280 "10.1-DSI-TOUCH-A" | 1 | AliExpress Waveshare store or eckstein-shop.de | 80–85 |
+| Display cable | **Raspberry Pi display cable, standard–mini, 300 mm** (SC1132): the Pi 5 has the small 22-pin connector, the screen the standard 15-pin one; the length makes the loop at the flap hinge | 1 | DigiKey CH | 3 |
+| Torque hinges | constant-torque (friction) hinge, black, **1.2 N·m**, 38 × 40 mm, along the top edge of the flap | 2 | AliExpress Choice | 10 |
+| Magnetic catches | **Hettich 27 × 18 mm, screw-on, 2 kg, adjustable**: for the flap and the back panel | 6 | DIY store | Check |
+
+### 2.4 Tilting front and anti-tip
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Piano hinge | steel, about **1000 × 32 mm**, along the top front edge | 1 | Hornbach.de or DIY store | 10–15 |
+| Cap hinge | hinges the bottom cap K to A's bottom edge so K can follow the floor: a second piano hinge about 1000 × 25, or 3 small butt hinges 40 × 30 | 1 set | DIY store | 5–12 |
+| Stay pins | **M6 × 30 hex bolt + M6 nylon lock nut** (or M6 shoulder bolts) | 2 | DIY store | 4 |
+| Rubber pads | self-adhesive **clear rubber pads 20 × 20**, about 3 mm (not felt): 4 under the box, 2 under the back end of the foot, 2 spare | 8 | DIY store | 5 |
+| Handles | **K16 recessed spring handle**, black steel, rubber grip, springs back flush. Rim 155 × 83.3 × 1.2 mm, cut-out 129 × 52 mm, 6 × Ø4.8 holes | 2 | AliExpress ("K16 folding automatic rebound … box handle") | 12 incl. shipping |
+
+### 2.5 Power
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Converter | **Mean Well RSD-60G-5** exactly: 9–36 V in, 5 V 12 A (60 W) out. Not DDR-60G-5, not RSD-60L/-60H | 1 | DigiKey CH | 39 |
+| USB-C PD sink board | **STUSB4500**, SparkFun DEV-15801 (output switches on only after a contract; I²C `0x28`) | 1 | DigiKey CH | 29 |
+| Fuse box | 12-way **standard blade (ATO/ATC)** with a common + feed, a negative bus and a cover | 1 | Amazon.de (not sold in Swiss shops) | 15 |
+| Blade fuses | 14 × ATO 5 A (4 spare); 2 × MINI 5 A and 2 × MINI 3 A for the inline holders | 1 set | reichelt or a car-parts shelf | 4–10 |
+| Inline fuse holders | MINI blade, leads ≥ 1 mm²: one 5 A input fuse, one 3 A charging fuse | 2 | Conrad.ch | 4 |
+| TVS diode | **P6KE27A** through-hole (not P6KE22A, whose standoff is only 18.8 V), or SMBJ22A SMD | 5 | reichelt | 1 |
+| Small parts | 10 kΩ ¼ W resistor (OE pull-up, §4.2), 2 clip-on ferrites 6 mm bore | 1 set | reichelt | 6 |
+
+### 2.6 Tablet link
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| USB-C network adapter | **Delock 66644**: RTL8153 Ethernet + USB-C PD charging input, works with Android | 1 | reichelt or Digitec | 32–35 |
+| Tablet charging module | USB-C PD buck module, 12–30 V in (**DMyond PD 65 W**, or QIQIAZI PD65W), fed behind the 3 A fuse | 1 (+1 spare) | AliExpress or Amazon.de | 8 |
+| Panel-mount USB-C | female panel socket to male plug, 30 cm, all lines wired (CC, D+/D−), Adafruit 6069 | 2 | DigiKey CH | 8 |
+| Network cable | Cat 6, 25 cm | 1 | reichelt or any shop | 1–4 |
+
+### 2.7 Clock, sensors, horn
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Clock | DS3231 module (ZS-042 type: **remove its charging resistor** before fitting the cell) + **CR2032** (Varta; buy cells in Switzerland, AliExpress cells are often fake) | 1 | AliExpress + Migros/Coop/Digitec | 9 |
+| Temperature sensor | **SHT40**, Adafruit 4885 (own pull-ups) | 1 | DigiKey CH | 5 |
+| Current sensors | **INA226** breakout × 2 for the diagnostics (§6): one in the 5 V lead with a **2 mΩ shunt** (module rated ≥ 15 A, large screw terminals; the common R100 = 0.1 Ω board stops at 0.8 A), one behind the input fuse with a **10 mΩ (R010)** shunt. Addresses `0x40` and `0x41`, never `0x44` | 2 | AliExpress (check the shunt marking R002 / R010 in the photos) | 7 |
+| Horn switch | **MCP23017 module** (CJMCU-2317 style; MCP23017, not the SPI MCP23S17), I²C `0x20` | 1 | AliExpress · Suzpng Limited Store | 6 incl. shipping |
+| Horn MOSFET | **isolated MOSFET module, variant AOD4184** (optocoupler input; not FR120N, LR7843 or an IRF520 module) | 1 | AliExpress Choice | 4 |
+| Horn | **SFM-27 active piezo buzzer, continuous** (not the "-II" intermittent type), DC 3–24 V, about 95 dB, about 30 mm across, with mounting ears | 1 (+spares) | AliExpress Choice (pack of 5) | 3 |
+
+### 2.8 Wiring
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Silicone wire | red + black, 14 AWG (≈ 2.1 mm², the converter-to-fuse-box run), 16 AWG (≈ 1.3 mm²), 18 AWG (≈ 0.8 mm²) | 1 set | Amazon.de | 25 |
+| Lever connectors | Wago 221-413 | 20 | reichelt or Brack | 11 |
+| Ferrules | 0.75–2.5 mm²; 400 come with the crimper in the tool list | 1 set | with the crimper | — |
+| Heat-shrink | 2:1 assortment | 1 | with the tools | — |
+
+### 2.9 Case hardware and mounting
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Wood screws | **3.5 × 16 mm Torx T20, black** (Spax BLAX), about 100 | 1 pack | Hornbach.de or OBI | 6–10 |
+| Machine screws | **M4 × 16 pan head Torx T20, A2 stainless** (ISO 14583): 12 for the handles, plus the hinges and the flange | about 30 | Schraubenking.ch | 3 |
+| Lock nuts | M4, DIN 985 (nylon insert) | 1 pack of 100 | Hornbach | 3–5 |
+| Stand flange | **35 mm speaker-stand flange K&M 195/8** with its clamp screw; M8 bolts through the 12 mm backing plate | 1 | Thomann.ch | 21 |
+| Tripod threads | threaded inserts for wood, **¼″-20 and ⅜″-16** UNC, hex drive, 13–15 mm long (sold in lots of 10) | 1 each | AliExpress | 7 |
+| Turn buttons | small flat turn buttons with screws: 4 per bench module, 1 for the foot, some for the back panel | about 12 (pack of 50) | AliExpress | 2 |
+| Corner caps | black rubber, front corners only; **trim them to the ends' 6 mm edge** — a cap that wraps onto the front face stops A from tilting | 4 | AliExpress | 3 |
+| T20 key | plain Torx T20 L-key for the kit bag (opens the back panel) | 2 | AliExpress | 1 |
+
+### 2.10 Glue, finish, splash protection
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Wood glue | **water-resistant D3 PVA** (UHU Holzleim wasserfest); open time about 10 min | 1 | DIY store | Check |
+| Painter's tape | for glue-ups (instead of clamps) and masking | 2 rolls | DIY store | Check |
+| Wood filler | fine, for screw holes and edges | 1 | DIY store | 5 |
+| Spray filler, grey | fills the plywood grain on the front face before the gloss | 1 | Hornbach | 12–17 |
+| Matte black spray | RAL 9005 matte, 400 ml: body inside and out | 2 | Hornbach.de or OBI | 20 |
+| Gloss black spray | RAL 9005, 2K gloss, for the front face (respirator needed for 2K) | 1 | Hornbach | 21 |
+| Sandpaper | P120 and P180 (sanding sponges, see tools); finer between coats | 1 set | DIY store | 14 |
+| Silicone, black | sanitary silicone: a bead around the front sheet and the end windows, along the inside bottom joints | 1 cartridge | Hornbach | 6–8 |
+| Seal strip | self-adhesive **EPDM D-profile**, black, about 9 × 5 mm, 6 m: around the screen pocket and under the back-panel edge | 1 | Hornbach | 6–9 |
+| Brush seal | self-adhesive brush seal, about 2 m: the gap at the tilting front's bottom cap and cheeks | 1 | AliExpress | 3 |
+| USB-C dust caps | silicone, black, for POWER and DATA | 1 pack | AliExpress | 2 |
+| Vent mesh | fine stainless or fibreglass mesh behind the vents (the vents face down) | 1 | Hornbach | 4–6 |
+| Clear coat *(optional)* | 2K matte clear spray over the matte black, against wet balls and drinks | 1 | Hornbach | 18–24 |
+
+### 2.11 Stickers (after first light) and kit bag
+
+| Part | Spec | Qty | Where | ~CHF |
+|---|---|---|---|---|
+| Lettering | "POINT HUB" cut vinyl, matte silver-grey (Oracal 631-030), about 120 × 20 mm, letters 12–15 mm | 2 | Klebe-X or wir-machen-druck.ch | 5–7 |
+| Back label | 80 × 40 mm, white vinyl, matte: "Point Hub · KSC Wiedikon", POWER, DATA. Order once the port positions are fixed | 1 | wir-machen-druck.ch | 14 |
+| Charger *(if the club has none)* | single-port USB-C PD, 65 W or more (100 W with a 5 A cable), labelled "board only" | 1 | Digitec or Amazon.de | 34–37 |
+| USB-C power meter | for the first power-up and the governor calibration (the club has a FNIRSI FNB48P) | 1 | — | 12 |
+
+**Dropped from earlier versions** — do not buy: tilt legs and their hinges, bow handles, Velcro
+table straps, screw-on rubber feet, the Ø30 blanking plug, pine battens 15 × 15, the TCA9534 horn
+expander (replaced by the MCP23017), the DFR0457 MOSFET board and the 10 kΩ gate pull-down, the
+Pi 4 1 GB.
+
+### 2.12 Tools
+
+Everything below is in the club builder's kit. If you build your own, the GZ workshops have most
+of the wood and metal tools.
+
+| Tool | What it is for |
+|---|---|
+| Cordless drill/driver (Bosch GSB 18V-65), hammer mode off | all holes; screws |
+| Wood drill bits Ø2, 2.5, 3.2, 4.5, 8, 12 | pilot holes (Ø2 for the catches, Ø2.5 for 3.5 mm screws in beech and near edges), M4 holes (Ø4.5), corner holes for the jigsaw, tripod inserts (the insert's own pilot size wins) |
+| HSS metal bits Ø4.5 and Ø6.5 | holes in the steel bars and the hinge; the Ø6.5 notch holes in the stays |
+| Torx bits T10 and T20 | all screws |
+| Jigsaw (Bosch GST 18V-125 S) with blades: **T101B** straight cuts in wood (good face down), **T101AOF** curves and corners, **T118B** steel and aluminium, **T118A** the piano hinge (or sandwich the hinge between two scraps of plywood and use T118B) | windows, openings, strips, metal |
+| Hole saws Ø32 and Ø45 (Wolfcraft) | horn hole, stand flange |
+| Automatic centre punch | mark every hole in metal so the bit does not wander |
+| Files: flat set + needle files | the stay notches, deburring every metal cut, cleaning up window corners |
+| 4 × one-hand clamps 300 mm (Wolfcraft EHZ Easy 300) | short glue joints, holding parts while sawing |
+| 50 mm table vise | holding bars while sawing, filing and drilling |
+| Squares (speed square with a degree scale + a small set), pencil | marking square; the stay notches at 0–20° |
+| Laser distance meter (Bosch GLM 50-27 C), steel rule; a caliper (borrow one) | measuring; the real plywood thickness |
+| Sanding sponges (Bosch S470) + P120/P180 | rounding the edges, between coats |
+| 10 cm foam roller + 25 mm brush | filler, touch-ups, clear coat where spray cannot reach |
+| Painter's tape (still to buy) | glue-ups and masking |
+| Soldering iron Pinecil V2 (runs from a USB-C PD 20 V charger), Sn63/Pb37 0.8 mm solder, tip cleaner | header pins on the MCP23017 and INA226 modules, the OE resistor, the buzzer leads |
+| Ferrule crimper HSC8 6-4A + 400 ferrules | a ferrule on every wire end |
+| Side cutter, wire stripper, heat-shrink | all wiring |
+| Multimeter (UNI-T UT33B+) | 5 V on every fuse way before anything is plugged in |
+| USB-C power meter | first power-up, governor calibration |
+| HDMI monitor + **micro-HDMI** cable, USB keyboard, SD card reader | first light on the bench (the Pi has micro-HDMI only) |
+| Safety glasses, hearing protection, dust mask; respirator for the 2K spray | workshop and painting |
 
 ---
 
 ## 3. LED module purchase spec
 
-Cheap P5 listings rarely name the driver chip, and some chips cannot be driven by the
-`rpi-rgb-led-matrix` library at all. **Get this in writing from the seller, with a photo of the
-driver ICs on the back of a module, before paying:**
+Cheap P5 listings rarely name the driver chip, and some chips cannot be driven by the panel
+drivers at all. **Get this in writing from the seller, with a photo of the driver ICs on the back of
+a module, before paying:**
 
 | | Require | Why |
 |---|---|---|
 | Module | **P5, 64 × 32, indoor**, HUB75 IN + OUT, own 5 V power lead | 320 × 160 mm each; six make the 960 × 320 screen |
 | Scan | **1/16**, direct **A–D** row addressing | standard for 64×32 P5; no E line needed |
-| Driver IC | plain constant-current: **ICN2037, SM16208, FM6124, DP5125** (ICN2038S or FM6126A also work, possibly with `--led-panel-type=FM6126A`) | the library drives these |
-| Refuse | **S-PWM drivers: ICN2153, FM6353 / FM6363 / FM6373, SM16380, DP3264** | not supported by the library — a whole order could stay dark |
+| Driver IC | plain constant-current: **ICN2037, SM16208, FM6124, DP5125** (ICN2038S or FM6126A also work, possibly with `--led-panel-type=FM6126A`) | the drivers support these |
+| Refuse | **S-PWM drivers: ICN2153, FM6353 / FM6363 / FM6373, SM16380, DP3264** | not supported — a whole order could stay dark |
 | LEDs | **black-body SMD2121**, black mask (not white-body SMD3528) | off pixels stay black under hall light, at no power cost |
 | Brightness, angle | ≥ 1000 nits, ≥ 140° | readable from the sideline |
 | Batch | **all 10 from one production batch** | modules from different batches differ visibly in colour and brightness; a seam runs through the score digits |
-| Mounting | four **M3 magnetic screws, size 1313** (Ø 13 mm, 8 mm body, M3 × 5 mm thread) per module; sellers rarely include them | the modules hang on steel bars, no screws |
+| Mounting | four **M3 magnetic screws** per module; sellers rarely include them | the modules hang on steel bars, no screws |
+
+**The club's modules (October 2026):** Yao Cai Xing listing 32371680416, seller-confirmed ICN2037
+drivers with 74HC138 decoders. The first module read **CHIPONE ICN2037BP**, PCB
+`P5-320X160-2121-16S-PV1.0`, batch code `P2000952A0 / 2550`. **Check** every module of a new order
+against these markings when it arrives.
 
 Avoid 1/8-scan "outdoor" P5 modules (they may need multiplexing calibration nobody has done) and
 skip GOB modules — the polycarbonate front already takes the ball. Note each listing's maximum
@@ -155,7 +326,7 @@ Sellers change chips between batches under the same listing.
 
 ```mermaid
 graph LR
-  PI["Pi 4 + Triple Bonnet"] -->|OUT 1| M1["module 1"] --> M2["module 2"] --> M3["module 3"]
+  PI["Pi 5 + Triple Bonnet"] -->|OUT 1| M1["module 1"] --> M2["module 2"] --> M3["module 3"]
   PI -->|OUT 2| M4["module 4"] --> M5["module 5"] --> M6["module 6"]
   PI -->|OUT 3| BL["bench L"] --> BR["bench R"]
 ```
@@ -166,21 +337,26 @@ graph LR
 | OUT 2 | 4 → 5 → 6, the **bottom row**, left to right | 32–63 |
 | OUT 3 | **bench L → bench R**, third slot empty | 64–95 |
 
-The driver runs `--led-rows=32 --led-cols=64 --led-chain=3 --led-parallel=3`: a **192 × 96**
-canvas whose top 192 × 64 is the unchanged scoreboard. The library needs the same chain length on
-every output, so OUT 3 is a chain of three with one slot unpopulated; that costs no refresh, because
-the outputs are clocked in parallel. All module arrows point the same way (data direction); the
-bench modules stand upright, arrows up. Which canvas slot lands on which end, and the rotation of
-the bench content, is checked on glass with the module-number test (§10.4).
+The driver runs three chains of three 64 × 32 modules in parallel: a **192 × 96** canvas whose top
+192 × 64 is the unchanged scoreboard (hzeller flags: `--led-rows=32 --led-cols=64 --led-chain=3
+--led-parallel=3`). The drivers need the same chain length on every output, so OUT 3 is a chain of
+three with one slot unpopulated; that costs no refresh, because the outputs are clocked in parallel.
+All module arrows point the same way (data direction); the bench modules stand upright, arrows up.
+Which canvas slot lands on which end, and the rotation of the bench content, is checked on glass
+with the module-number test (§10.5).
 
 **The trade-off.** Three outputs keep 192 pixels per row, the fastest way to drive eight modules
 from this bonnet. The price is that OUT 3 uses the I²C1 and UART pins. The alternative — two
-outputs × four modules (`--led-parallel=2 --led-chain=4` with the library's `Remap` pixel mapper,
-one bench module at the end of each chain) — frees those pins at about 25 % less refresh. Switching
-is only ribbons and flags; measure both with `--led-show-refresh` if the three-output refresh ever
-disappoints.
+outputs × four modules (`--led-parallel=2 --led-chain=4` with the hzeller `Remap` pixel mapper, one
+bench module at the end of each chain) — frees those pins at about 25 % less refresh. Switching is
+only ribbons and settings.
 
-### 4.2 Pin plan
+**The front tilts, the ribbons must not pull.** Modules 1–6 move with the front panel; the Pi, the
+bonnet and the bench modules do not. Leave **about 120 mm of slack** in the OUT 1 and OUT 2 ribbons
+and in the six module power leads, and route them so they cannot be pinched when the front swings
+back to 0°.
+
+### 4.2 Pin and I²C plan
 
 With 1/16-scan modules and three outputs, every GPIO from 2 to 27 is taken by the panels: GPIO15 is
 the bonnet's HUB75 **E** line, unused on these modules but still wired to the ribbons. What is left —
@@ -192,38 +368,74 @@ the bonnet's HUB75 **E** line, unused on these modules but still wired to the ri
 | OUT 1 data | 11, 27, 7, 8, 9, 10 |
 | OUT 2 data | 12, 5, 6, 19, 13, 20 |
 | OUT 3 data | 14, 2, 3, 26, 16, 21 — this is why I²C1 and the UART are gone |
-| **I²C0** | **GPIO0 (27) SDA, GPIO1 (28) SCL**: STUSB4500 `0x28`, SHT40 `0x44`, DS3231 `0x68`, horn switch TCA9534 `0x20` |
-| **Horn switch** | TCA9534 output P0 → gate of the MOSFET board (R), 10 kΩ gate pull-down |
+| **I²C0** | **GPIO0 (27) SDA, GPIO1 (28) SCL** — every I²C part below |
 | GPIO15 (10) | **leave alone**: the bonnet's E line |
 | Pi power | 5 V on pins 2/4, GND on pin 6, from its own fuse (§5) |
 
+**I²C addresses on that bus:**
+
+| Address | Part | Note |
+|---|---|---|
+| `0x20` | **MCP23017** horn switch | A0, A1, A2 to GND |
+| `0x28` | STUSB4500 PD board | |
+| `0x40` | INA226, 5 V output | 2 mΩ shunt |
+| `0x41` | INA226, input | R010 shunt |
+| `0x44` | SHT40 | **never strap an INA226 to `0x44`** |
+| `0x68` | DS3231 clock | |
+
+**Pi 5 caveat — Check.** This pin plan comes from the Triple Bonnet's wiring and was worked out for
+the Pi 4 with the hzeller driver. The bonnet is the same on the Pi 5, but on the Pi 5 the LEDs are
+driven by Adafruit Piomatter through the RP1 chip, and the I²C bus number and the overlay lines may
+differ. At the bench, confirm that Piomatter's triple-bonnet pinout uses the same pins (so GPIO0/1
+stay free), and find the bus with `i2cdetect -l` before using any command below. Keep the plan as
+written unless the bench test shows otherwise.
+
+**Horn wiring:**
+
+```
+3.3 V ── MCP23017 VCC, RESET          GND ── MCP23017 GND, A0, A1, A2
+GPIO0/1 (pins 27/28) ── MCP23017 SDA/SCL
+MCP23017 GPA0 ──▶ AOD4184 module input (+), input (−) to GND
+fuse way 10 (5 V) ──▶ AOD4184 module power in ──▶ switched out ──▶ SFM-27 buzzer (red +, black −)
+```
+
+**Check** the input and output terminal names on the AOD4184 module you receive; the module is
+isolated (optocoupler), so its input side and its switched side are separate.
+
 Rules that come with it:
 
-- **I²C on GPIO0/1** (`dtparam=i2c_vc=on`, §10.1). These pins have no fixed pull-ups (GPIO2/3 do),
-  so use breakouts that carry their own. Keep every device off `0x50–0x57`: the Pi probes there for
-  a HAT ID EEPROM at boot.
+- **I²C on GPIO0/1** (§10.1). These pins have no fixed pull-ups (GPIO2/3 do), so use breakouts that
+  carry their own. Keep every device off `0x50–0x57`: the Pi probes there for a HAT ID EEPROM at
+  boot.
 - **No serial console.** GPIO14 is OUT 3's first data line: `enable_uart=0` and no
   `console=serial0` on the kernel command line. Recovery is over the DATA cable (SSH) or by swapping
   in the spare SD card.
 - **OE pull-up: a 10 kΩ resistor from GPIO18 (pin 12) to 3.3 V (pin 1)**, on the Pi side of the
   bonnet's buffers, plus `gpio=18=op,dh` in `config.txt`. GPIO18 defaults to pull-down, which means
-  "panels on" for the whole boot (about 45 s on the C0270) while the modules hold random data. Eight modules lit at
-  random can draw more than a small charger delivers; the rail sags, the Pi browns out and reboots,
-  and the cycle repeats. The resistor keeps them dark from the first millisecond; the `config.txt`
-  line only takes effect a few seconds after power-on.
+  "panels on" for the whole boot while the modules hold random data. Eight modules lit at random can
+  draw more than a small charger delivers; the rail sags, the Pi browns out and reboots, and the
+  cycle repeats. The resistor keeps them dark from the first millisecond; the `config.txt` line only
+  takes effect a few seconds after power-on.
 - **Horn through the I²C bus, not a GPIO.** GPIO15 would be the only candidate, but the Triple
-  Bonnet buffers it onto HUB75 pin 4 or 8 as the **E** line, and on 1/16-scan modules those pins
-  are usually **GND**: driving it high would push the buffer into a short. So the horn MOSFET hangs
-  off a TCA9534 output expander on the I²C0 bus. Its outputs power up as inputs, and the 10 kΩ
-  pull-down keeps the MOSFET off until software switches it. The output register powers up as
-  `0xFF`, so clear it **before** making P0 an output: `i2cset -y 0 0x20 1 0x00`, then
-  `i2cset -y 0 0x20 3 0xFE`; after that `… 1 0x01` sounds the horn and `… 1 0x00` stops it (bus 0
-  is GPIO0/1 on a Pi 4; confirm with `i2cdetect -l`). With no horn fitted,
-  openscore's `horn_cmd` stays empty (Horn commands still answer `ok`).
-- The **tall stacking header (K)** is what makes pins 1, 12, 27 and 28 reachable under the
-  bonnet.
+  Bonnet buffers it onto the HUB75 **E** line, and on 1/16-scan modules that pin is usually **GND**:
+  driving it high would push the buffer into a short. So the horn hangs off the MCP23017. It powers
+  up with **all pins as inputs**, and the AOD4184 module's optocoupler input stays off while GPA0
+  floats, so the horn is silent at boot (no gate pull-down needed). **Never use a PCF8574** instead:
+  its weak "high" cannot drive the switch reliably.
+- **Horn commands** (bus `<bus>` from `i2cdetect -l`; on a Pi 4 GPIO0/1 is bus 0):
+
+  ```bash
+  sudo i2cset -y <bus> 0x20 0x14 0x00   # OLATA: output latch low first (horn off)
+  sudo i2cset -y <bus> 0x20 0x00 0xFE   # IODIRA: GPA0 output, the rest inputs
+  sudo i2cset -y <bus> 0x20 0x14 0x01   # horn on
+  sudo i2cset -y <bus> 0x20 0x14 0x00   # horn off
+  ```
+
+  Always write the latch to `0x00` **before** making GPA0 an output. openscore's `horn_cmd` runs
+  these; until it is set, Horn commands still answer `ok` and nothing sounds.
+- The **tall stacking header** is what makes pins 1, 12, 27 and 28 reachable under the bonnet.
 - Do **not** copy the C0270's `applicon` mapping (its E line moved to GPIO26 — Tech4Sport's own
-  wiring). The Triple Bonnet uses the library's stock **`regular`** mapping.
+  wiring). The Triple Bonnet uses the stock **`regular`** mapping.
 
 ---
 
@@ -236,23 +448,37 @@ POWER socket from a USB-C PD charger (or a PD power bank) and is fused before it
 
 ```mermaid
 graph LR
-  CH["USB-C PD charger<br/>18–100 W"] -->|POWER socket| TVS["TVS SMBJ22A<br/>at the receptacle"]
-  TVS --> O["O · STUSB4500<br/>output on only above 5 V"]
+  CH["USB-C PD charger<br/>18–100 W"] -->|POWER socket| TVS["TVS P6KE27A<br/>at the receptacle"]
+  TVS --> O["STUSB4500<br/>output on only above 5 V"]
   O --> F5["5 A input fuse"]
-  F5 -->|"1 mm²"| N["N · RSD-60G-5<br/>9–36 V to 5 V, 12 A"]
+  F5 --> INI["INA226 0x41<br/>input"]
+  INI -->|"1 mm²"| N["RSD-60G-5<br/>9–36 V to 5 V, 12 A"]
   F5 --> F3["3 A fuse"]
-  F3 --> PDS["PD source module<br/>12–24 V in, ≈18 W out"]
+  F3 --> PDS["PD charging module<br/>12–30 V in"]
   PDS --> HUB["tablet hub, PD input (§7)"]
-  N -->|"2.5 mm²"| Q["Q · fuse box, 5 A per way"]
-  Q --> MOD["modules 1–6"]
-  Q --> BEN["bench L, bench R"]
-  Q --> PI["Pi, header 5 V"]
-  Q --> FREE["free way (horn 5 V)"]
+  N -->|"2.5 mm²"| INO["INA226 0x40<br/>5 V out"]
+  INO --> Q["fuse box, 5 A per way"]
+  Q --> MOD["ways 1–6: modules 1–6"]
+  Q --> BEN["ways 7–8: bench L, bench R"]
+  Q --> PI["way 9: Pi, header 5 V"]
+  Q --> HORN["way 10: horn 5 V"]
+  Q --> FREE["ways 11–12: free"]
 ```
 
-- **TVS at the socket.** The SMBJ22A goes across VBUS and GND at the receptacle side of the PD
-  board, ahead of its MOSFET: hot-plug ringing happens at the connector, not behind the converter.
-  All bulk capacitance sits **behind** the contract-gated MOSFET.
+**Fuse map** (print it and stick it inside the back panel):
+
+| Way | Load |
+|---|---|
+| 1–6 | modules 1–6 (front, top row 1–3, bottom row 4–6) |
+| 7 | bench L |
+| 8 | bench R |
+| 9 | Pi (header 5 V) |
+| **10** | **horn, 5 V** (through the AOD4184 module) |
+| 11–12 | free |
+
+- **TVS at the socket.** The TVS goes across VBUS and GND at the receptacle side of the PD board,
+  ahead of its MOSFET: hot-plug ringing happens at the connector, not behind the converter. All bulk
+  capacitance sits **behind** the contract-gated MOSFET.
 - **5 A input fuse** between the PD board's gated output and everything else.
 - **−Vin bonded to −V on the converter.** The RSD-60G-5 is isolated, but the PD board on its input
   side talks I²C to the Pi on its output side, so they need a common ground.
@@ -261,10 +487,15 @@ graph LR
   non-combustible tray.
 - **Tablet charging module** taps the fused input (behind the 5 A fuse) through its own 3 A fuse and
   feeds the hub's charging input (§7). It needs ≥ 12 V, so on a 9 V contract it simply stays off.
-- **Every module, each bench module and the Pi on their own 5 A fuse.** The tenth way stays free
-  (the horn's 5 V if one is ever fitted).
+- **Every module, each bench module, the Pi and the horn on their own 5 A fuse** (map above).
+- **Two INA226 current sensors, high side.** One in the 2.5 mm² lead between the converter and the
+  fuse box (all of the 5 V side: voltage under load and total current), one behind the 5 A input fuse
+  (the charger's real voltage and current). Both on I²C0, powered from 3.3 V. They only measure; if
+  one dies, the board keeps running.
 - The Pi takes its 5 V on the header pins over a short pair of its own; its USB-C socket stays empty.
-  Never power panels through the Pi or the bonnet: the ribbons carry logic only.
+  Never power panels through the Pi or the bonnet: the ribbons carry logic only. **Check (Pi 5):**
+  the Pi 5 expects a 5 A supply; fed through the header it may limit its USB ports and warn at boot.
+  Nothing heavy hangs on its USB ports here, but read the boot log on the bench.
 - A snap-on ferrite on the input lead, and flat-cable ferrites on the ribbons at the bonnet end;
   keep ribbons short and 5 V leads away from them.
 
@@ -300,11 +531,12 @@ chargers mid-match means a reboot; the match resumes where it was.
 
 - Red = +, black = −, everywhere; a ferrule on every wire end. Never swap + and −.
 - PD board → 5 A fuse → converter input: **1 mm²**. Converter output → fuse box: **2.5 mm²**
-  (anything ≥ 1.5 mm² is enough). Branches ≥ 0.75 mm²; extend a module lead that does not reach with
-  1.5 mm² and a Wago 221.
-- **Fuse every branch at ≤ 5 A** (why: §6). Label each power plug (1–6, L, R, Pi) to match a fuse
-  map printed on the inside of the back panel.
-- Leave **15 cm of slack** on every cable so the back panel can come off.
+  (14 AWG; anything ≥ 1.5 mm² is enough). Branches ≥ 0.75 mm²; extend a module lead that does not
+  reach with 1.5 mm² and a Wago 221.
+- **Fuse every branch at ≤ 5 A** (why: §6). Label each power plug (1–6, L, R, Pi, Horn) to match the
+  fuse map.
+- Leave **15 cm of slack** on every cable so the back panel can come off, and **about 12 cm** on
+  everything that goes to the tilting front (modules 1–6, OUT 1, OUT 2).
 
 ### 5.5 Power budget and the governor
 
@@ -313,25 +545,27 @@ times what the converter delivers (60 W) and ten times a 9 V/2 A charger (18 W).
 frame or a test pattern would trip the charger, reset the PD contract and reboot the box mid-match.
 So the panel is never allowed to draw what the content asks for:
 
-- **LED budget = negotiated contract − Pi (≈ 5 W) − tablet allowance − margin.** The tablet
-  allowance is about 18 W whenever the charging module runs (a 20 V contract) and zero on 9 V. The
-  budget is also capped at what the converter can deliver after the Pi, and so that no module draws
-  more than about 75 % of its 5 A fuse.
+- **LED budget = negotiated contract − Pi (≈ 5 W; more for a busy Pi 5 with the screen) − tablet
+  allowance − margin.** The tablet allowance is about 18 W whenever the charging module runs (a 20 V
+  contract) and zero on 9 V. The budget is also capped at what the converter can deliver after the
+  Pi, and so that no module draws more than about 75 % of its 5 A fuse.
 - **The governor lives in flushBuffer2**, the last stage before the glass, so it covers every
   renderer, test pattern and bug. Per frame it estimates the current from the duty actually shown
-  (the library's CIE-corrected brightness, not raw pixel values), picks the highest brightness at or
-  below the requested one that fits the budget, limits how fast brightness rises (for example
-  +5 % per frame) and fades in over 1–2 s at boot. The appliance writes the budget to a small control
-  file in `/run`; flushBuffer2 applies it live with `SetBrightness`, no restart.
+  (the CIE-corrected brightness, not raw pixel values), picks the highest brightness at or below the
+  requested one that fits the budget, limits how fast brightness rises (for example +5 % per frame)
+  and fades in over 1–2 s at boot. The appliance writes the budget to a small control file in `/run`;
+  flushBuffer2 applies it live, no restart. With the INA226 on the 5 V side the estimate can be
+  checked against the measured current.
 - **Calibrate once per build**: show full red, green, blue and white and compare the estimate with
-  the USB-C power meter.
+  the USB-C power meter and the 5 V INA226.
 - **Backstops**: the Pi's under-voltage flag (already read for Diagnostics) cuts the budget by 20 %;
   the SHT40 inside the box ramps brightness down from **50 °C** and blanks the panel at **60 °C**.
 - The console header should show the contract ("PD 9 V 2 A, 18 W") so a weak charger explains a
   dim board.
 
-**None of this is written yet** (§10.6). Until it is, bring the box up only at low brightness with
-mostly black content, and do not take it to a match.
+**The governor exists only for the hzeller driver so far, and has not run on glass; the Pi 5 port
+is not written** (§10.7). Until it runs, bring the box up only at low brightness with mostly black
+content, and do not take it to a match.
 
 ---
 
@@ -352,15 +586,25 @@ modules. The metal plate under converter and fuses is the non-combustible tray.
 hall temperature inside a closed plywood box. **Direct sun is a different league** — an estimated
 30–50 K more on the dark front — past the modules' typical 50–60 °C limit, the converter's 55 °C
 full-load point and the Pi's throttle. Hence the rules: **never in direct sun or next to a sunny
-window**, indoor only, the vents in the back panel kept clear (if the soak test runs warm, add a
-row of vents low in the back panel as well), and the SHT40 derating at 50 °C / blanking at 60 °C.
+window**, indoor only, the vents kept clear, the SHT40 derating at 50 °C / blanking at 60 °C. The
+vents face down for splash protection; **Check** in the soak test that this is enough, and add vents
+if the box runs warm.
 
-**At boot.** The OE pull-up keeps the panels dark until the driver runs (§4.2).
+**At boot.** The OE pull-up keeps the panels dark until the driver runs (§4.2); the MCP23017 keeps
+the horn silent.
 
 **Mechanical.** A spiked ball (about 270 g at 20–30 m/s) can crack acrylic into shards;
 **polycarbonate** does not shatter. That is the reason for the PC front — impact, not fire (neither
-material is UL94 V-0 at 3 mm). On a table the straps hold the box against a hit from the court; on
-a stand, use a stand rated 12 kg or more and a sandbag on its feet.
+material is UL94 V-0 at 3 mm).
+
+- **Tipping.** A hard ball can tip an 8.5 kg box this deep backwards. On a table, the rubber pads
+  stop it sliding and the **pull-out rear foot** (out 12 cm) widens the base from 22 to about 33 cm.
+  Pull the foot out before every match.
+- **Tilted front.** The front panel is about 4.5 kg. Tilt it only with the pin out of the notch and
+  one hand under the bottom edge; let the pin drop into a notch before letting go. Keep fingers out
+  of the gap at the bottom cap and the cheeks while it moves. Teeth do not creep when a ball hits.
+- **On a stand**, use a stand rated 12 kg or more and a sandbag on its feet; front at 0° or a small
+  tilt.
 
 **Climate.** Coming in from a cold car: wait **45 minutes** (60 below 0 °C) before switching on, or
 condensation can short the modules. A sachet of silica gel lives in the box.
@@ -368,37 +612,74 @@ condensation can short the modules. A sachet of silica gel lives in the box.
 ### Bench checklist — before the first match, and after any hardware change
 
 1. **First power-up** with a small 9 V charger and nothing connected but the converter: 5.0–5.2 V at
-   the fuse box (step 12). A 5 V-only source must leave the box off.
+   the fuse box (§9 step 30). A 5 V-only source must leave the box off.
 2. **Soak: 2 h at the power cap** with thermocouples on the converter, a module back and the Pi (a
-   borrowed thermal camera is a bonus). Log the SHT40 alongside.
+   borrowed thermal camera is a bonus). Log the SHT40 alongside. **Not done yet for design D.**
 3. **Fuse-clear test** on every branch: short it through a 0.2 Ω load; its fuse must open.
-4. **Ball test**: a spike from 3 m onto the front.
-5. **Drop test**: 50 cm onto a corner, back panel on, in transport configuration.
-6. **Link test**: the tablet at about 10 m, ping/load the console with the panel at full cap and
-   off — the panel must not knock out its own Wi-Fi or the cable.
+4. **Screen flicker test** (§10.4): all eight modules running, touchscreen on and in use, 10 minutes.
+   Any flicker → the screen stays out.
+5. **Horn test**: the four commands in §4.2; the horn must be silent from power-on until the
+   "on" command.
+6. **Tilt test**: the front locks in every notch (0, 5, 10, 15, 20°), the ribbons and leads do not
+   pull at 20° and are not pinched at 0°, the bottom cap and cheeks do not catch.
+7. **Ball test**: a spike from 3 m onto the front, at 0° and at 20°.
+8. **Tip test**: foot out, a firm push at the top of the front; the box must not tip.
+9. **Drop test**: 50 cm onto a corner, in transport configuration (front at 0° with the pins in,
+   flap shut, foot in, back panel on).
+10. **Link test**: the tablet at about 10 m, ping/load the console with the panel at full cap and
+    off — the panel must not knock out its own Wi-Fi or the cable.
 
-Keep the results with the box: the fuse map inside the back panel, and a short record (schematic, fuse plan,
-soak readings).
+Keep the results with the box: the fuse map inside the back panel, and a short record (schematic,
+fuse plan, soak readings).
+
+### Diagnostics page and power-on self-test
+
+One page on the 10″ scorer screen and in the console (also in `/api/status`) lists every check in
+green / yellow / red, in words a scorer can act on ("Module 5 / fuse 5: no current — check the fuse").
+
+| Check | Source | Yellow / red |
+|---|---|---|
+| Supply too weak | `vcgencmd get_throttled` (bits 0/16 undervoltage now / since boot, 2/18 throttled) | since boot / now |
+| Charger and contract | STUSB4500 `RDO_STATUS` + input INA226 (volts, amps, watts) | contract < 45 W / input sags > 10 % under load |
+| 5 V rail | 5 V INA226, voltage under load | < 4.9 V / < 4.75 V |
+| Box temperature, humidity | SHT40 | 45 °C or RH > 80 % / 50 °C (derating starts) |
+| CPU temperature | Pi | 75 °C / 80 °C |
+| Clock battery | DS3231 oscillator-stop flag (the kernel then rejects the RTC time) | — / "clock battery empty or missing" |
+| I²C parts present | STUSB4500, SHT40, DS3231, MCP23017, both INA226 | — / missing |
+| Panel driver painting | `ledbox-watchdog.sh` (`buffer.png` age, driver process) | restarted since boot / not painting |
+| Touchscreen, tablet cable, network | USB device, Ethernet link, server and Tailscale reachable | — / down |
+| SD card | free space, I/O errors in the kernel log | < 2 GB free / errors |
+| Horn | 5 V INA226 current step while the horn sounds (self-test only, muted unless asked) | — / no step |
+
+**Power-on self-test (about 5 s, before the match screen):** all modules off → baseline current;
+then **one module at a time white at a fixed low brightness** for 0.3 s while the 5 V INA226 reads the
+current step. HUB75 gives no feedback, but every module has its own fuse, so a module whose step is
+below a third of the median is reported by number ("Module 5 / fuse 5: no current"): blown fuse, loose
+power lead or dead module. Then red, green, blue and white over the whole picture for the eye
+(dead pixels and wrong colours cannot be measured), and the module numbers. A **Run self-test**
+button on the page repeats it between sets.
 
 ---
 
 ## 7. Tablet link (DATA port)
 
 **One USB-C cable from the box to the scorer tablet carries the network and charges the tablet.**
+With the built-in screen (§8.5) the scorer may not need a tablet at all; the DATA port stays as the
+way in for a tablet, a laptop and repairs.
 
 ```mermaid
 graph LR
   TAB["scorer tablet<br/>USB host"] <-->|"one USB-C cable"| D["DATA socket"]
   D <--> HUB["USB-C hub<br/>RTL8153 Ethernet + PD input"]
-  HUB <-->|"15 cm patch"| PI["Pi RJ45, eth0<br/>192.168.5.1 + DHCP"]
-  PDS["PD source module<br/>≈18 W"] -->|charging| HUB
+  HUB <-->|"25 cm patch"| PI["Pi RJ45, eth0<br/>192.168.5.1 + DHCP"]
+  PDS["PD charging module"] -->|charging| HUB
 ```
 
 - The DATA socket goes to a small **USB-C hub with Ethernet (RTL8153) and a USB-PD pass-through
-  charging input**. The hub's Ethernet runs over a 15 cm patch cable to the Pi's own RJ45, which
-  serves **`192.168.5.1`** and DHCP exactly like the C0270's cable. The tablet sees an ordinary USB-C
-  Ethernet dongle (the RTL8153 shows up as `eth0`, which Android adopts) and is charged through the
-  same cable by the PD source module (§5.1), up to about 18 W.
+  charging input** (Delock 66644). The hub's Ethernet runs over a short patch cable to the Pi's own
+  RJ45, which serves **`192.168.5.1`** and DHCP exactly like the C0270's cable. The tablet sees an
+  ordinary USB-C Ethernet dongle (the RTL8153 shows up as `eth0`, which Android adopts) and is
+  charged through the same cable by the PD charging module (§5.1).
 - **The cable is the only way in.** The board has no Wi-Fi network of its own (owner decision,
   22.10.2026: the board connects out to the internet; nothing connects in over the air). The scoring
   tablet, a laptop running OpenVolley, or the club laptop for setup and repairs take the DATA cable,
@@ -406,10 +687,11 @@ graph LR
 - A device on the cable is **trusted without the scorer PIN** (the console's cable trust: on by
   default, `CABLE_TRUST=0` switches it off). Wi-Fi never reaches the console, so the PIN only guards
   Tailscale access.
-- **If the tablet or the cable fails mid-match** there is no phone fallback: keep scoring on the flip
-  board (§11), which the rules require anyway, and swap in the laptop on the cable.
-- **Never connect the DATA port to a hall network switch.** It hands out addresses and, once the
-  change above lands, grants PIN-free control.
+- **If the tablet or the cable fails mid-match** there is no phone fallback: keep scoring on the
+  built-in screen if fitted, or on the flip board (§11), which the rules require anyway, and swap in
+  the laptop on the cable.
+- **Never connect the DATA port to a hall network switch.** It hands out addresses and grants
+  PIN-free control.
 - The tablet charges only on a 20 V contract (the charging module needs ≥ 12 V); on a 9 V charger
   the data link still works and the tablet runs on its battery.
 - **Bench-test with the club's real Galaxy Tab A before cutting the case**: the tablet must work as
@@ -418,192 +700,471 @@ graph LR
   own charger.
 - Order the panel socket to match the hub: if the hub has a captive plug, the inside end of the DATA
   socket must be a USB-C **receptacle**. Every part on this path must pass data and PD.
-- **Why not USB gadget mode on the Pi?** On the Pi 4 the USB-C gadget port is also its power input,
-  which would tie the tablet's 5 V to the converter's; and Android ignores a gadget link named `usb0`.
-  The Pi's own USB-C socket stays empty.
+- **Why not USB gadget mode on the Pi?** The Pi's USB-C port is also its power input, which would
+  tie the tablet's 5 V to the converter's; and Android ignores a gadget link named `usb0`. The Pi's
+  own USB-C socket stays empty.
 
-POWER and DATA are both on the back, colour-ringed (gold POWER, blue DATA) and labelled.
+POWER and DATA are both on the back, low, under the flap, colour-ringed (gold POWER, blue DATA),
+with a dust cap each, and labelled.
 
 ---
 
 ## 8. The case
 
-### Sheets and thicknesses
+### 8.1 Materials
 
 | Material | Thickness | What it becomes |
 |---|---|---|
-| Poplar plywood, B/BB, indoor glue | **6 mm** | the shell: front frame, back panel, top, bottom, ends (A–D) |
-| the same plywood, two layers glued | **12 mm** | the backing plate (Y) and the two tilt legs: screws and bolts need more than 6 mm |
-| Smoked polycarbonate (G) | **3 mm** | the front sheet and the two end sheets |
-| Pine battens (E) | **15 × 15 mm** | the shell joints, the six back-panel screw blocks, the corner blocks |
-| Steel flat bar (F) | **20 × 4 mm** | the three bars the module magnets hold on to |
+| Poplar plywood, Oecoplan A/B | **6 mm** (real: 5.6–6.3 mm, measure it) | every panel A–T |
+| the same plywood, two layers glued | **12 mm** | the flap F and the backing plate Y: screws, bolts and inserts need more than 6 mm |
+| Smoked polycarbonate | **3 mm** | the front sheet (990 × 350) and the two end sheets (172 × 332) |
+| Beech battens | **15 × 20 mm** | joints, screw blocks, corner blocks, the foot rails. The **20 mm face is glued to the panel**, the 15 mm side points into the box |
+| Steel flat bar | **20 × 4 mm** | the three bars the module magnets hold on to |
+| Aluminium flat bar | **25 × 4 mm** | the two ratchet stays |
 | Aluminium sheet | **1.5 mm** | the plate under the converter and the fuse box |
 
-### Cut list — one sheet of 6 mm poplar plywood, 1250 × 1250
+**Why beech.** 15 × 15 mm battens are not stocked in Zürich; beech 15 × 20 is. Beech is hard:
+**pre-drill Ø2.5 for every 3.5 mm screw**, or the batten splits.
 
-(Or two 1200 × 600 sheets for A + C and B + C, and one 600 × 600 for D, Y and the legs.)
+### 8.2 Cut list (Jumbo online cut-to-size)
 
-| Part | Size (mm) | Thickness | Notes |
+Ordered from Jumbo's online cut-to-size service, Oecoplan poplar 6 mm (2 November 2026, CHF 54.35).
+Jumbo does not cut pieces smaller than **230 × 150 mm**, so the small parts are ordered as
+**oversize blanks** and cut to size at home. Saw accuracy is about ±0.5–1 mm.
+
+| Part | Ordered (mm) | Qty | At home afterwards |
 |---|---|---|---|
-| A front frame | 1020 × 380 | 6 | window **960 × 320**, 30 mm border all round |
-| B back panel | 1020 × 380 | 6 | **screwed on, the way in**; ports, horn hole, vents, 6 screw holes |
-| C top + bottom | 2 × 1020 × 208 | 6 | top: 4 × Ø4.5 for the handles; bottom: stand flange and tripod threads |
-| D ends | 2 × 208 × 368 | 6 | window **160 × 320**, 24 mm border |
-| Y backing plate | 2 × 208 × 140 | 6 + 6 | glued together and inside the bottom: the stand flange bolts (M8) and the tripod inserts sit in 18 mm |
-| L tilt legs | 4 × 40 × 50 | 6 + 6 | glued in pairs: two 12 mm legs, so the hinge screws hold |
+| **A** front frame | 1004 × 366 | 1 | window **960 × 320**, centred: 22 mm left and right, 23 mm top and bottom |
+| **B** back panel | 1020 × 380 | 1 | flap opening **280 × 205**; ports, vents, horn hole, screw holes |
+| **C1** top | 1020 × 214 | 1 | two handle cut-outs **129 × 52** |
+| **C2** bottom | 1020 × 214 | 1 | stand flange Ø45, tripod inserts, vents (§8.10) |
+| **D** ends | 368 × 214 | 2 | window **160 × 320** each, for the bench modules |
+| **F** flap | 260 × 180 | 2 | glue the two together (12 mm); trim to the screen once it arrives |
+| **P1** pocket back | 292 × 217 | 1 | — |
+| **P2/P3** pocket walls | blank 292 × 150 | 1 | rip 25 mm strips: **2 × 292 × 25** (P2) and **2 × 205 × 25** (P3) |
+| **K** bottom cap | blank 1004 × 150 | 1 | cut to **1004 × 104** — final width after the dry fit |
+| **H** cheeks | blank 370 × 150 | 1 | cut to 370 × 130, then **diagonally** into two right-angled triangles |
+| **Y** backing plates | blank 300 × 208 | 1 | cut into **2 × 208 × 140**, glue the two together (12 mm) |
+| **T** pull-out foot | 600 × 150 | 1 | slot for the stop screws (§8.8) |
+| Spare | 400 × 300 | 1 | practice cuts, remakes, packing strips, turn buttons if needed |
 
-Hand the list to the store saw (straight cuts only) or have the sheet laser-cut, windows included.
-Birch instead of poplar adds about 1.5 kg. Polycarbonate (G) is sawn or CNC-cut, never laser-cut
-(it melts).
+Mark every part with its letter in pencil when you pick it up: A and B, and C1 and C2, look alike.
 
-**Cut-outs:** Ø45 stand flange, Ø8 + Ø12 for the ¼″ and ⅜″ inserts (bottom; the insert's own pilot size wins; 2 × Ø12 for M10 T-nuts) · Ø30 horn hole, plugged · Ø4 × 6
-back-panel screws, countersunk · USB-C 13 × 7 + 2 × Ø3, twice · vents 8 × (40 × 8) along the top of the back panel.
+**Measure the real thickness at pickup.** "6 mm" plywood is 5.6–6.3 mm. All sizes above assume
+6.0 mm; the outside joints are sanded flush afterwards. What matters is the opening the front
+frame A sits in: inside width = 1020 − 2 × thickness, inside height = 380 − 2 × thickness. At
+6.0 mm that is **1008 × 368**, which gives A **2 mm clearance each side and 1 mm top and bottom** so
+it can tilt. At 6.3 mm the height clearance shrinks to about 0.7 mm: sand A's top and bottom edges
+at the dry fit until it swings freely without rubbing.
 
-### Design
+**Ripping the 25 mm strips** at home: clamp a straight batten to the blank as a fence and cut with
+the T101B blade, or ask at the GZ workshop for a table saw. Cut a strip a little wide and sand to
+25 mm.
 
-- **Front:** 3 mm **smoked grey** polycarbonate (G, about 50 % light transmission) drops into the front
-  frame from inside and sits **tight on the LED mask** (within 2–3 mm, so there is no halo or parallax
-  from the side). The smoke hides the module grid and magnets, and roughly doubles the contrast in a
-  bright hall, because room light passes the tint twice and the LEDs only once; run the brightness
-  about a fifth higher than behind clear. The
-  modules lie on it, recessed behind the 6 mm frame. Same for the two small end sheets. Keep the
-  outer protective film on until the very end.
-- **Modules on magnets:** three **steel bars** (F) are screwed across the two long battens; the
-  magnets screwed into the modules snap onto them. No screws — a module swaps out in seconds. The
-  bars must touch the magnet faces (8 mm behind the module backs for size 1313, more for taller magnets): pack them out with batten offcuts
-  where the battens sit lower. The bench modules
-  sit behind the end windows, arrows up, held by four turn buttons each.
-- **Back panel, six T20 screws, no door:** the back panel (B) sits on six 15 mm blocks glued into
-  the shell's back edge, flush with it (four corners, the middle of the top and of the bottom; batten
-  offcuts), and is held by six 3.5 × 16 T20 wood screws. No hinges, hooks or inserts: cheaper, and
-  nothing to work loose. It takes a tool on purpose — in a public hall, anything that opens by hand
-  gets opened — and it is the same T20 as every other screw, so the key in the kit bag opens it.
-  Everything inside is in reach once it is off. If it gets opened often and a hole wears, move the
-  screw a few millimetres along the block. The back panel carries the **fuse map, four spare fuses
-  and a spare SD card** on its inside.
-- **Corners:** every outside edge is rounded with sandpaper (about 3 mm). The four front corners get
-  **black rubber caps** against knocks in transport; the back corners stay bare, so the back panel
-  lifts straight off.
-- **Handles** (×2) on top. On a table, a **Velcro strap through each handle and around the table's
-  back edge** keeps a ball hit from pushing the box off.
-- **Bottom:** a **35 mm speaker-stand flange** (M8 bolts) and **⅜″-16 and ¼″-20 tripod threads** (wood inserts, or M10 T-nuts with adapters)
-  for tripods and light stands, on the glued backing plate (Y); four rubber feet.
-- **Fold-out front legs (optional, about €10):** two 40 × 50 mm legs (12 mm: two layers glued) hinged under the
-  **front** edge, 35 mm in from it and 300 mm either side of the middle, each with a stop at 90° to the bottom. Folded,
-  they lie flat between the feet. Out, they lift the front 5.5 cm: the box leans back on its back feet
-  and the screen tilts **15° up**, towards the first referee on the raised stand across the court
-  (from a scorer's table about 10 m away, the referee's eyes are 10–15° above the board). Tilted, the
-  box tips backwards more easily: keep the strap on. The bench screens lean with the box (15°): the
-  numbers stay easy to read, and nothing in the software changes. Raising the whole box on
-  a stand is the bigger win, though: it also clears the heads of people standing in front of it.
+### 8.3 The shell and the front frame
+
+**Shell (fixed).** The top C1 and the bottom C2 run the full 1020 mm width; the two ends D sit
+between them (368 + 2 × 6 = 380 mm); the back panel B covers the back edges (214 + 6 = 220 mm deep).
+Joints are glued and screwed through the 6 mm panel into beech battens and corner blocks behind
+it — never screw into a 6 mm edge.
+
+**Front frame A (moves).** A carries the smoked sheet, the six modules and the three steel bars,
+about 4.5 kg in all, and sits in the front opening between the ends.
+
+- The **smoked sheet** (990 × 350) lies on the inside of A over the 960 × 320 window and sits **tight
+  on the LED mask** (within 2–3 mm, so there is no halo or parallax from the side). The smoke hides
+  the module grid and magnets, and roughly doubles the contrast in a bright hall; run the brightness
+  about a fifth higher than behind clear. A thin bead of black silicone around the sheet seals it.
+  Keep the outer protective film on until the very end.
+- The **six modules** lie on the sheet, LEDs towards the front, all arrows the same way.
+- **Three steel bars** (20 × 4, cut from 1 m bars) run top to bottom behind the module columns; the
+  magnets in the module backs snap onto them. No screws — a module swaps out in seconds. The bars
+  must touch the magnet faces: pack them out with batten offcuts where needed.
+- The **two long battens** (1000 mm) carry the bars across the width of A. 1000 mm leaves 2–4 mm to
+  spare at each end in a 1004–1008 mm space.
+
+**Steel bars: 360 mm, not 368.** A is 366 mm tall and the bars must not stand out past its top or
+bottom edge, or the front cannot tilt. Cut **three bars of 360 mm**: two come out of each 1 m bar, so
+the two bars on the list give four (one spare).
+
+**Check at the dry fit — sheet and battens on A.** The smoked sheet (990 × 350) was cut for the
+earlier frame: on A (1004 × 366) it reaches to within 7 mm of the side edges and 8 mm of the top and
+bottom edges, so a 20 mm batten along A's top or bottom edge would sit partly on the sheet. Lay A,
+the sheet, one module, a batten and a bar together before gluing anything, and decide where the
+battens go (on the sheet's edge, or with the sheet trimmed).
+
+### 8.4 Tilting front (design D)
+
+The front frame A hangs from a **piano hinge** (about 1000 × 32) along the **top front edge**,
+between the fixed ends. Its **bottom swings out**, so the screen leans back towards the first
+referee. The top edge stays flush with the top of the box (no lip). Nothing moves into the box.
+
+**How far the bottom comes out** (A is 366 mm tall; use this to check the notches):
+
+| Tilt | 0° | 5° | 10° | 15° | 20° |
+|---|---|---|---|---|---|
+| Bottom of A out from the box front | 0 | ≈ 32 mm | ≈ 64 mm | ≈ 95 mm | ≈ 125 mm |
+
+**Piano hinge.** Cut it to length with the T118A blade (or sandwiched in plywood with T118B) and
+deburr. Its screws go into wood that can hold them — a batten or block — not into the 6 mm edge of
+C1. The hinge goes **on the inside**: one leaf on the back of A's top strip, the other on the
+batten under the front edge of C1, so the knuckle sits at A's top back edge and nothing shows on the
+front. As A tilts about that edge, its top front edge rises: by about 2 mm for a sharp corner, about
+1.2 mm with the **3 mm round** that every outside edge gets. So hang A with **1.5 mm under C1 and
+0.5 mm above C2** (A has 2 mm of height to spare; a 0.5 mm card under it while you screw the hinge).
+The bottom lifts off as it swings out (about 22 mm at 20°), so the small bottom gap does no harm. **Check at the dry fit:** tape the hinge in place, tilt A to
+20° and look before drilling.
+
+**Ratchet stays.** One at each end, like a deckchair: an aluminium flat bar 25 × 4 (steel also
+works) with **five notches for 0, 5, 10, 15 and 20°**, and an **M6 pin** (M6 × 30 hex bolt with a
+nylon lock nut) that drops into a notch. One end of the stay pivots on a bolt; the pin sits on the
+other part. Teeth do not creep when a ball hits.
+
+How to make the notches:
+
+1. Fit the stay with its pivot first, and the pin on the other part, with the box upright on the
+   bench.
+2. Hold A at 0°, mark where the pin crosses the stay. Repeat at 5, 10, 15 and 20° — set the angle
+   with the speed square's degree scale (or a phone inclinometer) and cross-check with the table
+   above.
+3. Take the stay off, centre-punch each mark, drill **Ø6.5** (HSS bit, vise, a drop of oil).
+4. Cut in from the edge of the stay to each hole with the jigsaw and the **T118B** blade, so each
+   hole becomes an open notch the pin drops into. File the notches smooth and round every corner.
+5. Refit and try every notch. Make both stays the same: clamp the second to the first and drill
+   through.
+
+**Starting geometry** (the one drawn in the illustrated manual): the stay **pivots on A** on a
+3.5 × 30 screw, 10 mm behind and 10 mm above A's bottom edge, 12 mm from the stay's end; the **M6 pin
+is fixed in the end wall D**, 60 mm behind the front and 12 mm above the floor, through D's bottom
+border and a 12 mm block. Stay length 200 mm; notches at about 44 / 75 / 106 / 137 / 167 mm from the
+pivot. **Mark the notches on the real box** as described above — these numbers are only for a first
+cut, and the stays must clear the bench modules and the ribbons.
+
+**Bottom cap K and cheeks H.** When A tilts, it opens a gap at the bottom and a triangular gap at
+each side. The **bottom cap K** is **hinged** along the bottom of A (cap hinge, §2) and its back edge
+rides on the box floor, so nobody sees or reaches into the box. A rigidly fixed K would dig into the
+floor from about 5°. **Depth:** at 20° the bottom of A stands about 125 mm out, so a 104 mm K only
+reaches the floor up to about 17° — cut K from the 1004 × 150 blank to the depth the dry fit shows
+(about 140 mm), not to 104. The two **triangular cheeks H** (cut from the
+370 × 130 blank) are fixed to the sides of A, long edge along A, and close the side gaps; at 20° the
+bottom of A is about 125 mm out, which is why the cheeks are 130 mm at the wide end. Brush seal on
+their edges closes the remaining gaps against drips and dust.
+
+**Check at the dry fit:**
+
+- K must still overlap the floor at 20° and must not jam at 0°; set its depth at the dry fit.
+- With only 2 mm between A and the ends, the cheeks have to sit just inside A's side edges. At 0°
+  they are inside the box next to the ends, where the bench modules are: make sure they clear the
+  bench modules, their turn buttons and the stays.
+- K needs the front of the floor clear over its whole sweep: no corner blocks or battens on the
+  floor there (see §8.6 for the backing plate).
+
+**Cables to the front:** about **120 mm of slack** on the OUT 1 and OUT 2 ribbons and the six module
+power leads, tied so they fold in a loop, not across an edge. The bench screens on the ends do not
+move.
+
+### 8.5 Scorer screen flap
+
+The 10.1″ screen sits in a **flap in the middle of the back panel**, set **25 mm deep into a pocket**
+so its edges are protected when closed. The flap is hinged at its **top** edge on two torque
+(friction) hinges and swings out like an awning, so the screen tilts up towards a scorer who looks
+down from above, and stays where it is left; a stop holds it at about 75°. A **magnetic catch**
+holds it shut. Closed, the screen faces out: in transport it is protected by the pocket and the kit
+bag or a slip-on cover.
+
+- **Opening in B:** 280 × 205, centred left to right. In the design study its top edge is about
+  80 mm below the top of the box, which leaves the space below it for the ports. **Check** that the
+  pocket clears the top battens and the electronics inside before cutting.
+- **Pocket:** the four walls P2 (292 × 25, top and bottom) and P3 (205 × 25, sides) are glued edge-on
+  around the opening on the inside of B, flush with the opening; the pocket back P1 (292 × 217)
+  closes them. Inside, the pocket is 280 × 205 × 25. A strip of EPDM seal goes around it.
+- **Flap F:** the two 260 × 180 layers glued together (12 mm), so the hinge and catch screws hold.
+  **Check** the screen's real outline and mounting holes before trimming F, and how the screen fixes
+  to it; the flap must clear the pocket walls with the screen on.
+- **Torque hinges** (1.2 N·m, 38 × 40 mm), two along the flap's top edge, bolted with **M4 × 16 and
+  M4 lock nuts** through the wood (or into a glued 12 mm strip). **Check** the stop at about 75°:
+  if the hinges have no stop of their own, add a small block that the flap meets.
+- **Magnetic catch:** one Hettich catch at the bottom edge of the flap, screwed into a block, not
+  into 6 mm plywood; pre-drill Ø2. If there is no counter-plate, screw on a steel washer.
+- **Display cable:** the 300 mm standard–mini cable runs from the flap into the box at the hinge
+  side with a loop, so it flexes rather than folds. **Check** where it passes through the pocket
+  (a slot with smooth, rounded edges) and that it does not pinch when the flap shuts.
+
+**Check before relying on it:** the screen goes in only if the flicker test passes (§10.4). Until
+then, keep the flap shut or blank.
+
+### 8.6 Bottom: stand flange, tripod threads, backing plates Y
+
+The **35 mm speaker-stand flange** (K&M 195/8, M8 bolts) and the **¼″-20 and ⅜″-16 tripod inserts**
+need more than 6 mm of wood, so they sit in the **backing plate Y**: two 208 × 140 layers glued to
+12 mm, glued inside onto the bottom C2. Drill Ø45 through C2 for the flange (hole saw), and the
+inserts' own pilot sizes through Y (typically Ø8 and Ø12); screw the inserts in from below with a
+hex key.
+
+**Open point — K and Y both want the floor at the front/centre.** The bottom cap K sweeps the front
+of the floor over the whole width (about 104 mm deep, more while tilting). The backing plate Y is
+140 or 208 mm deep on a 214 mm deep floor, so wherever it goes, it reaches into K's path. Nobody has
+decided this yet. Decide at the dry fit, **before gluing Y**:
+
+1. **Y inside towards the back, K over it:** glue Y against the back of the floor, and let K ride
+   over Y on two thin runners (strips of plywood across the floor at Y's height) so it slides
+   instead of catching on Y's edge; or
+2. **Move Y and the stand cup off K's path**, and check the box still balances on a stand.
+
+Either way: set A at **0° and at 20°** and watch K sweep the floor before any glue goes on Y.
+
+### 8.7 Handles
+
+Two **K16 recessed spring handles** on the top C1, **near the back edge, left and right**, clear of
+the flap pocket and of the front hinge. In the design study they sit about 300 mm either side of the
+middle.
+
+| | |
+|---|---|
+| Rim | 155 × 83.3 × 1.2 mm |
+| Cut-out in C1 | **129 × 52 mm** (long side along the width of the box) |
+| Holes | 6 × Ø4.8 in the handle on a **141 × 62 mm** pattern, the middle pair at **70.5 mm** from each end pair |
+| Tray depth | about 7.6 mm, so it reaches about 1.6 mm below the 6 mm top |
+| Screws | **6 × M4 × 16 pan Torx A2 + 6 M4 lock nuts per handle**, drill Ø4.5 through C1 |
+
+Mark the cut-out from the handle itself, drill a Ø8 hole inside each corner, and cut with the
+jigsaw (T101AOF in the corners). **Check** that the tray and the lock nuts miss every batten, block
+and the pocket wall under the top before cutting.
+
+### 8.8 Anti-tip: pull-out foot T and rubber pads
+
+- **Pull-out rear foot T** (600 × 150): slides **120 mm out from under the back**, like a drawer,
+  between **two batten rails** under the bottom C2. Pulled out, it widens the base from 22 to about
+  33 cm, so a ball needs about twice the speed to tip the board.
+- A **turn button** holds it in for transport.
+- **Two screws through a slot in T stop it at full travel**: cut a slot in T along the sliding
+  direction, about 120 mm long plus the screw diameter; the screw heads (with washers) also keep the
+  foot from dropping.
+- **Rubber pads:** 8 clear self-adhesive 20 × 20 pads: 4 under the box, 2 under the back end of the
+  foot, 2 spare. Stick them on only after the paint has cured.
+
+The foot slides front to back, so the **rails run front to back, about 205 mm long**, one at each
+end of the 600 mm foot. **Check at the dry fit:** Make the rails a little deeper than the foot is thick so it
+slides freely, and check that the foot's back end with its two pads reaches the table when pulled
+out. The screws in the slot must go into wood that can hold them (a block inside, not 6 mm alone),
+and must miss Y and the flange.
+
+### 8.9 Back panel
+
+The back panel B is **screwed on: 6 × 3.5 × 16 T20 wood screws** into 15 × 20 beech blocks glued into
+the shell's back edge (four corners, the middle of the top and of the bottom), plus **turn buttons**
+and **magnetic catches**. It takes a tool on purpose — in a public hall, anything that opens by hand
+gets opened — and it is the same T20 as every other screw, so the key in the kit bag opens it. If a
+hole wears, move the screw a few millimetres along the block. A strip of EPDM seal goes under its
+edge.
+
+On the back panel:
+
+- the **flap opening** with the pocket (§8.5);
+- **POWER and DATA**, low, under the flap: USB-C cut-out 13 × 7 + 2 × Ø3 each (**check** against
+  the sockets that actually arrive), gold and blue rings, dust caps;
+- the **horn hole**: the SFM-27 buzzer is screwed on from inside over it. The spec says Ø30; the
+  kit's hole saw is **Ø32**: **check** that the buzzer's ears still cover the hole;
+- inside: the **fuse map, four spare fuses and a spare SD card**.
+
+### 8.10 Splash protection and finish
+
+- **Black silicone**: a bead around the smoked front sheet and the end windows, and along the
+  inside joints of the bottom.
+- **EPDM D-seal** around the screen pocket and under the back-panel edge.
+- **Brush seal** on the gaps at the bottom cap K and the cheeks H.
+- **USB-C dust caps** on POWER and DATA when nothing is plugged in.
+- **Vents face down**, with **vent mesh** behind them. **Check** their exact place at the dry fit:
+  clear of K's sweep, the foot rails and Y, and near the converter.
+- **Corners:** every outside edge is rounded with P120 (about 3 mm). The four front corners get
+  **black rubber caps**; the back corners stay bare, so the back panel lifts straight off.
+- **Matte black** inside and out, two coats, so nothing reflects behind the LEDs — except the
+  **front face of A, gloss black**: behind the smoked sheet, the screen and its border then read as
+  one black surface when the board is off. Fill the plywood grain on A's front face first (spray
+  filler), or it shows through. Optional: 2K matte clear over the matte black.
 - **Torx throughout** (plain, not security Torx): T20 for the wood screws and M4 machine screws,
-  T10 for the small parts. Pre-drill Ø2.5 near every edge.
-- **Matte black** inside and out, two coats, so nothing reflects behind the LEDs — except the **front
-  face, gloss black**: behind the smoked sheet, the screen and its 30 mm border then read as one black
-  surface when the board is off. Fill the plywood grain on the front face first, or it shows through.
-- **Stickers:** a light-grey matte cut-vinyl **"POINT HUB"** lettering (about 120 × 10 mm) on the
-  bottom-right of the front border, and a small back label (about 80 × 40 mm: "Point Hub · KSC
-  Wiedikon", POWER and DATA) beside the ports.
-- **Electronics** lie on the bottom panel behind the modules: converter and fuse box on the
-  aluminium plate; Pi and bonnet on M2.5 standoffs; the PD board by the POWER socket, the hub and the
-  charging module by the DATA socket; RTC and temperature sensor; the horn switch by the plugged horn
-  hole. **Put the Pi close to the back panel**: its built-in Wi-Fi is the board's only internet link,
-  and its antenna cannot see through the modules and the steel bars, while plywood lets the signal
-  out. Keep USB 3 devices off the blue ports if the hall uplink is weak (USB 3 traffic is noisy on
-  the 2.4 GHz band).
+  T10 for the small parts.
+- **Stickers** after first light: a light-grey matte **"POINT HUB"** lettering bottom-right of the
+  front border, and a back label beside the ports ("Point Hub · KSC Wiedikon", POWER, DATA).
+
+### 8.11 Inside layout
+
+The electronics lie on the bottom C2 behind the modules, clear of K's sweep: converter and fuse box
+on the aluminium plate; Pi (with its Active Cooler) and bonnet on M2.5 standoffs; the PD board by the
+POWER socket, the hub and the charging module by the DATA socket; RTC, temperature sensor, the two
+INA226 and the MCP23017; the AOD4184 module by the horn. **Put the Pi close to the back panel**,
+beside the pocket: its built-in Wi-Fi is the board's only internet link, and its antenna cannot see
+through the modules and the steel bars, while plywood lets the signal out. Keep USB 3 devices off
+the blue ports if the hall uplink is weak (USB 3 traffic is noisy on the 2.4 GHz band). The display
+cable from the flap must reach the Pi's DSI connector with its loop.
 
 ---
 
 ## 9. Build steps
 
-Seventeen steps in four stages; the drawings are in the
-[illustrated manual](https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8).
+Work in this order. Each step says where to do it. **Read the whole section once before you start**,
+and do the checks marked in §8 at the dry fit, not after the glue.
 
-**A — Case** (about 5 h plus a day to dry)
+**General rules**
 
-1. **Cut the parts** — seven rectangles from one sheet (cut list, §8).
-2. **Cut windows and holes** — drill each window corner, join with the jigsaw; round holes with a
-   hole saw. Masking tape on the cut line, good side down. Check the USB-C cut-outs against the
-   sockets that actually arrive.
-3. **Glue the shell** — bottom, ends, top and front frame onto the battens, glued and screwed. The
-   back panel stays loose: glue the six screw blocks into the back edge (corners and the middle of
-   top and bottom, flush), and screw the panel on last (step 15).
-4. **Fit the bottom** — box upside down; glue in the backing plate, then the stand cup, the two
-   tripod threads and the four feet (and the fold-out legs, if fitted).
-5. **Paint** — round every outside edge (120 grit), then two coats of matte black, inside too; the
-   front face gloss black.
+- **Pre-drill every screw into beech: Ø2.5** for 3.5 mm screws (Ø2 for the Hettich catches). Also
+  pre-drill near every plywood edge.
+- **Glue:** D3 wood glue, thin even layer, about **10 minutes open time**: prepare everything (parts,
+  tape cut to length, screws, a damp cloth) before the glue comes out. Wipe squeeze-out before it
+  dries; dried glue blocks the paint.
+- **Tape instead of clamps on long joints:** a strip of painter's tape every **15 cm** across the
+  joint, pulled tight, holds a 1 m joint better than four clamps. Use the four clamps on short
+  joints and to hold parts while drilling.
+- **Never glue before the dry fit.** Glue goes on bare wood; paint comes after.
+- Mark which side is the good face of every panel; cut with the good face down (jigsaw cuts on the
+  upward stroke).
 
-**B — Panels** (the box lies face-down on a blanket)
+### A — Cutting (GZ workshop)
 
-6. **Front sheet in** — peel the inner film off the polycarbonate and drop it into the front frame;
-   same for the two end sheets.
-7. **Six modules** — LEDs down, all arrows the same way; short ribbons 1 → 2 → 3 and 4 → 5 → 6. Leave
-   the IN of modules 1 and 4 free for the bonnet.
-8. **Bars across** — screw the three steel bars into the battens; the module magnets snap on.
-9. **Bench panels** — one module behind each end window, arrows up, four turn buttons each. Stand
-   the box upright again.
+1. **Pick up the plywood** at Jumbo. Check every piece against the cut list (§8.2), letter it in
+   pencil, and **measure the real thickness** of A, B and C1 at several points. Write it down.
+2. **Mark and cut the windows**: A 960 × 320 (22 mm from the sides, 23 mm from top and bottom),
+   D 160 × 320 twice (see the check in §8.4 before placing them), B 280 × 205. Masking tape on the
+   cut line; drill Ø8 inside each corner; join the holes with the jigsaw (T101B on the straights,
+   T101AOF in the corners); file the corners clean.
+3. **Cut the small parts from the blanks:** P2/P3 strips (rip 25 mm, §8.2), Y into 2 × 208 × 140, H
+   to 370 × 130 and then diagonally into two triangles. Leave K at 150 mm wide for now (final width
+   at the dry fit).
+4. **Handle cut-outs** in C1: 129 × 52 each, marked from the handle itself (§8.7). Drill the
+   6 × Ø4.5 screw holes through the handle's holes.
+5. **Round holes:** horn hole in B with the Ø32 hole saw; stand flange Ø45 in C2. Drill from both
+   sides (halfway, then turn over) so the plywood does not tear out.
+6. **Metal:** cut three steel bars of 360 mm from the two 20 × 4 bars (§8.3), two stays from
+   the 25 × 4 aluminium bar, and the piano hinge to length. Centre-punch, drill the screw holes
+   Ø4.5 (vise, HSS bits), deburr every cut with a file. The stay notches come later (step 11).
+7. **Cut the battens:** 2 × 1000 mm long battens; 2 foot rails of about 205 mm (§8.8); six back-panel
+   screw blocks and the corner blocks from the rest. Keep one batten as a spare.
 
-**C — Electronics** (low voltage only — nothing in here can give you a shock)
+### B — Dry fit (no glue; GZ workshop or home)
 
-10. **Lay out the electronics** on the bottom panel (§8); fit both USB-C sockets in the back panel now.
-    Solder the 10 kΩ OE pull-up (§4.2).
-11. **Power wiring** — POWER socket → PD board → 5 A fuse → converter (1 mm²) → fuse box (2.5 mm²);
-    the TVS across the socket's + and −; −Vin bonded to −V; the charging module behind its 3 A fuse.
-12. **First power-up** — nothing else connected; a small (about 20 W) PD phone charger into POWER,
-    through the USB-C power meter (it should read 9 V); 5.0–5.2 V at the fuse box. 0 V or −5 V:
-    unplug and check + and −. A weak charger is the safety net here.
-13. **Connect everything** — each module, each bench module and the Pi to its own 5 A fuse; ribbon
-    OUT 1 → module 1, OUT 2 → module 4, OUT 3 → bench L → bench R; I²C to pins 27/28; DATA socket →
-    hub → patch cable → Pi network port; charging module → hub.
-14. **Test** — back still open, prepared SD card in, a laptop charger on POWER: a test pattern on all
-    eight modules for 30 minutes, under the power governor (or at low brightness until it exists).
-    Warm is fine; hot or smelly → unplug. The full bench checklist (§6) follows before the first
-    match.
+8. **Shell:** stand C2, the two D and C1 together with painter's tape and a few screws into battens
+   (pre-drilled). Check it is square (equal diagonals).
+9. **Front:** fit A in the opening; it should have about 2 mm at the sides and 1 mm at the top and
+   bottom. Sand the edges if it rubs (§8.2). Lay the smoked sheet, one module, a batten and a bar on
+   A and resolve the check in §8.3.
+10. **Hinge:** tape the piano hinge in place and tilt A to 20°: A's top corner must clear C1
+    (§8.4). Then drill and screw the hinge.
+11. **Stays:** fit both stays, mark and cut the notches at 0, 5, 10, 15, 20° (§8.4, How to make the
+    notches). Try every notch.
+12. **K and H:** fit the bottom cap and the cheeks; tilt from 0° to 20° and back. Trim K to width.
+    Check the cheeks clear the bench modules (put one module and its turn buttons in an end).
+13. **K/Y decision:** with A at 0° and at 20°, watch K sweep the floor and decide where Y goes
+    (§8.6). Mark Y's place and the inserts' holes.
+14. **Flap:** fit the pocket, the flap with its torque hinges and the catch; put the screen (or its
+    outline on cardboard) on the flap; check the stop and the cable route (§8.5).
+15. **Foot:** fit the two rails and T; check it slides 120 mm, the stop screws catch, and the turn
+    button holds it in (§8.8).
+16. **Back panel:** fit B on its six blocks; mark the screw holes, the ports, and check the handles'
+    trays and nuts miss everything inside.
+17. **Take everything apart** and mark where each batten, block and hinge goes.
 
-**D — Finish**
+### C — Glue-up (home)
 
-15. **Close up** — put the back panel on and drive in its six T20 screws. Handles
-    on top, a black rubber cap on each front corner, the plug in the horn hole.
-16. **Set it up** — on the table with a strap through each handle around the table's back edge, on a
-    speaker stand, or on a tripod or light stand (sandbag on its feet). Charger into POWER, the
-    tablet cable into DATA.
-17. **Open it** — unplug the charger, undo the six T20 screws, lift the back panel off.
-    Swapping the SD card or a fuse takes under a minute.
+18. **Shell:** glue the battens and corner blocks, then C1, C2 and the two D together; tape every
+    15 cm on the long joints; screws through the panels into the battens (pre-drilled Ø2.5). Check
+    square before the glue grabs. Let it dry overnight.
+19. **Glue the six back-panel screw blocks** into the back edge, flush with it.
+20. **Front frame:** glue the long battens to A; glue K and the cheeks H as decided at the dry fit.
+21. **Flap and pocket:** glue the two F layers (weights on top, or clamps with a scrap board); glue
+    P2/P3 around the opening on the inside of B and P1 onto them.
+22. **Backing plates:** glue the two Y layers together; then glue Y onto C2 where the dry fit said.
+23. **Foot rails** under C2 as at the dry fit.
+24. **Fill** screw holes and gaps with wood filler; sand flush when dry. Sand all outside joints
+    flush and **round every outside edge** about 3 mm with P120.
+
+### D — Paint (GZ workshop if allowed, or a balcony with a drop sheet)
+
+25. **Remove all hardware** (hinges, catches, stays, handles). Mask the spots that will be glued
+    later or that must stay bare (the hinge leaves' seats are fine to paint).
+26. **Front face of A:** spray filler, sand P180 when dry, repeat until the grain is gone; then
+    **gloss black 2K** (respirator). Two coats.
+27. **Everything else:** **matte black**, two coats, inside and out, sanding lightly between coats.
+    Paint the steel bars too. Optional: 2K matte clear on top.
+28. Let it cure. The pads and the lettering wait until the paint is hard (about a week; check the can).
+
+### E — Assembly and electronics (home)
+
+29. **Hardware back on:** piano hinge and A; stays and M6 pins; flap hinges and catch; handles with
+    M4 lock nuts; stand flange and tripod inserts; corner caps. Smoked sheet into A with its silicone
+    bead (peel the inner film first); end sheets into the D windows.
+30. **First power-up** — power path only: POWER socket → PD board → 5 A fuse → input INA226 →
+    converter (1 mm²) → 5 V INA226 → fuse box (2.5 mm²); the TVS across the socket's + and −; −Vin
+    bonded to −V. Nothing else connected. A small (about 20 W) PD phone charger through the USB-C
+    power meter (it should read 9 V): **5.0–5.2 V at the fuse box**. 0 V or −5 V: unplug and check +
+    and −. Then check 5 V on every fuse way with the multimeter.
+31. **Lay out the electronics** (§8.11) on the bottom; fit both USB-C sockets in B. Solder the 10 kΩ
+    OE pull-up (§4.2), and the header pins on the MCP23017 and INA226 modules.
+32. **Modules:** box face-down on a blanket, A at 0°. Six modules onto the sheet, LEDs down, arrows
+    the same way; short ribbons 1 → 2 → 3 and 4 → 5 → 6; bars on, magnets snap on. Bench modules
+    behind the end windows, arrows up, four turn buttons each.
+33. **Connect everything:** each module, each bench module and the Pi to its fuse way; ribbon OUT 1 →
+    module 1, OUT 2 → module 4, OUT 3 → bench L → bench R; 120 mm slack to the front; I²C to pins
+    27/28; MCP23017 → AOD4184 → buzzer on way 10; DATA socket → hub → patch cable → Pi network port;
+    charging module behind its 3 A fuse → hub. Label every plug.
+34. **Software and tests** (§10): first light, then the flicker test before the screen goes in for
+    good, then the horn test.
+35. **Pads:** once the paint has cured, stick the rubber pads: 4 under the box, 2 under the back end
+    of the foot.
+36. **Close up:** back panel on, six T20 screws, turn buttons. Fuse map, spare fuses and spare SD
+    inside.
+37. **Bench checklist** (§6) before the first match. Lettering and back label after that.
+
+**Setting up at the hall:** on the table, pull the foot out; or on a speaker stand or tripod (sandbag
+on its feet). Tilt the front to the referee (pin in a notch). Charger into POWER, the tablet cable
+into DATA if used; open the flap for the scorer. **Opening it:** unplug the charger, undo the six T20
+screws, lift the back panel off. Swapping the SD card or a fuse takes under a minute.
 
 ---
 
 ## 10. Software bring-up
 
+The Pi 5 is the plan. Its LED path (Adafruit **Piomatter**, which drives HUB75 through the Pi 5's
+RP1 chip) is **not yet bench-tested** with these modules, and flushBuffer2 still has to be ported to
+it. If the Pi 5 path fails at first light, use a **Pi 4 2 GB with the hzeller driver** — the path
+the C0270 already runs — and everything else in this section stays the same.
+
 ### 10.1 Prepare the Pi
 
-Flash **Raspberry Pi OS Lite, 64-bit**. (The C0270's 32-bit userland is stuck on Node 22, which ends
-in April 2027; a new board should not start there.) Then:
+Flash **Raspberry Pi OS Lite, 64-bit**, current release. (The C0270's 32-bit userland is stuck on
+Node 22, which ends in April 2027; a new board should not start there.) Fit the Active Cooler on
+the Pi 5 before the first boot. Then:
 
 ```ini
-# /boot/firmware/config.txt
-dtparam=audio=off                    # on-board audio PWM collides with the panel driver
+# /boot/firmware/config.txt — both paths
 enable_uart=0                        # GPIO14 is OUT 3
 dtparam=i2c_vc=on                    # I²C0 on GPIO0/1 (pins 27/28)
 dtoverlay=i2c-rtc,ds3231,i2c0        # DS3231 on I²C0
 dtoverlay=i2c-sensor,sht4x,i2c0      # SHT40 on I²C0
 gpio=18=op,dh                        # OE− high early: panels dark (second layer after the pull-up)
+
+# Pi 4 + hzeller only
+dtparam=audio=off                    # on-board audio PWM collides with the panel driver
 ```
 
 ```bash
-# keep the sound module out for good (an OS update must not bring it back)
+# Pi 4 + hzeller only: keep the sound module out for good
 echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/blacklist-rgb-matrix.conf
 
-# /boot/firmware/cmdline.txt is one line: remove console=serial0,115200 and append
+# /boot/firmware/cmdline.txt is one line: remove console=serial0,115200, and for hzeller append
 #   isolcpus=domain,managed_irq,3 nohz_full=3 rcu_nocbs=3 irqaffinity=0,1,2
 # (core 3 for the panel's refresh thread); after a reboot:
 cat /sys/devices/system/cpu/isolated      # → 3
 ```
 
-Check the overlay parameters against `/boot/firmware/overlays/README` on the image you flash, then
-confirm the bus: `i2cdetect -l` lists I²C0, and the STUSB4500 (`0x28`) answers on it while the RTC
-and the sensor show as bound by their drivers. Drop `fake-hwclock` once the DS3231 keeps time; fit
-the coin cell only on a breakout **without** a charging circuit (or remove the charging
-resistor/diode of the common ZS-042 module) and power it from 3.3 V.
+**Check (Pi 5):** the overlay lines above were written for the Pi 4. Check every parameter against
+`/boot/firmware/overlays/README` on the image you flash, then confirm the bus: `i2cdetect -l` lists
+the bus on GPIO0/1 — note its number, the horn commands need it — and on it the STUSB4500 (`0x28`),
+both INA226 (`0x40`, `0x41`) and the MCP23017 (`0x20`) answer, while the RTC and the sensor show as
+bound by their drivers. Whether the Piomatter path still wants a core kept free is part of the
+bench test. The Pi 5 also has its own real-time clock; the design keeps the DS3231 — **check** which
+clock the image uses and that only one sets the time. Drop `fake-hwclock` once the clock keeps time;
+fit the coin cell only on a DS3231 breakout **without** a charging circuit (or remove the charging
+resistor of the ZS-042 module) and power it from 3.3 V.
 
 **Networking:**
 
@@ -620,9 +1181,23 @@ resistor/diode of the common ZS-042 module) and power it from 3.3 V.
   instead of the connect QR codes.
 - `eth0`: **192.168.5.1/24 with a DHCP server** for the tablet (§7).
 
-### 10.2 Driver library, first light
+### 10.2 First light — one module, before anything is cut
 
-Build `rpi-rgb-led-matrix` at the commit pinned in
+Bench setup: the Pi, the bonnet on the tall header, **one module on OUT 1**, a 5 V supply for the
+module (the converter on a PD charger, §9 step 30), an HDMI monitor on the micro-HDMI port and a USB
+keyboard.
+
+**Pi 5 + Piomatter (the plan).** Install Adafruit's Piomatter following its README and Adafruit's
+guide for the Triple Bonnet on the Pi 5 (it needs the RP1 PIO device, `/dev/pio0`, from a current
+OS: run `sudo apt full-upgrade` first). Run its example for **one 64 × 32 panel, 1/16 scan (4
+address lines)** with the triple-bonnet pinout. A clean, stable picture means the chip, the scan and
+the bonnet are good on the Pi 5. Then try all eight modules (3 outputs × 3, §4.1).
+
+**Check — this is the first time anyone runs these modules on the Pi 5.** If the picture is
+scrambled, flickers, or the triple-bonnet pinout does not exist or clashes with GPIO0/1, stop and use
+the Pi 4 path below. Note what you saw; it decides whether the flushBuffer2 port (§10.7) goes ahead.
+
+**Pi 4 2 GB + hzeller (fallback).** Build `rpi-rgb-led-matrix` at the commit pinned in
 [`firmware/flushbuffer/build.sh`](../../firmware/flushbuffer/build.sh), so the demos and
 flushBuffer2 use the same library:
 
@@ -633,10 +1208,10 @@ git checkout 51d3231e370593b60952b2c3b18d2e3802329f18     # = RGB_SHA in build.s
 make -C examples-api-use
 ```
 
-**One module first**, on OUT 1, before anything is cut: `--led-chain=1 --led-parallel=1` with the
-flags below. A rotating square that looks right means the chip, the scan and the bonnet are good.
+Run the demo with `--led-chain=1 --led-parallel=1` and the flags below. A rotating square that looks
+right means the chip, the scan and the bonnet are good.
 
-### 10.3 The flags — start from vendor profile C and measure
+### 10.3 The flags (hzeller) — start from vendor profile C and measure
 
 ```bash
 sudo ./examples-api-use/demo -D0 \
@@ -665,9 +1240,8 @@ sudo ./examples-api-use/demo -D0 \
 **Start from vendor profile C and measure — do not copy the C0270's tuning.** Tech4Sport's own
 table ([`firmware/setting.ini.example`](../../firmware/setting.ini.example)) has profile **C (Pi 4,
 indoor)**: lsb 180, slowdown 3, multiplexing 0. The C0270 runs profile **D** (outdoor: lsb 450,
-slowdown 5, multiplexing 1), which is wrong for indoor modules and wastes much of each frame on
-dark-but-timed PWM planes at low brightness. Then, with `--led-show-refresh` running for a few
-minutes (Wi-Fi traffic included):
+slowdown 5, multiplexing 1), which is wrong for indoor modules. Then, with `--led-show-refresh`
+running for a few minutes (Wi-Fi traffic included):
 
 - try `--led-slowdown-gpio` 3 → 2 (the bigger lever); keep the fastest value without garble;
 - lower `--led-pwm-lsb-nanoseconds` together with a higher brightness to recover dark time; watch
@@ -677,46 +1251,83 @@ minutes (Wi-Fi traffic included):
   multiple of 100 Hz (200 or 400 Hz), so video at a 1/100 s or 1/50 s shutter shows no bands. A
   1/500 s shutter needs a minimum above about 520 Hz.
 
-Record the result in `setting.ini` (`[DISPLAY]`), keeping the previous file to roll back.
+Record the result in `setting.ini` (`[DISPLAY]`), keeping the previous file to roll back. On the
+Pi 5 the equivalent settings (geometry, address lines, brightness) go into the ported flushBuffer2;
+measure refresh and banding the same way once it exists.
 
-### 10.4 Calibrate on glass
+### 10.4 Touchscreen bring-up and the flicker test
+
+1. Connect the Waveshare 10.1″ DSI LCD (C) to one of the Pi 5's display connectors with the 300 mm
+   standard–mini cable (contacts the right way round at both ends; Pi off).
+2. Add the display overlay line that **Waveshare's wiki for the 10.1inch DSI LCD (C) on the Pi 5**
+   gives to `config.txt`, and reboot. **Check** there whether the screen needs its own 5 V; if so,
+   take it from a free fuse way (11) and note it on the fuse map.
+3. Check the picture (1280 × 800), the orientation, and that touch works.
+4. **Flicker test — before the screen goes into the flap for good.** All eight modules running a
+   test pattern at bring-up brightness, the screen on, and someone using it (scrolling, tapping) for
+   at least **10 minutes**, Wi-Fi traffic included. Watch the modules by eye and through a phone
+   camera, and watch the refresh rate if the driver shows it. The LED driver needs one processor
+   core to itself; **if the screen makes the modules flicker, the screen stays out**: keep the flap
+   shut (or blank it), and the scorer uses a tablet on the DATA cable.
+
+The scorer's own screen (points, timeouts, substitutions, sets on the 10.1″) is still to be written
+(§10.7); until then the screen can show the console in a browser.
+
+### 10.5 Calibrate on glass, horn, diagnostics
 
 Geometry errors are invisible over the network — **look at the panel**:
 
-- Scrambled pixels: sweep `--led-multiplexing` and `--led-row-addr-type`; confirm the driver chip
-  against the purchase spec.
+- Scrambled pixels: sweep the multiplexing and row-address settings; confirm the driver chip against
+  the purchase spec.
 - A module upside down or a chain in the wrong order: check the arrows and the ribbons first.
-- Bench panels: which canvas slot is which end, and the rotation, come from the **module-number
-  test screen** (each module shows its number). If the three-output refresh disappoints, try the
+- Bench panels: which canvas slot is which end, and the rotation, come from the **module-number test
+  screen** (each module shows its number). If the three-output refresh disappoints, try the
   two-output `Remap` wiring (§4.1).
+- Tilt the front through all five notches with the picture on: nothing may flicker or drop out (a
+  ribbon pulling).
 - Full-white soak for the power path only under the governor (§5.5).
 
-### 10.5 Point the stack at it
+**Horn test:** with `i2cdetect -l` giving the bus number, run the four commands in §4.2. The horn
+must be silent after power-on and before the first command, sound on `0x14 0x01`, stop on `0x14
+0x00`. Then set openscore's `horn_cmd` to the on/off commands.
+
+**Diagnostics:** once written (§10.7), open the Diagnostics page on the screen or in the console
+and run the self-test (§6): every line green, every module reported with a current step.
+
+### 10.6 Point the stack at it
 
 ```
 console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──▶  flushBuffer2  ──▶  panels
 ```
 
-1. **flushBuffer2** — build it with [`firmware/flushbuffer/build.sh`](../../firmware/flushbuffer/build.sh)
-   (it adds `applicon` but the stock `regular` is still there). It compiles in the C0270's
-   64 × 64 × 3 geometry, so the Point Hub board's start script must pass `--led-rows=32 --led-cols=64
-   --led-chain=3 --led-parallel=3 --led-scan-mode=0` along with the `setting.ini` tuning
-   (`hardware_mapping=regular`, the values from §10.3).
+1. **flushBuffer2** — on the Pi 4 path, build it with
+   [`firmware/flushbuffer/build.sh`](../../firmware/flushbuffer/build.sh) (it adds `applicon` but the
+   stock `regular` is still there). It compiles in the C0270's 64 × 64 × 3 geometry, so the Point Hub
+   board's start script must pass `--led-rows=32 --led-cols=64 --led-chain=3 --led-parallel=3
+   --led-scan-mode=0` along with the `setting.ini` tuning (`hardware_mapping=regular`, the values
+   from §10.3). On the Pi 5 path it needs the Piomatter port (§10.7); the hzeller backend stays for
+   the C0270.
 2. **openscore** — the renderer ([`firmware/openscore/`](../../firmware/openscore/)) writes the
    192 × 64 `buffer.png`; flushBuffer2 shows it on the front, and the bench rows stay dark until
    openscore renders them.
 3. **Console and bridge** — unchanged: `npm run appliance` on the board, the console on port 8890.
 
-### 10.6 Still to build before the first match
+### 10.7 Still to build before the first match
 
 | Piece | Where | Status |
 |---|---|---|
-| Power governor, live brightness, budget file in `/run` (§5.5) | flushBuffer2 | written 22.10.2026, not yet run on glass |
+| **flushBuffer2 port from hzeller to Piomatter** (Pi 5), hzeller kept for the C0270 | flushBuffer2 | **must** for the Pi 5 — not written; waits for the first-light result |
+| Power governor, live brightness, budget file in `/run` (§5.5) | flushBuffer2 | written 22.10.2026 for hzeller, not yet run on glass; must move with the port |
 | PD contract read (`RDO_STATUS`) → budget; contract shown in `/api/status` and the console | appliance | **must** — not written |
 | SHT40 derating 50 °C / blank 60 °C | appliance → budget | **must** — not written |
 | Module-number test screen (bring-up, swap card) | openscore | **must** — not written |
+| Diagnostics page + `/api/status` checks (§6) | appliance, console | **must** — not written |
+| Power-on self-test: per-module current step with the 5 V INA226 (§6) | openscore + appliance | **must** — not written |
+| Horn: `horn_cmd` with the MCP23017 commands (§4.2) | settings, openscore | to set at bring-up |
 | Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | before the first glass run |
 | Bench screens: 192 × 96 canvas (or a `Remap` canvas of 256 × 64), content from the live match sections | openscore | feature — not written |
+| Scorer screen on the 10.1″: a local scoring screen (points, timeouts, substitutions, sets) | console / app | feature — not written; only if the flicker test passes |
+| Native OpenVolley / OpenBeach on the board (Linux arm64 desktop build, fullscreen on the 10.1″) | openvolley CI | planned — not started |
 | Cable tablet trusted without the scorer PIN (§7) | console | done (cable trust, 22.10.2026) |
 | Board identity (`boardId`, label; built 22.10.2026) and the client-only Wi-Fi setup (`.link` file, no AP) | provisioning | **must** |
 | Read-only root with a persistent `/data` partition and a `STATE_DIR` setting | image, appliance | planned; until then the card stays read-write, because match state and the resume file must survive a power cut |
@@ -727,39 +1338,43 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 
 **In the box or the kit bag:**
 
-- **2 spare modules from the same order** (H) — a module ordered a year later rarely matches.
+- **2 spare modules from the same order** — a module ordered a year later rarely matches.
 - Spare **5 A fuses** (4, inside the back panel) and a 3 A fuse; the fuse map inside the back panel.
-- A **pre-imaged spare SD card** (M) in a labelled case, refreshed with every image release.
+- A **pre-imaged spare SD card** in a labelled case, refreshed with every image release.
 - 2 spare HUB75 ribbons and 2 module power leads.
+- Spare small parts: buzzers (the pack has several), 2 rubber pads, a Hettich catch, the second
+  tablet charging module, an M6 pin with lock nut.
 - One known-good **single-port PD charger, 65 W or more**, labelled "board only", with a labelled
-  1 m USB-C cable (about €40).
-- A **micro-HDMI to HDMI cable** (about €5) and a USB-C network adapter for the club laptop. The
-  laptop on the DATA cable reaches everything the board serves (console, Diagnostics, `/logs`,
-  SSH), but only once the Pi has booted far enough to bring its network up; the DATA port carries
-  no picture (the Pi 4's USB-C has no video). For a Pi that will not boot: take the back panel off and
-  plug a monitor into the Pi's micro-HDMI, next to the back edge, or swap in the spare SD card.
+  1 m USB-C cable.
+- A **micro-HDMI to HDMI cable** and a USB-C network adapter for the club laptop. The laptop on the
+  DATA cable reaches everything the board serves (console, Diagnostics, `/logs`, SSH), but only once
+  the Pi has booted far enough to bring its network up; the DATA port carries no picture. For a Pi
+  that will not boot: take the back panel off and plug a monitor into the Pi's micro-HDMI, or swap
+  in the spare SD card.
 - A **T20 key** (L-key or small screwdriver) for the back panel.
 - The USB-C power meter, a small torch, silica gel.
 - A printed **swap card**.
 
-**Swapping a module** (a few minutes): unplug the charger → take the back panel off → read the dead module's
-number on the module-number screen or the map → photograph the cables → lift the module off its
-magnets → move power plug and ribbons to the spare (the arrow is the data direction) → power on →
-run the module-number screen → note the swap in the inventory. Dead pixels: swap at the hall;
-repair with hot air at home, or bin the module — it costs less than an hour of volunteer time.
+**Swapping a module** (a few minutes): unplug the charger → take the back panel off → read the dead
+module's number on the module-number screen, the self-test or the map → photograph the cables →
+lift the module off its magnets → move power plug and ribbons to the spare (the arrow is the data
+direction) → power on → run the module-number screen → note the swap in the inventory. Front
+modules are easiest to reach with the front at 0° and the box face-down on a blanket. Dead pixels:
+swap at the hall; repair with hot air at home, or bin the module — it costs less than an hour of
+volunteer time.
 
 **Fallback when the board fails:**
 
-- **A flip scoreboard with digits of at least 12 cm** stays in the kit (about €30–80). Swiss Volley's
-  rules (RV, Art. 82 f) require the home team to provide a scoreboard with digits at least 12 cm
-  high; regional associations may relax that (Art. 240), so confirm with SVRZ. A phone or a tablet
-  cannot show 12 cm digits.
+- **A flip scoreboard with digits of at least 12 cm** stays in the kit. Swiss Volley's rules (RV,
+  Art. 82 f) require the home team to provide a scoreboard with digits at least 12 cm high; regional
+  associations may relax that (Art. 240), so confirm with SVRZ. A phone or a tablet cannot show
+  12 cm digits.
 - **If the board dies mid-match:** keep scoring — the scoresheet is the official record and the
   tablet keeps the score. Tell the first referee and the scorer at the next stoppage, put up the
   flip board, then power-cycle the box (unplug 10 s, wait for the idle screen). Not back within
   2 minutes: play on with the flip board. Afterwards, export the log from Diagnostics.
-- **Basketball:** the board is never the official game clock — it has no horn and its clock is
-  network-timed. Use the hall's timer.
+- **Basketball:** the board is never the official game clock — its buzzer is not a certified game
+  horn and its clock is network-timed. Use the hall's timer.
 
 ---
 
@@ -785,12 +1400,20 @@ kein Produkt, wird ohne Gewähr veröffentlicht und ist keine Rechtsberatung.
 
 ## Sources (approximate, 2026)
 
-- Illustrated build manual (drawings, parts A–Z, the 17 steps): <https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8>
+- Illustrated build manual (earlier design, drawings, the 17 steps): <https://claude.ai/artifact/Pezf9GMMEMuS1Kdg7xmxa8>
+- Design-D study (control screen, tilting front): <https://claude.ai/artifact/37i2YZb16jicPT2EHSz1c4>
+- Club shopping list, cutting sheet and tool list (October–November 2026):
+  <https://claude.ai/artifact/X4nC9KHkgY7K8nLPS3o9iD>, <https://claude.ai/artifact/WUamN99iktUpvS3VzRUvtQ>,
+  <https://claude.ai/artifact/2YSNCXuoBeXX5VoXZ1C4e1>
 - hzeller `rpi-rgb-led-matrix` (driver, flags, `regular` mapping, refresh tuning, CPU isolation) —
   <https://github.com/hzeller/rpi-rgb-led-matrix>, pinned commit in `firmware/flushbuffer/build.sh`
+- Adafruit Piomatter (HUB75 on the Raspberry Pi 5 through RP1 PIO) —
+  <https://github.com/adafruit/Adafruit_Blinka_Raspberry_Pi5_Piomatter>
 - Adafruit Triple LED Matrix Bonnet — <https://www.adafruit.com/product/6358>
+- Waveshare 10.1inch DSI LCD (C) — Waveshare wiki
 - Mean Well RSD-60 datasheet — <https://www.meanwell.com/Upload/PDF/RSD-60/RSD-60-SPEC.PDF>
 - STUSB4500 NVM settings: SparkFun DEV-15801 and the STUSB4500 CircuitPython library documentation
+- MCP23017 datasheet (Microchip): registers IODIRA `0x00`, OLATA `0x14`
 - LED driver chips, standard vs S-PWM — <https://github.com/board707/DMD_STM32/wiki/Led_drivers>
 - Swiss Volley Reglement Volleyball (RV) 26/27, Art. 82 f and Art. 240
 - This repo: vendor display profiles in [`firmware/setting.ini.example`](../../firmware/setting.ini.example);
