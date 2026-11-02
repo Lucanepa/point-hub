@@ -201,7 +201,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Horn switch | **MCP23017 module** (CJMCU-2317 style; MCP23017, not the SPI MCP23S17), I²C `0x20` | 1 | AliExpress · Suzpng Limited Store | 6 incl. shipping |
 | Horn MOSFET | **isolated MOSFET module, variant AOD4184** (optocoupler input; not FR120N, LR7843 or an IRF520 module) | 1 | AliExpress Choice | 4 |
 | Horn | **SFM-27 active piezo buzzer, continuous** (not the "-II" intermittent type), DC 3–24 V, about 95 dB, about 30 mm across, with mounting ears | 1 (+spares) | AliExpress Choice (pack of 5) | 3 |
-| Status lights | **POWER**: green 5 mm LED + 330 Ω; **STATUS**: RGB 5 mm LED, **common cathode**, diffused, + 150 Ω (red) and 47 Ω (green, blue); 2 × **panel-mount 5 mm LED holders** (black or chrome, for an Ø8 hole). Wiring and colour code in §6 | 1 set | AliExpress Choice | 5 |
+| Status lights | three lights: **POWER**, **STATUS** and **LINK**, all from one pack of **RGB 5 mm LEDs, common cathode, matte** (POWER uses only the green leg); resistors 330 Ω (POWER), 150 Ω (red) and 47 Ω (green, blue) for STATUS and LINK; 3 × **panel-mount 5 mm metal LED holders** for Ø8 holes. Wiring and colour codes in §6 | 1 set | AliExpress · CHANZON (LEDs “100PCS 5mm Matte CC”, holders “5mm Metal”) + a resistor kit | 15 |
 | Power button *(optional)* | 12 mm momentary push button, normally open, panel mount, + 2-pin header for the Pi 5's power-button pads (J2) | 1 | AliExpress Choice | 3 |
 
 ### 2.8 Wiring
@@ -249,7 +249,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
 | Lettering | "POINT HUB" cut vinyl, matte silver-grey (Oracal 631-030), about 120 × 20 mm, letters 12–15 mm | 2 | Klebe-X or wir-machen-druck.ch | 5–7 |
-| Back label | about 100 × 60 mm, white vinyl, matte: "Point Hub · KSC Wiedikon", POWER, DATA, and **the status-light legend** (§6) under the two lights. Order once the port and light positions are fixed | 1 | wir-machen-druck.ch | 14 |
+| Back label | about 100 × 60 mm, white vinyl, matte: "Point Hub · KSC Wiedikon", POWER, DATA, and **the status- and link-light legends** (§6) under the lights. Order once the port and light positions are fixed | 1 | wir-machen-druck.ch | 14 |
 | Charger *(if the club has none)* | single-port USB-C PD, 65 W or more (100 W with a 5 A cable), labelled "board only" | 1 | Digitec or Amazon.de | 34–37 |
 | USB-C power meter | for the first power-up and the governor calibration (the club has a FNIRSI FNB48P) | 1 | — | 12 |
 
@@ -403,7 +403,10 @@ fuse way 10 (5 V) ──▶ AOD4184 module power in ──▶ switched out ─�
 MCP23017 GPA1 ──150 Ω──▶ STATUS LED red   ┐
 MCP23017 GPA2 ── 47 Ω──▶ STATUS LED green ├─ common cathode ──▶ GND
 MCP23017 GPA3 ── 47 Ω──▶ STATUS LED blue  ┘
-5 V (any module's fuse way, after the fuse) ──330 Ω──▶ POWER LED (green) ──▶ GND
+MCP23017 GPA4 ──150 Ω──▶ LINK LED red     ┐
+MCP23017 GPA5 ── 47 Ω──▶ LINK LED green   ├─ common cathode ──▶ GND
+MCP23017 GPA6 ── 47 Ω──▶ LINK LED blue    ┘
+5 V (any module's fuse way, after the fuse) ──330 Ω──▶ POWER LED (green leg of an RGB LED) ──▶ GND
 Pi 5 J2 (power-button pads) ──▶ push button ──▶ (other J2 pad)          optional
 ```
 
@@ -439,13 +442,14 @@ Rules that come with it:
 
   ```bash
   sudo i2cset -y <bus> 0x20 0x14 0x00   # OLATA: output latch low first (horn off)
-  sudo i2cset -y <bus> 0x20 0x00 0xF0   # IODIRA: GPA0 horn + GPA1–3 status LED outputs, the rest inputs
+  sudo i2cset -y <bus> 0x20 0x00 0x80   # IODIRA: GPA0 horn, GPA1–3 STATUS, GPA4–6 LINK as outputs; GPA7 input
   sudo i2cset -y <bus> 0x20 0x14 0x01   # horn on
   sudo i2cset -y <bus> 0x20 0x14 0x00   # horn off
   ```
 
-  Status LED colour = OLATA bits 1–3 (red `0x02`, green `0x04`, blue `0x08`, yellow = red + green
-  `0x06`); keep bit 0 for the horn, e.g. `0x14 0x04` = green, horn off. The software owns this
+  STATUS colour = OLATA bits 1–3 (red `0x02`, green `0x04`, blue `0x08`, yellow = red + green
+  `0x06`); LINK colour = bits 4–6 (red `0x10`, green `0x20`, blue `0x40`, yellow `0x30`, cyan
+  `0x60`); bit 0 is the horn. Example: `0x14 0x24` = STATUS green, LINK green, horn off. The software owns this
   register: read it, change your bits, write it back.
 
   Always write the latch to `0x00` **before** making GPA0 an output. openscore's `horn_cmd` runs
@@ -678,24 +682,36 @@ button on the page repeats it between sets.
 
 ### Status lights
 
-Two lights on the back panel, next to POWER and DATA. **POWER** is wired straight to the 5 V side,
-so it tells the truth even when the Pi is dead. **STATUS** is set by the software from the checks
-above: the most serious state wins (error, then warning, then match, then ready). The same legend
-goes on the back label, under the two lights.
+Three lights on the back panel, next to POWER and DATA, each answering one question:
+**POWER** (is there power?) is wired straight to the 5 V side, so it tells the truth even when the
+Pi is dead; **STATUS** (is the board healthy?) and **LINK** (what is it connected to?) are set by
+the software. On STATUS the most serious state wins (error, then warning, then ready). The same
+legends go on the back label, under the lights.
 
 | POWER | STATUS | What it means | What to do |
 |---|---|---|---|
 | off | off | **No power**: no charger, a dead charger or cable, a 5 V-only charger (phone brick, USB-A), or the input fuse | Plug in a USB-C PD charger of 18 W or more (65 W for full brightness) with a good cable |
 | **green** | off | **Power is on, the Pi has not started yet** (normal for the first 10 s) | Wait. Still off after 60 s: the Pi did not boot — swap in the spare SD card (inside the back panel) |
 | **green** | **yellow, blinking** | **Starting up**: system booting, LED driver starting, self-test running (about 30–60 s) | Wait; the front shows the self-test colours |
-| **green** | **green** | **Ready**, idle screen | Plug the tablet into DATA, or open the flap and use the screen |
-| **green** | **blue** | **Scorer connected** / match running | Nothing — all good |
+| **green** | **green** | **Ready** (idle or in a match) | Plug the tablet into DATA, or open the flap and use the screen |
 | **green** | **yellow** | **Warning, still usable**: weak charger (picture dimmed), box hot (≥ 45 °C, dimming), clock battery empty, a module drawing less than the others | Read the warning on the screen or the console Diagnostics page; fix it between sets |
 | **green** | **red, blinking** | **Error**: a module or fuse has no current, the LED driver stopped, undervoltage now, or too hot (60 °C, panel blanked) | Read the screen/console for which one; check the named fuse; use a stronger charger; let it cool; if unsure, unplug, wait 10 s, plug in again |
 | **green** | **green, slow blink** | **Shutting down** (power button pressed) | Wait until STATUS goes off, then unplug |
 
-Until the software drives the light (§10.7), STATUS stays **off** after boot: the MCP23017 powers up
-with every pin as an input, so the LED is dark — no light is better than a wrong one.
+**LINK** — connections. The board scores fully offline; LINK only says what it can reach.
+
+| LINK | What it means | What to do |
+|---|---|---|
+| off | **No connection**: no cable, no Wi-Fi | Nothing, unless you want live results |
+| **blue** | **Tablet or laptop on the DATA cable**, no internet | Fine for scoring; results are sent later |
+| **yellow, blinking** | **Connecting** to the hall Wi-Fi | Wait |
+| **yellow** | **Wi-Fi but no internet** (e.g. the hall login page is not passed) | Run the hall login from the console, or use another network |
+| **green** | **Online**: internet and the Point Hub server reachable, live results flowing | All good |
+| **cyan** (green + blue) | **Online, and a tablet on the cable** | All good |
+| **red, blinking** | **Live results failing**: online, but the server rejects or does not answer | Check the console; results are kept and sent when it works again |
+
+Until the software drives them (§10.7), STATUS and LINK stay **off** after boot: the MCP23017 powers up
+with every pin as an input, so the LEDs are dark — no light is better than a wrong one.
 
 ---
 
@@ -1003,8 +1019,8 @@ On the back panel:
   the sockets that actually arrive), gold and blue rings, dust caps;
 - the **horn hole**: the SFM-27 buzzer is screwed on from inside over it. The spec says Ø30; the
   kit's hole saw is **Ø32**: **check** that the buzzer's ears still cover the hole;
-- the **status lights**: two **Ø8** holes for the panel-mount LED holders, POWER left and STATUS
-  right, about 20 mm apart, beside the ports, plus an optional **Ø12** hole for the power button;
+- the **status lights**: three **Ø8** holes for the panel-mount LED holders, POWER, STATUS and LINK
+  from left to right, about 20 mm apart, beside the ports, plus an optional **Ø12** hole for the power button;
   the back label goes **under** them with the legend from §6 (shortened);
 - inside: the **fuse map, four spare fuses and a spare SD card**.
 
@@ -1363,7 +1379,7 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 | SHT40 derating 50 °C / blank 60 °C | appliance → budget | **must** — not written |
 | Module-number test screen (bring-up, swap card) | openscore | **must** — not written |
 | Diagnostics page + `/api/status` checks (§6) | appliance, console | **must** — not written |
-| Status light driver: STATUS colour from the diagnostics states, power-button shutdown blink (§6) | appliance | **must** — not written |
+| Status light driver: STATUS colour from the diagnostics states, LINK colour from cable/Wi-Fi/internet/live-results state, power-button shutdown blink (§6) | appliance | **must** — not written |
 | Power-on self-test: per-module current step with the 5 V INA226 (§6) | openscore + appliance | **must** — not written |
 | Horn: `horn_cmd` with the MCP23017 commands (§4.2) | settings, openscore | to set at bring-up |
 | Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | before the first glass run |
