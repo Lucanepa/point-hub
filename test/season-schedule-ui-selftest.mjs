@@ -1,6 +1,6 @@
 // Round 5 console work, asserted against web/index.html: the season's home games on the Link tab
 // (Today first, then Upcoming a day at a time, cancelled games greyed), the status line that says
-// how old the board's copy is, the "Prepare home games automatically" switch, and the mirror
+// how old the board's copy is, the "Suggest tonight's home game" switch, and the mirror
 // keeping a gap between the left name and its set digit.
 //
 // No browser here (the layout itself was checked in headless Chrome at 1180x820, 844x390 and
@@ -172,7 +172,7 @@ console.log('\n[4] preparing a game from another day')
 console.log('\n[5] the switch in Settings')
 {
   const fsx = index.slice(index.lastIndexOf('<fieldset>', index.indexOf('data-set="autoPrepare"')), index.indexOf('</fieldset>', index.indexOf('data-set="autoPrepare"')))
-  ok(/<span>Prepare home games automatically \(60 min before\)<\/span>/.test(fsx), 'the row reads "Prepare home games automatically (60 min before)"')
+  ok(/<span>Suggest tonight's home game \(60 min before\)<\/span>/.test(fsx), 'the row reads "Suggest tonight\'s home game (60 min before)"')
   ok(/<input type="checkbox" data-set="autoPrepare" checked>/.test(fsx), 'a checkbox, on by default')
   ok(/automatic game preparation are shared across all sports/.test(js), 'the per-sport note lists it as shared')
 }

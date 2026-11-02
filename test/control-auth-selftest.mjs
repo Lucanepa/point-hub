@@ -53,6 +53,8 @@ const ROUTES = {
   '/api/game': { guard: 'pin', body: { choice: 'clock' } },
   // Takes the hall from the pre-match clock to the scoreboard.
   '/api/prematch': { guard: 'pin', body: { action: 'start' } },
+  // "Not now" on tonight's suggested game: files it as dismissed for the evening.
+  '/api/suggestion': { guard: 'pin', body: { action: 'dismiss' } },
   // Writes three operator-supplied lines onto the scoreboard in the hall — the most public
   // surface this appliance has, so it is PIN-gated like any other paint.
   '/api/result': { guard: 'pin', body: { winner: 'X WINS', score: '3 - 0', history: '25-23' } },

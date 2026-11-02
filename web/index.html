@@ -264,6 +264,10 @@
   .prematch .pmready{font-size:17px;font-weight:800;line-height:1.2;overflow-wrap:anywhere}
   .prematch .pmsub{font-size:14px;font-weight:700;color:var(--gold)}
   .prematch .pmbtns{flex:1 1 260px;min-width:0;display:flex;gap:8px;justify-content:flex-end}
+  /* Tonight's game, suggested (autoPrepare.js): the same strip as the pre-match, buttons may wrap
+     (one per game when there are several). */
+  .suggest .pmbtns{flex-wrap:wrap}
+  .suggest .pmbtns button{white-space:normal;text-align:left}
   .prematch .pmbtns button{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:52px;padding:0 10px;
     font-size:15px;font-weight:800;line-height:1.15;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .prematch .pmbtns button.primary{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
@@ -1192,6 +1196,9 @@
     <button type="button" id="ubLogin" class="primary">Log in</button>
     <button type="button" id="ubClose" aria-label="Hide this notice">✕</button>
   </div>
+  <!-- Tonight's home game, suggested by the board an hour before (autoPrepare.js). Nothing goes on
+       the board until the scorer taps: "Set up" (or one of several games) / "Not now". -->
+  <div id="suggest" class="prematch suggest" hidden role="status" aria-live="polite"></div>
   <div id="prematch" class="prematch" hidden role="status" aria-live="polite">
     <div class="pmtext">
       <span class="pmready">Ready: <b id="pmTeams"></b> <span class="pmsub" id="pmSub">— board shows the clock</span></span>
@@ -1318,6 +1325,9 @@
 
     <!-- LINK -->
     <section id="tab-link" class="tab link">
+      <!-- The same suggestion as on the Game tab — in the tablet app the Game tab is native, so
+           this copy is the one it shows (the console brings the Link tab forward once for it). -->
+      <div id="suggestLink" class="prematch suggest" hidden role="status" aria-live="polite"></div>
       <!-- Today's KSCW home games, from the club's public schedule. One tap starts a game with both
            names already on the board — the thing a volunteer used to type, badly, with the teams
            warming up. Above the relay list because it is what most evenings actually need. -->
@@ -1519,12 +1529,14 @@
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /></svg> Schedule</legend>
-          <label class="row"><span>Prepare home games automatically (60 min before)</span>
+          <label class="row"><span>Suggest tonight's home game (60 min before)</span>
             <input type="checkbox" data-set="autoPrepare" checked></label>
-          <p class="hint">An hour before a home game on the club's schedule, the board puts both
-            names up at 0–0 and keeps showing the clock — the same as tapping the game on the Link
-            tab. It never touches a match that is being scored, and a game you dismissed stays
-            dismissed. Needs the board's clock, so it waits until the board has been online once.</p>
+          <p class="hint">An hour before a home game on the club's schedule, the console asks
+            whether to set it up: <b>Set up</b> puts both names up at 0–0 while the board keeps
+            showing the clock, the same as tapping the game on the Link tab. With two or more home
+            games that day it lists them and you pick yours. Nothing goes on the board without a
+            tap, a match being scored is never offered over, and <b>Not now</b> stays not now for
+            the evening. Needs the board's clock, so it waits until the board has been online once.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-landmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 18v-7" /> <path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z" /> <path d="M14 18v-7" /> <path d="M18 18v-7" /> <path d="M3 22h18" /> <path d="M6 18v-7" /></svg> Club</legend>
@@ -2515,6 +2527,7 @@
     $("#matchTag").textContent = st.matchId ? " · match " + st.matchId : "";
     lastState = st.state || lastState;
     renderPrematch(st);
+    renderSuggest(st);
     renderUplinkBrief(st.uplink);
     renderBoard(sides(st.state));
     renderSetStrip(st.state);
@@ -3894,14 +3907,16 @@
   // One tap → a new game with both names on the board, home on the left. Only red when there is
   // a real score to lose; on an empty board it is just "yes, this game". A game on another day is
   // "prepared" the same way — the names go up now and the board keeps the clock until warm-up.
-  async function startScheduled(g, btn) {
+  // opts.confirm === false: the tap already WAS the answer (the suggestion's "Set up"), so no second
+  // question — unless there is a score on the board to lose, which always asks.
+  async function startScheduled(g, btn, opts = {}) {
     const home = schedShort(g.homeShort, g.home), away = schedShort(g.awayShort, g.away);
     const live = hasScore(lastState);
     const later = !!(g.date && schedToday && g.date !== schedToday);
     const ask = later
       ? "Prepare " + home + " vs " + away + " (" + fmtSchedDate(g.date) + (g.time ? " " + g.time : "") + ")? The current score is cleared."
       : "Start " + home + " vs " + away + "? The current score is cleared.";
-    if (!await askConfirm(ask, { yes: later ? "Prepare game" : "Start game", danger: live })) return;
+    if ((opts.confirm !== false || live) && !await askConfirm(ask, { yes: later ? "Prepare game" : "Start game", danger: live })) return;
     if (btn) btn.disabled = true;
     try {
       // prematch: the names go in now, but the hall keeps the clock until the warm-up or "Start
@@ -4576,6 +4591,58 @@
   // (whose end, run out or skipped, puts the scoreboard up) or "Start match now". Scoring a point
   // starts it too. What does NOT start it: names, colours, serve and ends, which are setting up.
   const PREMATCH_ACTIONS = ["team", "serve", "serve-order", "serve-player", "swap", "undo"];
+  // --- tonight's game, suggested (autoPrepare.js) -------------------------------------------------
+  // The board proposes; the scorer decides. One game: "Tonight's game: HOME vs AWAY — Set up / Not
+  // now". Several the same day: one button per game, and Not now. Drawn on the Game tab and on top
+  // of the Link tab; in the tablet app the Game tab is native, so there the Link tab is brought
+  // forward once for each new suggestion.
+  let suggestSig = "";
+  function fillSuggest(box, list) {
+    box.textContent = "";
+    const text = document.createElement("div"); text.className = "pmtext";
+    const title = document.createElement("span"); title.className = "pmready";
+    const sub = document.createElement("span"); sub.className = "pmsub";
+    const label = (g) => schedShort(g.homeShort, g.home) + " vs " + schedShort(g.awayShort, g.away);
+    const when = (g) => [String(g.time || "").slice(0, 5), g.hall].filter(Boolean).join(" · ");
+    if (list.length === 1) {
+      title.append("Tonight's game: ");
+      const b = document.createElement("b"); b.textContent = label(list[0]); title.append(b);
+      sub.textContent = when(list[0]) + " — set it up? The board keeps the clock until the warm-up.";
+    } else {
+      title.textContent = "Which game is on this board?";
+      sub.textContent = list.length + " home games today — pick yours.";
+    }
+    text.append(title, sub);
+    const btns = document.createElement("div"); btns.className = "pmbtns";
+    for (const g of list) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "primary";
+      b.textContent = list.length === 1 ? "Set up" : label(g) + " · " + when(g);
+      b.addEventListener("click", () => startScheduled(g, b, { confirm: false }));
+      btns.append(b);
+    }
+    const no = document.createElement("button"); no.type = "button"; no.textContent = "Not now";
+    no.addEventListener("click", async () => {
+      no.disabled = true;
+      try { const r = await postJSON("/api/suggestion", { action: "dismiss" }); if (r) renderStatus(r); toast("Not now — tonight's games stay on the Link tab."); }
+      catch (e) { toast(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN first." : "Couldn't do that: " + ((e && e.message) || e)); }
+      finally { no.disabled = false; }
+    });
+    btns.append(no);
+    box.append(text, btns);
+  }
+  function renderSuggest(st) {
+    const list = st && Array.isArray(st.suggestion) ? st.suggestion : [];
+    const sig = list.map((g) => g.id).join(",");
+    for (const sel of ["#suggest", "#suggestLink"]) {
+      const box = $(sel); if (!box) continue;
+      box.hidden = !list.length;
+      if (list.length && box.dataset.sig !== sig) { box.dataset.sig = sig; fillSuggest(box, list); }
+      if (!list.length) box.dataset.sig = "";
+    }
+    if (EMBED && list.length && sig !== suggestSig) appCall("showTab", "link");
+    suggestSig = sig;
+  }
+
   let prematchOn = false;
   const warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";
   function renderPrematch(st) {
