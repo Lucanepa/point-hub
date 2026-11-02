@@ -60,8 +60,11 @@ GraphicsMagick-dev. The last line prints `ldd` — confirm only stock libs.
 The same script builds on an x86 Linux machine too (`WORK=/tmp/fb ./build.sh`): a compile
 check of `flushbuffer.cc` against the pinned library, not a binary for the board.
 `node test/flushbuffer-selftest.mjs` (part of `npm test`) goes further off the board: it builds
-`flushbuffer.cc` against a stand-in matrix and drives the control files and the governor.
-Neither can show the glass.
+`flushbuffer.cc` against a stand-in matrix and drives the control files and the governor — once
+for each backend (below). Neither can show the glass.
+
+`BACKEND=piomatter ./build.sh` builds the Raspberry Pi 5 driver instead:
+[Raspberry Pi 5: the Piomatter backend](#raspberry-pi-5-the-piomatter-backend).
 
 ## Licence: the binary is GPL-2.0-only
 
@@ -75,6 +78,11 @@ source has to go with it: the `rpi-rgb-led-matrix` tarball at the commit pinned 
 `stb_image.h` at its pinned commit, and `flushbuffer.cc` + `build.sh` from this directory. An SD
 image also carries the OS's own source obligations. The third-party list is in the repo's
 [`NOTICE`](../../NOTICE).
+
+The **Piomatter build** (`BACKEND=piomatter`) links no hzeller code, but Adafruit's Piomatter is
+GPL-2.0-only too (its README; the piolib copy inside it is marked GPL-2.0 as well), so that binary
+is GPL-2.0-only as well and the same rule applies: with a copy of the binary goes the Piomatter
+tarball at `PM_SHA`, `stb_image.h`, and `flushbuffer.cc` + `build.sh`.
 
 ## ⚠️ Testing — REQUIRES eyes on the physical panel
 
@@ -252,6 +260,137 @@ planes, the only lit ones there). Keep a result by editing `setting.ini` `[DISPL
 (copy the old file first), add `limit_refresh=<lock>` if wanted, and set any new brightness in the
 console (it owns `brightness=`). Absent `limit_refresh` = no limit, as today. With a lock at a
 multiple of 100 Hz, a 1/100 s or 1/50 s shutter also cancels the hall lights' flicker.
+
+## Raspberry Pi 5: the Piomatter backend
+
+**Status: written and compiled 02.11.2026, never run on a Pi 5 or on glass.** For the Point Hub
+board (design D: Pi 5 + Adafruit Triple LED Matrix Bonnet 6358, 3 HUB75 outputs × three P5 64×32
+1/16-scan modules, ICN2037BP + 74HC138). The Pi 5's GPIO sits behind the RP1 chip, so the
+C0270's way of driving the panel does not work there; this backend drives it through the RP1's PIO
+with Adafruit's [Piomatter](https://github.com/adafruit/Adafruit_Blinka_Raspberry_Pi5_Piomatter)
+(header-only C++ core, plus its copy of Raspberry Pi's piolib talking to `/dev/pio0`).
+
+Everything that is not the panel — `buffer.png`, the control directory (`brightness`, `power`,
+`driver`, `status`), the governor, signals, the log — is the same code for both backends; only
+`class Panel` in `flushbuffer.cc` differs, chosen at build time. The `driver` file now also says
+`backend=hzeller` or `backend=piomatter` (the bridge and the watchdog read only `pid=` and
+`start=`). The C0270 build is untouched: `./build.sh` with no `BACKEND` is the hzeller build as before.
+
+### Build
+
+```bash
+BACKEND=piomatter ./build.sh     # on the Pi 5 (Pi OS bookworm 64-bit; g++ 12 has C++20)
+# -> $WORK/Adafruit_Blinka_Raspberry_Pi5_Piomatter-<PM_SHA>/flushBuffer2, ldd: stock libs only
+```
+
+It fetches `stb_image.h` and the Piomatter tarball at `PM_SHA` (sha256-checked, like the hzeller
+one; a copy sits with the others in the research archive's `flushbuffer-sources/`), compiles
+Piomatter's piolib copy with `gcc` and `flushbuffer.cc` with `-std=c++20 -DFLUSHBUFFER_PIOMATTER`.
+No cmake, no Python, no pip. Upstream piolib (raspberrypi/utils) is not used: its header is not
+valid C++ (build.sh says where). `CC=… CXX=…` cross-compiles. Checked so far:
+
+- x86, Debian 13, g++ 14: builds clean against the real Piomatter headers; run without a Pi 5 it
+  stops with `* Failed to open PIO device 0` and exit 1, writing no `driver` file;
+- aarch64 cross build in a `debian:bookworm` container (g++ 12.2, Pi OS bookworm's compiler):
+  builds clean, needs only libstdc++/libm/libgcc_s/libc (GLIBC 2.34, GLIBCXX 3.4.30 — bookworm has both);
+- `test/flushbuffer-selftest.mjs`: the whole control-file and governor suite runs against a
+  stand-in `piomatter.h` too, plus the flag handling below.
+
+### Run
+
+`startled` needs no change: it passes `setting.ini`'s `--led-*` tuning, and the Piomatter build
+maps it (table). Geometry is compiled in for the Point Hub board — `--led-rows=32 --led-cols=64
+--led-chain=3 --led-parallel=3`, scan mode 0, `regular` pins — so the start script need not pass
+it (passing it does no harm). `setting.ini` for this board: `hardware_mapping=regular`,
+`multiplexing=0`; `pwm_bits` / `pwm_dither` as below; the slowdown and lsb keys are ignored.
+
+| flag | Piomatter build |
+|---|---|
+| `--led-rows/cols/chain/parallel` | the geometry. Rows 4–64 (power of 2), parallel 1–3 |
+| `--led-brightness` | start level, 1–100 (0 refused, as hzeller) |
+| `--led-pwm-bits=N` | `n_planes` = N, capped at 10 (Piomatter's maximum; hzeller has 11) |
+| `--led-pwm-dither-bits=D` | `n_temporal_planes` = D (0/1 = none). Same idea as hzeller's dither, not the same algorithm |
+| `--led-gpio-mapping` | `regular` (= Piomatter's `Active3`, identical pins) only; `applicon` etc. **refuse to start** |
+| `--led-rgb-sequence` | `RGB` or `BGR` (`Active3BGR`) |
+| `--led-multiplexing`, `--led-scan-mode`, `--led-row-addr-type` | 0 only; anything else **refuses to start** (Piomatter has no multiplexers) |
+| `--led-pixel-mapper` | **refuses to start** |
+| `--led-slowdown-gpio`, `--led-pwm-lsb-nanoseconds`, `--led-limit-refresh`, `--led-(no-)hardware-pulse`, `--led-panel-type` | no Piomatter equivalent: noted in the log and ignored. The pixel clock is fixed at 13.5 MHz and the plane timing follows from it |
+| `--led-show-refresh` | Piomatter's own refresh measurement, printed in hzeller's format |
+| `--led-no-drop-privs` | stays root; by default it drops to `daemon` after opening `/dev/pio0`, like hzeller |
+
+**Canvas.** 192×96, built with Piomatter's `simple_multilane_mapper`: output 1 = rows 0–31,
+output 2 = rows 32–63, output 3 = rows 64–95, x along each chain — the same canvas hzeller makes
+with `--led-parallel=3 --led-chain=3` ([BUILD.md §4.1](../../docs/diy-panel/BUILD.md)). The 192×64
+`buffer.png` lands on outputs 1+2; the bench rows stay black until openscore draws a taller
+picture. Both libraries clock x = 0 first, so which canvas slot is which physical module (and the
+bench rotation) should match hzeller's — still to be seen on glass.
+
+**Brightness.** Piomatter's brightness is a float 0–1 that shortens the OE time of every plane —
+linear in light — while hzeller's 1–100 goes through CIE1931 first. So level *b* is sent as
+hzeller's CIE1931 of *b* (40 → 11.3 % of full drive, as on the C0270): the same console level gives
+the same full-white output on both. It is set with each frame in `show()`, so no frame mixes two
+levels. 0 draws black (and sends brightness 0). Like hzeller at `pwm_bits=7`, levels 1–2 are
+dark, and low levels lose the shortest planes (Piomatter truncates each plane's on-time to whole
+pixel clocks).
+
+**Governor.** Unchanged logic; the duty table is built from Piomatter's own curve — its gamma 2.2
+lookup to 10 bits, and per bit the plane's `active_time × brightness` truncated exactly as its
+renderer does, summed over the temporal sequence — instead of hzeller's CIE1931 planes. The
+calibration recipe is the same, and it must be done on this board (the Pi 5 timing is different).
+Its estimate counts the bench rows as part of the canvas (192×96 pixels).
+
+**GPIO0/1 stay free for I²C0.** Piomatter's triple pinout is `active3_pinout` in
+`src/include/piomatter/pins.h` (lines 43–49 at `PM_SHA`): RGB 11, 27, 7, 8, 9, 10, 12, 5, 6, 19,
+13, 20, 14, 2, 3, 26, 16, 21; address 22, 23, 24, 25, 15; OE 18, CLK 17, LAT 4 — no 0 or 1. The
+state machine's OUT range does span GPIO0–27 (`sm_config_set_out_pins(&c, 0, 28)`, `piomatter.h`
+line 157), but only pins handed to the PIO by `pin_init_one` (lines 162–170) are driven by it, and
+the data words never set bits 0/1. With 1/16-scan modules only the first four address lines are
+handed over (line 169 loops over `n_addr_lines`), so the E line GPIO15 stays untouched too. Note
+that all 18 RGB pins are claimed even with fewer outputs, so GPIO2/3 (I²C1) and 14 (UART) are taken,
+as in BUILD.md §4.2.
+
+**Refresh.** Not measured. On paper it is bound by the RP1 DMA (Piomatter: ~27 MB/s with kernel
+6.12+): roughly 200–350 Hz for 192 pixels across, 16 rows, 7–10 planes. There is no
+`--led-limit-refresh`, so a camera-banding lock as on the C0270 is not available on this backend.
+
+**Also possible: hzeller on the Pi 5.** The hzeller commit pinned in `build.sh` already has
+experimental Pi 5 backends (its README: `--led-rp1-pio=0` RIO, the default, or `=1` PIO, the latter
+built on Piomatter's PIO program; "not officially supported as of 2025/11"). It keeps every hzeller
+flag, `--led-limit-refresh` included. Nobody has tried it here either; at the bench it is worth an
+A/B against this backend before choosing.
+
+### Bench checklist — Pi 5 + Triple Bonnet, eyes on the glass
+
+Nothing of this has been seen yet. In this order, one module first:
+
+1. Kernel 6.12 or later, `/dev/pio0` present (`ls -l /dev/pio0`), and the binary built on the Pi:
+   `ldd` stock only.
+2. One module on OUT 1, `--led-chain=1 --led-parallel=1 --led-brightness=20` on a test image: the
+   picture is right, not shifted, mirrored or with rows swapped (ICN2037 + 74HC138, 1/16 scan,
+   direct A–D addressing). Wrong colours → `--led-rgb-sequence=BGR`.
+3. All eight modules, the compiled-in geometry: front top = OUT 1, bottom = OUT 2, left to right,
+   and the bench modules on OUT 3 — which slot (x 0–63, 64–127, 128–191 of rows 64–95) is bench L,
+   bench R and the empty one, and their rotation (module-number screen, BUILD.md §10.4).
+4. `cat /run/ledbox-panel/driver`: `backend=piomatter`, pid/start of the running process; it runs
+   as `daemon` (`ps -o user= -C flushBuffer2`).
+5. Live brightness from the console: 40 → 70 → 0 → 40 within ~0.1 s, no gap, one process; 0 is
+   fully black (no faint glow); 40 looks like 40 on the C0270 (same share of drive).
+6. Low levels: 1–5 and grey ramps — how many levels go dark, any colour shift (shortest planes
+   dropping out).
+7. `--led-show-refresh` / `measure-refresh.sh`: the real rate, with Wi-Fi traffic and the console
+   running; phone camera at 1/100 s and 1/500 s for bands. Try `pwm_bits` 7 vs 10 and `pwm_dither`
+   0 vs 2 (more planes = deeper colour, lower rate).
+8. Flicker/tearing while `buffer.png` changes (scores updating), and CPU use (`top`).
+9. `systemctl stop`/SIGTERM and Ctrl-C: the panel goes black, the driver file goes away, no
+   module left lit; then start again (PIO state machine re-claimed after a clean and after a
+   `kill -9` exit).
+10. GPIO0/1 under load: `i2cdetect -y 0` (or the bus `i2cdetect -l` names for GPIO0/1 on the Pi 5)
+    still sees 0x20/0x28/0x44/0x68 with the panels running, and the horn switch works.
+11. Governor calibration on this board (meter on the 5 V feed, [above](#power-governor-diy-build)),
+    then a full-white soak under the budget.
+12. Boot: OE pull-up keeps the modules dark until the driver starts; the watchdog brings the
+    driver back after a `kill`.
+13. If anything above disappoints: the same checks with the hzeller build (`--led-rp1-pio=0/1`).
 
 ## On the board: rebuild and switch over
 
