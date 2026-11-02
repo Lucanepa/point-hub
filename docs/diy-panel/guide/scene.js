@@ -93,6 +93,52 @@ function drawTest(cols, rows) {
   return c;
 }
 
+function labelTex(text, w, h, color, font, track = 0) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.clearRect(0, 0, w, h); x.fillStyle = color; x.font = font; x.textBaseline = 'middle';
+  const widths = [...text].map(ch => x.measureText(ch).width);
+  const tw = widths.reduce((a, b) => a + b, 0) + track * (text.length - 1);
+  let px = (w - tw) / 2;
+  [...text].forEach((ch, i) => { x.fillText(ch, px, h / 2); px += widths[i] + track; });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+
+// The scorer's 10.1" control screen (1280 x 800), drawn at half size.
+function drawControl() {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 400;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0d1014'; x.fillRect(0, 0, 640, 400);
+  x.fillStyle = '#171b21'; x.fillRect(0, 0, 640, 46);
+  x.font = '600 20px "Instrument Sans", Arial, sans-serif'; x.fillStyle = '#c9ced6'; x.fillText('Set 3 · 18 : 16', 18, 30);
+  x.fillStyle = '#7d8590'; x.fillText('Point Hub', 520, 30);
+  const team = (x0, col, name, pts) => {
+    x.fillStyle = col; x.globalAlpha = 0.16; x.fillRect(x0, 62, 296, 250); x.globalAlpha = 1;
+    x.strokeStyle = col; x.lineWidth = 3; x.strokeRect(x0 + 1.5, 63.5, 293, 247);
+    x.fillStyle = col; x.font = '700 24px "Archivo Narrow", Arial, sans-serif'; center(x, name, x0 + 148, 96);
+    x.font = '700 150px "Archivo Narrow", Arial, sans-serif'; center(x, pts, x0 + 148, 250);
+    x.font = '600 26px "Instrument Sans", Arial, sans-serif'; x.fillStyle = '#e8ecf2'; center(x, '+1', x0 + 148, 296);
+  };
+  team(16, BLUE, 'WIEDIKON', '18'); team(328, ORANGE, 'VOLZ', '16');
+  for (const [i, l] of ['Timeout', 'Substitution', 'Undo', 'Menu'].entries()) {
+    x.fillStyle = '#1c2128'; x.fillRect(16 + i * 156, 330, 144, 52);
+    x.fillStyle = '#c9ced6'; x.font = '500 19px "Instrument Sans", Arial, sans-serif'; center(x, l, 88 + i * 156, 363);
+  }
+  return c;
+}
+
+const d2r = Math.PI / 180;
+// Design D geometry, in metres. Front is +z, the box spans x -W/2..W/2, y 0..H, z -D/2..D/2.
+const T = 0.006;                              // 6 mm poplar
+const AW = 1.004, AH = 0.366;                 // the tilting front frame A
+const HINGE_Y = H - T;                        // the piano hinge runs along the top front edge
+const K_LEN = 0.104;                          // bottom cap K, as on the cut list
+const PIVOT = { y: -0.356, z: -0.016 };       // stay pivot on A, in A's own frame (10 mm up, 10 mm behind)
+const PIN = { y: 0.018, z: D / 2 - 0.060 };   // M6 pin through each end wall, 60 mm behind the front
+const STAY_X = W / 2 - 0.020, STAY_LEN = 0.200;
+const POCKET = { w: 0.28, h: 0.205, cy: H / 2, depth: 0.025 };
+const HANDLE_X = 0.28, HANDLE_Z = D / 2 - 0.160;
+const RAIL_X = 0.311, RAIL_H = 0.015, LIP = 0.006, PAD = 0.003, LIFT = RAIL_H + LIP + PAD;
+
 async function main() {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
@@ -113,7 +159,7 @@ async function main() {
   camera.position.set(1.0, 0.55, 1.55);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 0.17, 0);
-  controls.enableDamping = true; controls.minDistance = 0.7; controls.maxDistance = 5;
+  controls.enableDamping = true; controls.minDistance = 0.6; controls.maxDistance = 5;
   controls.maxPolarAngle = Math.PI * 0.64;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   controls.autoRotate = !reduce; controls.autoRotateSpeed = 0.45;
@@ -133,91 +179,150 @@ async function main() {
   const mGloss = new THREE.MeshPhysicalMaterial({ color: 0x07080a, roughness: 0.16, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.25 });
   const mSmoke = new THREE.MeshPhysicalMaterial({ color: 0x0b0c0e, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.26, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.5, depthWrite: false });
   const mHw = new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.42, metalness: 0.45 });
+  const mHandle = new THREE.MeshStandardMaterial({ color: 0x0c0d0f, roughness: 0.62, metalness: 0, envMapIntensity: 0.5 });
+  const mAlu = new THREE.MeshStandardMaterial({ color: 0x9aa1a8, roughness: 0.35, metalness: 0.8 });
   const mDark = new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.6 });
+  const mInside = new THREE.MeshStandardMaterial({ color: 0x0a0b0c, roughness: 0.9, side: THREE.BackSide });
   const mRubber = new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.93 });
+  const mPad = new THREE.MeshPhysicalMaterial({ color: 0xd8dde2, roughness: 0.3, transparent: true, opacity: 0.55 });
+  const mBezel = new THREE.MeshStandardMaterial({ color: 0x030304, roughness: 0.25 });
 
   const board = new THREE.Group(); scene.add(board);
+  board.position.y = LIFT - 0.008;          // it stands on the foot rails' rubber pads; the floor is at -0.008
   const add = (geo, mat, x, y, z, parent = board) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+  const slab = (w, h, d, mat, x, y, z, parent = board) => add(new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * 0.3), mat, x, y, z, parent);
 
-  // A face plate: a rounded rectangle with a window, a hair proud of the body, edges eased.
-  function plateGeo(w, h, y0, hx0, hy0, hx1, hy1, r) {
-    const s = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y1 = y0 + h;
-    s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r); s.lineTo(x1, y1 - r);
-    s.quadraticCurveTo(x1, y1, x1 - r, y1); s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r);
-    s.quadraticCurveTo(x0, y0, x0 + r, y0);
-    const hole = new THREE.Path(); hole.moveTo(hx0, hy0); hole.lineTo(hx0, hy1); hole.lineTo(hx1, hy1); hole.lineTo(hx1, hy0); hole.lineTo(hx0, hy0);
-    s.holes.push(hole);
-    return new THREE.ExtrudeGeometry(s, { depth: 0.0012, bevelEnabled: true, bevelThickness: 0.0007, bevelSize: 0.0007, bevelSegments: 2, curveSegments: 6 });
+  // A panel with rectangular openings, in its own x/y plane, extruded `depth` toward +z from z = 0.
+  function panelGeo(x0, y0, x1, y1, holes, depth = T, bevel = 0.0008) {
+    const s = new THREE.Shape(); s.moveTo(x0, y0); s.lineTo(x1, y0); s.lineTo(x1, y1); s.lineTo(x0, y1); s.lineTo(x0, y0);
+    for (const [hx0, hy0, hx1, hy1] of holes) { const h = new THREE.Path(); h.moveTo(hx0, hy0); h.lineTo(hx0, hy1); h.lineTo(hx1, hy1); h.lineTo(hx1, hy0); h.lineTo(hx0, hy0); s.holes.push(h); }
+    return new THREE.ExtrudeGeometry(s, { depth: depth - 2 * bevel, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 4 }).translate(0, 0, bevel);
   }
-  const RC = 0.006;                      // the sanded edge radius
-  add(new RoundedBoxGeometry(W, H, D, 5, RC), mBody, 0, H / 2, 0);
-  const front = plateGeo(W - 2 * RC + 0.002, H - 2 * RC + 0.002, RC - 0.001, -0.48, 0.03, 0.48, 0.35, 0.002);
-  add(front, mGloss, 0, 0, D / 2 - 0.0004);
-  const endGeo = plateGeo(D - 2 * RC + 0.002, H - 2 * RC + 0.002, RC - 0.001, -0.08, 0.03, 0.08, 0.35, 0.002);
-  const eL = add(endGeo, mGloss, -W / 2 + 0.0004, 0, 0); eL.rotation.y = -Math.PI / 2;
-  const eR = add(endGeo, mGloss, W / 2 - 0.0004, 0, 0); eR.rotation.y = Math.PI / 2;
 
-  // LED faces, set just behind the smoked sheet
+  // ---- fixed shell: bottom C2, top C1, ends D (bench windows), back B (flap opening) ----
+  const CD = 0.214, CZ = D / 2 - CD / 2;
+  slab(W, T, CD, mBody, 0, T / 2, CZ);
+  slab(W, T, CD, mBody, 0, H - T / 2, CZ);
+  for (const s of [-1, 1]) {
+    // end panel D: 214 deep x 368 high, window 160 x 320 (27 mm front and back, 24 mm top and bottom)
+    const g = panelGeo(-CD / 2, 0, CD / 2, H - 2 * T, [[-0.08, 0.024, 0.08, 0.344]], T);
+    // rotated a quarter turn, the 6 mm extrusion runs outward from x; the window faces the bench
+    const e = add(g, mGloss, s < 0 ? -W / 2 + T : W / 2 - T, T, CZ);
+    e.rotation.y = s * Math.PI / 2;
+  }
+  // back panel B: 1020 x 380, centred flap opening 280 x 205
+  const back = add(panelGeo(-W / 2, 0, W / 2, H, [[-POCKET.w / 2, POCKET.cy - POCKET.h / 2, POCKET.w / 2, POCKET.cy + POCKET.h / 2]], T), mBody, 0, 0, -D / 2);
+  // dark inside, seen through the gaps the tilting front opens
+  const inner = add(new THREE.BoxGeometry(W - 2 * T - 0.002, H - 2 * T - 0.002, CD - 0.002), mInside, 0, H / 2, CZ - 0.001);
+  inner.castShadow = false;
+
+  // bench screens behind the end windows
   const ledMat = () => { const m = new THREE.MeshBasicMaterial({ toneMapped: false }); m.color.setScalar(0.9); return m; };
-  const screen = add(new THREE.PlaneGeometry(0.96, 0.32), ledMat(), 0, 0.19, D / 2 + 0.0002); screen.castShadow = false;
-  add(new THREE.PlaneGeometry(0.96, 0.32), mSmoke, 0, 0.19, D / 2 + 0.0007).castShadow = false;
-  const benchL = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), -W / 2 - 0.0002, 0.19, 0); benchL.rotation.y = -Math.PI / 2; benchL.castShadow = false;
-  const benchR = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), W / 2 + 0.0002, 0.19, 0); benchR.rotation.y = Math.PI / 2; benchR.castShadow = false;
-  const pcL = add(new THREE.PlaneGeometry(0.16, 0.32), mSmoke, -W / 2 - 0.0007, 0.19, 0); pcL.rotation.y = -Math.PI / 2; pcL.castShadow = false;
-  const pcR = add(new THREE.PlaneGeometry(0.16, 0.32), mSmoke, W / 2 + 0.0007, 0.19, 0); pcR.rotation.y = Math.PI / 2; pcR.castShadow = false;
+  const BZ = CZ;
+  const benchL = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), -W / 2 + 0.0035, 0.19, BZ); benchL.rotation.y = -Math.PI / 2; benchL.castShadow = false;
+  const benchR = add(new THREE.PlaneGeometry(0.16, 0.32), ledMat(), W / 2 - 0.0035, 0.19, BZ); benchR.rotation.y = Math.PI / 2; benchR.castShadow = false;
+  const pcL = add(new THREE.PlaneGeometry(0.16, 0.32), mSmoke, -W / 2 + 0.002, 0.19, BZ); pcL.rotation.y = -Math.PI / 2; pcL.castShadow = false;
+  const pcR = add(new THREE.PlaneGeometry(0.16, 0.32), mSmoke, W / 2 - 0.002, 0.19, BZ); pcR.rotation.y = Math.PI / 2; pcR.castShadow = false;
 
-  // black rubber caps on the four front corners
-  const cap = new RoundedBoxGeometry(0.022, 0.022, 0.022, 3, 0.007);
-  for (const sx of [-1, 1]) for (const sy of [0, 1]) add(cap, mRubber, sx * (W / 2 - 0.0095), sy ? H - 0.0095 : 0.0095, D / 2 - 0.0095);
-  // black bow handles on top
-  for (const hx of [-0.3, 0.3]) {
-    const h = add(new THREE.TorusGeometry(0.064, 0.0065, 14, 48, Math.PI), mHw, hx, H + 0.003, 0); h.scale.y = 0.5;
-    for (const bx of [-0.064, 0.064]) add(new THREE.CylinderGeometry(0.009, 0.009, 0.006, 20), mHw, hx + bx, H + 0.003, 0);
-  }
-  // fold-out tilt legs: two 40 × 50 mm plywood legs hinged under the front edge (shown when tilted)
-  // The box leans back on its back feet; the legs, hinged 35 mm in from the front edge, are just long
-  // enough to hold the front up at 15°.
-  const TILT = -15 * Math.PI / 180, PIV = new THREE.Vector3(0, -0.008, -0.08), ZH = D / 2 - 0.035;
-  const LEG = -PIV.y - (ZH - PIV.z) * Math.tan(TILT);
-  const legs = new THREE.Group(); board.add(legs); legs.visible = false;
-  for (const lx of [-0.3, 0.3]) {
-    add(new RoundedBoxGeometry(0.04, LEG, 0.006, 2, 0.0025), mBody, lx, -LEG / 2, ZH, legs);
-    add(new THREE.CylinderGeometry(0.003, 0.003, 0.04, 12), mHw, lx, -0.0015, ZH, legs).rotation.z = Math.PI / 2;
-    add(new RoundedBoxGeometry(0.04, 0.004, 0.008, 2, 0.0018), mRubber, lx, -LEG, ZH, legs);
-  }
-  function setTilt(on) {
-    const a = on ? TILT : 0, c = Math.cos(a), si = Math.sin(a);
-    board.rotation.x = a; legs.visible = on;
-    board.position.set(0, PIV.y - (PIV.y * c - PIV.z * si), PIV.z - (PIV.y * si + PIV.z * c));
-  }
-  // feet
-  for (const fx of [-0.45, 0.45]) for (const fz of [-0.08, 0.08]) add(new THREE.CylinderGeometry(0.012, 0.014, 0.008, 24), mRubber, fx, -0.004, fz);
+  // black rubber caps on the four front corners of the fixed box (they cover the ends' edge, not the front frame)
+  const cap = new RoundedBoxGeometry(0.012, 0.022, 0.022, 3, 0.005);
+  for (const sx of [-1, 1]) for (const sy of [0, 1]) add(cap, mRubber, sx * (W / 2 - 0.004), sy ? H - 0.0095 : 0.0095, D / 2 - 0.0095);
 
-  function labelTex(text, w, h, color, font, track = 0) {
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const x = c.getContext('2d'); x.clearRect(0, 0, w, h); x.fillStyle = color; x.font = font; x.textBaseline = 'middle';
-    const widths = [...text].map(ch => x.measureText(ch).width);
-    const tw = widths.reduce((a, b) => a + b, 0) + track * (text.length - 1);
-    let px = (w - tw) / 2;
-    [...text].forEach((ch, i) => { x.fillText(ch, px, h / 2); px += widths[i] + track; });
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  // ---- the tilting front: A + smoked sheet + six modules + steel bars, hung from the piano hinge ----
+  const front = new THREE.Group(); front.position.set(0, HINGE_Y, D / 2); board.add(front);
+  const frameA = add(panelGeo(-AW / 2, -AH - 0.001, AW / 2, -0.001, [[-0.48, -AH - 0.001 + 0.023, 0.48, -0.001 - 0.023]], T, 0.0012), mGloss, 0, 0, -T, front);
+  const screen = add(new THREE.PlaneGeometry(0.96, 0.32), ledMat(), 0, -0.001 - AH / 2, -T - 0.0035, front); screen.castShadow = false;
+  add(new THREE.PlaneGeometry(0.96, 0.32), mSmoke, 0, -0.001 - AH / 2, -0.0012, front).castShadow = false;
+  add(new THREE.BoxGeometry(0.96, 0.32, 0.016), mDark, 0, -0.001 - AH / 2, -T - 0.0035 - 0.0085, front);
+  for (const bx of [-0.32, 0, 0.32]) add(new THREE.BoxGeometry(0.02, 0.36, 0.004), mHw, bx, -0.001 - AH / 2, -0.033, front);
+  add(new THREE.CylinderGeometry(0.0022, 0.0022, 1.0, 12), mHw, 0, 0.0005, -T - 0.001, front).rotation.z = Math.PI / 2;   // piano hinge knuckle
+  // two triangular cheeks, just inboard of the bench screens: at 20 deg their back edge reaches the box's front plane
+  {
+    const A = 20 * d2r, y1 = -0.001 - AH;
+    const sh = new THREE.Shape(); sh.moveTo(-T, -0.001); sh.lineTo(-T, y1); sh.lineTo(-T - AH * Math.sin(A), -0.001 - AH * Math.cos(A)); sh.lineTo(-T, -0.001);
+    const cg = new THREE.ExtrudeGeometry(sh, { depth: T, bevelEnabled: false });
+    for (const s of [-1, 1]) { const ch = add(cg, mBody, s * (W / 2 - 0.023) - T / 2, 0, 0, front); ch.rotation.y = -Math.PI / 2; ch.position.x = s * (W / 2 - 0.026) + T / 2; }
+    // stay pivot blocks on A's back, bottom corners
+    for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.011, 0.02, 0.02), mBody, s * (W / 2 - 0.0135), PIVOT.y, PIVOT.z, front);
   }
-  // the wordmark on the front border
-  const mark = add(new THREE.PlaneGeometry(0.12, 0.012), new THREE.MeshBasicMaterial({ map: labelTex('POINT HUB', 1024, 104, '#7b8188', '600 64px "Instrument Sans", Arial, sans-serif', 26), transparent: true }), 0.405, 0.0155, D / 2 + 0.0024);
-  mark.castShadow = false;
+  const lettering = add(new THREE.PlaneGeometry(0.12, 0.012), new THREE.MeshBasicMaterial({ map: labelTex('POINT HUB', 1024, 104, '#7b8188', '600 64px "Instrument Sans", Arial, sans-serif', 26), transparent: true }), 0.405, -AH + 0.0105, 0.0004, front);
+  lettering.castShadow = false;
 
-  // back panel (screwed on, the way in): two USB-C ports, horn plug, vents, six T20 screws
-  const back = -D / 2;
+  // bottom cap K: hangs from A's bottom inside edge, its back edge slides on the floor
+  const capK = add(new THREE.BoxGeometry(AW - 0.04, T, K_LEN), mBody, 0, 0, 0);
+  // ratchet stays (aluminium 25 x 4) and the M6 pins through the end walls
+  const stays = [-1, 1].map(s => add(new THREE.BoxGeometry(0.004, 0.025, STAY_LEN), mAlu, s * STAY_X, 0, 0));
+  for (const s of [-1, 1]) {
+    add(new THREE.CylinderGeometry(0.003, 0.003, 0.03, 12), mHw, s * (W / 2 - 0.013), PIN.y, PIN.z).rotation.z = Math.PI / 2;
+    add(new THREE.CylinderGeometry(0.0055, 0.0055, 0.004, 6), mHw, s * (W / 2 + 0.002), PIN.y, PIN.z).rotation.z = Math.PI / 2;
+  }
+  const local2world = (p, a) => ({ y: HINGE_Y + p.y * Math.cos(a) - p.z * Math.sin(a), z: D / 2 + p.y * Math.sin(a) + p.z * Math.cos(a) });
+  let tiltDeg = 0;
+  function setFront(deg) {
+    tiltDeg = deg;
+    const a = -deg * d2r;                   // negative: the bottom swings out toward the referee
+    front.rotation.x = a;
+    // K
+    const P = local2world({ y: -0.001 - AH, z: -T }, a), floorY = T + T / 2;
+    const dy = P.y - floorY, reach = Math.sqrt(Math.max(0, K_LEN * K_LEN - dy * dy));
+    let ang;
+    if (P.z - reach <= D / 2) ang = Math.atan2(dy, reach);              // back edge lands on the floor
+    else ang = Math.atan2(P.y - T, P.z - D / 2);                           // too short: it points at the front edge and hangs short
+    capK.rotation.x = -ang;
+    capK.position.set(0, P.y - Math.sin(ang) * K_LEN / 2, P.z - Math.cos(ang) * K_LEN / 2);
+    // stays: from the pivot on A to the pin, 12 mm of strip ahead of the pivot
+    const Q = local2world(PIVOT, a), vy = PIN.y - Q.y, vz = PIN.z - Q.z, L = Math.hypot(vy, vz), uy = vy / L, uz = vz / L;
+    for (const st of stays) {
+      st.position.y = Q.y + uy * (STAY_LEN / 2 - 0.012); st.position.z = Q.z + uz * (STAY_LEN / 2 - 0.012);
+      st.rotation.x = Math.atan2(-uy, uz);
+    }
+    return P.z - reach > D / 2;
+  }
+
+  // ---- the scorer's flap: a 10.1" touch screen in a 25 mm pocket in the back, hinged at its top ----
+  const PZ = -D / 2;
+  const recess = add(new THREE.PlaneGeometry(POCKET.w, POCKET.h), mDark, 0, POCKET.cy, PZ + T + POCKET.depth); recess.rotation.y = Math.PI; recess.castShadow = false;
+  for (const [w, h, x, y] of [[POCKET.w + 0.012, T, 0, POCKET.cy + POCKET.h / 2 + T / 2], [POCKET.w + 0.012, T, 0, POCKET.cy - POCKET.h / 2 - T / 2], [T, POCKET.h, -POCKET.w / 2 - T / 2, POCKET.cy], [T, POCKET.h, POCKET.w / 2 + T / 2, POCKET.cy]])
+    add(new THREE.BoxGeometry(w, h, POCKET.depth), mBody, x, y, PZ + T + POCKET.depth / 2);
+  const flapPivot = new THREE.Group(); flapPivot.position.set(0, POCKET.cy + 0.0925, PZ + 0.016); board.add(flapPivot);
+  add(new THREE.BoxGeometry(0.26, 0.18, 0.012), mBody, 0, -0.09, 0, flapPivot);
+  add(new THREE.PlaneGeometry(0.236, 0.146), mBezel, 0, -0.092, -0.0062, flapPivot).rotation.y = Math.PI;
+  const ctrl = add(new THREE.PlaneGeometry(0.217, 0.136), new THREE.MeshBasicMaterial({ toneMapped: false }), 0, -0.092, -0.0065, flapPivot);
+  ctrl.rotation.y = Math.PI; ctrl.castShadow = false;
+  for (const hx of [-0.1, 0.1]) add(new THREE.BoxGeometry(0.03, 0.01, 0.004), mHw, hx, 0.002, 0.008, flapPivot);
+  function setFlap(open) { flapPivot.rotation.x = open ? 45 * d2r : 0; }   // 45 deg from flat when open
+
+  // back panel: POWER and DATA low on the left (seen from behind), horn hole, vents, six T20 screws
   for (const p of [{ x: 0.39, c: 0xe0a800, t: 'POWER' }, { x: 0.45, c: 0x3b74ff, t: 'DATA' }]) {
-    const slot = add(new RoundedBoxGeometry(0.0135, 0.0062, 0.004, 2, 0.0028), mDark, p.x, 0.045, back - 0.0004); slot.castShadow = false;
-    const ring = add(new THREE.TorusGeometry(0.0105, 0.0014, 10, 36), new THREE.MeshStandardMaterial({ color: p.c, roughness: 0.4, emissive: p.c, emissiveIntensity: 0.18 }), p.x, 0.045, back - 0.001);
+    const slot = add(new RoundedBoxGeometry(0.0135, 0.0062, 0.004, 2, 0.0028), mDark, p.x, 0.045, PZ - 0.0004); slot.castShadow = false;
+    const ring = add(new THREE.TorusGeometry(0.0105, 0.0014, 10, 36), new THREE.MeshStandardMaterial({ color: p.c, roughness: 0.4, emissive: p.c, emissiveIntensity: 0.18 }), p.x, 0.045, PZ - 0.001);
     ring.castShadow = false;
-    const lab = add(new THREE.PlaneGeometry(0.05, 0.01), new THREE.MeshBasicMaterial({ map: labelTex(p.t, 400, 80, '#9aa0a7', '600 44px "Instrument Sans", Arial, sans-serif', 8), transparent: true }), p.x, 0.068, back - 0.0005);
+    const lab = add(new THREE.PlaneGeometry(0.05, 0.01), new THREE.MeshBasicMaterial({ map: labelTex(p.t, 400, 80, '#9aa0a7', '600 44px "Instrument Sans", Arial, sans-serif', 8), transparent: true }), p.x, 0.068, PZ - 0.0005);
     lab.rotation.y = Math.PI; lab.castShadow = false;
   }
-  add(new THREE.CylinderGeometry(0.017, 0.017, 0.004, 32), mRubber, -0.38, 0.31, back - 0.0015).rotation.x = Math.PI / 2;
-  for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.345, back - 0.0004).castShadow = false;
-  for (const x of [-0.496, 0, 0.496]) for (const y of [0.014, H - 0.014]) add(new THREE.CylinderGeometry(0.0042, 0.0042, 0.0015, 20), mHw, x, y, back - 0.0006).rotation.x = Math.PI / 2;
+  add(new THREE.CylinderGeometry(0.016, 0.016, 0.002, 32), mDark, -0.38, 0.31, PZ - 0.001).rotation.x = Math.PI / 2;
+  for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.349, PZ - 0.0004).castShadow = false;
+  for (const x of [-0.496, 0, 0.496]) for (const y of [0.014, H - 0.014]) add(new THREE.CylinderGeometry(0.0042, 0.0042, 0.0015, 20), mHw, x, y, PZ - 0.0006).rotation.x = Math.PI / 2;
+
+  // two K16 recessed spring handles in the top, near the back edge
+  for (const hx of [-HANDLE_X, HANDLE_X]) {
+    add(new RoundedBoxGeometry(0.155, 0.0016, 0.0833, 2, 0.0007), mHandle, hx, H + 0.0006, HANDLE_Z);
+    add(new THREE.BoxGeometry(0.129, 0.0006, 0.052), mDark, hx, H + 0.0015, HANDLE_Z).castShadow = false;
+    add(new RoundedBoxGeometry(0.112, 0.003, 0.014, 2, 0.0012), mRubber, hx, H + 0.0016, HANDLE_Z + 0.012);
+    for (const [dx, dz] of [[-0.0705, -0.031], [0, -0.031], [0.0705, -0.031], [-0.0705, 0.031], [0, 0.031], [0.0705, 0.031]])
+      add(new THREE.CylinderGeometry(0.0035, 0.0035, 0.001, 14), mHw, hx + dx, H + 0.0018, HANDLE_Z + dz);
+  }
+
+  // pull-out rear foot T between two rails under the bottom; clear rubber pads
+  for (const s of [-1, 1]) {
+    add(new THREE.BoxGeometry(0.02, RAIL_H, 0.204), mBody, s * RAIL_X, -RAIL_H / 2, CZ - 0.003);
+    add(new THREE.BoxGeometry(0.035, LIP, 0.204), mBody, s * (RAIL_X - 0.0075), -RAIL_H - LIP / 2, CZ - 0.003);
+    for (const pz of [CZ - 0.003 + 0.08, CZ - 0.003 - 0.08]) add(new THREE.BoxGeometry(0.02, PAD, 0.02), mPad, s * (RAIL_X - 0.0075), -RAIL_H - LIP - PAD / 2, pz);
+  }
+  const foot = new THREE.Group(); board.add(foot);
+  add(new THREE.BoxGeometry(0.6, T, 0.15), mBody, 0, -RAIL_H + T / 2 - 0.0005, -D / 2 + 0.075, foot);
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.02, PAD, 0.02), mPad, s * 0.25, -RAIL_H - PAD / 2 + 0.0055 - T, -D / 2 + 0.02, foot);
+  function setFoot(out) { foot.position.z = out ? -0.12 : 0; }
 
   // mounts
   const mounts = {};
@@ -239,9 +344,10 @@ async function main() {
     for (const lx of [-0.69, 0.69]) for (const lz of [-0.26, 0.34]) add(new THREE.BoxGeometry(0.045, 0.74, 0.045), mStand, lx, -0.42, lz, g);
     floor(-0.79, g);
   }
+  const BOT = LIFT - 0.008;   // underside of the box
   {
     const g = new THREE.Group(); scene.add(g); mounts.speaker = g;
-    rod(new THREE.Vector3(0, -0.62, 0), new THREE.Vector3(0, 0, 0), 0.0175, mStand, g);
+    rod(new THREE.Vector3(0, -0.62, 0), new THREE.Vector3(0, BOT + 0.004, 0), 0.0175, mStand, g);
     rod(new THREE.Vector3(0, -1.24, 0), new THREE.Vector3(0, -0.6, 0), 0.0225, mStand, g);
     for (let i = 0; i < 3; i++) {
       const a = i * Math.PI * 2 / 3 + 0.5;
@@ -251,13 +357,13 @@ async function main() {
   }
   {
     const g = new THREE.Group(); scene.add(g); mounts.tripod = g;
-    add(new THREE.BoxGeometry(0.07, 0.03, 0.07), mStand, 0, -0.015, 0, g);
-    add(new THREE.SphereGeometry(0.022, 20, 14), mStand, 0, -0.045, 0, g);
-    rod(new THREE.Vector3(0, -0.3, 0), new THREE.Vector3(0, -0.06, 0), 0.012, mStand, g);
+    add(new THREE.BoxGeometry(0.07, 0.03, 0.07), mStand, 0.1, BOT - 0.015, 0, g);
+    add(new THREE.SphereGeometry(0.022, 20, 14), mStand, 0.1, BOT - 0.045, 0, g);
+    rod(new THREE.Vector3(0.1, -0.3, 0), new THREE.Vector3(0.1, BOT - 0.06, 0), 0.012, mStand, g);
     for (let i = 0; i < 3; i++) {
       const a = i * Math.PI * 2 / 3 + 0.3;
-      rod(new THREE.Vector3(Math.cos(a) * 0.03, -0.29, Math.sin(a) * 0.03), new THREE.Vector3(Math.cos(a) * 0.32, -0.8, Math.sin(a) * 0.32), 0.013, mStand, g);
-      rod(new THREE.Vector3(Math.cos(a) * 0.32, -0.8, Math.sin(a) * 0.32), new THREE.Vector3(Math.cos(a) * 0.55, -1.3, Math.sin(a) * 0.55), 0.009, mStand, g);
+      rod(new THREE.Vector3(0.1 + Math.cos(a) * 0.03, -0.29, Math.sin(a) * 0.03), new THREE.Vector3(0.1 + Math.cos(a) * 0.32, -0.8, Math.sin(a) * 0.32), 0.013, mStand, g);
+      rod(new THREE.Vector3(0.1 + Math.cos(a) * 0.32, -0.8, Math.sin(a) * 0.32), new THREE.Vector3(0.1 + Math.cos(a) * 0.55, -1.3, Math.sin(a) * 0.55), 0.009, mStand, g);
     }
     floor(-1.3, g);
   }
@@ -265,6 +371,7 @@ async function main() {
   // screens
   const aniso = renderer.capabilities.getMaxAnisotropy();
   const tex = (canvas) => { const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso; t.minFilter = THREE.LinearMipmapLinearFilter; return t; };
+  ctrl.material.map = tex(drawControl()); ctrl.material.needsUpdate = true;
   const screens = {
     match: async () => [drawMatch(), drawBench('L'), drawBench('R')],
     idle: async () => { const f = await drawIdle(); const b = await drawIdleBench(); return [f, b, b]; },
@@ -278,25 +385,28 @@ async function main() {
       mesh.material.map = tex(c); mesh.material.needsUpdate = true;
     }
   }
-  function setMount(name) {
-    const m = name === 'tilt' ? 'table' : name;
-    for (const k in mounts) mounts[k].visible = k === m;
-    setTilt(name === 'tilt');
-  }
+  function setMount(name) { for (const k in mounts) mounts[k].visible = k === name; }
 
   const views = {
-    front: [0, 0.2, 1.8], bench: [-1.5, 0.3, 0.62], tilt: [1.75, 0.16, 0.85], back: [0.95, 0.5, -1.55], three: [1.0, 0.55, 1.55], low: [1.1, -0.28, 1.95],
+    front: [0, 0.2, 1.8], bench: [-1.5, 0.3, 0.62], side: [-1.55, 0.32, 0.95], back: [-0.55, 1.05, -1.6], three: [1.0, 0.55, 1.55], low: [1.1, -0.28, 1.95],
   };
   function setView(name) { goal = new THREE.Vector3(...views[name]); controls.autoRotate = false; }
 
-  await setScreen('match'); setMount('studio');
+  await setScreen('match'); setMount('studio'); setFront(0); setFlap(false); setFoot(false);
 
+  const say = (t) => { if (statusEl) statusEl.textContent = t; };
+  const hint = 'Drag to turn · scroll or pinch to zoom';
   document.querySelectorAll('[data-screen]').forEach(b => b.addEventListener('click', () => { setScreen(b.dataset.screen); press(b); }));
   document.querySelectorAll('[data-mount]').forEach(b => b.addEventListener('click', () => {
     setMount(b.dataset.mount); press(b);
-    if (b.dataset.mount === 'speaker' || b.dataset.mount === 'tripod') setView('low');
-    if (b.dataset.mount === 'tilt') setView('tilt');
+    if (b.dataset.mount === 'speaker' || b.dataset.mount === 'tripod') { setView('low'); setFoot(false); document.querySelectorAll('[data-foot]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.foot === 'in'))); }
   }));
+  document.querySelectorAll('[data-tilt]').forEach(b => b.addEventListener('click', () => {
+    const short = setFront(+b.dataset.tilt); press(b); setView('side');
+    say(short ? 'At 20° a 104 mm cap K falls short of the floor: see step 05.' : hint);
+  }));
+  document.querySelectorAll('[data-flap]').forEach(b => b.addEventListener('click', () => { setFlap(b.dataset.flap === 'open'); press(b); setView('back'); }));
+  document.querySelectorAll('[data-foot]').forEach(b => b.addEventListener('click', () => { setFoot(b.dataset.foot === 'out'); press(b); setView('side'); }));
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { setView(b.dataset.view); press(b); }));
   function press(b) { b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }
 
@@ -311,7 +421,8 @@ async function main() {
   let visible = true;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(host);
   poster.hidden = true; host.hidden = false; resize();
-  if (statusEl) statusEl.textContent = 'Drag to turn · scroll or pinch to zoom';
+  say(hint);
+  window.__pointhub3d = { setFront, setFlap, setFoot, setView, ready: true };
   renderer.setAnimationLoop(() => {
     if (!visible) return;
     if (goal) {
