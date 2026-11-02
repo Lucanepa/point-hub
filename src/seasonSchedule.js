@@ -336,24 +336,35 @@ export class SeasonSchedule {
     return this.gamesFor(sport).find((g) => g.number === n && !g.cancelled && g.date >= from && g.date <= to) || null
   }
 
+  // The date the lists call "today". The board's own while its clock can be believed; until then the
+  // console's, when it sent a sane one (YYYY-MM-DD, within a year of ours). The tablet keeps real
+  // time; an untrusted board may be replaying its last shutdown — on 02.11.2026 it listed
+  // Wednesday's games on a Monday, and tonight's game sat under "upcoming" as a date to prepare.
+  dateFor(hint) {
+    const own = zurichDate(new Date(this.now()))
+    if (this.trusted() || typeof hint !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(hint)) return own
+    const days = Math.abs(Date.parse(`${hint}T12:00:00Z`) - Date.parse(`${own}T12:00:00Z`)) / 86_400_000
+    return Number.isFinite(days) && days <= 366 ? hint : own
+  }
+
   // GET /api/schedule — today's playable games in the shape the console has always had.
-  async today({ sport = 'volleyball', refresh = false } = {}) {
+  async today({ sport = 'volleyball', refresh = false, hint = null } = {}) {
     await this._ensure({ refresh })
-    const date = zurichDate(new Date(this.now()))
+    const date = this.dateFor(hint)
     if (this.games === null) return { ok: false, date, sport, error: this._lastError ? `${this._lastError} Type the team names instead.` : NO_CACHE, games: [] }
     const games = this.gamesFor(sport).filter((g) => g.date === date && !g.cancelled).map((g) => pick(g, TODAY_FIELDS))
     return { ok: true, date, sport, games, fetchedAt: this.fetchedAt(), stale: this.stale() }
   }
 
   // GET /api/schedule?range=season — today, then the rest of the season grouped by date.
-  async season({ sport = 'volleyball', refresh = false } = {}) {
+  async season({ sport = 'volleyball', refresh = false, hint = null } = {}) {
     await this._ensure({ refresh })
     const fetchedAt = this.fetchedAt()
     const clockSynced = !!this.trusted()
     if (this.games === null) {
       return { ok: false, error: this._lastError ? `${this._lastError} ${NO_CACHE}` : NO_CACHE, fetchedAt: null, stale: true, clockSynced, today: [], upcoming: [] }
     }
-    const date = zurichDate(new Date(this.now()))
+    const date = this.dateFor(hint)
     const today = []
     const byDate = new Map()
     for (const g of this.gamesFor(sport)) {

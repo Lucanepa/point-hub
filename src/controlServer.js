@@ -442,6 +442,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // Injectable so a test never reaches for `sudo date` on the machine running it.
   const clockSync = clockSyncIn || new ClockSync({
     isBusy: () => countdown !== null || history.current !== null,
+    // A countdown is what a jump would break on screen; a held match only defers small corrections.
+    isTiming: () => countdown !== null,
   })
   // The season's home games, downloaded whenever there is an uplink and kept in data/schedule.json
   // (see seasonSchedule.js) — GET /api/schedule is served from that copy. Injectable so a test can
@@ -931,10 +933,13 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     if (pathname === '/api/schedule' && req.method === 'GET') {
       const q = new URL(req.url, 'http://localhost').searchParams
       const refresh = q.get('refresh') === '1'
+      // The console's own date (its tablet keeps real time): the list's "today" until the board's
+      // clock can be believed — see seasonSchedule.js dateFor().
+      const hint = q.get('today')
       if (q.get('range') === 'season' && typeof schedule.season === 'function') {
-        return sendJson(res, 200, { ...(await schedule.season({ sport: activeSport(), refresh })), sport: activeSport() })
+        return sendJson(res, 200, { ...(await schedule.season({ sport: activeSport(), refresh, hint })), sport: activeSport() })
       }
-      const r = await schedule.today({ sport: activeSport(), refresh })
+      const r = await schedule.today({ sport: activeSport(), refresh, hint })
       const age = 'fetchedAt' in r ? { fetchedAt: r.fetchedAt, stale: r.stale } : {}
       return sendJson(res, 200, r.ok
         ? { ok: true, date: r.date, sport: activeSport(), games: r.games, ...age }

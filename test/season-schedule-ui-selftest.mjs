@@ -102,7 +102,7 @@ console.log('\n[2] Today first, then the season a day at a time')
   p.io.reply = season()
   await p.refreshSchedule(false)
   const { nodes, io } = p
-  ok(io.asked === '/api/schedule?range=season', 'reads ?range=season')
+  ok(/^\/api\/schedule\?range=season&today=\d{4}-\d{2}-\d{2}$/.test(io.asked), `reads ?range=season, with this tablet's date (${io.asked})`)
   ok(nodes['#schedStatus'].textContent === 'Season schedule · updated 17:52' && !nodes['#schedStatus'].hidden, 'the status line is shown')
   ok(!nodes['#schedStatus'].classList.contains('stale'), 'fresh is not amber')
   const today = nodes['#schedule'].children
@@ -143,7 +143,7 @@ console.log('\n[3] offline with a copy, nothing today, nothing at all')
   const r = season(); r.stale = true; r.today = []
   p.io.reply = r
   await p.refreshSchedule(true)
-  ok(p.io.asked === '/api/schedule?range=season&refresh=1', 'Refresh asks the board to fetch now')
+  ok(/^\/api\/schedule\?range=season&refresh=1&today=\d{4}-\d{2}-\d{2}$/.test(p.io.asked), `Refresh asks the board to fetch now (${p.io.asked})`)
   ok(p.nodes['#schedStatus'].textContent === 'offline — last update 23.09 17:52' && p.nodes['#schedStatus'].classList.contains('stale'), 'stale copy: amber "offline — last update …"')
   ok(p.nodes['#schedNote'].textContent === 'No home games today. The next is Sat 26.09.', `no game tonight points at the next ("${p.nodes['#schedNote'].textContent}")`)
   ok(p.nodes['#upcoming'].children.length === 3, 'the saved season is still listed offline')
@@ -176,6 +176,11 @@ console.log('\n[5] the switch in Settings')
   ok(/<input type="checkbox" data-set="autoPrepare" checked>/.test(fsx), 'a checkbox, on by default')
   ok(/automatic game preparation are shared across all sports/.test(js), 'the per-sport note lists it as shared')
 }
+
+console.log('\n[5b] the tablet date and a leftover match (02.11.2026: a board booted days behind)')
+ok(/const here = \(schedLocal\(new Date\(\)\) \|\| \{\}\)\.day;\s*\n\s*r = await api\("\/api\/schedule\?range=season" \+ \(force \? "&refresh=1" : ""\) \+ \(here \? "&today=" \+ here : ""\)\)/.test(js), 'the schedule request carries this tablet\'s date (&today=YYYY-MM-DD)')
+ok(/const old = !!\(savedDay && here && /.test(js) && /\$\("#gpNew"\)\.classList\.toggle\("primary", !has \|\| old\)/.test(js), 'a match saved on an earlier day makes New game the primary')
+ok(/"An unfinished match from " \+ fmtSchedDate\(savedDay\)/.test(js), 'and the game menu says which day it is from')
 
 console.log('\n[6] the mirror keeps a gap between the name and the set digit')
 {

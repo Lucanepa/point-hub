@@ -3869,7 +3869,10 @@
     note.hidden = false; note.textContent = "Loading today's games…";
     let r = null, failed = "";
     try {
-      r = await api("/api/schedule?range=season" + (force ? "&refresh=1" : ""));
+      // This tablet's date goes along: until the board's clock is confirmed, it decides "today"
+      // (a board that just booted may still think it is the evening it was last switched off).
+      const here = (schedLocal(new Date()) || {}).day;
+      r = await api("/api/schedule?range=season" + (force ? "&refresh=1" : "") + (here ? "&today=" + here : ""));
       // An older board ignores ?range and answers today's shape — that is still today's list.
       if (r && r.ok !== false && !Array.isArray(r.today) && Array.isArray(r.games)) r = { ...r, today: r.games };
       // The tablet app keeps one offline copy of the season (BRIDGE.md, saveSchedule).
@@ -5370,13 +5373,18 @@
     const has = !!savedGame;
     $("#gpContinue").hidden = !has;
     $("#gpDelete").hidden = !has;
-    // Whichever option resumes real work is the primary one.
-    $("#gpContinue").classList.toggle("primary", has);
-    $("#gpNew").classList.toggle("primary", !has);
+    // Whichever option resumes real work is the primary one. A match saved on an EARLIER day (by
+    // this tablet's date, not the board's, which may be days behind right after a boot) is a
+    // leftover, not tonight's work: then New game is the primary, and the menu says which day.
+    const savedDay = has && savedGame.updatedAt ? String(savedGame.updatedAt).slice(0, 10) : "";
+    const here = (schedLocal(new Date()) || {}).day || "";
+    const old = !!(savedDay && here && /^\d{4}-\d{2}-\d{2}$/.test(savedDay) && savedDay < here);
+    $("#gpContinue").classList.toggle("primary", has && !old);
+    $("#gpNew").classList.toggle("primary", !has || old);
     if (has) $("#gpContinueHint").textContent = describeSaved(savedGame);
-    $("#gpSub").textContent = has
-      ? "There's a match in progress on this board."
-      : "Nothing saved for this sport yet.";
+    $("#gpSub").textContent = !has ? "Nothing saved for this sport yet."
+      : old ? "An unfinished match from " + fmtSchedDate(savedDay) + " is saved on this board."
+      : "There's a match in progress on this board.";
   }
   function closeGamePicker() { $("#gamePicker").hidden = true; }
   let lastGameChoiceStatus = 0;   // HTTP status of the last failed choice, for the caller to act on

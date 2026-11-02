@@ -120,6 +120,20 @@ console.log('\n[3] ClockSync: the gates, with the host clock never touched')
   const r = await mk('no').setFromConsole(NOW + 3600e3)
   ok(r.applied && applied.length === 1 && applied[0] === NOW + 3600e3, 'an unsynced board an hour out adopts the console clock')
   ok((await mk('no').setFromConsole('soon')).ok === false, 'a non-number is a 400, not a crash')
+  // A stale clock (02.11.2026: booted at its last shutdown, five days back) is adopted although a
+  // match is held — only a running countdown still defers it.
+  const mk2 = ({ busy = true, timing = false } = {}) => new ClockSync({
+    now: () => NOW, isBusy: () => busy, isTiming: () => timing, probeSync: async () => 'no',
+    applyTime: async (t) => { applied.push(t); return '' }, persist: async () => '',
+  })
+  const FIVE_DAYS = 5 * 86400e3
+  let x = await mk2().setFromConsole(NOW + FIVE_DAYS)
+  ok(x.applied === true && applied[applied.length - 1] === NOW + FIVE_DAYS, 'held match, no countdown, five days out: adopted')
+  ok((await mk2().setFromConsole(NOW + 10 * 60e3)).reason === 'busy', 'held match, ten minutes out: still deferred (not stale)')
+  ok((await mk2({ timing: true }).setFromConsole(NOW + FIVE_DAYS)).reason === 'busy', 'a running countdown defers even five days')
+  ok((await mk('no', true).setFromConsole(NOW + FIVE_DAYS)).reason === 'busy', 'without isTiming every busy moment still defers (the old rule)')
+  x = await mk2({ busy: false }).setFromConsole(NOW - FIVE_DAYS)
+  ok(x.applied === true, 'a board AHEAD by five days is corrected the same way')
 }
 
 const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-boardmerge-'))

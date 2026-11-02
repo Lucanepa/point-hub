@@ -36,6 +36,13 @@ const EPOCH_CEILING_MS = Date.UTC(2050, 0, 1)
 // monotonic (countdown deadlines, stall detection, orphan TTLs). Not worth it under half a minute.
 const MIN_CORRECTION_MS = 30_000
 
+// A gap this big is not drift under a match: it is a board that came up on fake-hwclock's replay of
+// its last shutdown. On 02.11.2026 the C0270 booted at "Wed 28.10 21:17" on a Monday evening, the
+// tablet's correction was deferred as "busy", and for twelve minutes the console listed Wednesday's
+// games as today's. Past this, a held match no longer defers the console's clock (only a running
+// countdown does — see setFromConsole, gate 4).
+const STALE_CLOCK_MS = 15 * 60_000
+
 // systemd-timesyncd drops this the moment it first synchronises. Cheap to stat, and it is the
 // same signal `timedatectl` reports — but it is timesyncd-specific, so it is the FALLBACK and not
 // the primary: a board later moved to chrony would keep this file absent forever and we would
@@ -55,15 +62,19 @@ const run = (cmd, args, timeoutMs = 4000) => new Promise((resolve) => {
 
 export class ClockSync {
   // `isBusy` decides whether the moment is quiet enough to move the clock — see setFromConsole.
+  // `isTiming` is the part of "busy" that a jump would visibly break: a live countdown. Omitted, all
+  // of busy counts as timing (the old rule: any busy moment defers).
   // `applyTime`/`probeSync` are injected so the tests never touch the host clock.
   constructor({
     isBusy = () => false,
+    isTiming = null,
     now = () => Date.now(),
     probeSync = null,
     applyTime = null,
     persist = null,
   } = {}) {
     this.isBusy = isBusy
+    this.isTiming = isTiming || isBusy
     this.now = now
     this._probeSync = probeSync || (() => run('timedatectl', ['show', '-p', 'NTPSynchronized', '--value']))
     // `date -s`, NOT `timedatectl set-time`. timedatectl REFUSES to set the clock while automatic
@@ -198,14 +209,21 @@ export class ClockSync {
     //    orphan-command TTLs (ledboxClient). Jumping the clock under a running countdown either
     //    expires it instantly or leaves it running for days. Unlock is normally before the first
     //    whistle, so this gate almost never fires — but "almost never" is not "never".
-    if (this.isBusy() && !evenIfBusy) {
+    //    Except a STALE clock (STALE_CLOCK_MS and more) with no countdown running: a match "in
+    //    flight" on a board that far off was stamped from the wrong clock already, and NTP makes
+    //    exactly this jump the moment an uplink appears. Waiting for the match to end only keeps the
+    //    wrong date on screen — the schedule's "today", the game menu, the history stamps.
+    const busy = this.isBusy()
+    const stale = busy && Math.abs(offsetMs) >= STALE_CLOCK_MS && !this.isTiming()
+    if (busy && !evenIfBusy && !stale) {
       cklog.info(`deferred a ${Math.round(offsetMs / 1000)}s correction — match or countdown in flight`, { offsetMs })
       return { ok: true, applied: false, reason: 'busy', offsetMs }
     }
 
     // 5. Set it.
     const before = new Date(this.now()).toISOString()
-    if (evenIfBusy && this.isBusy()) cklog.warn(`moving the clock ${Math.round(offsetMs / 1000)}s during a match — the hall Wi-Fi login needs it`, { offsetMs })
+    if (stale && !evenIfBusy) cklog.warn(`moving the clock ${Math.round(offsetMs / 60_000)} min although a match is held — the board's clock was that far off`, { offsetMs })
+    else if (evenIfBusy && busy) cklog.warn(`moving the clock ${Math.round(offsetMs / 1000)}s during a match — the hall Wi-Fi login needs it`, { offsetMs })
     const out = await this._applyTime(t)
     if (out === null) {
       cklog.error('could not set the clock — `sudo date -s` failed', { offsetMs })

@@ -159,6 +159,21 @@ try {
     await hb.refresh()
     const hv = await hb.season({ sport: 'volleyball' })
     ok(hv.today.map((g) => g.id).join() === '3' && hv.upcoming.length === 1 && hv.upcoming[0].games[0].id === 6, 'SCHEDULE_HALLS=kwi b: only that hall')
+
+    // "today" from the console while the board's clock is not trusted (02.11.2026: a board booted
+    // five days back listed Wednesday as today and put tonight's game under upcoming).
+    const behind = make(path.join(tmp, 'c3', 'schedule.json'), { now: () => NOW - 5 * 86400000 })
+    await behind.refresh()
+    clock.trusted = false
+    const bv = await behind.season({ sport: 'volleyball', hint: D })
+    ok(bv.date === D && bv.today.map((g) => g.id).join() === '3,2', `untrusted board 5 days behind + the console's date: today is the console's (${bv.date}: ${bv.today.map((g) => g.id).join()})`)
+    ok(!bv.upcoming.some((d) => d.date === D), 'and tonight is not listed as an upcoming date')
+    ok((await behind.today({ sport: 'volleyball', hint: D })).date === D, 'today() takes the console\'s date too')
+    ok((await behind.season({ sport: 'volleyball' })).date === addDays(D, -5), 'no hint: the board\'s own date, as before')
+    ok((await behind.season({ sport: 'volleyball', hint: 'tomorrow' })).date === addDays(D, -5), 'a malformed hint is ignored')
+    ok((await behind.season({ sport: 'volleyball', hint: '2028-10-10' })).date === addDays(D, -5), 'a hint two years out is ignored')
+    clock.trusted = true
+    ok((await behind.season({ sport: 'volleyball', hint: D })).date === addDays(D, -5), 'a trusted board keeps its own date, whatever the console says')
   }
 
   console.log('\n[5] offline')
