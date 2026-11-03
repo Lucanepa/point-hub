@@ -135,7 +135,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Polycarbonate, smoked | 3 mm **Makrolon UV 2760 grey** (about 62 % light), cut to 990 × 350 × 1 and 172 × 332 × 2. Not acrylic: a ball can crack it | 1 set | acrylglas-shop.com (ships to DE/AT only) or kunststoff-shop.ch (51 % light, ~CHF 89) | 42 |
 | Steel flat bar | **20 × 4 mm steel**, 1 m — must be steel, the module magnets hold on it; cut 3 bars of 360 mm (§8.3), two per 1 m bar | 2 | Hornbach.de or any DIY store | 3–5 each |
 | Aluminium flat bar | **25 × 4 mm**, 1 m, for the two ratchet stays (steel also works) | 1 | Hornbach.de or DIY store | 8 |
-| Aluminium sheet | 1.5 mm, 250 × 500, cut to about 200 × 150: the plate under the converter and the fuse box | 1 | OBI | 15 |
+| Aluminium sheet | **2 mm, 200 × 400**: the **electronics tray** (§8.11) — converter, fuse box, Pi and the small boards all on one removable plate | 1 | Hornbach.de (or 1.5 mm from OBI) | 17 |
 
 ### 2.2 LED modules and computer
 
@@ -148,7 +148,8 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Fallback Pi | Raspberry Pi 4, **2 GB** — buy only if the Pi 5 bench test fails (§10.2) | (1) | welectron, pi-shop.ch | 60 |
 | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs — not the single bonnet 3211 | 1 | DigiKey CH | 9 |
 | Stacking header | Adafruit 1979, extra-tall 2 × 20, between Pi and bonnet | 1 | DigiKey CH | 3 |
-| Standoffs | M2.5 brass standoff kit, about 11 mm | 1 | AliExpress | 6 |
+| Standoffs | M2.5 brass standoff kit, about 11 mm (Pi, bonnet, small modules), plus **M3 × 10 mm** brass standoffs and short M3 screws for the hub board and anything with M3 holes | 1 + 1 | AliExpress | 6 + 3 |
+| Cable-tie mounts | self-adhesive cable-tie mounts, about 20 × 20 mm, and small cable ties: hold every lead flat on the tray, clear of the fan | 1 pack | AliExpress or any DIY store | 3 |
 | microSD | 32 GB, prepared image; one spare | 2 | Galaxus | 14 |
 
 ### 2.3 Scorer screen
@@ -503,8 +504,8 @@ graph LR
 - **5 A input fuse** between the PD board's gated output and everything else.
 - **−Vin bonded to −V on the converter.** The RSD-60G-5 is isolated, but the PD board on its input
   side talks I²C to the Pi on its output side, so they need a common ground.
-- **Converter and fuse box on the aluminium plate** (at least the size of the datasheet's mounting
-  plate). The datasheet rates full load to +55 °C, or +70 °C on such a plate; the plate also makes a
+- **Converter and fuse box on the aluminium electronics tray** (§8.11; at least the size of the
+  datasheet's mounting plate). The datasheet rates full load to +55 °C, or +70 °C on such a plate; the plate also makes a
   non-combustible tray.
 - **Tablet charging module** taps the fused input (behind the 5 A fuse) through its own 3 A fuse and
   feeds the hub's charging input (§7). It needs ≥ 12 V, so on a 9 V contract it simply stays off.
@@ -601,7 +602,7 @@ at 105–135 % (about 12.6–16 A) and recovers by itself, so a resistive fault 
 indefinitely. That is why every branch has its own **5 A** blade fuse: it opens in 0.15–5 s at
 200 % and in under 0.5 s at 350 %, where a 7.5 A fuse could hold for minutes. The converter's output
 over-voltage protection (5.75–7 V) latches off, so a failed converter cannot cook the Pi and the
-modules. The metal plate under converter and fuses is the non-combustible tray.
+modules. The aluminium electronics tray under converter and fuses is non-combustible.
 
 **Heat.** At the power cap the box turns at most ~60 W into heat, an estimated 12–15 K above the
 hall temperature inside a closed plywood box. **Direct sun is a different league** — an estimated
@@ -775,7 +776,7 @@ with a dust cap each, and labelled.
 | Beech battens | **15 × 20 mm** | joints, screw blocks, corner blocks, the foot rails. The **20 mm face is glued to the panel**, the 15 mm side points into the box |
 | Steel flat bar | **20 × 4 mm** | the three bars the module magnets hold on to |
 | Aluminium flat bar | **25 × 4 mm** | the two ratchet stays |
-| Aluminium sheet | **1.5 mm** | the plate under the converter and the fuse box |
+| Aluminium sheet | **2 mm** | the electronics tray: converter and fuse box screwed flat on it, the boards on standoffs |
 
 **Why beech.** 15 × 15 mm battens are not stocked in Zürich; beech 15 × 20 is. Beech is hard:
 **pre-drill Ø2.5 for every 3.5 mm screw**, or the batten splits.
@@ -1046,10 +1047,40 @@ On the back panel:
 
 ### 8.11 Inside layout
 
-The electronics lie on the bottom C2 behind the modules, clear of K's sweep: converter and fuse box
-on the aluminium plate; Pi (with its Active Cooler) and bonnet on M2.5 standoffs; the PD board by the
-POWER socket, the hub and the charging module by the DATA socket; RTC, temperature sensor, the two
-INA226 and the MCP23017; the AOD4184 module by the horn. **Put the Pi close to the back panel**,
+All the electronics sit on **one removable tray**: the 2 mm aluminium sheet (200 × 400), like a
+motherboard in a PC case. Everything is screwed to the tray on the bench, and the tray is held in the
+box by **4 wood screws** into the floor battens. The 6 mm floor is too thin for screws from below,
+and their heads would show under the box. For service: unplug the ribbons, the power leads and the
+lights, undo the 4 screws, and the whole electronics come out as one unit.
+
+| Part | How it is fixed |
+|---|---|
+| Converter, fuse box | screwed **flat** onto the tray: the converter uses the aluminium to cool (§5.1) |
+| Pi 5 + Active Cooler | its 4 × M2.5 holes (58 × 49 mm), brass standoffs about 10 mm |
+| Bonnet (or the main board later) | stacked on the Pi on the tall header, longer M2.5 standoffs on the same 4 holes |
+| Hub board (later, if used) | 4 × M3 holes in the corners, M3 × 10 standoffs |
+| PD board, INA226, MCP23017, DS3231, SHT40, AOD4184 | their own holes on M2.5/M3 standoffs; parts without holes on thick double-sided foam tape |
+| Leads | self-adhesive cable-tie mounts on the tray, ties every 10–15 cm |
+
+How to make it:
+
+1. Lay every part on the tray in its place, the Pi nearest the back panel (below). Mark the holes
+   through the parts with a pencil or the centre punch.
+2. Drill Ø2.7 for M2.5 and Ø3.2 for M3; deburr both sides.
+3. Screw the standoffs on from below with short screws, then the parts on top.
+4. Drill four Ø4 holes near the tray's corners for the wood screws (3.5 × 16) into the battens or
+   blocks under it.
+
+Rules:
+
+- **At least 6 mm under every board.** The aluminium conducts: no solder joint may touch it. Use
+  10 mm standoffs, or put an offcut of the polycarbonate sheet under a board.
+- **Size the tray at the dry fit** (§9 B), together with K and Y: it must stay clear of the bottom
+  cap K's sweep at 0° and at 20°. Cut the sheet down if needed; 200 × 400 is the most it can be.
+- No lead may hang into the Pi's fan.
+
+On the tray: the PD board by the POWER socket, the hub and the charging module by the DATA socket;
+RTC, temperature sensor, the two INA226 and the MCP23017; the AOD4184 module by the horn. **Put the Pi close to the back panel**,
 beside the pocket: its built-in Wi-Fi is the board's only internet link, and its antenna cannot see
 through the modules and the steel bars, while plywood lets the signal out. Keep USB 3 devices off
 the blue ports if the hall uplink is weak (USB 3 traffic is noisy on the 2.4 GHz band). The display
@@ -1111,7 +1142,8 @@ and do the checks marked in §8 at the dry fit, not after the glue.
 12. **K and H:** fit the bottom cap and the cheeks; tilt from 0° to 20° and back. Trim K to width.
     Check the cheeks clear the bench modules (put one module and its turn buttons in an end).
 13. **K/Y decision:** with A at 0° and at 20°, watch K sweep the floor and decide where Y goes
-    (§8.6). Mark Y's place and the inserts' holes.
+    (§8.6). Mark Y's place and the inserts' holes. Lay the electronics tray (§8.11) on the floor too:
+    K must clear it as well. Mark the tray's place and cut it down if needed.
 14. **Flap:** fit the pocket, the flap with its torque hinges and the catch; put the screen (or its
     outline on cardboard) on the flap; check the stop and the cable route (§8.5).
 15. **Foot:** fit the two rails and T; check it slides 120 mm, the stop screws catch, and the turn
@@ -1154,7 +1186,8 @@ and do the checks marked in §8 at the dry fit, not after the glue.
     bonded to −V. Nothing else connected. A small (about 20 W) PD phone charger through the USB-C
     power meter (it should read 9 V): **5.0–5.2 V at the fuse box**. 0 V or −5 V: unplug and check +
     and −. Then check 5 V on every fuse way with the multimeter.
-31. **Lay out the electronics** (§8.11) on the bottom; fit both USB-C sockets in B. Solder the 10 kΩ
+31. **Build the electronics tray** (§8.11): parts on standoffs on the 2 mm aluminium sheet, then the
+    tray into the box with 4 wood screws; fit both USB-C sockets in B. Solder the 10 kΩ
     OE pull-up (§4.2), and the header pins on the MCP23017 and INA226 modules.
 32. **Modules:** box face-down on a blanket, A at 0°. Six modules onto the sheet, LEDs down, arrows
     the same way; short ribbons 1 → 2 → 3 and 4 → 5 → 6; bars on, magnets snap on. Bench modules
