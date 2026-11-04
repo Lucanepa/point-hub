@@ -131,7 +131,7 @@ const d2r = Math.PI / 180;
 const T = 0.006;                              // 6 mm poplar
 const AW = 1.004, AH = 0.366;                 // the tilting front frame A
 const HINGE_Y = H - T;                        // the piano hinge runs along the top front edge
-const K_LEN = 0.104;                          // bottom cap K, as on the cut list
+const K_LEN = 0.14;                          // bottom cap K, as on the cut list
 const PIVOT = { y: -0.356, z: -0.016 };       // stay pivot on A, in A's own frame (10 mm up, 10 mm behind)
 const PIN = { y: 0.018, z: D / 2 - 0.060 };   // M6 pin through each end wall, 60 mm behind the front
 const STAY_X = W / 2 - 0.020, STAY_LEN = 0.200;
@@ -403,7 +403,7 @@ async function main() {
   }));
   document.querySelectorAll('[data-tilt]').forEach(b => b.addEventListener('click', () => {
     const short = setFront(+b.dataset.tilt); press(b); setView('side');
-    say(short ? 'At 20° a 104 mm cap K falls short of the floor: see step 05.' : hint);
+    say(short ? 'At this tilt the cap K falls short of the floor: see the dry fit.' : hint);
   }));
   document.querySelectorAll('[data-flap]').forEach(b => b.addEventListener('click', () => { setFlap(b.dataset.flap === 'open'); press(b); setView('back'); }));
   document.querySelectorAll('[data-foot]').forEach(b => b.addEventListener('click', () => { setFoot(b.dataset.foot === 'out'); press(b); setView('side'); }));

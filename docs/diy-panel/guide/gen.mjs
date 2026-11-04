@@ -17,12 +17,13 @@ const wood = [
   ['F', 'F', 'Flap', '260 × 180, two layers glued (12 mm); trim to the screen', 2],
   ['P', 'P1', 'Pocket back', '292 × 217', 1],
   ['P', 'P2·P3', 'Pocket walls', 'blank 292 × 150 → 2 × 292 × 25 and 2 × 205 × 25', 1],
-  ['K', 'K', 'Bottom cap', 'blank 1004 × 150 → 1004 × 104; final depth at the dry fit', 1],
+  ['K', 'K', 'Bottom cap', 'blank 1004 × 150; final depth about 140, set at the dry fit', 1],
   ['H', 'H', 'Cheeks', 'blank 370 × 150 → 370 × 130 → two triangles', 1],
   ['Y', 'Y', 'Backing plates', 'blank 300 × 208 → 2 × 208 × 140, glued: 12 mm', 1],
   ['T', 'T', 'Pull-out foot', '600 × 150', 1],
   ['spare', '', 'Spare', '400 × 300, for practice cuts and remakes', 1],
-  ['batten', '', 'Beech battens 15 × 20', '× 1000: 2 long battens, 2 foot rails, blocks, 1 spare. 15 × 15 is not stocked in Zürich', 5],
+  ['cover', '', 'Transport covers, 3 mm', 'poplar 3 mm: front 1020 × 380, ends 380 × 220 ×2, lid 300 × 225', 4],
+  ['batten', '', 'Beech battens 15 × 20', '× 1000: 2 long battens, 2 foot rails, 2 tray posts 362, blocks, 1 spare. 15 × 15 is not stocked in Zürich', 5],
 ];
 const groups = [
   ['Front and tilt', [
@@ -63,17 +64,26 @@ const groups = [
     ['chip', 'MCP23017 module', 'I²C 0x20: switches the horn', 1],
     ['mosfet', 'MOSFET module', 'AOD4184, isolated (optocoupler input)', 1],
     ['buzzer', 'Horn buzzer', 'SFM-27 active piezo, continuous (not “-II”), 3–24 V, about 95 dB', 1],
-    ['lights', 'Status lights', 'POWER · STATUS · LINK: RGB 5 mm matte common-cathode LEDs in metal panel holders, Ø8 holes; resistors 330 / 150 / 47 Ω', 3],
+    ['lights', 'Status lights', 'STATUS and LINK: RGB 5 mm matte common-cathode LEDs in metal panel holders, Ø8 holes; resistors 150 / 47 / 47 Ω', 2],
+    ['btn', 'Power button', '16 mm, self-reset, with a green 6 V ring: the ring is the POWER light. Ø16 hole', 1],
     ['sensor', 'Clock + temperature', 'DS3231 (0x68) with CR2032, SHT40 (0x44)', 2],
     ['pdsrc', 'Tablet charging module', 'USB-C PD 65 W (DMyond), off the fused input through 3 A', 1],
     ['lan', 'USB-C hub', 'Ethernet (RTL8153) + charging input: the DATA cable to the Pi', 1],
-    ['plate', 'Aluminium plate', 'under the converter and the fuse box', 1],
+    ['plate', 'Electronics tray', '2 mm aluminium, up to 400 × 200: everything mounts on it; stands on two batten posts', 1],
     ['small', 'Small parts', 'TVS P6KE27A, 5 A and 3 A inline fuses, 10 kΩ resistor', 1],
+  ]],
+  ['Transport', [
+    ['neod', 'Magnets N48', 'Ø8 × 3, sunk into the box borders: 8 front, 4 per end, 4 lid', 20],
+    ['washer', 'M5 body washers', 'sunk about 1 mm into the covers, opposite each magnet', 20],
+    ['felt', 'Felt', 'dark grey, 0.8–1 mm (not 4 mm), inside the covers', 1],
+    ['cablec', 'USB-C cable, 3 m', 'PD + data, for speaker-stand set-ups: the tablet stays on the table', 1],
+    ['bag', 'Custom bag', 'after the build, AliExpress: 104 × 40 × 24 cm inside, 15–20 mm padding, 600D nylon, zip on 3 sides, handles + strap, outer pocket', 1],
   ]],
   ['Screws, glue, paint', [
     ['screw20', 'Wood screws T20', '3.5 × 16 (shell, blocks, back); 3.5 × 30 for the two stay pivots', 70],
     ['m4', 'Machine screws T20', 'M4 × 16 with nuts: stand flange', 4],
-    ['standoff', 'Standoffs', 'M2.5, for the Pi', 4],
+    ['standoff', 'Standoffs', 'M2.5 about 10 mm (Pi, bonnet, small boards), M3 where the holes are M3', 16],
+    ['ties', 'Cable-tie mounts', 'self-adhesive, with small ties: leads flat on the tray', 10],
     ['glue', 'Wood glue D3', 'water-resistant PVA (UHU Holzleim wasserfest)', 1],
     ['paint', 'Paint', 'matte black, gloss black for the front face, filler, P120 + P180', 1],
     ['wire', 'Wire, red + black', '2.5 mm² · 1 mm² · ferrules · heat-shrink', 1],
@@ -82,7 +92,7 @@ const groups = [
 ];
 const toolList = [
   ['drill', 'Drill/driver', 'Bosch GSB 18V-65, T20 bits'],
-  ['bits', 'Drill bits', 'wood bits and HSS bits (Ø2, 2.5, 4.5, 4.8, 6.5, 10)'],
+  ['bits', 'Drill bits', 'wood bits and HSS bits (Ø2, 2.5, 2.7, 3.2, 4.5, 4.8, 6.5, 8)'],
   ['jigsaw', 'Jigsaw', 'Bosch GST 18V-125 S'],
   ['blades', 'Jigsaw blades', 'T101B straight wood · T101AOF curves · T118B aluminium/steel · T118A piano hinge'],
   ['holesaw', 'Hole saws', 'Wolfcraft Ø32 and Ø45'],
@@ -97,6 +107,9 @@ const toolList = [
   ['iron', 'Soldering iron', 'Pinecil V2 (USB-C PD 20 V), Sn63/Pb37 0.8 mm, tip cleaner'],
   ['crimp', 'Ferrule crimper', 'HSC8 6-4A + 400 ferrules'],
   ['shrink', 'Heat-shrink', '2:1 assortment'],
+  ['strip', 'Wire stripper', 'automatic, 0.2–6 mm² (Jokari Super 4 Plus or Knipex)'],
+  ['cutter', 'Side cutter', '140–160 mm'],
+  ['forst', 'Forstner bits', 'Ø8 for the magnets, washer size for the covers; not spade bits'],
   ['meter', 'Multimeter', 'UNI-T UT33B+'],
   ['laser', 'Laser meter', 'Bosch GLM 50-27 C'],
 ];
@@ -109,55 +122,67 @@ const CHECK = (t) => `<li class="n-open"><span class="ni" aria-hidden="true">!</
 const notch = d.NOTCH.map(n => Math.round(n)).join(', ');
 const reach = d.capReach(), short20 = Math.round(d.capK(20).short), out20 = Math.round(d.OUT20);
 const stages = [
-  ['A', 'Workshop', 'Saw, hole saw and metal work at the community-centre open workshop (GZ Hirzenbach: wood and metal, Tue 14–21, Sat 11–17; own tools and material allowed).', [
+  ['A', 'First light', 'At home, before anything is cut. One module on the Pi: this decides whether the plan holds.', [
+    [0, 'One module, one test', d.stepLight(), 'Fit the Active Cooler on the Pi 5, the tall header on the Pi and the bonnet on top. A 12 V source (the powerbank’s car socket through a car plug with bare wires) goes to +Vin and −Vin of the Mean Well. Measure 5.0–5.2 V at +V and −V, and only then connect the module’s power lead. Ribbon from OUT 1 to the module’s IN. The Pi runs on its own USB-C supply for this test. Then run Adafruit Piomatter’s example for one 64 × 32 panel, 1/16 scan, at low brightness.', [
+      CHECK('Nobody has run these modules on a Pi 5 yet. If the picture is scrambled or flickers, stop and try the fallback: Pi 4 2 GB with the hzeller library. The 13-point checklist is in firmware/flushbuffer/README.md.'),
+      NO('Leave the bonnet’s E4 / E8 pads open: these modules don’t use the E line.'),
+      N('Twisted bare wire is fine for this test. In the box every end gets a ferrule.')]],
+  ]],
+  ['B', 'Workshop', 'Saw, hole saw and metal work at the community-centre open workshop (GZ Hirzenbach: wood and metal, Tue 14–21, Sat 11–17; own tools and material allowed).', [
     [1, 'Get the parts', d.step1(), 'The plywood comes from Jumbo’s online cut-to-size service: Oecoplan poplar, 6 mm, every piece already a rectangle. Jumbo cuts nothing under 230 × 150, so the bottom cap K, the cheeks H, the backing plates Y and the pocket walls come as oversize blanks you cut yourself. Add five beech battens 15 × 20 × 1000.', [N('Measure the real thickness at pickup: “6 mm” can be anything from 5.6 to 6.3. The outer joints get sanded flush later.'), N('Pencil each part’s letter on it as it comes off the saw.')]],
-    [2, 'Cut the openings', d.step2(), 'With the jigsaw: the front window in A, a window in each end D, the flap opening in B and the two handle cut-outs in the top C1. Drill Ø10 in every corner first, then saw from hole to hole. Hole saws for the horn hole (Ø32). Ports, vents and the six back-screw holes in B. Leave the bottom C2’s holes until after the dry fit.', [OK('Painter’s tape on the cut line and the good face down: the T101B blade cuts on the up stroke, so the face down stays clean.'), N('Check the USB-C cut-outs against the sockets you actually have.')]],
+    [2, 'Cut the openings', d.step2(), 'With the jigsaw: the front window in A, a window in each end D, the flap opening in B and the two handle cut-outs in the top C1. Drill Ø8 in every corner first, then saw from hole to hole. Hole saws for the horn hole (Ø32). Ports, vents and the six back-screw holes in B. Leave the bottom C2’s holes until after the dry fit.', [OK('Painter’s tape on the cut line and the good face down: the T101B blade cuts on the up stroke, so the face down stays clean.'), N('Check the USB-C cut-outs against the sockets you actually have.')]],
     [3, 'Rip the blanks', d.step3(), 'Cheeks H: rip the blank to 130, then saw corner to corner for two triangles. Backing plates Y: two pieces 140 × 208. Pocket walls: four strips 25 wide, two of them cut to 205. Leave K at 150 until the dry fit decides its depth.', [N('A batten clamped as a fence keeps long rips straight. Cut beside the line on the offcut side, then sand to it.')]],
     [4, 'Make the metal parts', d.step4(), `Two ratchet stays from the 25 × 4 aluminium flat, 200 long: a Ø4.5 pivot hole 12 mm from one end, then five notches ${notch} mm from it (0, 5, 10, 15 and 20°), 9 mm up from the lower edge. For each notch drill Ø6.5, then cut in from the edge with the jigsaw (T118B) on both sides of the hole and file the slot smooth. Cut three steel bars of 360 from the 20 × 4 flat, and the piano hinge to 1000 (T118A, or sandwich it in plywood and use T118B).`, [N('The bars are 360, not 368: the front frame they sit on is only 366 tall. Three of them need two 1 m bars.'), N('Tape both stays together and drill through both: the notches then match.')]],
   ]],
-  ['B', 'Case', 'Back home: gluing, fitting and painting. Ventilate when painting; keep sawdust away from where you will wire later.', [
+  ['C', 'Case', 'Back home: gluing, fitting and painting. Ventilate when painting; keep sawdust away from where you will wire later.', [
     [5, 'Dry fit', d.step5(), 'Tape the box together without glue: bottom, both ends, top and back. Hold the front frame A in the front opening (tape along its top edge works as a hinge for now) and swing it: it needs 2 mm each side and 1 mm top and bottom. Then hold the K blank against A’s bottom edge and swing to 0° and to 20°.', [
-      OPEN('The bottom cap K and the backing plates Y both want the middle of the floor: K slides over the front 11 cm, Y sits under the stand cup. Decide here, before gluing Y: <b>(1)</b> Y towards the back, with K riding over it on two thin runners, or <b>(2)</b> move Y and the stand cup off K’s path. Check K’s sweep at 0° and at 20°.'),
-      OPEN(`At 20° the bottom of A stands ${out20} mm out. A ${d.G.K} mm cap reaches the floor only up to about ${reach}°; at 20° it ends ${short20} mm short of the front edge. Mark K’s final depth from the 150 blank here, knowing a deeper K needs more floor.`)]],
+      OPEN('The bottom cap K and the backing plates Y both want the middle of the floor: K slides over the front 14 cm, Y sits under the stand cup. Decide here, before gluing Y: <b>(1)</b> Y towards the back, with K riding over it on two thin runners, or <b>(2)</b> move Y and the stand cup off K’s path. Check K’s sweep at 0° and at 20°.'),
+      N(`At 20° the bottom of A stands ${out20} mm out. A ${d.G.K} mm cap still reaches the floor (up to about ${Math.floor(reach)}°), so rip K to about ${d.G.K} from the 150 blank. At 0° its back edge lies 146 mm behind the front: only 68 mm of floor is left behind it.`),
+      CHECK('Hold the empty tray upright behind K (next to the two posts) and tilt from 0° to 20°: K must clear it. Check that the ribbons reach the modules over the tray’s top edge with 12 cm of slack; longer HUB75 ribbons are cheap if not.')]],
     [6, 'Glue the shell', d.step6(), 'Glue (D3, water-resistant) and screw the bottom C2, both ends D and the top C1. Battens go in with their 20 mm face on the panel and 15 mm into the box: one under the top along its front edge (the piano hinge screws into it), one on the bottom along the back edge (the back panel screws into it). Blocks from offcuts at the top back corners and middle, and in the inside corners where the ends meet the top and bottom, kept 40 mm back from the front so the frame, cheeks and stays clear them. Painter’s tape every 15 cm holds the long joints; clamps where they reach.', [N('Pre-drill Ø2.5 for every 3.5 mm screw: beech is hard.'), N('The glue stays open about 10 minutes: one joint at a time.'), OK('Before it sets: the front opening is 1008 × 368 and square (equal diagonals).')]],
     [7, 'Stand cup and threads', d.step7(), 'Drill the bottom where the dry fit put Y: Ø45 for the stand cup, and holes for the two thread inserts (the size the inserts ask for). Glue the two Y layers together and inside the bottom, then fit the 35 mm stand flange with four M4 × 16 and screw the ¼″-20 and ⅜″-16 inserts in from below.', [N('The 6 mm bottom alone is too thin for bolts and inserts: they need the 12 mm plate.')]],
     [8, 'Screen pocket and flap', d.step8(), 'Glue the pocket walls P2 and P3 round the flap opening on the inside of B, and the pocket back P1 on top: a box 25 mm deep. Glue the two flap layers F together (12 mm) and trim them to the real screen, 10 mm clear of the walls all round. Two torque hinges along the flap’s top edge, into a block under the pocket’s top wall; a magnetic catch on a block at the bottom. A slot through F and P1 for the display ribbon.', [N('The torque hinges hold the flap at any angle; it swings out like an awning from closed to about 75° open. Fit a stop there, for example a short cord from the flap to the pocket.'), N('Catches screw into blocks or battens, never into 6 mm plywood; pre-drill 2 mm. No counter-plate: a steel washer.')]],
     [9, 'Hang the front frame', d.step9(), 'Lay A face-down. Screw one leaf of the piano hinge along its top border, knuckle at A’s top back edge so nothing shows from the front. Offer A into the opening with a 0.5 mm card under it (1.5 mm stays free under the top, which the 3 mm round on A’s top front edge needs at 20°) and 2 mm on each side, and screw the other leaf into the batten under the top. It comes off again for painting: the screw holes are set now.', [N('Pre-drill 2 mm for the hinge screws.')]],
     [10, 'Cap, cheeks and stays', d.step10(), 'Glue each cheek H to a strip of batten on the back of A’s end border, just inboard of the bench screen. Hang K from A’s bottom inside edge so its back edge slides on the floor. For the stays: a block on A’s back at each bottom corner carries the pivot (a 3.5 × 30 screw with a washer, not tight); through each end wall’s bottom border, 60 mm behind the front and 12 mm above the floor, an M6 × 30 bolt through a 12 mm block with a nylon lock nut is the pin. Lift A’s bottom, drop a notch on the pin, and check 0, 5, 10, 15 and 20° with the speed square.', [
-      N('K hangs from A’s bottom edge on three 50 mm butt hinges (3 × 12 screws; glue a 6 mm offcut doubler under each leaf on K and on A first, or the screws come through). Cut K’s depth at the dry fit (about 140 from the 150 blank): at 20° a 104 mm cap no longer reaches the floor.'),
+      N('K hangs from A’s bottom edge on three 50 mm butt hinges (3 × 12 screws; glue a 6 mm offcut doubler under each leaf on K and on A first, or the screws come through). Cut K’s depth at the dry fit, about 140 from the 150 blank: a shallower cap no longer reaches the floor at 20°.'),
       OPEN('The stay, its pin and the cheek share the 22 mm strip at each end of A. If the cheek touches the pin’s nut, trim the cheek’s bottom back corner: K closes that part of the gap anyway.'),
       OK('Teeth don’t creep when a ball hits the front.')]],
     [11, 'Handles', d.step11(), 'Drop each K16 handle into its cut-out from above, the rim flat on the top. Six M4 × 16 pan-head Torx screws through the rim, a lock nut on each inside.', [N('The tray sits 7.6 mm deep under the top: check it clears the blocks and the pocket.')]],
     [12, 'Pull-out foot', d.step12(), 'Two batten rails, 205 long, glued under the bottom from front to back, 602 apart inside. A strip of plywood offcut screwed under each overhangs 12 mm inward: the foot T rides on these lips like a drawer. Pulled out 12 cm it turns the 22 cm base into 34 cm, so a ball can’t tip the box over backwards. Two screws in a slot stop it at full travel; a turn button on the back end of a rail holds it in.', [N('With the foot in, check that a tripod plate still reaches the threads; if not, cut a notch in T’s front edge.')]],
+    [0, 'Pockets for the covers', d.stepCoverHoles(), 'The four transport covers hold on magnets sunk into the box, so nothing sticks out. Drill the pockets now, before the paint: Ø8 × 3 mm into the borders of A, both D and around the flap on B; washer pockets about 1 mm deep in the 3 mm covers. Glue magnets and washers in once the paint is dry, with one sheet of thin felt inside each cover.', [NO('No 4 mm felt: it holds the magnet too far away.'), N('Washers are plain steel, so the magnets have no polarity to get wrong.')]],
     [13, 'Paint', d.step13(), 'Take the hinge, stays, handles and catches off again and label them. Round every outside edge with sandpaper, about 3 mm (P120, then P180), and fill the grain on A’s front face. Two coats of matte black everywhere, inside too, so nothing reflects behind the LEDs. A’s front face gets gloss black: behind the smoked sheet, screen and border read as one black surface when the board is off.', [N(`Keep the 3 mm round on A’s top front edge: at 20° that corner swings up about ${Math.ceil(d.HINGE_RISE)} mm into the top.`), N('Paint at the workshop if they allow it, or on a balcony on a drop sheet. Optional: a 2K matte clear on top against splashes.')]],
     [14, 'Pads and corner caps', d.step14(), 'When the paint has fully cured: put the hardware back, then four clear rubber pads under the rails and two under the foot’s back end. Black rubber caps on the box’s four front corners, trimmed so they cover only the ends’ 6 mm edge: the front frame must swing past them.', []],
   ]],
-  ['C', 'Screens', 'The front frame comes off its hinge once more for the modules.', [
+  ['D', 'Screens', 'The front frame comes off its hinge once more for the modules.', [
     [15, 'Modules on the front frame', d.step15(), 'Unscrew the hinge from the batten (it stays on A) and lay A face-down on a blanket. Peel the inner film off the smoked sheet and lay it over the window. Six modules on top, LEDs down, all arrows the same way, short ribbons 1 → 2 → 3 and 4 → 5 → 6. Four M3 magnetic screws in each module. Glue blocks on A’s top and bottom border, packed to the magnet height, and screw the three steel bars onto them: the magnets snap on, so a module swaps out in seconds.', [OK('Leave the IN of modules 1 and 4 free: the driver plugs in there.'), N('Keep the sheet’s outer film on until the very end.')]],
     [16, 'Bench screens', d.step16(), 'One smoked sheet and one module behind each end window, arrows up. Twist four turn buttons over the module’s edges.', [N('The stay’s pin block sits just under the bench screen: keep the bottom border free.')]],
     [17, 'Hang it again', d.step17(), 'Screw the hinge back into the batten, same holes. Plug the ribbons and power leads with about 12 cm of slack, then tilt to 20° and back with everything plugged in: nothing may pull tight or catch on a cheek.', []],
   ]],
-  ['D', 'Electronics', 'Low voltage only: nothing in here can give you a shock. Solder at home, with a window open.', [
-    [18, 'Lay out the electronics', d.step18(), 'On the floor, behind the strip K slides over. Pi 5 with its cooler and the bonnet on the left near the flap, the I²C parts and the horn switch beside it; converter and fuse box on the aluminium plate on the right, the USB-C board and the two current sensors near POWER, the tablet charger and the USB-C hub under the pocket. Fit the two USB-C sockets in the back panel; their cables reach inside.', [N('Leave 15 cm of slack on everything that goes to the back panel, so it can come off.')]],
-    [19, 'Power path', d.step19(), 'POWER socket → TVS diode across + and − → STUSB4500 → INA226 (0x41, A0 bridged) → 5 A fuse → converter, in 1 mm². Converter → INA226 (0x40, 2 mΩ shunt) → fuse box, in 2.5 mm². After the 5 A fuse, a 3 A fuse feeds the tablet charger into the USB-C hub’s charging input. A ferrule on every wire end.', [N('Set the STUSB4500 to “output only above 5 V”: a 5 V-only source leaves the box off instead of half-booting it.'), N('Join the converter’s −Vin to −V: the USB-C board talks to the Pi and needs a shared ground.'), N('The Pi takes its 5 V on the header pins from its own fuse; its USB-C socket stays empty.')]],
+  ['E', 'Electronics', 'Low voltage only: nothing in here can give you a shock. Solder at home, with a window open.', [
+    [18, 'Build the tray', d.step18(), 'K covers the front 146 mm of the floor, so the electronics stand upright behind it, like a motherboard in a PC. Lay the parts on the aluminium sheet, mark the holes through them and drill. Everything goes on standoffs, except the converter and fuse box, which screw flat on the metal. Then two batten posts, 362 long, stand between floor and top, 150 mm behind the front, and the tray screws to them with its parts facing back. Fit the two USB-C sockets in the back panel. Take the back off and everything faces you; for service, unplug and undo four screws and the whole tray comes out.', [N('Leave 15 cm of slack on everything that goes to the back panel, so it can come off.'), N('Pi at the top, nearest the back: its Wi-Fi is the only link out, and it can’t get through the modules.'), CHECK('Only 64 mm stands free from tray to back panel, and 39 mm where the flap pocket is. Keep the tall parts away from the pocket, and check the Pi + bonnet + ribbon stack at the dry fit.')]],
+    [19, 'Power path', d.step19(), 'POWER socket → TVS diode across + and − → STUSB4500 → 5 A fuse → INA226 (0x41, A0 bridged) → converter, in 1 mm². Converter → INA226 (0x40, 2 mΩ shunt) → fuse box, in 2.5 mm². After the 5 A fuse, a 3 A fuse feeds the tablet charger into the USB-C hub’s charging input. A ferrule on every wire end.', [N('Set the STUSB4500 to “output only above 5 V”: a 5 V-only source leaves the box off instead of half-booting it.'), N('Join the converter’s −Vin to −V: the USB-C board talks to the Pi and needs a shared ground.'), N('The Pi takes its 5 V on the header pins from its own fuse; its USB-C socket stays empty.')]],
     [20, 'First power-up', d.step20(), 'Nothing else connected. A small USB-C phone charger into POWER; measure at the fuse box.', [N('A weak charger is the safety net: it cannot push enough current to damage anything.')]],
     [21, 'LED power and data', d.step21(), 'Every module, each bench module and the Pi on its own 5 A fuse (ways 1–9). Way 10 is the horn, 11 and 12 are spare. Ribbon OUT 1 to module 1, OUT 2 to module 4, OUT 3 to the left bench module and on to the right one.', [N('Panel power leads that don’t reach: extend with 1.5 mm².')]],
-    [22, 'I²C parts and the horn', d.step22(), 'The USB-C board, the clock, the temperature sensor, both current sensors and the MCP23017 share two wires to pins 27 and 28 (GPIO 0 and 1) of the tall header. MCP23017 pin GPA0 drives the isolated MOSFET module, which switches the buzzer’s 5 V from fuse way 10. The buzzer screws on from inside over the Ø32 hole. GPA1–3 drive the STATUS light and GPA4–6 the LINK light (red, green, blue through 150, 47 and 47 Ω); the POWER light hangs on 5 V through 330 Ω so it shows power even when the Pi is dead.', [CHECK('Chain 3 uses GPIO 2, 3 and 14, which is why I²C moved to pins 27/28. Confirm this still holds on the Pi 5 with the bonnet before you wire it.'), N('The MCP23017 starts with every pin an input, so the horn stays off at boot.')]],
+    [22, 'I²C parts and the horn', d.step22(), 'The USB-C board, the clock, the temperature sensor, both current sensors and the MCP23017 share two wires to pins 27 and 28 (GPIO 0 and 1) of the tall header. MCP23017 pin GPA0 drives the isolated MOSFET module, which switches the buzzer’s 5 V from fuse way 10. The buzzer screws on from inside over the Ø32 hole. The lights come in the next step.', [CHECK('Chain 3 uses GPIO 2, 3 and 14, which is why I²C moved to pins 27/28. Confirm this still holds on the Pi 5 with the bonnet before you wire it.'), N('The MCP23017 starts with every pin an input, so the horn stays off at boot.')]],
+    [0, 'Button and lights', d.stepLights(), 'Press the 16 mm button into its Ø16 hole, and the two LED holders into their Ø8 holes, next to POWER and DATA. The button’s switch contacts go to the Pi 5’s J2 pads (solder a 2-pin header on J2). Its green ring goes straight to 5 V, so it shows power even when the Pi is dead. MCP23017 pins GPA1–3 drive STATUS and GPA4–6 drive LINK, through 150, 47 and 47 Ω.', [N('There is one button and it doesn’t cut power: hold it 2 s and the Pi shuts down cleanly. To switch off, unplug.'), N('Until the software drives them, STATUS and LINK stay off: no light is better than a wrong one.'), CHECK('Green and blue may be dim at 3.3 V. Look at them on the bench before you close the box.')]],
     [23, 'Control screen', d.step23(), 'Screw the screen onto the flap’s outer face and pass its ribbon through the slot. The 300 mm DSI cable runs to the Pi 5’s display port with a loose loop at the hinge, so it flexes instead of folding.', [CHECK('Run all eight modules and the screen together. The LED driver needs one Pi core; if the modules flicker with the screen on, the screen stays out.')]],
-    [24, 'Test', d.step24(), 'With the back still off, slide in the prepared SD card and power up with a 65 W laptop charger. POWER lights green at once; STATUS blinks yellow while it starts, then turns green; LINK shows blue with the tablet on the cable, green when online (the full colour code is in BUILD.md §6 and on the back label). The power-on self-test runs, then a test pattern on all eight modules; leave it for 30 minutes. The diagnostics page shows what the self-test found (BUILD.md §6).', [CHECK('First light on the Pi 5 with Piomatter, the screen flicker test and the soak test are not done yet on this design. If the Pi 5 path fails, a Pi 4 2 GB with the hzeller library is the fallback (BUILD.md).')]],
+    [24, 'Test', d.step24(), 'With the back still off, slide in the prepared SD card and power up with a 65 W laptop charger. POWER lights green at once; STATUS blinks yellow while it starts, then turns green; LINK shows blue with the tablet on the cable, green when online (the full colour code is in BUILD.md §6 and on the back label). The power-on self-test runs, then a test pattern on all eight modules; leave it for 30 minutes. The diagnostics page shows what the self-test found (BUILD.md §6).', [NO('Before the first match the SD card must run read-only: then pulling the plug can’t corrupt it. Unplugging is this board’s off switch.'), CHECK('Still to write: the scoring app for the touchscreen, the diagnostics page and the light driver (BUILD.md §10.7).'), CHECK('First light on the Pi 5 with Piomatter, the screen flicker test and the soak test are not done yet on this design. If the Pi 5 path fails, a Pi 4 2 GB with the hzeller library is the fallback (BUILD.md).')]],
   ]],
-  ['E', 'Finish', 'Ready for the hall.', [
+  ['F', 'Finish', 'Ready for the hall.', [
     [25, 'Close up', d.step25(), 'Put the back panel on and drive the six T20 screws into the batten and the blocks; turn buttons hold the rest. Inside the back: the fuse map, spare fuses and a spare SD card. An EPDM D-seal round the back panel’s rim, a brush seal at the front frame’s gap, dust caps on the USB-C sockets. The POINT HUB lettering and the back label wait until after first light, when the port positions are final.', []],
-    [26, 'Set it up', d.step26(), 'On a table: lift the front frame’s bottom and drop the stays into the notch you want, 0 to 20° toward the first referee; swing the flap open for the scorer; pull the foot out. On a speaker stand or a tripod: foot in, flap as needed. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet or a laptop only.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
-    [27, 'Open it', d.step27(), 'Unplug the charger. Undo the six T20 screws, ease the back panel off and unplug the screen ribbon at the Pi: everything inside is in reach.', [OK('Swapping the SD card or a fuse takes a minute.'), N('The back takes a T20 key on purpose: in a public hall, anything that opens by hand gets opened. Keep the key in the kit bag.')]],
+    [26, 'Set it up', d.step26(), 'On a table: lift the front frame’s bottom and drop the stays into the notch you want, 0 to 20° toward the first referee; swing the flap open for the scorer; pull the foot out. On a speaker stand or a tripod: foot in, flap as needed. Charger into POWER, tablet into DATA: one cable carries the scores and charges the tablet, and the scorer PIN isn’t needed on it. On a stand, the 3 m USB-C PD + data cable keeps the tablet on the scorer’s table.', [OK('Any USB-C charger works from 18 W; 65 W or more gives full brightness and charges the tablet.'), NO('Never plug the DATA cable into the school’s network: it’s for the tablet or a laptop only.'), NO('Never in direct sun or by a sunny window: the box would overheat. It dims itself from 50 °C.'), N('Keep a flip scoreboard with digits of 12 cm or more in the kit: Swiss Volley requires one if the board fails.'), N('Coming in from a cold car: wait 45 minutes before switching on, or condensation can short the modules.')]],
+    [0, 'Covers and bag', d.stepCovers(), 'For transport, the covers snap on: front, both ends and a lid over the flap. Then the box goes into its custom padded bag, with the chargers and cables in the outer pocket. Order the bag once the box is built, measured from the real thing.', [N('Keep the T20 key, the flip scoreboard and the 3 m USB-C cable in the outer pocket.')]],
+    [27, 'Open it', d.step27(), 'Unplug the charger. Undo the six T20 screws, ease the back panel off and unplug the screen ribbon at the Pi: the tray faces you and everything is in reach.', [OK('Swapping the SD card or a fuse takes a minute.'), N('The back takes a T20 key on purpose: in a public hall, anything that opens by hand gets opened. Keep the key in the kit bag.')]],
   ]],
 ];
 
+let stepNo = 0;
+stages.forEach(s => s[3].forEach(st => { st[0] = ++stepNo; }));
 const partCards = wood.map(([ic, L, name, spec, n]) => `<li class="part"><div class="pic">${d.icons[ic]}</div><div class="plabel">${L ? `<span class="pl">${L}</span>` : ''}<span class="pn">${name}</span><span class="pq">×${n}</span></div><span class="ps">${spec}</span></li>`).join('');
 const groupHtml = groups.map(([g, items]) => `<div class="label subh">${g}</div><ul class="grid">${items.map(([k, name, spec, n]) => `<li class="part"><div class="pic">${d.icons[k]}</div><div class="plabel"><span class="pn">${name}</span><span class="pq">${n > 1 ? '×' + n : ''}</span></div><span class="ps">${spec}</span></li>`).join('')}</ul>`).join('');
 const toolCards = toolList.map(([k, name, spec]) => `<li class="part tool"><div class="pic">${d.tools[k]}</div><div class="plabel"><span class="pn">${name}</span></div><span class="ps">${spec}</span></li>`).join('');
 const two = (n) => String(n).padStart(2, '0');
-const stageTimes = { A: 'one workshop afternoon', B: 'about 8 h + paint cure', C: 'about 2 h', D: 'about 5 h', E: 'about 1 h' };
+const stageTimes = { A: 'about 2 h', B: 'one workshop afternoon', C: 'about 8 h + paint cure', D: 'about 2 h', E: 'about 6 h', F: 'about 1 h' };
 const nSteps = stages.reduce((a, s) => a + s[3].length, 0);
 const toc = stages.map(([L, name, , steps]) => `<a class="toc-i" href="#st-${L}"><span class="toc-l">${L}</span><span class="toc-n">${name}</span><span class="toc-s">${two(steps[0][0])}–${two(steps[steps.length - 1][0])}</span></a>`).join('');
 const stageHtml = stages.map(([L, name, sub, steps]) => `
@@ -256,7 +281,7 @@ h1 { font-size: clamp(64px, 12vw, 152px); font-weight: 600; font-variation-setti
 .draft { padding-block: 14px 0; color: var(--faint); font: 400 12px/1.5 var(--mono); }
 
 /* contents */
-.toc { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; margin-top: 56px; background: var(--line); border: 1px solid var(--line); }
+.toc { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; margin-top: 56px; background: var(--line); border: 1px solid var(--line); }
 .toc-i { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 12px; padding: 16px; background: var(--bg); text-decoration: none; }
 .toc-i:hover { background: var(--sheet); }
 .toc-l { grid-row: span 2; font: 600 40px/.9 var(--display); font-variation-settings: "wdth" 75; color: var(--accent); }
@@ -430,8 +455,8 @@ footer.end { margin-top: 72px; padding-block: 24px 56px; border-top: 1px solid v
   ${stageHtml}
 
   <footer class="end">
-    <p>KSC Wiedikon · Point Hub board build manual, design D, draft of 2 November 2026.</p>
-    <p>The panel software comes ready on the SD card in step 24. Wiring, settings and safety: BUILD.md.</p>
+    <p>KSC Wiedikon · Point Hub board build manual, design D, draft of 4 November 2026.</p>
+    <p>The panel software comes ready on the SD card. Wiring, settings and safety: BUILD.md.</p>
   </footer>
 </div>
 

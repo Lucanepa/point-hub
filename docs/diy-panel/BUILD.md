@@ -131,11 +131,11 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
 | Plywood, cut to size | **Oecoplan poplar 6 mm (A/B)**, Jumbo online cut-to-size; the 15 pieces of the cut list (§8.2) | 1 order | Jumbo (online, store pickup) | 54 |
-| Battens | **beech 15 × 20 mm, 1 m** (15 × 15 is not stocked in Zürich) | 5 | DIY store | Check |
+| Battens | **beech 15 × 20 mm, 1 m** (15 × 15 is not stocked in Zürich): 2 long battens, 2 foot rails, 2 tray posts of 362 mm, blocks, 1 spare | 5 | DIY store | Check |
 | Polycarbonate, smoked | 3 mm **Makrolon UV 2760 grey** (about 62 % light), cut to 990 × 350 × 1 and 172 × 332 × 2. Not acrylic: a ball can crack it | 1 set | acrylglas-shop.com (ships to DE/AT only) or kunststoff-shop.ch (51 % light, ~CHF 89) | 42 |
 | Steel flat bar | **20 × 4 mm steel**, 1 m — must be steel, the module magnets hold on it; cut 3 bars of 360 mm (§8.3), two per 1 m bar | 2 | Hornbach.de or any DIY store | 3–5 each |
 | Aluminium flat bar | **25 × 4 mm**, 1 m, for the two ratchet stays (steel also works) | 1 | Hornbach.de or DIY store | 8 |
-| Aluminium sheet | **2 mm, 200 × 400**: the **electronics tray** (§8.11) — converter, fuse box, Pi and the small boards all on one removable plate | 1 | Hornbach.de (or 1.5 mm from OBI) | 17 |
+| Aluminium sheet | **2 mm, 200 × 400**: the **electronics tray** (§8.11) — converter, fuse box, Pi and the small boards all on one removable upright plate | 1 | Hornbach.de (or 1.5 mm from OBI) | 17 |
 
 ### 2.2 LED modules and computer
 
@@ -191,6 +191,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Tablet charging module | USB-C PD buck module, 12–30 V in (**DMyond PD 65 W**, or QIQIAZI PD65W), fed behind the 3 A fuse | 1 (+1 spare) | AliExpress or Amazon.de | 8 |
 | Panel-mount USB-C | female panel socket to male plug, 30 cm, all lines wired (CC, D+/D−), Adafruit 6069 | 2 | DigiKey CH | 8 |
 | Network cable | Cat 6, 25 cm | 1 | reichelt or any shop | 1–4 |
+| Stand cable | **USB-C, 3 m, PD + data**: on a speaker stand or tripod the tablet stays on the scorer's table (about 4 m total at most) | 1 | Galaxus, Digitec or AliExpress | 15 |
 
 ### 2.7 Clock, sensors, horn
 
@@ -202,8 +203,8 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Horn switch | **MCP23017 module** (CJMCU-2317 style; MCP23017, not the SPI MCP23S17), I²C `0x20` | 1 | AliExpress · Suzpng Limited Store | 6 incl. shipping |
 | Horn MOSFET | **isolated MOSFET module, variant AOD4184** (optocoupler input; not FR120N, LR7843 or an IRF520 module) | 1 | AliExpress Choice | 4 |
 | Horn | **SFM-27 active piezo buzzer, continuous** (not the "-II" intermittent type), DC 3–24 V, about 95 dB, about 30 mm across, with mounting ears | 1 (+spares) | AliExpress Choice (pack of 5) | 3 |
-| Status lights | three lights: **POWER**, **STATUS** and **LINK**, all from one pack of **RGB 5 mm LEDs, common cathode, matte** (POWER uses only the green leg); resistors 330 Ω (POWER), 150 Ω (red) and 47 Ω (green, blue) for STATUS and LINK; 3 × **panel-mount 5 mm metal LED holders** for Ø8 holes. Wiring and colour codes in §6 | 1 set | AliExpress · CHANZON (LEDs “100PCS 5mm Matte CC”, holders “5mm Metal”) + a resistor kit | 15 |
-| Power button *(optional)* | 12 mm momentary push button, normally open, panel mount, + 2-pin header for the Pi 5's power-button pads (J2) | 1 | AliExpress Choice | 3 |
+| Status lights | **STATUS** and **LINK**: **RGB 5 mm LEDs, common cathode, matte**; resistors 150 Ω (red) and 47 Ω (green, blue); 2 × **panel-mount 5 mm metal LED holders** for Ø8 holes. POWER is the ring of the button below. Wiring and colour codes in §6 | 1 set | AliExpress · CHANZON (LEDs “100PCS 5mm Matte CC”, holders “5mm Metal”) + a resistor kit | 15 |
+| Power button + POWER light | **16 mm self-reset push button with a green 6 V ring**, panel mount, Ø16 hole, + 2-pin header for the Pi 5's power-button pads (J2). The ring on 5 V is the POWER light | 1 | AliExpress | 3 |
 
 ### 2.8 Wiring
 
@@ -253,6 +254,8 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Back label | about 100 × 60 mm, white vinyl, matte: "Point Hub · KSC Wiedikon", POWER, DATA, and **the status- and link-light legends** (§6) under the lights. Order once the port and light positions are fixed | 1 | wir-machen-druck.ch | 14 |
 | Charger *(if the club has none)* | single-port USB-C PD, 65 W or more (100 W with a 5 A cable), labelled "board only" | 1 | Digitec or Amazon.de | 34–37 |
 | USB-C power meter | for the first power-up and the governor calibration (the club has a FNIRSI FNB48P) | 1 | — | 12 |
+| Transport covers | **3 mm poplar**: front 1020 × 380, ends 380 × 220 × 2, lid 300 × 225; **20 × N48 magnets Ø8 × 3**, 20 × M5 body washers (smaller for the lid), dark grey felt 0.8–1 mm (§8.12) | 1 set | Jumbo | 45 |
+| Custom bag *(after the build, from the real measurements)* | padded, about **104 × 40 × 24 cm inside**, 15–20 mm padding, 600D nylon, zip on 3 sides, handles + shoulder strap, outer pocket | 1 | AliExpress, custom order | 60–100 |
 
 **Dropped from earlier versions** — do not buy: tilt legs and their hinges, bow handles, Velcro
 table straps, screw-on rubber feet, the Ø30 blanking plug, pine battens 15 × 15, the TCA9534 horn
@@ -407,8 +410,8 @@ MCP23017 GPA3 ── 47 Ω──▶ STATUS LED blue  ┘
 MCP23017 GPA4 ──150 Ω──▶ LINK LED red     ┐
 MCP23017 GPA5 ── 47 Ω──▶ LINK LED green   ├─ common cathode ──▶ GND
 MCP23017 GPA6 ── 47 Ω──▶ LINK LED blue    ┘
-5 V (any module's fuse way, after the fuse) ──330 Ω──▶ POWER LED (green leg of an RGB LED) ──▶ GND
-Pi 5 J2 (power-button pads) ──▶ push button ──▶ (other J2 pad)          optional
+5 V (any module's fuse way, after the fuse) ──▶ button ring + (6 V LED, green = POWER light); ring − ──▶ GND
+Pi 5 J2 (power-button pads) ──▶ button switch ──▶ (other J2 pad)     hold 2 s to shut down
 ```
 
 The MCP23017 runs at 3.3 V, so the green and blue legs of the RGB LED (about 3 V forward voltage)
@@ -684,7 +687,7 @@ button on the page repeats it between sets.
 ### Status lights
 
 Three lights on the back panel, next to POWER and DATA, each answering one question:
-**POWER** (is there power?) is wired straight to the 5 V side, so it tells the truth even when the
+**POWER** (is there power?) is the green ring of the button, wired straight to the 5 V side, so it tells the truth even when the
 Pi is dead; **STATUS** (is the board healthy?) and **LINK** (what is it connected to?) are set by
 the software. On STATUS the most serious state wins (error, then warning, then ready). The same
 legends go on the back label, under the lights.
@@ -925,7 +928,7 @@ so its edges are protected when closed. The flap is hinged at its **top** edge o
 (friction) hinges and swings out like an awning, so the screen tilts up towards a scorer who looks
 down from above, and stays where it is left; a stop holds it at about 75°. A **magnetic catch**
 holds it shut. Closed, the screen faces out: in transport it is protected by the pocket and the kit
-bag or a slip-on cover.
+bag and its lid (§8.12).
 
 - **Opening in B:** 280 × 205, centred left to right. In the design study its top edge is about
   80 mm below the top of the box, which leaves the space below it for the ports. **Check** that the
@@ -1020,8 +1023,8 @@ On the back panel:
   the sockets that actually arrive), gold and blue rings, dust caps;
 - the **horn hole**: the SFM-27 buzzer is screwed on from inside over it. The spec says Ø30; the
   kit's hole saw is **Ø32**: **check** that the buzzer's ears still cover the hole;
-- the **status lights**: three **Ø8** holes for the panel-mount LED holders, POWER, STATUS and LINK
-  from left to right, about 20 mm apart, beside the ports, plus an optional **Ø12** hole for the power button;
+- the **button and lights**: a **Ø16** hole for the button with its green POWER ring, then two **Ø8**
+  holes for the STATUS and LINK LED holders, left to right, about 20 mm apart, beside the ports;
   the back label goes **under** them with the legend from §6 (shortened);
 - inside: the **fuse map, four spare fuses and a spare SD card**.
 
@@ -1047,16 +1050,17 @@ On the back panel:
 
 ### 8.11 Inside layout
 
-All the electronics sit on **one removable tray**: the 2 mm aluminium sheet (200 × 400), like a
-motherboard in a PC case. Everything is screwed to the tray on the bench, and the tray is held in the
-box by **4 wood screws** into the floor battens. The 6 mm floor is too thin for screws from below,
-and their heads would show under the box. For service: unplug the ribbons, the power leads and the
-lights, undo the 4 screws, and the whole electronics come out as one unit.
+All the electronics sit on **one removable tray**: the 2 mm aluminium sheet (up to 200 × 400), like a
+motherboard in a PC case. It **stands upright**, because the bottom cap K covers the floor: at 0° K's
+back edge lies 146 mm behind the front, which leaves only 68 mm of floor. Two beech posts (15 × 20,
+362 mm) stand between floor and top, **150 mm behind the front**, and the tray screws to them with
+**4 screws**, parts facing the back panel. Take the back off and everything faces you. For service:
+unplug the ribbons, the power leads and the lights, undo the 4 screws, and the tray comes out whole.
 
 | Part | How it is fixed |
 |---|---|
 | Converter, fuse box | screwed **flat** onto the tray: the converter uses the aluminium to cool (§5.1) |
-| Pi 5 + Active Cooler | its 4 × M2.5 holes (58 × 49 mm), brass standoffs about 10 mm |
+| Pi 5 + Active Cooler | its 4 × M2.5 holes (58 × 49 mm), brass standoffs about 10 mm; top of the tray |
 | Bonnet (or the main board later) | stacked on the Pi on the tall header, longer M2.5 standoffs on the same 4 holes |
 | Hub board (later, if used) | 4 × M3 holes in the corners, M3 × 10 standoffs |
 | PD board, INA226, MCP23017, DS3231, SHT40, AOD4184 | their own holes on M2.5/M3 standoffs; parts without holes on thick double-sided foam tape |
@@ -1064,19 +1068,21 @@ lights, undo the 4 screws, and the whole electronics come out as one unit.
 
 How to make it:
 
-1. Lay every part on the tray in its place, the Pi nearest the back panel (below). Mark the holes
-   through the parts with a pencil or the centre punch.
+1. Lay every part on the sheet: Pi and fuse box in the top row, converter, charger and hub in the
+   middle, the small boards in the bottom row. Mark the holes through the parts with a pencil or the
+   centre punch.
 2. Drill Ø2.7 for M2.5 and Ø3.2 for M3; deburr both sides.
 3. Screw the standoffs on from below with short screws, then the parts on top.
-4. Drill four Ø4 holes near the tray's corners for the wood screws (3.5 × 16) into the battens or
-   blocks under it.
+4. Drill four Ø4 holes in the tray's corners for the 3.5 × 16 screws into the posts.
 
 Rules:
 
 - **At least 6 mm under every board.** The aluminium conducts: no solder joint may touch it. Use
   10 mm standoffs, or put an offcut of the polycarbonate sheet under a board.
-- **Size the tray at the dry fit** (§9 B), together with K and Y: it must stay clear of the bottom
-  cap K's sweep at 0° and at 20°. Cut the sheet down if needed; 200 × 400 is the most it can be.
+- **Check at the dry fit** (§9 B): K clears the tray at 0° and at 20°; the ribbons reach the modules
+  over the tray's top edge with 12 cm of slack (longer HUB75 ribbons are cheap if not).
+- **Depth.** 64 mm is free from the tray to the back panel, 39 mm in front of the flap pocket. Keep the
+  tall parts off the pocket, and measure the Pi + bonnet + ribbon stack at the dry fit.
 - No lead may hang into the Pi's fan.
 
 On the tray: the PD board by the POWER socket, the hub and the charging module by the DATA socket;
@@ -1085,6 +1091,26 @@ beside the pocket: its built-in Wi-Fi is the board's only internet link, and its
 through the modules and the steel bars, while plywood lets the signal out. Keep USB 3 devices off
 the blue ports if the hall uplink is weak (USB 3 traffic is noisy on the 2.4 GHz band). The display
 cable from the flap must reach the Pi's DSI connector with its loop.
+
+### 8.12 Transport covers
+
+Four 3 mm covers protect the box in transport: the front, both ends, and a lid over the flap. They
+hold on magnets sunk into the box, so nothing sticks out and the look stays clean.
+
+| Cover | Size | Magnets |
+|---|---|---|
+| Front, on A's border | 1020 × 380 | 8 (4 corners + the middle of each side) |
+| Ends, on D's border | 380 × 220 × 2 | 4 each |
+| Lid over the flap, on B | 300 × 225 | 4, in the corners |
+
+- **Magnets:** N48, Ø8 × 3, sunk **flush**: pockets Ø8 × 3 mm into the 6 mm borders. Drill them **before
+  the paint**, glue the magnets in after it. A strip of tape on the bit is the depth stop.
+- **Washers:** M5 body washers, sunk about 1 mm into the 3 mm covers. Use a **Forstner bit**: a spade
+  bit's spur goes through 3 mm. To mark the places, dab paint on each magnet and press the cover on.
+- **Felt:** one sheet of thin dark grey felt, 0.8–1 mm, inside each cover. Not 4 mm: it holds the
+  magnet too far away.
+- **Check at the dry fit:** the lid has only 10 mm of border around the flap opening, so an M5 body
+  washer does not fit. Use smaller washers there, in the corners.
 
 ---
 
@@ -1142,8 +1168,8 @@ and do the checks marked in §8 at the dry fit, not after the glue.
 12. **K and H:** fit the bottom cap and the cheeks; tilt from 0° to 20° and back. Trim K to width.
     Check the cheeks clear the bench modules (put one module and its turn buttons in an end).
 13. **K/Y decision:** with A at 0° and at 20°, watch K sweep the floor and decide where Y goes
-    (§8.6). Mark Y's place and the inserts' holes. Lay the electronics tray (§8.11) on the floor too:
-    K must clear it as well. Mark the tray's place and cut it down if needed.
+    (§8.6). Mark Y's place and the inserts' holes. Stand the electronics tray (§8.11) upright on its two posts:
+    K must clear it as well. Mark the posts' places.
 14. **Flap:** fit the pocket, the flap with its torque hinges and the catch; put the screen (or its
     outline on cardboard) on the flap; check the stop and the cable route (§8.5).
 15. **Foot:** fit the two rails and T; check it slides 120 mm, the stop screws catch, and the turn
@@ -1168,13 +1194,14 @@ and do the checks marked in §8 at the dry fit, not after the glue.
 
 ### D — Paint (GZ workshop if allowed, or a balcony with a drop sheet)
 
-25. **Remove all hardware** (hinges, catches, stays, handles). Mask the spots that will be glued
+25. **Remove all hardware** (hinges, catches, stays, handles). Drill the cover pockets (§8.12) if not
+    done yet. Mask the spots that will be glued
     later or that must stay bare (the hinge leaves' seats are fine to paint).
 26. **Front face of A:** spray filler, sand P180 when dry, repeat until the grain is gone; then
     **gloss black 2K** (respirator). Two coats.
 27. **Everything else:** **matte black**, two coats, inside and out, sanding lightly between coats.
     Paint the steel bars too. Optional: 2K matte clear on top.
-28. Let it cure. The pads and the lettering wait until the paint is hard (about a week; check the can).
+28. Let it cure. Then glue in the cover magnets and washers (§8.12). The pads and the lettering wait until the paint is hard (about a week; check the can).
 
 ### E — Assembly and electronics (home)
 
@@ -1186,8 +1213,8 @@ and do the checks marked in §8 at the dry fit, not after the glue.
     bonded to −V. Nothing else connected. A small (about 20 W) PD phone charger through the USB-C
     power meter (it should read 9 V): **5.0–5.2 V at the fuse box**. 0 V or −5 V: unplug and check +
     and −. Then check 5 V on every fuse way with the multimeter.
-31. **Build the electronics tray** (§8.11): parts on standoffs on the 2 mm aluminium sheet, then the
-    tray into the box with 4 wood screws; fit both USB-C sockets in B. Solder the 10 kΩ
+31. **Build the electronics tray** (§8.11): parts on standoffs on the 2 mm aluminium sheet, the two
+    posts into the box, then the tray onto them with 4 screws; fit both USB-C sockets in B. Solder the 10 kΩ
     OE pull-up (§4.2), and the header pins on the MCP23017 and INA226 modules.
 32. **Modules:** box face-down on a blanket, A at 0°. Six modules onto the sheet, LEDs down, arrows
     the same way; short ribbons 1 → 2 → 3 and 4 → 5 → 6; bars on, magnets snap on. Bench modules
@@ -1421,7 +1448,7 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
 | Native OpenVolley / OpenBeach on the board (Linux arm64 desktop build, fullscreen on the 10.1″) | openvolley CI | planned — not started |
 | Cable tablet trusted without the scorer PIN (§7) | console | done (cable trust, 22.10.2026) |
 | Board identity (`boardId`, label; built 22.10.2026) and the client-only Wi-Fi setup (`.link` file, no AP) | provisioning | **must** |
-| Read-only root with a persistent `/data` partition and a `STATE_DIR` setting | image, appliance | planned; until then the card stays read-write, because match state and the resume file must survive a power cut |
+| Read-only root with a persistent `/data` partition and a `STATE_DIR` setting | image, appliance | **must before the first match**: unplugging is the off switch, so a pulled plug must not corrupt the card. Not written yet; match state and the resume file go on `/data` |
 
 ---
 
