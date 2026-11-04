@@ -68,7 +68,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 
 | Check | What could go wrong | When | Section |
 |---|---|---|---|
-| **First light on the Pi 5 + Piomatter** | the Pi 5 driver does not work with these modules or the bonnet → fall back to a Pi 4 2 GB with the hzeller driver | before cutting | §10.2 |
+| **First light on the Pi 5 + Piomatter** | **Passed 4 Nov 2026** with one module. Still open: all eight modules, Ports 2 and 3 | before cutting | §10.2 |
 | **Screen flicker test** | the touchscreen makes the LED modules flicker → the screen stays out, the scorer uses a tablet on the DATA cable | before fitting the screen | §10.4 |
 | **Bottom cap K vs backing plates Y** | both want the front/centre of the floor | dry fit, before gluing Y | §8.6 |
 | **Soak test** (2 h at the power cap) | the box runs too hot | before the first match | §6 |
@@ -318,8 +318,9 @@ against these markings when it arrives.
 
 Avoid 1/8-scan "outdoor" P5 modules (they may need multiplexing calibration nobody has done) and
 skip GOB modules — the polycarbonate front already takes the ball. Note each listing's maximum
-power: these modules are typically listed around **25 W each at full white**, which is why the
-power governor (§5.5) is not optional.
+power: these modules are often listed around 25 W each at full white. Ours **measured about 12 W at
+5 V** (§10.2), but eight of them still ask for more than the converter gives, so the power governor
+(§5.5) is not optional.
 
 **Bench-test one module on the Pi as soon as the parcel arrives, before cutting the case** (§10.2).
 Sellers change chips between batches under the same listing.
@@ -565,8 +566,9 @@ chargers mid-match means a reboot; the match resumes where it was.
 
 ### 5.5 Power budget and the governor
 
-Eight modules at roughly 25 W each could ask for **about 200 W** at full white — more than three
-times what the converter delivers (60 W) and ten times a 9 V/2 A charger (18 W). A white-heavy
+Eight modules at about 12 W each (measured at 5 V, §10.2) could ask for **about 93 W** at full white —
+half as much again as the converter delivers (60 W) and five times a 9 V/2 A charger (18 W). Two big
+digits at full brightness measured about 4.6 W per module, so about 37 W on all eight. A white-heavy
 frame or a test pattern would trip the charger, reset the PD contract and reboot the box mid-match.
 So the panel is never allowed to draw what the content asks for:
 
@@ -1071,7 +1073,7 @@ How to make it:
 1. Lay every part on the sheet: Pi and fuse box in the top row, converter, charger and hub in the
    middle, the small boards in the bottom row. Mark the holes through the parts with a pencil or the
    centre punch.
-2. Drill Ø2.7 for M2.5 and Ø3.2 for M3; deburr both sides.
+2. Drill Ø3 for M2.5 and Ø3.5 for M3 (a set in 0.5 mm steps has nothing closer); deburr both sides.
 3. Screw the standoffs on from below with short screws, then the parts on top.
 4. Drill four Ø4 holes in the tray's corners for the 3.5 × 16 screws into the posts.
 
@@ -1241,15 +1243,20 @@ screws, lift the back panel off. Swapping the SD card or a fuse takes under a mi
 ## 10. Software bring-up
 
 The Pi 5 is the plan. Its LED path (Adafruit **Piomatter**, which drives HUB75 through the Pi 5's
-RP1 chip) is **not yet bench-tested** with these modules, and flushBuffer2 still has to be ported to
-it. If the Pi 5 path fails at first light, use a **Pi 4 2 GB with the hzeller driver** — the path
-the C0270 already runs — and everything else in this section stays the same.
+RP1 chip) **passed first light with one of these modules on 4 November 2026** (§10.2); flushBuffer2
+still has to be ported to it. The **Pi 4 2 GB with the hzeller driver**, the path the C0270 already
+runs, stays as the fallback if a later step fails, and everything else in this section stays the same.
 
 ### 10.1 Prepare the Pi
 
 Flash **Raspberry Pi OS Lite, 64-bit**, current release. (The C0270's 32-bit userland is stuck on
 Node 22, which ends in April 2027; a new board should not start there.) Fit the Active Cooler on
-the Pi 5 before the first boot. Then:
+the Pi 5 before the first boot.
+
+**Use a current Raspberry Pi Imager**, from raspberrypi.com, not an old distribution package. Version
+1.8.5 from Ubuntu silently dropped the user, Wi-Fi and SSH settings on a Debian 13 (trixie) image, and
+the Pi then boots with no way in. Check that Wi-Fi is on and that your network is not WPA3-only
+(§10.2 used a cable). Then:
 
 ```ini
 # /boot/firmware/config.txt — both paths
@@ -1300,19 +1307,56 @@ resistor of the ZS-042 module) and power it from 3.3 V.
 
 ### 10.2 First light — one module, before anything is cut
 
-Bench setup: the Pi, the bonnet on the tall header, **one module on OUT 1**, a 5 V supply for the
-module (the converter on a PD charger, §9 step 30), an HDMI monitor on the micro-HDMI port and a USB
-keyboard.
+**Passed on 4 November 2026** with one module: a clean, stable picture at about 180 refreshes per
+second, 33 °C, no throttling. The Pi 4 fallback below is kept only for reference. All eight modules
+together, Ports 2 and 3 and the flushBuffer2 port are still to test.
 
-**Pi 5 + Piomatter (the plan).** Install Adafruit's Piomatter following its README and Adafruit's
-guide for the Triple Bonnet on the Pi 5 (it needs the RP1 PIO device, `/dev/pio0`, from a current
-OS: run `sudo apt full-upgrade` first). Run its example for **one 64 × 32 panel, 1/16 scan (4
-address lines)** with the triple-bonnet pinout. A clean, stable picture means the chip, the scan and
-the bonnet are good on the Pi 5. Then try all eight modules (3 outputs × 3, §4.1).
+Bench setup: the Pi with Active Cooler, stacking header and bonnet, **one module on Port 1** (the
+bonnet's silkscreen says Port 1/2/3; this guide's OUT 1/2/3 are the same), 12 V from a powerbank's car
+socket into the converter for the module, and the Pi on its own USB-C supply. A network cable to a
+router or a laptop is the simplest way in; a monitor is not needed.
 
-**Check — this is the first time anyone runs these modules on the Pi 5.** If the picture is
-scrambled, flickers, or the triple-bonnet pinout does not exist or clashes with GPIO0/1, stop and use
-the Pi 4 path below. Note what you saw; it decides whether the flushBuffer2 port (§10.7) goes ahead.
+- **Bonnet the right way round.** It lies **over the Pi and the cooler**, not off the side of the
+  board. Turned round, it fits just as well, but pin 1 lands on pin 40 and 5 V reaches the wrong pins.
+- **The stacking header is not optional with the Active Cooler.** Without it the fins hit the bonnet.
+- **The module's input** is not labelled IN. It is the socket at the tail of the **→ arrow** printed
+  on the back (hold it with the ↑ arrows up: input left, output right).
+
+**Pi 5 + Piomatter (the plan).** `/dev/pio0` was already present on the June–October 2026 Raspberry
+Pi OS, so no upgrade was needed. Install in a virtual environment, no root needed:
+
+```bash
+python3 -m venv ~/led-venv
+~/led-venv/bin/pip install Adafruit-Blinka-Raspberry-Pi5-Piomatter numpy pillow
+```
+
+Settings that worked for these modules (`P5-320X160-2121-16S`):
+
+| Setting | Value | Note |
+|---|---|---|
+| `pinout` | **`Pinout.Active3BGR`** | plain `Active3` swaps red and blue on these modules |
+| `n_addr_lines` | 4 | 1/16 scan |
+| `n_lanes` | 6 | two lanes per port |
+| Framebuffer | 64 wide × **96** high | rows 0–31 are Port 1, even with one module fitted |
+| `map` | `simple_multilane_mapper(64, 96, 4, 6)` | |
+| `n_planes`, `n_temporal_planes` | 10, 2 | |
+
+**Current measured** on the 12 V input with the meter on its 10 A range, one module (input power at
+about 13.3 V; 5 V figures assume about 88 % converter efficiency, after subtracting idle):
+
+| Picture | Input | About | At 5 V |
+|---|---|---|---|
+| Black (idle) | 0.06 A | 0.8 W | — |
+| White, value 64 | 0.13 A | 1.7 W | 0.2 A |
+| White, value 128 | 0.29 A | 3.9 W | 0.5 A |
+| Two big white "88" digits, full brightness | 0.45 A | 6 W | 0.9 A |
+| **Full white, value 255** | **1.05 A** | **14 W** | **2.3 A** |
+
+Piomatter applies a brightness curve, so value 128 uses only about a quarter of full power.
+
+**Check, if a later batch differs.** A scrambled or flickering picture, or a clash with GPIO0/1 once
+the I²C parts are on, sends you back to the Pi 4 path below. I²C on GPIO0/1 alongside Piomatter has
+not been tested yet.
 
 **Pi 4 2 GB + hzeller (fallback).** Build `rpi-rgb-led-matrix` at the commit pinned in
 [`firmware/flushbuffer/build.sh`](../../firmware/flushbuffer/build.sh), so the demos and

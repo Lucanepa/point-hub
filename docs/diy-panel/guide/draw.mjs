@@ -918,7 +918,7 @@ export function stepLight() {
   // Pi and bonnet
   b += piBoard(250, 222, 96, 58) + rect(262, 212, 72, 44, 'o gh') + txt(298, 238, 'bonnet', 'tt') + txt(298, 296, 'Pi 5 + cooler + tall header', 'tt');
   b += ribbon([334, 228], [430, 240], [454, 114]);
-  b += txt(362, 276, 'ribbon: OUT 1 → IN', 'tt', 'start');
+  b += txt(362, 276, 'ribbon: Port 1 → IN (tail of the → arrow)', 'tt', 'start');
   b += charger(120, 228, 'Pi'); b += path('M143 275 C160 290 210 280 250 262', 'o thick nf');
   // result
   b += ok(466, 212, 11) + lines(484, 208, ['Clean, stable picture:', 'go on and cut the wood.'], 'tl', 'start', 15);
@@ -953,7 +953,7 @@ export function stepTray() {
   b += rect(dx + 40, dy + 8, 70, 4, 'o p2') + txt(dx + 118, dy + 13, 'board', 'tt', 'start');
   for (const x of [50, 92]) { b += rect(dx + x, dy + 12, 8, 28, 'o gl') + rect(dx + x - 2, dy + 45, 12, 4, 'o p2'); }
   b += arrow([dx + 25, dy + 12], [dx + 25, dy + 40], 'ar', 7) + txt(dx + 25, dy + 3, '10 mm', 'tt');
-  b += ok(dx + 8, dy + 68, 9) + txt(dx + 24, dy + 72, 'Ø2.7 for M2.5, Ø3.2 for M3, deburr. No joint touches the metal.', 'ts', 'start');
+  b += ok(dx + 8, dy + 68, 9) + txt(dx + 24, dy + 72, 'Ø3 for M2.5, Ø3.5 for M3, deburr. No joint touches the metal.', 'ts', 'start');
   b += ok(dx + 8, dy + 90, 9) + txt(dx + 24, dy + 94, 'Converter and fuse box flat on the aluminium: it cools them.', 'ts', 'start');
   // right: side section to scale, why it stands up
   const S = SV(372, 322, 0.68);
