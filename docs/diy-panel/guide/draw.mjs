@@ -1190,7 +1190,7 @@ export const how = {
     b += arrow([X0 + 52, Y0 + 24], [X0 + 138, Y0 + 24]) + arrow([X0 + 160, Y0 + 40], [X0 + 160, Y0 + 86]);
     b += txt(X0 + 95, Y0 + 64, 'waste', 'tm halo') + txt(X0 + W / 2, Y0 + H + 14, 'Ø8 inside each corner, saw hole to hole', 'tt');
     // section: good face down, clamped over the bench edge
-    b += rect(240, 112, 164, 7, 'o p1') + txt(278, 100, 'good face DOWN', 'tb') + rect(240, 119, 76, 14, 'o p2') + txt(278, 148, 'bench', 'tt');
+    b += rect(240, 112, 164, 7, 'o p1') + txt(266, 100, 'good face DOWN', 'tb') + rect(240, 119, 76, 14, 'o p2') + txt(278, 148, 'bench', 'tt');
     b += jig(362, 106) + arrow([362, 150], [362, 124], 'ar', 7) + txt(372, 150, 'cuts going up', 'tt', 'start');
     b += ok(250, 34, 9) + lines(264, 30, ['T101B straights', 'T101AOF corners'], 'ts', 'start', 13);
     b += ok(28, 176, 9) + txt(44, 180, 'Clamp the sheet so the blade runs clear of the bench.', 'ts', 'start');
