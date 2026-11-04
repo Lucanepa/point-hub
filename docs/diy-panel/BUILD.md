@@ -797,7 +797,7 @@ Jumbo does not cut pieces smaller than **230 × 150 mm**, so the small parts are
 | **F** flap | 260 × 180 | 2 | glue the two together (12 mm); trim to the screen once it arrives |
 | **P1** pocket back | 292 × 217 | 1 | — |
 | **P2/P3** pocket walls | blank 292 × 150 | 1 | rip 25 mm strips: **2 × 292 × 25** (P2) and **2 × 205 × 25** (P3) |
-| **K** bottom cap | blank 1004 × 150 | 1 | cut to **1004 × 104** — final width after the dry fit |
+| **K** bottom cap | blank 1004 × 150 | 1 | keep the 150 mm blank; final depth **about 140 mm**, set at the dry fit (§8.4) |
 | **H** cheeks | blank 370 × 150 | 1 | cut to 370 × 130, then **diagonally** into two right-angled triangles |
 | **Y** backing plates | blank 300 × 208 | 1 | cut into **2 × 208 × 140**, glue the two together (12 mm) |
 | **T** pull-out foot | 600 × 150 | 1 | slot for the stop screws (§8.8) |
@@ -957,7 +957,7 @@ inserts' own pilot sizes through Y (typically Ø8 and Ø12); screw the inserts i
 hex key.
 
 **Open point — K and Y both want the floor at the front/centre.** The bottom cap K sweeps the front
-of the floor over the whole width (about 104 mm deep, more while tilting). The backing plate Y is
+of the floor over the whole width (about 140 mm deep). The backing plate Y is
 140 or 208 mm deep on a 214 mm deep floor, so wherever it goes, it reaches into K's path. Nobody has
 decided this yet. Decide at the dry fit, **before gluing Y**:
 
