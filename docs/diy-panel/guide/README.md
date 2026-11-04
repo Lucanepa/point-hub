@@ -20,4 +20,6 @@ node docs/diy-panel/guide/gen.mjs
 GUIDE_BARE=/path/to/manual.html node docs/diy-panel/guide/gen.mjs
 ```
 
+To print it as an A4 PDF (`point-hub-build-manual.pdf`): `PLAYWRIGHT=/path/to/node_modules/playwright node docs/diy-panel/guide/pdf.cjs`.
+
 The written guide, with the bill of materials, wiring and safety notes, is `docs/diy-panel/BUILD.md`.

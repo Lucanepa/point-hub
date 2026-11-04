@@ -1172,3 +1172,146 @@ icons.ties = I(rect(30, 28, 26, 26, 'o p1', 2) + path('M20 41 C30 8 70 8 94 40',
 tools.strip = TI(path('M12 20 L48 34 L84 12 M12 44 L48 34 L84 54', 'o thick nf') + circ(48, 34, 5, 'o p1'));
 tools.cutter = TI(path('M10 16 L52 34 L10 52', 'o thick nf') + path('M52 34 L88 24 L78 36 L52 34', 'o p2'));
 tools.forst = TI(rect(8, 30, 56, 6, 'o p2') + circ(74, 33, 12, 'o p1') + circ(74, 33, 3, 'ah'));
+
+// ---- "How to do it" drawings (420 x 230) ------------------------------------------------
+const HV = (b, label) => `<svg class="ill" viewBox="0 0 420 230" role="img" aria-label="${label}">${b}</svg>`;
+function jig(x, y) { // a jigsaw seen from the side, blade pointing down at x
+  return path(`M${x - 40} ${y} L${x + 44} ${y} L${x + 44} ${y - 14} L${x + 26} ${y - 44} L${x - 18} ${y - 44} L${x - 34} ${y - 20} L${x - 40} ${y - 20} Z`, 'o p1') + rect(x - 44, y, 92, 5, 'o p2') + rect(x - 1.5, y + 5, 3, 24, 'o dark');
+}
+function drillBody(x, y) { // a drill seen from the side, bit pointing down at x
+  return rect(x - 11, y - 44, 22, 34, 'o p1', 3) + rect(x - 7, y - 10, 14, 10, 'o p2') + rect(x + 11, y - 40, 36, 12, 'o p1', 3);
+}
+export const how = {
+  jigsaw() {
+    let b = '';
+    const X0 = 16, Y0 = 16, W = 190, H = 124;
+    b += rect(X0, Y0, W, H, 'o p0') + rect(X0 + 30, Y0 + 24, 130, 76, 'o hatchf');
+    for (const [x, y] of [[30, 24], [160, 24], [30, 100], [160, 100]]) b += circ(X0 + x + (x < 90 ? 7 : -7), Y0 + y + (y < 60 ? 7 : -7), 6, 'o dark');
+    b += arrow([X0 + 52, Y0 + 24], [X0 + 138, Y0 + 24]) + arrow([X0 + 160, Y0 + 40], [X0 + 160, Y0 + 86]);
+    b += txt(X0 + 95, Y0 + 64, 'waste', 'tm halo') + txt(X0 + W / 2, Y0 + H + 14, 'Ø8 inside each corner, saw hole to hole', 'tt');
+    // section: good face down, clamped over the bench edge
+    b += rect(240, 112, 164, 7, 'o p1') + txt(278, 100, 'good face DOWN', 'tb') + rect(240, 119, 76, 14, 'o p2') + txt(278, 148, 'bench', 'tt');
+    b += jig(362, 106) + arrow([362, 150], [362, 124], 'ar', 7) + txt(372, 150, 'cuts going up', 'tt', 'start');
+    b += ok(250, 34, 9) + lines(264, 30, ['T101B straights', 'T101AOF corners'], 'ts', 'start', 13);
+    b += ok(28, 176, 9) + txt(44, 180, 'Clamp the sheet so the blade runs clear of the bench.', 'ts', 'start');
+    b += no(28, 202, 9) + txt(44, 206, 'Don’t push hard or twist the blade: let it cut.', 'ts', 'start');
+    return HV(b, 'Cutting a window with a jigsaw: drill a hole in each corner, saw from hole to hole, good face down');
+  },
+  straight() {
+    let b = '';
+    b += rect(20, 90, 380, 8, 'o p0') + rect(20, 98, 150, 12, 'o p2') + txt(90, 124, 'bench', 'tt');
+    b += rect(150, 74, 240, 16, 'o p1') + txt(270, 85, 'batten = fence', 'tt');
+    b += jig(90, 84) + ln([90, 60], [90, 60], 'o');
+    b += rect(150, 60, 14, 30, 'tape') + txt(157, 54, 'clamp', 'tt');
+    const y = 150;
+    b += rect(20, y, 380, 60, 'o p0') + rect(20, y + 34, 380, 26, 'o hatchf');
+    b += rect(20, y + 14, 380, 6, 'o p1') + ln([20, y + 34], [400, y + 34], 'o dash') + arrow([60, y + 28], [150, y + 28]);
+    b += txt(30, y + 11, 'batten', 'tt', 'start') + txt(300, y + 50, 'waste', 'tm halo');
+    b += ok(240, 26, 9) + lines(254, 22, ['Distance = blade to shoe edge.', 'Measure it on an offcut first.'], 'ts', 'start', 14);
+    return HV(b, 'Sawing a straight line: clamp a batten as a fence and run the jigsaw shoe along it');
+  },
+  holesaw() {
+    let b = '';
+    const saw = (x, y) => rect(x - 26, y - 22, 52, 22, 'o nf') + path(`M${x - 26} ${y} l5 6 l5 -6 l5 6 l5 -6 l5 6 l5 -6 l5 6 l5 -6 l5 6 l5 -6`, 'o nf') + rect(x - 1.5, y - 22, 3, 40, 'o dark') + drillBody(x, y - 22);
+    b += txt(70, 16, '1 halfway', 'tb') + rect(14, 120, 112, 12, 'o p0') + saw(70, 112) + rect(44, 120, 3, 6, 'o dark') + rect(93, 120, 3, 6, 'o dark');
+    b += txt(210, 16, '2 turn it over', 'tb') + rect(154, 120, 112, 12, 'o p0') + carrow([180, 84], [210, 50], [240, 84]) + rect(208, 120, 4, 12, 'o dark') + txt(210, 148, 'centre hole guides you', 'tt');
+    b += txt(350, 16, '3 finish', 'tb') + rect(294, 120, 112, 12, 'o p0') + saw(350, 112);
+    b += ok(28, 176, 9) + txt(44, 180, 'Drill in gear 1 (slow), hammer off. Short bursts, clear the dust.', 'ts', 'start');
+    b += ok(28, 202, 9) + txt(44, 206, 'Plug stuck? Lever it out through the slots with a screwdriver.', 'ts', 'start');
+    return HV(b, 'Hole saw: cut halfway, turn the board over, finish from the other side, so neither face tears');
+  },
+  predrill() {
+    let b = '';
+    b += rect(30, 60, 150, 8, 'o p0') + rect(30, 68, 150, 22, 'o p1') + txt(105, 104, 'panel + beech batten', 'tt');
+    b += drillBody(90, 40) + rect(88.5, 40, 3, 44, 'o dark') + txt(90, 122, '1 pilot Ø2.5', 'tb');
+    b += rect(240, 60, 150, 8, 'o p0') + rect(240, 68, 150, 22, 'o p1');
+    b += path('M300 60 L322 60 L314 66 L314 86 L311 90 L308 86 L308 66 Z', 'o p2') + torx(311, 40, 10) + arrow([311, 28], [311, 52], 'ar', 7) + txt(315, 122, '2 screw 3.5 × 16, T20', 'tb');
+    b += ok(28, 152, 9) + txt(44, 156, 'Beech splits without a pilot hole. So does plywood near an edge.', 'ts', 'start');
+    b += ok(28, 178, 9) + txt(44, 182, 'Clutch ring low, gear 1: stop when the head sits flush.', 'ts', 'start');
+    b += no(28, 204, 9) + txt(44, 208, 'Hammer mode off, always: it wrecks plywood.', 'ts', 'start');
+    return HV(b, 'Pre-drill a pilot hole, then drive the screw');
+  },
+  metal() {
+    let b = '';
+    // vise and bar
+    b += rect(20, 96, 170, 8, 'o al') + rect(60, 104, 26, 44, 'o p2') + rect(106, 104, 26, 44, 'o p2') + txt(96, 162, 'vise', 'tt') + txt(150, 92, 'bar', 'tt');
+    b += rect(92, 38, 8, 44, 'o p1') + path('M92 82 L100 82 L96 94 Z', 'o dark') + txt(96, 30, '1 punch', 'tb');
+    b += rect(230, 96, 170, 8, 'o al') + drillBody(310, 54) + rect(308.5, 54, 3, 42, 'o dark') + txt(310, 116, '2 slow, oil, light pressure', 'tb');
+    b += circ(272, 86, 3, 'ah') + txt(262, 84, 'oil', 'tt', 'end');
+    b += ok(28, 186, 9) + txt(44, 190, 'Jigsaw: T118B, low speed, orbit 0. Clamp the bar close to the cut.', 'ts', 'start');
+    b += ok(28, 210, 9) + txt(44, 214, 'File every edge and hole: burrs cut wires and fingers. Wear glasses.', 'ts', 'start');
+    return HV(b, 'Drilling metal: centre punch, clamp in the vise, drill slowly with oil');
+  },
+  glue() {
+    let b = '';
+    b += rect(16, 40, 180, 22, 'o p1') + path('M24 51 q8 -8 16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0', 'wr thin2') + txt(106, 30, '1 thin wavy line, then spread', 'tb') ;
+    b += txt(310, 30, '2 tape every 15 cm', 'tb') + rect(226, 54, 170, 10, 'o p0') + rect(226, 64, 10, 60, 'o p0') ;
+    for (let i = 0; i < 5; i++) b += rect(240 + i * 32, 46, 12, 26, 'tape');
+    b += txt(106, 84, '3 tiny beads along the joint = right amount', 'tt') + rect(16, 94, 180, 10, 'o p1') + [...Array(10).keys()].map(i => circ(26 + i * 18, 94, 2.4, 'wrf')).join('');
+    b += rect(250, 140, 130, 50, 'o nf') + ln([250, 140], [380, 190], 'o dash') + ln([380, 140], [250, 190], 'o dash') + txt(315, 204, '4 diagonals equal = square', 'tb');
+    b += ok(28, 136, 9) + lines(44, 132, ['Everything ready first: about', '10 minutes open time.'], 'ts', 'start', 14);
+    b += ok(28, 176, 9) + lines(44, 172, ['Wipe squeeze-out with a damp', 'cloth: dried glue blocks paint.'], 'ts', 'start', 14);
+    return HV(b, 'Gluing: a thin line of glue, spread it, tape every 15 centimetres, wipe the squeeze-out, check the diagonals are equal');
+  },
+  forstner() {
+    let b = '';
+    const k = 6;
+    b += rect(30, 110, 170, 6 * k, 'o p0') + rect(80, 110, 8 * k, 3 * k, 'o dark') + txt(115, 164, 'Ø8 × 3 in the 6 mm box', 'tb');
+    b += rect(111, 30, 8, 60, 'o p2') + rect(84, 90, 62, 14, 'o p1') + rect(100, 60, 30, 10, 'tape') + txt(136, 68, 'tape = stop', 'tt', 'start');
+    b += arrow([64, 80], [64, 106], 'ar', 7);
+    b += rect(250, 110, 150, 3 * k, 'o p0') + path('M310 110 L320 96 L330 110 L340 128 L300 128 Z', 'noc') + txt(325, 146, 'spade bit: spur goes through', 'tt') + no(390, 98, 9);
+    b += ok(28, 186, 9) + txt(44, 190, 'Forstner bit, gear 1, slow. Try it on an offcut, then check the depth.', 'ts', 'start');
+    b += ok(28, 210, 9) + txt(44, 214, 'A magnet should sit flush, not proud. Glue it in after the paint.', 'ts', 'start');
+    return HV(b, 'Sinking a magnet pocket with a Forstner bit and tape on the bit as a depth stop');
+  },
+  spray() {
+    let b = '';
+    b += rect(250, 26, 150, 110, 'o p0');
+    for (let i = 0; i < 4; i++) b += rect(250, 32 + i * 24, 150, 22, 'o p2 thin');
+    b += path('M240 44 L410 44', 'ar') + path('M410 68 L240 68', 'ar') + path('M240 92 L410 92', 'ar');
+    b += rect(40, 60, 44, 76, 'o p1', 6) + rect(52, 46, 20, 14, 'o p2', 2) + rect(58, 38, 8, 8, 'o dark');
+    b += path('M84 44 L250 26 M84 52 L250 136', 'o dash') + txt(160, 112, 'about 25 cm', 'tb') + txt(62, 152, 'shake 2 min', 'tt');
+    b += ok(28, 176, 9) + txt(44, 180, 'Start and stop past the edge. Thin coats, 50 % overlap. Test on an offcut.', 'ts', 'start');
+    b += ok(28, 200, 9) + txt(44, 204, 'Dry, dust-free, right temperature (see can). P180 between coats.', 'ts', 'start');
+    b += no(28, 222, 7) + txt(44, 226, '2K paint: only outside, with an A2 respirator and gloves.', 'ts', 'start');
+    return HV(b, 'Spray painting: can about 25 centimetres away, long overlapping passes, thin coats');
+  },
+  crimp() {
+    let b = '';
+    const y = 50;
+    b += txt(60, 20, '1 strip', 'tb') + rect(14, y, 54, 8, 'wrf') + rect(68, y + 2, 34, 4, 'o al') + txt(85, y + 22, '8 mm', 'tt');
+    b += txt(210, 20, '2 ferrule on', 'tb') + rect(150, y, 40, 8, 'wrf') + rect(190, y - 2, 18, 12, 'o p2') + rect(208, y, 30, 8, 'o al') + txt(210, y + 22, 'no strands outside', 'tt');
+    b += txt(350, 20, '3 crimp, tug', 'tb') + path('M300 90 L340 62 L300 34 M400 90 L360 62 L400 34', 'o thick nf') + rect(338, 56, 24, 12, 'o al') + arrow([300, 96], [320, 80], 'ar', 7) + arrow([400, 96], [380, 80], 'ar', 7);
+    b += ok(28, 126, 9) + txt(44, 130, 'Twist the strands, then push them right to the ferrule’s end.', 'ts', 'start');
+    b += ok(28, 150, 9) + txt(44, 154, 'Size: pick the ferrule by the wire size, and the matching crimper hole.', 'ts', 'start');
+    b += ok(28, 174, 9) + txt(44, 178, 'Tug hard: it must not move. If it does, cut it off and use a new one.', 'ts', 'start');
+    b += no(28, 198, 9) + txt(44, 202, 'Ferrules are single use, and for stranded wire only.', 'ts', 'start');
+    return HV(b, 'Wire ferrules: strip 8 millimetres, slide the ferrule on, crimp, tug test');
+  },
+  solder() {
+    let b = '';
+    // heat pad and pin together, then feed solder
+    b += rect(30, 110, 170, 8, 'o p1') + rect(100, 60, 6, 80, 'o al') + rect(84, 104, 38, 6, 'fuse');
+    b += path('M60 40 L92 98 L84 104 L46 54 Z', 'o p2') + txt(46, 34, 'iron: touch pad AND pin', 'tt', 'start');
+    b += path('M170 50 L112 100', 'o thick nf') + txt(172, 46, 'solder: feed in here', 'tt', 'start') + txt(115, 156, '1 heat 2 s, 2 feed, 3 solder off, 4 iron off', 'tb');
+    const j = (x, shape, good, l) => rect(x - 28, 200, 56, 5, 'o p1') + rect(x - 2, 170, 4, 40, 'o al') + path(shape, 'fuse') + (good ? ok(x + 24, 180, 8) : no(x + 24, 180, 8)) + txt(x, 222, l, 'tt');
+    b += txt(310, 40, 'how a joint looks', 'tb');
+    b += j(255, 'M235 200 Q250 196 253 176 L257 176 Q260 196 275 200 Z', true, 'shiny cone');
+    b += j(320, 'M300 200 Q294 176 320 172 Q346 176 340 200 Z', false, 'blob');
+    b += j(385, 'M372 197 Q385 190 398 197 Q392 192 385 192 Z', false, 'not wetted');
+    b += lines(244, 62, ['Iron 320–350 °C, tip tinned.', 'Window open. Leaded solder:', 'wash your hands after.', 'Heat-shrink on the wire', 'BEFORE you solder.'], 'ts', 'start', 15);
+    return HV(b, 'Soldering: heat the pad and the pin together, feed solder, solder off, iron off; a good joint is a shiny cone');
+  },
+  meter() {
+    let b = '';
+    b += multimeter(30, 40, '12.0');
+    b += path('M45 124 C50 170 160 180 220 110', 'wb thin2') + path('M69 124 C80 200 240 190 300 110', 'wr thin2');
+    b += rect(190, 60, 150, 50, 'o p1', 2) + txt(265, 54, 'what you measure', 'tt') + txt(220, 92, '−', 'tc') + txt(300, 92, '+', 'tc') + rect(214, 100, 12, 10, 'o p2') + rect(294, 100, 12, 10, 'o p2');
+    b += ok(28, 186, 9) + txt(44, 190, 'Dial on DC volts (V with a straight line). Black COM, red V.', 'ts', 'start');
+    b += ok(28, 210, 9) + txt(44, 214, 'A minus sign means red and black are swapped: nothing breaks.', 'ts', 'start');
+    return HV(b, 'Measuring DC voltage with the multimeter: black probe on minus, red on plus');
+  },
+};
+icons.caphinge = icons.caphinge || I(rect(30, 26, 26, 30, 'o al') + rect(64, 26, 26, 30, 'o al') + rect(56, 24, 8, 34, 'o p2', 2));
+icons.lights = icons.lights || I(circ(40, 40, 15, 'o p1') + `<circle cx="40" cy="40" r="7" fill="#21c45d"/>` + circ(80, 40, 15, 'o p1') + `<circle cx="80" cy="40" r="7" fill="#2a7bff"/>`);
+icons.ina = icons.ina || I(rect(26, 22, 68, 36, 'o p0', 2) + rect(50, 30, 20, 12, 'o dark') + rect(30, 46, 60, 7, 'o fuse thin'));
