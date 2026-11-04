@@ -1255,8 +1255,8 @@ the Pi 5 before the first boot.
 
 **Use a current Raspberry Pi Imager**, from raspberrypi.com, not an old distribution package. Version
 1.8.5 from Ubuntu silently dropped the user, Wi-Fi and SSH settings on a Debian 13 (trixie) image, and
-the Pi then boots with no way in. Check that Wi-Fi is on and that your network is not WPA3-only
-(§10.2 used a cable). Then:
+the Pi then boots with no way in. A WPA3-only network works on the Pi 5, but only with
+`key-mgmt=sae` and the plain password in the NetworkManager profile; a hashed key cannot do WPA3. Then:
 
 ```ini
 # /boot/firmware/config.txt — both paths
