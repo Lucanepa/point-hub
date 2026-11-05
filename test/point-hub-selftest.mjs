@@ -326,6 +326,7 @@ console.log('[7] following the board\'s own OpenVolley')
 
   // The start screen's choice lasts until the next power-up, and does not touch Settings.
   ok((await fetch(`${base}/choose`)).ok, 'the start screen is served')
+  ok((await fetch(`${base}/openvolley_mark.svg`)).ok, '...with the OpenVolley logo')
   const boot_id = fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
   const nowFile = path.join(stateDir, 'screen-now')
   eq((await post(base, '/api/screen', { app: 'openvolley' })).app, 'openvolley', 'the screen chooses OpenVolley')
