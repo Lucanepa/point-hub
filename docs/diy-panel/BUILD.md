@@ -89,7 +89,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Front | the **front panel tilts 0, 5, 10, 15 or 20°**: it hangs from a piano hinge along the top edge and its bottom swings out, so the screen leans back towards the first referee. No legs; the box itself never moves |
 | Scorer screen | **10.1″ touchscreen** (1280 × 800) in a flap in the back panel, hinged at its top, swings out like an awning — **Check:** only if the flicker test passes (§10.4) |
 | Power | **USB-C PD charger, 18–100 W**; 65 W or more for full brightness while charging the tablet |
-| Ports | **2 × USB-C, nothing else**: POWER and DATA (to the scorer tablet: network + charging), low on the back under the flap |
+| Ports | low on the back under the flap: **USB-C POWER, USB-C DATA** (to the scorer tablet: network + charging), and **BACKUP: USB-A 3.0 + USB-C** for a stick or an SD reader |
 | Wi-Fi | **out only**: the Pi's built-in radio joins the hall's Wi-Fi for internet; the board has no Wi-Fi network of its own |
 | Mounting | table (rubber pads + pull-out rear foot against tipping), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | **fitted**: a 5 V piezo buzzer, about 95 dB, switched over I²C |
@@ -148,7 +148,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Fallback Pi | Raspberry Pi 4, **2 GB** — buy only if the Pi 5 bench test fails (§10.2) | (1) | welectron, pi-shop.ch | 60 |
 | Driver board | **Adafruit Triple LED Matrix Bonnet (6358)**, 3 HUB75 outputs — not the single bonnet 3211 | 1 | DigiKey CH | 9 |
 | Stacking header | Adafruit 1979, extra-tall 2 × 20, between Pi and bonnet | 1 | DigiKey CH | 3 |
-| Standoffs | M2.5 brass standoff kit, about 11 mm (Pi, bonnet, small modules), plus **M3 × 10 mm** brass standoffs and short M3 screws for the hub board and anything with M3 holes | 1 + 1 | AliExpress | 6 + 3 |
+| Standoffs | M2.5 brass standoff kit, about 11 mm: Pi, bonnet, small modules and the hub board. An M2.5 screw also passes through a module's 3 mm hole, with a little play | 1 | AliExpress | 6 |
 | Cable-tie mounts | self-adhesive cable-tie mounts, about 20 × 20 mm, and small cable ties: hold every lead flat on the tray, clear of the fan | 1 pack | AliExpress or any DIY store | 3 |
 | microSD | 32 GB, prepared image; one spare | 2 | Galaxus | 14 |
 
@@ -191,7 +191,9 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Tablet charging module | USB-C PD buck module, 12–30 V in (**DMyond PD 65 W**, or QIQIAZI PD65W), fed behind the 3 A fuse | 1 (+1 spare) | AliExpress or Amazon.de | 8 |
 | Panel-mount USB-C | female panel socket to male plug, 30 cm, all lines wired (CC, D+/D−), Adafruit 6069 | 2 | DigiKey CH | 8 |
 | Network cable | Cat 6, 25 cm | 1 | reichelt or any shop | 1–4 |
-| Stand cable | **USB-C, 3 m, PD + data**: on a speaker stand or tripod the tablet stays on the scorer's table (about 4 m total at most) | 1 | Galaxus, Digitec or AliExpress | 15 |
+| Backup port, USB-A | **USB-A 3.0 panel-mount extension**, about 30 cm, shielded, screw flange: to a blue USB 3 port on the Pi | 1 | any shop | Check |
+| Backup port, USB-C | **USB-A 3.0 plug to USB-C panel socket**, about 30 cm. **Check before fitting:** with a USB power meter and a charger in the socket, no 5 V may appear (the socket must not take power in) | 1 | any shop | Check |
+| Stand cable | **USB-C, 3 m, PD + data** (any cable that does both): on a speaker stand or tripod the tablet stays on the scorer's table (about 4 m total at most) | 1 | any shop | 15 |
 
 ### 2.7 Clock, sensors, horn
 
@@ -242,7 +244,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Silicone, black | sanitary silicone: a bead around the front sheet and the end windows, along the inside bottom joints | 1 cartridge | Hornbach | 6–8 |
 | Seal strip | self-adhesive **EPDM D-profile**, black, about 9 × 5 mm, 6 m: around the screen pocket and under the back-panel edge | 1 | Hornbach | 6–9 |
 | Brush seal | self-adhesive brush seal, about 2 m: the gap at the tilting front's bottom cap and cheeks | 1 | AliExpress | 3 |
-| USB-C dust caps | silicone, black, for POWER and DATA | 1 pack | AliExpress | 2 |
+| USB-C dust caps | silicone, black, for POWER, DATA and BACKUP; a USB-A cap for the other BACKUP port | 1 pack | AliExpress | 2 |
 | Vent mesh | fine stainless or fibreglass mesh behind the vents (the vents face down) | 1 | Hornbach | 4–6 |
 | Clear coat *(optional)* | 2K matte clear spray over the matte black, against wet balls and drinks | 1 | Hornbach | 18–24 |
 
@@ -340,9 +342,16 @@ graph LR
 
 | Output | Modules | Canvas rows |
 |---|---|---|
-| OUT 1 | 1 → 2 → 3, the **top row**, left to right | 0–31 |
-| OUT 2 | 4 → 5 → 6, the **bottom row**, left to right | 32–63 |
-| OUT 3 | **bench L → bench R**, third slot empty | 64–95 |
+| OUT 1 | Pi → 3 → 2 → 1, the **top row** | 0–31 |
+| OUT 2 | Pi → 6 → 5 → 4, the **bottom row** | 32–63 |
+| OUT 3 | Pi → **bench L → bench R**, first slot of the row empty | 64–95 |
+
+Numbers are as seen **from the front**, 1 at the top left, and they are what the test screen, the
+self-test and the fuse map say. Working from the back the chain runs left to right, input to output:
+a module's input is on the left seen from the back with its ↑ arrows up. **The module nearest the Pi
+shows the last slot of its row** (checked on the glass, 5 Nov 2026): the first pixels clocked in travel
+furthest. So module 3, not 1, takes the ribbon from the Pi, and on OUT 3 bench L is the row's third
+slot, bench R the second, and the first slot falls off the end of the chain.
 
 The driver runs three chains of three 64 × 32 modules in parallel: a **192 × 96** canvas whose top
 192 × 64 is the unchanged scoreboard (hzeller flags: `--led-rows=32 --led-cols=64 --led-chain=3
@@ -590,9 +599,9 @@ So the panel is never allowed to draw what the content asks for:
 - The console header should show the contract ("PD 9 V 2 A, 18 W") so a weak charger explains a
   dim board.
 
-**The governor exists only for the hzeller driver so far, and has not run on glass; the Pi 5 port
-is not written** (§10.7). Until it runs, bring the box up only at low brightness with mostly black
-content, and do not take it to a match.
+**The governor is written for the Pi 5 too, but it has not run on glass, and the budget software has
+not run on the real chips** (§10.7). Until both have, bring the box up only at low brightness with
+mostly black content, and do not take it to a match.
 
 ---
 
@@ -669,9 +678,9 @@ green / yellow / red, in words a scorer can act on ("Module 5 / fuse 5: no curre
 | Supply too weak | `vcgencmd get_throttled` (bits 0/16 undervoltage now / since boot, 2/18 throttled) | since boot / now |
 | Charger and contract | STUSB4500 `RDO_STATUS` + input INA226 (volts, amps, watts) | contract < 45 W / input sags > 10 % under load |
 | 5 V rail | 5 V INA226, voltage under load | < 4.9 V / < 4.75 V |
-| Box temperature, humidity | SHT40 | 45 °C or RH > 80 % / 50 °C (derating starts) |
+| Box temperature, humidity | SHT40 | 45 °C or RH > 80 %; dims from 50 °C / 60 °C (panel off) |
 | CPU temperature | Pi | 75 °C / 80 °C |
-| Clock battery | DS3231 oscillator-stop flag (the kernel then rejects the RTC time) | — / "clock battery empty or missing" |
+| Clock battery | DS3231 oscillator-stop flag (the kernel then rejects the RTC time) | "clock battery empty or missing" / — |
 | I²C parts present | STUSB4500, SHT40, DS3231, MCP23017, both INA226 | — / missing |
 | Panel driver painting | `ledbox-watchdog.sh` (`buffer.png` age, driver process) | restarted since boot / not painting |
 | Touchscreen, tablet cable, network | USB device, Ethernet link, server and Tailscale reachable | — / down |
@@ -716,8 +725,8 @@ legends go on the back label, under the lights.
 | **cyan** (green + blue) | **Online, and a tablet on the cable** | All good |
 | **red, blinking** | **Live results failing**: online, but the server rejects or does not answer | Check the console; results are kept and sent when it works again |
 
-Until the software drives them (§10.7), STATUS and LINK stay **off** after boot: the MCP23017 powers up
-with every pin as an input, so the LEDs are dark — no light is better than a wrong one.
+Until `pointhubd` runs (§10.7), STATUS and LINK stay **off** after boot: the MCP23017 powers up with
+every pin as an input, so the LEDs are dark — no light is better than a wrong one.
 
 ---
 
@@ -750,6 +759,13 @@ graph LR
 - **If the tablet or the cable fails mid-match** there is no phone fallback: keep scoring on the
   built-in screen if fitted, or on the flip board (§11), which the rules require anyway, and swap in
   the laptop on the cable.
+- **A laptop for debugging goes on DATA**, never on BACKUP: `ssh pi@192.168.5.1` or the console, once the
+  Pi has booted far enough to bring its network up. A USB keyboard works on the USB-A BACKUP port, with
+  the touchscreen or a monitor on the Pi's micro-HDMI.
+- **Backup stick (optional):** FAT32 or exFAT, in either BACKUP socket, at any time, also during a match.
+  The board copies OpenVolley's encrypted backups into `OpenVolley/` on it every few seconds, and
+  Diagnostics shows it. The match is on the board's card either way, so pulling the stick cannot hurt
+  it. Opening a backup takes the game PIN or the referee PIN. An SD card works in a USB reader.
 - **Never connect the DATA port to a hall network switch.** It hands out addresses and grants
   PIN-free control.
 - The tablet charges only on a 20 V contract (the charging module needs ≥ 12 V); on a 9 V charger
@@ -1023,6 +1039,9 @@ On the back panel:
 - the **flap opening** with the pocket (§8.5);
 - **POWER and DATA**, low, under the flap: USB-C cut-out 13 × 7 + 2 × Ø3 each (**check** against
   the sockets that actually arrive), gold and blue rings, dust caps;
+- **BACKUP**, beside them: the USB-A 3.0 and the USB-C panel sockets, **white ring and a BACKUP label**, for
+  a stick or an SD reader only. They are the Pi's host ports: a charger or a tablet does not work there,
+  and a laptop does nothing useful. **Check** the cut-outs against the sockets that actually arrive;
 - the **horn hole**: the SFM-27 buzzer is screwed on from inside over it. The spec says Ø30; the
   kit's hole saw is **Ø32**: **check** that the buzzer's ears still cover the hole;
 - the **button and lights**: a **Ø16** hole for the button with its green POWER ring, then two **Ø8**
@@ -1064,8 +1083,8 @@ unplug the ribbons, the power leads and the lights, undo the 4 screws, and the t
 | Converter, fuse box | screwed **flat** onto the tray: the converter uses the aluminium to cool (§5.1) |
 | Pi 5 + Active Cooler | its 4 × M2.5 holes (58 × 49 mm), brass standoffs about 10 mm; top of the tray |
 | Bonnet (or the main board later) | stacked on the Pi on the tall header, longer M2.5 standoffs on the same 4 holes |
-| Hub board (later, if used) | 4 × M3 holes in the corners, M3 × 10 standoffs |
-| PD board, INA226, MCP23017, DS3231, SHT40, AOD4184 | their own holes on M2.5/M3 standoffs; parts without holes on thick double-sided foam tape |
+| Hub board (later, if used) | 4 × M2.5 holes in the corners, M2.5 standoffs from the kit |
+| PD board, INA226, MCP23017, DS3231, SHT40, AOD4184 | their own holes on M2.5 standoffs; parts without holes on thick double-sided foam tape |
 | Leads | self-adhesive cable-tie mounts on the tray, ties every 10–15 cm |
 
 How to make it:
@@ -1073,7 +1092,7 @@ How to make it:
 1. Lay every part on the sheet: Pi and fuse box in the top row, converter, charger and hub in the
    middle, the small boards in the bottom row. Mark the holes through the parts with a pencil or the
    centre punch.
-2. Drill Ø3 for M2.5 and Ø3.5 for M3 (a set in 0.5 mm steps has nothing closer); deburr both sides.
+2. Drill Ø3 for M2.5 (a set in 0.5 mm steps has nothing closer); deburr both sides.
 3. Screw the standoffs on from below with short screws, then the parts on top.
 4. Drill four Ø4 holes in the tray's corners for the 3.5 × 16 screws into the posts.
 
@@ -1263,7 +1282,6 @@ the Pi then boots with no way in. A WPA3-only network works on the Pi 5, but onl
 enable_uart=0                        # GPIO14 is OUT 3
 dtparam=i2c_vc=on                    # I²C0 on GPIO0/1 (pins 27/28)
 dtoverlay=i2c-rtc,ds3231,i2c0        # DS3231 on I²C0
-dtoverlay=i2c-sensor,sht4x,i2c0      # SHT40 on I²C0
 gpio=18=op,dh                        # OE− high early: panels dark (second layer after the pull-up)
 
 # Pi 4 + hzeller only
@@ -1334,7 +1352,7 @@ Settings that worked for these modules (`P5-320X160-2121-16S`):
 
 | Setting | Value | Note |
 |---|---|---|
-| `pinout` | **`Pinout.Active3BGR`** | plain `Active3` swaps red and blue on these modules |
+| `pinout` | **`Pinout.Active3`** | checked with plain red and blue pictures, 5 Nov 2026. `Active3BGR` swaps red and blue: on the first day it only looked right because the module lay upside down, which reverses the bars |
 | `n_addr_lines` | 4 | 1/16 scan |
 | `n_lanes` | 6 | two lanes per port |
 | Framebuffer | 64 wide × **96** high | rows 0–31 are Port 1, even with one module fitted |
@@ -1473,26 +1491,31 @@ console / bridge  ──TCP 8889──▶  openscore  ──www/buffer.png──
    openscore renders them.
 3. **Console and bridge** — unchanged: `npm run appliance` on the board, the console on port 8890.
 
-### 10.7 Still to build before the first match
+### 10.7 Software status
+
+Written and tested against simulated chips and a mock panel, **not yet run on the real board**. The
+order for setting it up and the bench list are in
+[`provisioning/point-hub/README.md`](../../provisioning/point-hub/README.md).
 
 | Piece | Where | Status |
 |---|---|---|
-| **flushBuffer2 port from hzeller to Piomatter** (Pi 5), hzeller kept for the C0270 | flushBuffer2 | **must** for the Pi 5 — not written; waits for the first-light result |
-| Power governor, live brightness, budget file in `/run` (§5.5) | flushBuffer2 | written 22.10.2026 for hzeller, not yet run on glass; must move with the port |
-| PD contract read (`RDO_STATUS`) → budget; contract shown in `/api/status` and the console | appliance | **must** — not written |
-| SHT40 derating 50 °C / blank 60 °C | appliance → budget | **must** — not written |
-| Module-number test screen (bring-up, swap card) | openscore | **must** — not written |
-| Diagnostics page + `/api/status` checks (§6) | appliance, console | **must** — not written |
-| Status light driver: STATUS colour from the diagnostics states, LINK colour from cable/Wi-Fi/internet/live-results state, power-button shutdown blink (§6) | appliance | **must** — not written |
-| Power-on self-test: per-module current step with the 5 V INA226 (§6) | openscore + appliance | **must** — not written |
-| Horn: `horn_cmd` with the MCP23017 commands (§4.2) | settings, openscore | to set at bring-up |
-| Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | before the first glass run |
-| Bench screens: 192 × 96 canvas (or a `Remap` canvas of 256 × 64), content from the live match sections | openscore | feature — not written |
-| Scorer screen on the 10.1″: a local scoring screen (points, timeouts, substitutions, sets) | console / app | feature — not written; only if the flicker test passes |
-| Native OpenVolley / OpenBeach on the board (Linux arm64 desktop build, fullscreen on the 10.1″) | openvolley CI | planned — not started |
+| flushBuffer2 on Piomatter (Pi 5), hzeller kept for the C0270 | flushBuffer2 | written, never run on a Pi 5 |
+| Power governor, live brightness, budget file in `/run` (§5.5) | flushBuffer2 | written, never run on glass |
+| PD contract, budget, SHT40 derating 50 °C / blank 60 °C | `firmware/pointhubd` | written, never run on the chips |
+| Horn, STATUS and LINK lights, power-button shutdown blink (§6) | `firmware/pointhubd`, `src/boardHardware.js` | written, never run on the chips |
+| Diagnostics page, contract in the console header (§6) | `src/boardHardware.js`, console | written |
+| Power-on self-test: per-module current step (§6) | `src/boardHardware.js` | written, the settle time needs the real board |
+| Module-number test screen, eight modules | `firmware/openscore/layout/kscw_test.xml` | written |
+| Bench screens on the 192 × 96 canvas | openscore | written, the rotation is set on the glass |
+| Console on the 10.1″ screen, with an on-screen keyboard | `provisioning/point-hub/pointhub-screen` | written, needs the screen |
+| OpenVolley eScoresheet on the 10.1″; the board follows its live match | Settings ▸ Board screen, openvolley CI | written, the arm64 build has not run yet |
+| Client-only Wi-Fi, cable DHCP, firewall, board setup script | `provisioning/point-hub/setup-board.sh` | written, never run |
+| Backup copy to a stick or SD reader on the BACKUP ports | `provisioning/point-hub/pointhub-backup-stick` | written, the copy is tested, the mount needs the board |
+| Read-only root with a persistent `/data` | `prepare-card.sh`, `enable-readonly-root.sh` | written, never run; **must before the first match** |
+| STUSB4500 NVM settings (§5.2) | — | **not written**: waits for the real chip |
+| Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | **not done**: check on the glass |
+| Native OpenBeach on the board | openvolley CI | the same build; not set up |
 | Cable tablet trusted without the scorer PIN (§7) | console | done (cable trust, 22.10.2026) |
-| Board identity (`boardId`, label; built 22.10.2026) and the client-only Wi-Fi setup (`.link` file, no AP) | provisioning | **must** |
-| Read-only root with a persistent `/data` partition and a `STATE_DIR` setting | image, appliance | **must before the first match**: unplugging is the off switch, so a pulled plug must not corrupt the card. Not written yet; match state and the resume file go on `/data` |
 
 ---
 
