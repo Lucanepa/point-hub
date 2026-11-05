@@ -248,8 +248,8 @@
   .namesize button{width:var(--tap);height:var(--tap);padding:0;font-size:18px;font-weight:800;line-height:1;
     border:0;background:transparent;color:var(--fg);cursor:pointer;border-radius:6px}
   .namesize button:disabled{opacity:.3;cursor:default}
-  .namesize .num{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);
-    color:var(--muted);min-width:20px;text-align:center;line-height:1}
+  .namesize .num{font-size:11px;font-weight:800;width:32px;
+    color:var(--muted);text-align:center;line-height:1.1}
   .namesize .num.bump{animation:numbump .5s ease}
   .side .namesize{background:color-mix(in srgb,var(--on-edge) 12%,transparent);
     border-color:color-mix(in srgb,var(--on-edge) 34%,transparent)}
@@ -1170,6 +1170,7 @@
     <!-- Portrait-only copies of keep-awake / full screen (the centre column's are hidden there). -->
     <button class="iconbtn hdricon js-awake" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
     <button class="iconbtn hdricon js-fs" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
+    <button id="switchAppBtn" class="sportbadge" type="button" hidden title="Back to the start screen: Point Hub or OpenVolley eScoresheet">Switch app</button>
     <button id="sportBadge" class="sportbadge" title="Change sport" aria-label="Change sport"><span class="sbico" aria-hidden="true"></span><span class="sbtxt"></span></button>
     <nav class="nav">
       <button id="tabManualBtn" class="active" data-tab="manual">Game</button>
@@ -1225,7 +1226,7 @@
           <input class="short" data-field="short" maxlength="12" placeholder="TEAM A" aria-label="Left team name" autocomplete="off">
           <div class="namesize" title="Size of this name on the LED panel — a long name still shrinks to fit">
             <button type="button" data-font="left" data-d="-1" aria-label="Smaller name for this team on the panel">−</button>
-            <span class="num" data-fontval="left">–</span>
+            <span class="num" data-fontval="left">Font size</span>
             <button type="button" data-font="left" data-d="1" aria-label="Bigger name for this team on the panel">+</button>
           </div>
           <input class="color" type="color" data-field="color" value="#3b6fe0" aria-label="left team colour">
@@ -1275,7 +1276,7 @@
           <input class="short" data-field="short" maxlength="12" placeholder="TEAM B" aria-label="Right team name" autocomplete="off">
           <div class="namesize" title="Size of this name on the LED panel — a long name still shrinks to fit">
             <button type="button" data-font="right" data-d="-1" aria-label="Smaller name for this team on the panel">−</button>
-            <span class="num" data-fontval="right">–</span>
+            <span class="num" data-fontval="right">Font size</span>
             <button type="button" data-font="right" data-d="1" aria-label="Bigger name for this team on the panel">+</button>
           </div>
           <input class="color" type="color" data-field="color" value="#e0453d" aria-label="right team colour">
@@ -1437,9 +1438,10 @@
         </fieldset>
         <fieldset id="screenAppSet" hidden>
           <legend>Board screen</legend>
-          <label class="row"><span>What the board's touchscreen shows</span>
+          <label class="row"><span>What the board's touchscreen opens</span>
             <select data-set="screenApp">
-              <option value="console">This console</option>
+              <option value="ask">Ask at start: Point Hub or OpenVolley</option>
+              <option value="console">Point Hub</option>
               <option value="openvolley">OpenVolley eScoresheet</option>
               <option value="off">Nothing (screen off)</option>
             </select></label>
@@ -1975,6 +1977,8 @@
   // more than the feature it was for.
   const APP_BRIDGE = (() => { try { return window.PointHubApp || null; } catch { return null; } })();
   const IN_APP = !!APP_BRIDGE;
+  // Opened by the board's own touchscreen (provisioning/point-hub/pointhub-screen).
+  const ON_BOARD_SCREEN = new URLSearchParams(location.search).has("screen");
   function appCall(method, ...args) {
     if (!APP_BRIDGE) return undefined;
     try { return typeof APP_BRIDGE[method] === "function" ? APP_BRIDGE[method](...args) : undefined; }
@@ -4323,6 +4327,15 @@
     $("#screenAppSet").hidden = false;
   }
 
+  if (ON_BOARD_SCREEN) {
+    const sw = $("#switchAppBtn");
+    sw.hidden = false;
+    sw.addEventListener("click", async () => {
+      if (!await askConfirm("Go back to the start screen? The score stays saved.")) return;
+      await postJSON("/api/screen", { app: "ask" }).catch(() => toast("That did not work. Tap again."));
+    });
+  }
+
   const VIRTUAL_IFACE = /^(lo$|docker\d*$|veth|br-|virbr|vnet\d|cni|flannel)/;
   async function pollSystem() {
     if (document.hidden) return;
@@ -6103,7 +6116,9 @@
     if (!out) return;
     const n = Number(SETTINGS[fontKey(side)]);
     const { min, max } = fontBounds(side);
-    out.textContent = Number.isFinite(n) ? String(n) : "–";
+    // The words, not the number: beside a score, a bare 18 reads as points. The mirror shows the effect.
+    out.textContent = "Font size";
+    out.title = Number.isFinite(n) ? `Font size ${n}` : "Font size";
     // Same end-stop treatment the Settings steppers get — a dead button reads as broken.
     $$(`[data-font="${screenSide(side)}"]`).forEach((b) => {
       const d = Number(b.dataset.d);
@@ -6523,7 +6538,8 @@
   const syncGate = () => {
     // The tablet app: never. Its WebView is full screen already, element full screen does not exist
     // there, and the app holds the screen on itself — the gate could never be satisfied.
-    const want = IN_APP ? false : APP_MODE ? awakeRefused : canFS && isTouch() && !inFS();
+    // The board's own screen: a kiosk window that is full screen and stays on, but not element full screen.
+    const want = IN_APP || ON_BOARD_SCREEN ? false : APP_MODE ? awakeRefused : canFS && isTouch() && !inFS();
     document.body.classList.toggle("fs-gate", want && !fsSkipped);
   };
   if (APP_MODE) {

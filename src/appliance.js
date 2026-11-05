@@ -295,12 +295,30 @@ export async function startAppliance(config = loadConfig()) {
 
   // The board's own screen picks up what Settings says from this file (a systemd path unit restarts
   // provisioning/point-hub/pointhub-screen when it changes), which is why no sudo is needed.
-  const writeScreenApp = () => {
+  const screenAppFile = path.resolve(stateDir, 'screen-app')
+  const screenNowFile = path.resolve(stateDir, 'screen-now')
+  // Only when it differs: the path unit restarts the screen on any write, and an appliance restart
+  // must not close the app someone is scoring in.
+  const writeScreenApp = (changed = false) => {
     if (!hardware || !hardware.present) return
-    try { fs.writeFileSync(path.resolve(stateDir, 'screen-app'), `${settings.values.screenApp}\n`) }
-    catch (err) { log.warn(`could not write the screen choice: ${err.message}`, { error: err.message }) }
+    const value = `${settings.values.screenApp}\n`
+    try {
+      if (changed) fs.rmSync(screenNowFile, { force: true })
+      let old = null
+      try { old = fs.readFileSync(screenAppFile, 'utf8') } catch { /* first start */ }
+      if (old !== value) fs.writeFileSync(screenAppFile, value)
+    } catch (err) { log.warn(`could not write the screen choice: ${err.message}`, { error: err.message }) }
   }
   server.onScreenAppChange = writeScreenApp
+  // The start screen's choice lasts until the next power-up, so it carries the boot id (the launcher
+  // ignores an older one). Rewriting screen-app as it was is what makes the path unit fire.
+  server.onScreenChoice = (app) => {
+    try {
+      const boot = fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
+      fs.writeFileSync(screenNowFile, `${app} ${boot}\n`)
+      fs.writeFileSync(screenAppFile, `${settings.values.screenApp}\n`)
+    } catch (err) { log.warn(`could not switch the screen: ${err.message}`, { error: err.message }) }
+  }
   writeScreenApp()
 
   // Live readings only the system knows, refreshed slowly: they only feed warnings.

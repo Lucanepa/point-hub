@@ -257,6 +257,8 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   // is standing at the board, like the person at the other end of the cable. Both ends of the socket
   // must be loopback, and only on a board with the hardware: the C0270 has no screen, and on it a
   // loopback request stays an ordinary one.
+  // What the start screen chose since power-up. Null: what Settings says.
+  let screenNow = null
   const localScreen = (req) => {
     if (!hardware || !hardware.present || !req.socket) return false
     const isLoop = (a) => /^(::ffff:)?127\.0\.0\.1$/.test(String(a)) || a === '::1'
@@ -776,6 +778,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
 
       // Pretty route for the log viewer.
       if (pathname === '/logs') return serveStatic(res, '/logs.html', webDir)
+      if (pathname === '/choose') return serveStatic(res, '/choose.html', webDir)
 
       // The livestream scorebug: an OBS browser source (1920x1080, transparent). Reads
       // /api/overlay/stream, so it needs no PIN and nothing else from the board.
@@ -1109,6 +1112,17 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       // carries the active sport's values, since it's a flat merged view).
       return sendJson(res, 200, { ...settings.values, scorerPin: '', ...pinSettingsView(req), perSportKeys: PER_SPORT_KEYS })
     }
+    // POST /api/screen { app } — the start screen's choice, or back to it. Only from the board's own
+    // screen: a tablet on the cable must not close the app the scorer is using.
+    if (pathname === '/api/screen' && req.method === 'POST') {
+      if (!localScreen(req)) return sendJson(res, 403, { error: "Only the board's own screen can switch what it shows" })
+      const body = await readJson(req)
+      const app = body && body.app
+      if (!['ask', 'console', 'openvolley'].includes(app)) return sendJson(res, 400, { error: 'unknown app' })
+      screenNow = app
+      if (typeof server.onScreenChoice === 'function') server.onScreenChoice(app)
+      return sendJson(res, 200, { ok: true, app })
+    }
     // POST /api/settings — partial update; unknown keys are dropped and numbers clamped
     if (pathname === '/api/settings' && req.method === 'POST') {
       const body = await readJson(req)
@@ -1195,7 +1209,8 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
           brightness: updated.brightness,
         })
       }
-      if (typeof server.onScreenAppChange === 'function') server.onScreenAppChange()
+      if (updated.screenApp !== before.screenApp) screenNow = null
+      if (typeof server.onScreenAppChange === 'function') server.onScreenAppChange(updated.screenApp !== before.screenApp)
       return sendJson(res, 200, { ...updated, scorerPin: '', ...pinSettingsView(req) })
     }
     // GET /api/sport — the active sport + the pickable list (drives the UI's sport selector).
@@ -2249,15 +2264,17 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   }
   server.runHardwareSelfTest = runHardwareSelfTest
 
-  // The board's own OpenVolley on its touchscreen (Settings ▸ Board screen): nobody is at a second
-  // device to link the board to the match, so it follows the local relay by itself. Only ever a LIVE
+  // The board's own OpenVolley on its touchscreen: nobody is at a second device to link the board to
+  // the match, so it follows the local relay by itself. Only the console rules it out: after an
+  // appliance restart the start-screen choice is gone, and with no OpenVolley running there is no
+  // relay to find anyway. Only ever a LIVE
   // match, only one at a time, and never over a hand-scored game in play or a countdown. A match that
   // is still live stays linked; a new one takes over once the old one has left the live list.
   const LOCAL_RELAY = localRelayUrl || 'ws://127.0.0.1:8080'
   let localRelayTimer = null
   let localLinking = false
   async function followLocalScorer() {
-    if (localLinking || opt('screenApp') !== 'openvolley' || !ledbox || ledbox.ready !== true || countdown) return
+    if (localLinking || (screenNow || opt('screenApp')) === 'console' || !ledbox || ledbox.ready !== true || countdown) return
     const { mode, matchId } = sourceManager.status
     if (mode !== 'lan' && !ledbox._idle && matchInPlay(sourceManager.getState())) return
     localLinking = true

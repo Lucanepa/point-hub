@@ -50,7 +50,7 @@ console.log('\n[2] every write site in src/ is accounted for')
 // changes the count and fails this check: decide whether its file is state (then it must hang off
 // the state dir) and update the table.
 const WRITES = {
-  'appliance.js': [6, 'the crash marker data/.running, the .sport-switch marker it consumes, checkStateDir and the Point Hub screen-app file — all under the state dir'],
+  'appliance.js': [9, 'the crash marker data/.running, the .sport-switch marker it consumes, checkStateDir and the Point Hub screen-app and screen-now files — all under the state dir'],
   'settings.js': [3, 'settings.json in the state dir (appliance passes the path)'],
   'logStore.js': [6, 'data/logs/*.jsonl and its rotations (appliance/bridge configure the path)'],
   'historyStore.js': [3, 'data/history.json (controlServer, from dataDir)'],

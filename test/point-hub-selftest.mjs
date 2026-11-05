@@ -294,11 +294,13 @@ console.log('[7] following the board\'s own OpenVolley')
   })
   await new Promise((r) => relay.listen(0, '127.0.0.1', r))
   const port = relay.address().port
-  const { app, base } = await boot({ hardwareDir: dir, hardwareSettleMs: 1, localRelayUrl: `ws://127.0.0.1:${port}` })
+  const { app, base, stateDir } = await boot({ hardwareDir: dir, hardwareSettleMs: 1, localRelayUrl: `ws://127.0.0.1:${port}` })
 
   await app.server.followLocalScorer()
   eq((await J(base, '/api/status')).mode !== 'lan', true, 'with the console on the screen, it follows nothing')
-  await post(base, '/api/settings', { screenApp: 'openvolley' })
+  // The start screen, the new-board default: a choice is not a Settings change.
+  await post(base, '/api/settings', { screenApp: 'ask' })
+  eq(fs.readFileSync(path.join(stateDir, 'screen-app'), 'utf8').trim(), 'ask', 'Settings takes the start screen')
 
   list = [{ id: 'm1', status: 'setup' }]
   await app.server.followLocalScorer()
@@ -321,6 +323,22 @@ console.log('[7] following the board\'s own OpenVolley')
   list = [{ id: 'm2', status: 'live' }]
   await app.server.followLocalScorer()
   eq((await J(base, '/api/status')).matchId, 'm2', 'the next match takes over once the first has ended')
+
+  // The start screen's choice lasts until the next power-up, and does not touch Settings.
+  ok((await fetch(`${base}/choose`)).ok, 'the start screen is served')
+  const boot_id = fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
+  const nowFile = path.join(stateDir, 'screen-now')
+  eq((await post(base, '/api/screen', { app: 'openvolley' })).app, 'openvolley', 'the screen chooses OpenVolley')
+  eq(fs.readFileSync(nowFile, 'utf8').trim(), `openvolley ${boot_id}`, '...for this boot')
+  eq(fs.readFileSync(path.join(stateDir, 'screen-app'), 'utf8').trim(), 'ask', '...Settings still asks at the next power-up')
+  const refused = await fetch(`${base}/api/screen`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ app: 'doom' }) })
+  eq(refused.status, 400, 'an unknown app is refused')
+  await post(base, '/api/screen', { app: 'console' })
+  list = [{ id: 'm3', status: 'live' }]
+  await app.server.followLocalScorer()
+  eq((await J(base, '/api/status')).matchId, 'm2', 'with Point Hub chosen, it follows nothing new')
+  await post(base, '/api/settings', { screenApp: 'console' })
+  ok(!fs.existsSync(nowFile), 'a Settings change replaces the choice')
 
   await app.close()
   relay.close()

@@ -1,6 +1,7 @@
 #!/bin/bash
-# What the board's touchscreen runs: the OpenVolley eScoresheet (setup-board.sh makes it the default),
-# the console or nothing, as chosen in Settings > Board screen (the appliance writes the file, pointhub-screen.path restarts this).
+# What the board's touchscreen runs: the start screen (Point Hub or OpenVolley eScoresheet), then the
+# app chosen there until the next power-up. Settings > Board screen can skip the question or turn the
+# screen off (the appliance writes the file, pointhub-screen.path restarts this).
 #
 # labwc and not a one-app kiosk compositor, for the on-screen keyboard: the eScoresheet and the
 # console both need typing on a screen with no keyboard, squeekboard needs a compositor with the
@@ -12,9 +13,14 @@ set -u
 STATE=${POINTHUB_STATE:-/data/pointhub}
 SCREEN_HOME=${POINTHUB_SCREEN_HOME:-/data/screen}
 OPENVOLLEY=/usr/bin/openvolley-escoresheet
-choice=$(cat "$STATE/screen-app" 2>/dev/null || echo openvolley)
+choice=$(cat "$STATE/screen-app" 2>/dev/null || echo ask)
+# The start screen's choice, written with this boot's id: a power-up asks again.
+if read -r now boot 2>/dev/null < "$STATE/screen-now" && [ "$boot" = "$(cat /proc/sys/kernel/random/boot_id)" ]; then
+  choice=$now
+fi
 # Not installed yet: the console, not a dead screen.
-[ "$choice" != openvolley ] || [ -x "$OPENVOLLEY" ] || choice=console
+ov_installed=1
+[ -x "$OPENVOLLEY" ] || { ov_installed=0; [ "$choice" != openvolley ] || choice=console; }
 
 mkdir -p "$SCREEN_HOME/.config/labwc" "$SCREEN_HOME/.cache" "$SCREEN_HOME/.local/share"
 # A fixed folder, so the stick copy (pointhub-backup-stick) knows where the backups are.
@@ -32,8 +38,15 @@ case "$choice" in
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
     exec sleep infinity ;;
   *)
+    page="/?screen=1"
+    [ "$choice" != ask ] || page="/choose?ov=$ov_installed"
+    # The appliance may still be starting at power-up: not an error page on the screen.
+    for _ in $(seq 1 60); do
+      curl -fsS -o /dev/null "http://127.0.0.1:8890/choose" 2>/dev/null && break
+      sleep 1
+    done
     app=(/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland
-         --enable-wayland-ime --password-store=basic --no-first-run "http://127.0.0.1:8890") ;;
+         --enable-wayland-ime --password-store=basic --no-first-run "http://127.0.0.1:8890$page") ;;
 esac
 
 cat > "$SCREEN_HOME/.config/labwc/rc.xml" <<'XML'
@@ -47,11 +60,15 @@ XML
 # Team names need Ü: the Swiss layout first, kept in dconf under HOME. Writing needs a bus, reading not.
 dbus-run-session -- gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'ch'), ('xkb', 'us')]" || true
 # When the app ends, labwc ends too and the unit starts everything again. Without this a crash would
-# leave labwc running with an empty screen, and systemd would see nothing wrong.
+# leave labwc running with an empty screen, and systemd would see nothing wrong. Quit in OpenVolley's
+# menu (exit 0) goes back to the start screen; a crash reopens the app. Only for OpenVolley: Chromium
+# also exits 0 when a switch closes it, and that must not wipe the choice just made.
+then_quit=
+[ "$choice" != openvolley ] || then_quit="[ \$? -ne 0 ] || rm -f $(printf %q "$STATE/screen-now"); "
 {
   printf 'squeekboard &\n'
   printf '('
   printf ' %q' "${app[@]}"
-  printf '; labwc --exit) &\n'
+  printf '; %slabwc --exit) &\n' "$then_quit"
 } > "$SCREEN_HOME/.config/labwc/autostart"
 exec labwc

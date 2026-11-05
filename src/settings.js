@@ -27,7 +27,7 @@ const BRANDINGS = ['kscw', 'plain']
 const LIVE_SYSTEMS = ['off', 'kscw']
 const ORIENTATIONS = ['behind', 'front']
 // What the Point Hub board's own touchscreen runs (provisioning/point-hub/pointhub-screen).
-export const SCREEN_APPS = ['console', 'openvolley', 'off']
+export const SCREEN_APPS = ['ask', 'console', 'openvolley', 'off']
 
 // Shared across every sport.
 export const GLOBAL_DEFAULTS = {
@@ -60,9 +60,10 @@ export const GLOBAL_DEFAULTS = {
   // console reads it, to put each team card on the scorer's own side; the server, the sources and
   // the mappers keep PANEL sides whatever it says. Shared like branding: it is about the hall.
   orientation: 'behind',
-  // The board's own 10-inch touchscreen, where it has one: 'console' (this console), 'openvolley'
-  // (the OpenVolley eScoresheet, and the board follows its live match) or 'off'. The C0270 has no
-  // screen and never reads it.
+  // The board's own 10-inch touchscreen, where it has one, at power-up: 'ask' (the start screen, the
+  // new-board default from setup-board.sh), 'console' (this console), 'openvolley' (the OpenVolley
+  // eScoresheet, and the board follows its live match) or 'off'. The C0270 has no screen and never
+  // reads it.
   screenApp: 'console',
   // Set up the pre-match on its own an hour before a home game in the season schedule (see
   // autoPrepare.js). Shared: it is about the hall's evening, not about one sport's rules.
