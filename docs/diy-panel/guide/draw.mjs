@@ -45,6 +45,8 @@ export function torx(cx, cy, r = 8) {
   return circ(cx, cy, r, 'o p0') + poly(p, 'ah');
 }
 const screw = (x, y, r = 2.4) => circ(x, y, r, 'o p2 thin');
+// the white BACKUP ring needs a thin outline to show on paper
+export const ringW = (x, y, r) => circ(x, y, r + 1.8, 'o nf thin') + circ(x, y, r, 'ringw') + circ(x, y, r - 1.8, 'o nf thin');
 export const badge = (x, y, L) => rect(x - 9, y - 9, 18, 18, 'o p0', 2) + txt(x, y + 4.6, L, 'tb');
 const count = (x, y, s, a = 'start') => txt(x, y, s, 'tc', a);
 export function ok(x, y, r = 12) {
@@ -276,14 +278,14 @@ export function step2() {
   for (let i = 0; i < 8; i++) b += rect(Bx(300 + i * 55), Bz(353), 40 * s, 8 * s, 'o hatchf thin');
   for (const [x, z] of [[14, 14], [510, 14], [1006, 14], [14, 366], [510, 366], [1006, 366]]) b += circ(Bx(x), Bz(z), 1.6, 'o hatchf');
   b += circ(Bx(890), Bz(310), 16 * s, 'o hatchf') + txt(Bx(890), Bz(310) - 7, 'Ø32', 'tt');
-  for (const [x, cls, l, a, dx] of [[60, 'ringb', 'DATA', 'end', -4], [120, 'ringg', 'POWER', 'start', 4]]) {
-    b += circ(Bx(x), Bz(40), 5, cls) + rect(Bx(x) - 2.2, Bz(40) - 1.2, 4.4, 2.4, 'o dark thin', 1) + txt(Bx(x) + dx, Bz(40) - 8, l, 'tt', a);
-  }
-  b += circ(Bx(175), Bz(40), 8 * s + 1, 'o hatchf') + circ(Bx(215), Bz(40), 2.2, 'o hatchf') + circ(Bx(245), Bz(40), 2.2, 'o hatchf') + txt(Bx(160), Bz(40) - 9, 'button Ø16 · lights Ø8 ×2', 'tt', 'start');
+  // port plate: one hole, first guess 120 × 40, four corner holes on the 140 × 60 plate
+  b += rect(Bx(40), Bz(60), 120 * s, 40 * s, 'o hatchf') + txt(Bx(40), Bz(60) - 3, 'ports', 'tt', 'start');
+  for (const [x, z] of [[35, 15], [165, 15], [35, 65], [165, 65]]) b += circ(Bx(x), Bz(z), 1.2, 'o hatchf');
+  b += circ(Bx(190), Bz(40), 8 * s + 1, 'o hatchf') + circ(Bx(215), Bz(40), 2.2, 'o hatchf') + circ(Bx(235), Bz(40), 2.2, 'o hatchf') + txt(Bx(250), Bz(40) + 3, 'button Ø16 · lights Ø8 ×2', 'tt', 'start');
   b += txt(bx + 510 * s, by + 380 * s + 13, 'back B, seen from outside', 'tt');
   // legend
-  b += lines(316, 252, ['Windows, flap and handle cut-outs:', '  drill Ø8 in each corner, then', '  jigsaw (T101B, good face down)', 'Ø32  horn hole, hole saw', 'Ø45  stand cup, hole saw', 'Ø8 / Ø12  thread inserts (check', '  the size on the inserts you have)', 'USB-C  13 × 7 + 2 × Ø3', 'vents  8 × 40 × 8 (mesh behind)', 'Ø4  six back screws'], 'ts', 'start', 14);
-  return svg(640, 398, b, 'Openings: front window, two end windows, handle cut-outs in the top, the flap opening, ports, horn hole, vents and screw holes in the back');
+  b += lines(316, 252, ['Windows, flap and handle cut-outs:', '  drill Ø8 in each corner, then', '  jigsaw (T101B, good face down)', 'Ø32  horn hole, hole saw', 'Ø45  stand cup, hole saw', 'Ø8 / Ø12  thread inserts (check', '  the size on the inserts you have)', 'ports  one hole, first guess 120 × 40:', '  size it once all 4 sockets are measured', 'Ø4.5  four port plate screws', 'vents  8 × 40 × 8 (mesh behind)', 'Ø4  six back screws'], 'ts', 'start', 14);
+  return svg(640, 426, b, 'Openings: front window, two end windows, handle cut-outs in the top, the flap opening, the port plate hole, horn hole, vents and screw holes in the back');
 }
 
 // 3  Rip the oversize blanks
@@ -623,8 +625,8 @@ function lyingA(P, withPC = true) {
 }
 export function step15() {
   const P = proj(TOP, 72, 262, 0.5); let b = lyingA(P);
-  b += modBack(P, 22, 183, 9, 4, 1) + modBack(P, 342, 183, 9, 5, 1) + modBack(P, 662, 183, 9, 6, 1);
-  b += modBack(P, 22, 23, 9, 1, 1) + modBack(P, 342, 23, 9, 2, 1) + modBack(P, 662, 23, 9, 3, 1);
+  b += modBack(P, 22, 183, 9, 4, -1) + modBack(P, 342, 183, 9, 5, -1) + modBack(P, 662, 183, 9, 6, -1);
+  b += modBack(P, 22, 23, 9, 1, -1) + modBack(P, 342, 23, 9, 2, -1) + modBack(P, 662, 23, 9, 3, -1);
   const z = 23;
   b += ribbon(P(300, 78, z), P(342, 78, z + 60), P(384, 78, z)) + ribbon(P(620, 78, z), P(662, 78, z + 60), P(704, 78, z));
   b += ribbon(P(300, 238, z), P(342, 238, z + 60), P(384, 238, z)) + ribbon(P(620, 238, z), P(662, 238, z + 60), P(704, 238, z));
@@ -637,7 +639,7 @@ export function step15() {
   b += txt(n[0] - 4, n[1] + 4, 'top row →', 'ts', 'end') + txt(f[0] - 4, f[1] + 4, 'bottom row →', 'ts', 'end');
   b += wbadge(24, 24, 'A') + txt(40, 28, 'face-down on a blanket', 'ts', 'start');
   b += lines(400, 24, ['Bars sit on the magnets, screwed to blocks', 'on A’s top and bottom border, packed to', 'the magnet height.'], 'ts', 'start', 13);
-  return svg(640, 304, b, 'Front frame face-down: smoked sheet, six modules with the arrows all one way, short ribbons 1 to 3 and 4 to 6, three steel bars on blocks');
+  return svg(640, 304, b, 'Front frame face-down: smoked sheet, six modules with the arrows all one way, short ribbons 3 to 1 and 6 to 4, three steel bars on blocks');
 }
 
 export function step16() {
@@ -735,17 +737,17 @@ export function step21() {
   const mx = 300, my = 40, mw = 70, mh = 34;
   for (const [c, r, n] of [[0, 0, 1], [1, 0, 2], [2, 0, 3], [0, 1, 4], [1, 1, 5], [2, 1, 6]]) {
     const x = mx + c * (mw + 4), y = my + r * (mh + 4);
-    b += rect(x, y, mw, mh, 'o p2m') + circ(x + mw / 2, y + mh / 2, 8, 'o p0') + txt(x + mw / 2, y + mh / 2 + 4, n, 'tn') + arrow([x + mw / 2 - 24, y + 8], [x + mw / 2 + 24, y + 8], 'ar', 6);
+    b += rect(x, y, mw, mh, 'o p2m') + circ(x + mw / 2, y + mh / 2, 8, 'o p0') + txt(x + mw / 2, y + mh / 2 + 4, n, 'tn') + arrow([x + mw / 2 + 24, y + 8], [x + mw / 2 - 24, y + 8], 'ar', 6);
   }
   b += rect(252, 40, 22, 72, 'o p2m') + txt(263, 126, 'L', 'tb') + rect(534, 40, 22, 72, 'o p2m') + txt(545, 126, 'R', 'tb');
   b += rect(300, 200, 120, 64, 'o p1', 3) + txt(360, 280, 'bonnet on the Pi', 'ts');
   for (const [i, l] of [[0, '1'], [1, '2'], [2, '3']]) b += rect(312 + i * 34, 194, 26, 12, 'o dark thin') + txt(325 + i * 34, 190, l, 'tt');
-  b += ribbon([325, 194], [296, 120], [304, 64]) + ribbon([359, 194], [340, 150], [338, 110]);
+  b += ribbon([325, 194], [560, 170], [516, 62]) + ribbon([359, 194], [500, 170], [516, 100]);
   b += ribbon([393, 194], [262, 190], [263, 104]) + ribbon([263, 40], [400, 6], [545, 40]);
-  b += txt(440, 142, 'OUT 1 → module 1', 'tt', 'start') + txt(440, 154, 'OUT 2 → module 4', 'tt', 'start') + txt(440, 166, 'OUT 3 → L → R', 'tt', 'start');
+  b += txt(440, 216, 'OUT 1 → 3 → 2 → 1', 'tt', 'start') + txt(440, 228, 'OUT 2 → 6 → 5 → 4', 'tt', 'start') + txt(440, 240, 'OUT 3 → L → R', 'tt', 'start');
   b += path('M41 132 C60 70 200 60 300 50', 'wr thin2') + path('M152 132 C170 110 220 90 252 80', 'wr thin2');
   b += txt(120, 70, 'each fuse → its panel (red + black)', 'tt halo');
-  return svg(640, 296, b, 'Panel power through one 5 A fuse each; ribbon OUT 1 to the top row, OUT 2 to the bottom row, OUT 3 to the bench panels');
+  return svg(640, 296, b, 'Panel power through one 5 A fuse each; ribbon OUT 1 to module 3 and on to 2 and 1, OUT 2 to module 6 and on to 5 and 4, OUT 3 to the bench panels');
 }
 
 // 22  I²C parts and the horn
@@ -818,7 +820,9 @@ export function step25() {
   b += poly(fFront(P, 370, 87.5, 280, 205, by), 'o dark') + poly(fFront(P, 380, 105, 260, 180, by - 0.1), 'o p1');
   for (let i = 0; i < 8; i++) b += poly(fFront(P, 300 + i * 55, 345, 40, 8, by), 'o dark thin');
   const hp = F(890, 310); b += circ(hp[0], hp[1], 6, 'o p2');
-  for (const [x, cls, l, a, dx] of [[60, 'ringb', 'DATA', 'end', -3], [120, 'ringg', 'POWER', 'start', 3]]) { const p = F(x, 40); b += circ(p[0], p[1], 6, cls) + txt(p[0] + dx, p[1] - 9, l, 'tt', a); }
+  b += poly(fFront(P, 30, 10, 140, 60, by), 'o p1');
+  for (const [x, cls] of [[55, 'ringg'], [82, 'ringb'], [122, 'o nf thin'], [149, 'o nf thin']]) { const p = F(x, 40); b += circ(p[0], p[1], 3.5, cls); }
+  { const p = F(100, 74); b += txt(p[0], p[1], 'port plate', 'tt'); }
   for (const [x, z] of [[14, 14], [510, 14], [1006, 14], [14, 366], [510, 366], [1006, 366]]) { const k = F(x, z); b += torx(k[0], k[1], 5.5); }
   b += arrow(P(220, by + 10, -10), P(220, -10, -10)) + arrow(P(840, by + 10, -10), P(840, -10, -10));
   b += wbadge(22, 160, 'B');
@@ -829,7 +833,7 @@ export function step25() {
     return g;
   })());
   b += count(60, 40, '×6') + txt(88, 39, 'T20 3.5 × 16 into the batten and blocks', 'ts', 'start');
-  b += lines(64, 380, ['EPDM D-seal round B’s rim, dust caps on the USB-C sockets.', 'Inside B: fuse map, spare fuses, spare SD. Lettering and the back label after first light.'], 'ts', 'start', 14);
+  b += lines(64, 380, ['EPDM D-seal round B’s rim, dust caps on all four port sockets.', 'Inside B: fuse map, spare fuses, spare SD. Lettering and the back label after first light.'], 'ts', 'start', 14);
   return svg(640, 410, b, 'Put the back panel with the screen flap on and drive in six T20 screws into the blocks');
 }
 
@@ -864,7 +868,8 @@ export function step26() {
   b += txt(tx + 22, 298, 'tripod · ¼″ or ⅜″', 'tt');
   b += circ(36, 320, 8, 'ringg') + txt(52, 324, 'POWER ← any USB-C charger, 18–100 W (65 W+ for full brightness)', 'tl', 'start');
   b += circ(36, 346, 8, 'ringb') + txt(52, 350, 'DATA ← tablet: scores + charging, no PIN on the cable', 'tl', 'start');
-  return svg(640, 366, b, 'Set-ups: on a table with the front tilted 15 degrees toward the first referee, the flap open for the scorer and the foot pulled out; on a speaker stand; on a tripod');
+  b += ringW(36, 372, 8) + txt(52, 376, 'BACKUP ← USB stick or SD reader: no charger, no tablet', 'tl', 'start');
+  return svg(640, 392, b, 'Set-ups: on a table with the front tilted 15 degrees toward the first referee, the flap open for the scorer and the foot pulled out; on a speaker stand; on a tripod');
 }
 
 // 27  Open it
@@ -953,7 +958,7 @@ export function stepTray() {
   b += rect(dx + 40, dy + 8, 70, 4, 'o p2') + txt(dx + 118, dy + 13, 'board', 'tt', 'start');
   for (const x of [50, 92]) { b += rect(dx + x, dy + 12, 8, 28, 'o gl') + rect(dx + x - 2, dy + 45, 12, 4, 'o p2'); }
   b += arrow([dx + 25, dy + 12], [dx + 25, dy + 40], 'ar', 7) + txt(dx + 25, dy + 3, '10 mm', 'tt');
-  b += ok(dx + 8, dy + 68, 9) + txt(dx + 24, dy + 72, 'Ø3 for M2.5, Ø3.5 for M3, deburr. No joint touches the metal.', 'ts', 'start');
+  b += ok(dx + 8, dy + 68, 9) + txt(dx + 24, dy + 72, 'Ø3 for M2.5, deburr. No joint touches the metal.', 'ts', 'start');
   b += ok(dx + 8, dy + 90, 9) + txt(dx + 24, dy + 94, 'Converter and fuse box flat on the aluminium: it cools them.', 'ts', 'start');
   // right: side section to scale, why it stands up
   const S = SV(372, 322, 0.68);
@@ -972,17 +977,46 @@ export function stepTray() {
 }
 
 // Power button and status lights
+// The port plate: plate from outside, a section at its edge, where each cable goes inside
+export function stepPlate() {
+  let b = txt(24, 24, 'plate from outside: first guess 140 × 60, hole 120 × 40 dashed', 'ts', 'start');
+  const k = 2, X = x => 24 + x * k, y0 = 40, cy = y0 + 60;
+  b += rect(X(0), y0, 140 * k, 60 * k, 'o p1', 2) + rect(X(10), y0 + 20, 120 * k, 40 * k, 'o nf dash thin');
+  for (const [x, y] of [[5, 5], [135, 5], [5, 55], [135, 55]]) b += torx(X(x), y0 + y * k, 5);
+  const slot = (x, w, h) => rect(x - w / 2, cy - h / 2, w, h, 'o dark thin', 2);
+  b += circ(X(25), cy, 16, 'ringg') + slot(X(25), 22, 9) + txt(X(25), cy - 22, 'POWER', 'tt');
+  b += circ(X(52), cy, 16, 'ringb') + slot(X(52), 22, 9) + txt(X(52), cy - 22, 'DATA', 'tt');
+  b += ringW(X(92), cy, 15) + slot(X(92), 24, 11) + txt(X(92), cy + 30, 'USB-A', 'tt');
+  b += ringW(X(119), cy, 15) + slot(X(119), 22, 9) + txt(X(119), cy + 30, 'USB-C', 'tt');
+  b += ln([X(80), cy - 19], [X(131), cy - 19], 'o thin') + txt(X(105.5), cy - 22, 'BACKUP', 'tt');
+  b += txt(X(72), cy + 4, 'gap', 'tt');
+  // section at the plate's edge, 4 px per mm: plate 3, EPDM 3, B 6, nut 5
+  const sx = 396, st = 40;
+  b += rect(sx, st, 12, 120, 'o p1') + rect(sx + 12, st + 22, 12, 16, 'o dark') + rect(sx + 12, st + 82, 12, 16, 'o dark');
+  b += rect(sx + 24, st, 24, 40, 'o p0') + rect(sx + 24, st + 80, 24, 40, 'o p0') + txt(sx + 36, st + 64, 'hole', 'tt');
+  for (const y of [st + 10, st + 110]) b += rect(sx - 6, y - 7, 6, 14, 'o p2', 1) + rect(sx, y - 2, 80, 4, 'o al') + rect(sx + 48, y - 8, 20, 16, 'o dark');
+  b += txt(sx + 6, st - 18, 'plate', 'tt') + ln([sx + 6, st - 14], [sx + 6, st], 'o thin') + txt(sx + 18, st - 5, 'EPDM', 'tt') + txt(sx + 44, st - 5, 'B', 'tt') + txt(sx + 58, st - 5, 'nut', 'tt');
+  b += txt(sx - 10, st + 138, 'outside', 'tt', 'end') + txt(sx + 90, st + 138, 'inside', 'tt', 'start');
+  b += lines(sx - 20, st + 158, ['plate 3 + EPDM 3 + B 6 + nut 5 = 17', 'M4 × 20, lock nut, Ø4.5 holes'], 'tt', 'start', 13);
+  // inside: every cable stays separate
+  const cyy = 214;
+  b += path(`M${X(25)} 160 L${X(25)} ${cyy}`, 'wg thick2') + chip(24, cyy, 84, 34, 'STUSB4500');
+  b += path(`M${X(52)} 160 C${X(52)} 190 152 190 152 ${cyy}`, 'wd') + chip(116, cyy, 72, 34, 'USB-C hub');
+  b += path(`M${X(92)} 160 C${X(92)} 190 ${X(102)} 190 ${X(102)} ${cyy}`, 'wd') + path(`M${X(119)} 160 C${X(119)} 190 ${X(118)} 190 ${X(118)} ${cyy}`, 'wd') + chip(X(92), cyy, 66, 34, 'Pi USB');
+  b += txt(24, cyy + 58, 'Inside, everything stays separate: the plate only holds the sockets.', 'ts', 'start');
+  return svg(640, 296, b, 'The port plate from outside: POWER, DATA, a gap, BACKUP USB-A and USB-C, four corner screws over one rectangular hole; a section through plate, EPDM, back panel and lock nut; each cable going separately to its own part inside');
+}
+
 export function stepLights() {
   let b = '';
   // the back panel, bottom left corner, as seen from outside
   b += txt(16, 26, 'back panel B, seen from outside', 'ts', 'start');
   b += rect(16, 38, 296, 100, 'o p0');
   const hole = (x, r, cls = 'o dark') => circ(x, 88, r, cls);
-  b += circ(52, 88, 13, 'ringb') + rect(46, 85, 12, 6, 'o dark thin', 1) + txt(52, 122, 'DATA', 'tt');
-  b += circ(96, 88, 13, 'ringg') + rect(90, 85, 12, 6, 'o dark thin', 1) + txt(96, 122, 'POWER', 'tt');
-  b += `<circle cx="146" cy="88" r="17" fill="none" stroke="#21c45d" stroke-width="3.5"/>` + circ(146, 88, 12, 'o p1') + txt(146, 122, 'button Ø16', 'tt');
-  b += `<circle cx="198" cy="88" r="9" fill="#21c45d" stroke="var(--ink)"/>` + txt(198, 122, 'STATUS Ø8', 'tt');
-  b += `<circle cx="248" cy="88" r="9" fill="#2a7bff" stroke="var(--ink)"/>` + txt(248, 122, 'LINK Ø8', 'tt');
+  b += rect(24, 52, 126, 54, 'o p1') + circ(42, 79, 8, 'ringg') + circ(64, 79, 8, 'ringb') + ringW(104, 79, 6) + ringW(128, 79, 6) + txt(87, 122, 'port plate', 'tt');
+  b += `<circle cx="176" cy="88" r="17" fill="none" stroke="#21c45d" stroke-width="3.5"/>` + circ(176, 88, 12, 'o p1') + txt(176, 122, 'button Ø16', 'tt');
+  b += `<circle cx="238" cy="88" r="9" fill="#21c45d" stroke="var(--ink)"/>` + txt(238, 122, 'STATUS Ø8', 'tt');
+  b += `<circle cx="290" cy="88" r="9" fill="#2a7bff" stroke="var(--ink)"/>` + txt(290, 122, 'LINK Ø8', 'tt');
   b += lines(16, 158, ['The button’s green ring is the POWER light.', 'Hold the button 2 s: the Pi shuts down, then unplug.'], 'ts', 'start', 15);
   // wiring on the right
   b += chip(334, 44, 84, 58, 'MCP23017', '0x20', 'o p1');
@@ -1007,7 +1041,7 @@ export function stepLights() {
   b += txt(16, y0 - 16, 'what they say', 'tlb', 'start');
   [['#21c45d', 'POWER ring on', 'power is there'], ['#e9b800', 'STATUS yellow, blinking', 'starting'], ['#21c45d', 'STATUS green', 'ready'], ['#ff4a3d', 'STATUS red, blinking', 'error: read the screen']].forEach(([f, t, m], i) => { b += dot(24, y0 + i * 18, f) + txt(36, y0 + 4 + i * 18, `${t}: ${m}`, 'ts', 'start'); });
   [['#2a7bff', 'LINK blue', 'tablet on the cable'], ['#e9b800', 'LINK yellow', 'Wi-Fi, no internet'], ['#21c45d', 'LINK green', 'online'], ['#ff4a3d', 'LINK red, blinking', 'live results failing']].forEach(([f, t, m], i) => { b += dot(344, y0 + i * 18, f) + txt(356, y0 + 4 + i * 18, `${t}: ${m}`, 'ts', 'start'); });
-  return svg(640, 340, b, 'The back panel with the DATA and POWER sockets, the 16 mm power button with its green ring and the STATUS and LINK lights; how each is wired; what the colours mean');
+  return svg(640, 340, b, 'The back panel with the port plate, the 16 mm power button with its green ring and the STATUS and LINK lights; how each is wired; what the colours mean');
 }
 
 // Sink the magnets and washers: before the paint
@@ -1115,6 +1149,7 @@ export const icons = {
   sd: I(path('M46 20 L70 20 L76 26 L76 62 L46 62 Z', 'o p0') + rect(50, 24, 4, 8, 'o p2 thin') + rect(57, 24, 4, 8, 'o p2 thin')),
   conv: I(rect(24, 18, 72, 46, 'o p1', 2) + rect(24, 18, 10, 46, 'o p2') + Array.from({ length: 4 }, (_, i) => circ(48 + i * 12, 40, 2, 'o p2 thin')).join('')),
   pd: I(rect(40, 24, 40, 32, 'o p0', 2) + rect(35, 34, 12, 10, 'o dark thin', 2) + rect(72, 30, 6, 6, 'o p1 thin') + rect(72, 42, 6, 6, 'o p1 thin')),
+  portplate: I(rect(14, 22, 92, 36, 'o p1', 2) + circ(32, 40, 6, 'ringg') + circ(50, 40, 6, 'ringb') + ringW(76, 40, 4.5) + ringW(92, 40, 4.5) + circ(19, 27, 1.5, 'o dark') + circ(101, 27, 1.5, 'o dark') + circ(19, 53, 1.5, 'o dark') + circ(101, 53, 1.5, 'o dark')),
   ext: I(rect(12, 32, 16, 16, 'o p1', 2) + path('M28 40 C60 40 60 30 92 30', 'o thick nf') + rect(92, 26, 14, 8, 'o dark thin', 2)),
   fuse: I(fuseBox(14, 14, 8, 84)),
   chip: I(rect(30, 22, 60, 36, 'o p1', 2) + rect(48, 30, 24, 20, 'o dark', 1) + Array.from({ length: 6 }, (_, i) => ln([34 + i * 10, 58], [34 + i * 10, 64], 'o')).join('')),

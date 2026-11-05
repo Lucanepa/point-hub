@@ -292,14 +292,18 @@ async function main() {
   for (const hx of [-0.1, 0.1]) add(new THREE.BoxGeometry(0.03, 0.01, 0.004), mHw, hx, 0.002, 0.008, flapPivot);
   function setFlap(open) { flapPivot.rotation.x = open ? 45 * d2r : 0; }   // 45 deg from flat when open
 
-  // back panel: POWER and DATA low on the left (seen from behind), horn hole, vents, six T20 screws
-  for (const p of [{ x: 0.39, c: 0xe0a800, t: 'POWER' }, { x: 0.45, c: 0x3b74ff, t: 'DATA' }]) {
-    const slot = add(new RoundedBoxGeometry(0.0135, 0.0062, 0.004, 2, 0.0028), mDark, p.x, 0.045, PZ - 0.0004); slot.castShadow = false;
-    const ring = add(new THREE.TorusGeometry(0.0105, 0.0014, 10, 36), new THREE.MeshStandardMaterial({ color: p.c, roughness: 0.4, emissive: p.c, emissiveIntensity: 0.18 }), p.x, 0.045, PZ - 0.001);
+  // back panel: the port plate low on the left (seen from behind), horn hole, vents, six T20 screws
+  add(new RoundedBoxGeometry(0.14, 0.06, 0.003, 2, 0.001), new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.55 }), 0.41, 0.04, PZ - 0.0015).castShadow = false;
+  for (const [x, y] of [[0.345, 0.015], [0.475, 0.015], [0.345, 0.065], [0.475, 0.065]]) add(new THREE.CylinderGeometry(0.0034, 0.0034, 0.001, 16), mHw, x, y, PZ - 0.0034).rotation.x = Math.PI / 2;
+  for (const p of [{ x: 0.455, c: 0xe0a800, t: 'POWER' }, { x: 0.428, c: 0x3b74ff, t: 'DATA' }, { x: 0.388, c: 0xf2f2f2 }, { x: 0.361, c: 0xf2f2f2 }]) {
+    const slot = add(new RoundedBoxGeometry(0.0135, 0.0062, 0.002, 2, 0.0009), mDark, p.x, 0.036, PZ - 0.0032); slot.castShadow = false;
+    const ring = add(new THREE.TorusGeometry(0.0105, 0.0012, 10, 36), new THREE.MeshStandardMaterial({ color: p.c, roughness: 0.4, emissive: p.c, emissiveIntensity: 0.18 }), p.x, 0.036, PZ - 0.0034);
     ring.castShadow = false;
-    const lab = add(new THREE.PlaneGeometry(0.05, 0.01), new THREE.MeshBasicMaterial({ map: labelTex(p.t, 400, 80, '#9aa0a7', '600 44px "Instrument Sans", Arial, sans-serif', 8), transparent: true }), p.x, 0.068, PZ - 0.0005);
-    lab.rotation.y = Math.PI; lab.castShadow = false;
+    if (p.t) { const lab = add(new THREE.PlaneGeometry(0.026, 0.0052), new THREE.MeshBasicMaterial({ map: labelTex(p.t, 400, 80, '#9aa0a7', '600 44px "Instrument Sans", Arial, sans-serif', 8), transparent: true }), p.x, 0.0585, PZ - 0.0032);
+      lab.rotation.y = Math.PI; lab.castShadow = false; }
   }
+  const backupLab = add(new THREE.PlaneGeometry(0.03, 0.006), new THREE.MeshBasicMaterial({ map: labelTex('BACKUP', 400, 80, '#9aa0a7', '600 44px "Instrument Sans", Arial, sans-serif', 8), transparent: true }), 0.3745, 0.0585, PZ - 0.0032);
+  backupLab.rotation.y = Math.PI; backupLab.castShadow = false;
   add(new THREE.CylinderGeometry(0.016, 0.016, 0.002, 32), mDark, -0.38, 0.31, PZ - 0.001).rotation.x = Math.PI / 2;
   for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.349, PZ - 0.0004).castShadow = false;
   for (const x of [-0.496, 0, 0.496]) for (const y of [0.014, H - 0.014]) add(new THREE.CylinderGeometry(0.0042, 0.0042, 0.0015, 20), mHw, x, y, PZ - 0.0006).rotation.x = Math.PI / 2;

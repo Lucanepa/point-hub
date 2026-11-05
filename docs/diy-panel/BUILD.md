@@ -76,7 +76,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Polycarbonate sheet vs battens on A | the front sheet was cut for the earlier frame and may overlap the battens | dry fit | §8.3 |
 | Piano hinge position | A's top corner must clear the top C1 when tilting | dry fit | §8.4 |
 | Pull-out foot rails | rail length and height | dry fit | §8.8 |
-| Port plate size | about 100–120 × 40 mm for the hole is only a first guess, and the room under the flap is tight | once all four sockets are here and measured, before cutting the hole | §8.9 |
+| Port plate size | about 100–120 × 40 mm for the hole is only a first guess | once all four sockets are here and measured, before cutting the hole | §8.9 |
 
 ---
 
@@ -90,7 +90,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Front | the **front panel tilts 0, 5, 10, 15 or 20°**: it hangs from a piano hinge along the top edge and its bottom swings out, so the screen leans back towards the first referee. No legs; the box itself never moves |
 | Scorer screen | **10.1″ touchscreen** (1280 × 800) in a flap in the back panel, hinged at its top, swings out like an awning — **Check:** only if the flicker test passes (§10.4) |
 | Power | **USB-C PD charger, 18–100 W**; 65 W or more for full brightness while charging the tablet |
-| Ports | one removable **port plate**, low on the back under the flap: **USB-C POWER, USB-C DATA** (to the scorer tablet: network + charging), and **BACKUP: USB-A 3.0 + USB-C** for a stick or an SD reader |
+| Ports | one removable **port plate**, low on the back, left of the flap seen from outside: **USB-C POWER, USB-C DATA** (to the scorer tablet: network + charging), and **BACKUP: USB-A 3.0 + USB-C** for a stick or an SD reader |
 | Wi-Fi | **out only**: the Pi's built-in radio joins the hall's Wi-Fi for internet; the board has no Wi-Fi network of its own |
 | Mounting | table (rubber pads + pull-out rear foot against tipping), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | **fitted**: a 5 V piezo buzzer, about 95 dB, switched over I²C |
@@ -783,7 +783,7 @@ graph LR
   tie the tablet's 5 V to the converter's; and Android ignores a gadget link named `usb0`. The Pi's
   own USB-C socket stays empty.
 
-POWER, DATA and BACKUP are all on one **port plate** on the back, low, under the flap (§8.9),
+POWER, DATA and BACKUP are all on one **port plate** on the back, low on the left (§8.9),
 colour-ringed (gold POWER, blue DATA, white BACKUP), with a dust cap each, and labelled.
 
 ---
@@ -1040,7 +1040,7 @@ edge.
 On the back panel:
 
 - the **flap opening** with the pocket (§8.5);
-- the **port plate** over one rectangular hole, low, under the flap (below);
+- the **port plate** over one rectangular hole, low on the left seen from outside (below);
 - the **horn hole**: the SFM-27 buzzer is screwed on from inside over it. The spec says Ø30; the
   kit's hole saw is **Ø32**: **check** that the buzzer's ears still cover the hole;
 - the **button and lights**: a **Ø16** hole for the button with its green POWER ring, then two **Ø8**
@@ -1066,10 +1066,12 @@ in B, instead of a hole for each. A socket cut wrong then costs a new plate, not
 - **Seal it:** EPDM strip on the back of the plate, around the hole, cut at the corners rather than
   pierced by the screws. Or a thin bead of black silicone, which has to be cut and redone each time
   the plate comes off.
-- **Where it goes, tight:** in the design study about 95 mm of B is left under the flap opening. The
-  plate must clear the pocket wall and the transport lid (§8.12), about 15 mm below the opening, and
-  the middle screw block on B's bottom edge. **Check** it at the dry fit, with the button and lights
-  beside it; if it does not fit in the middle, move it to one side of the bottom block.
+- **Where it goes:** low on the left, seen from outside: about x 30–170 and 10–70 mm up, with the button
+  and lights to its right. That clears the corner block, the flap pocket and transport lid, and the
+  bottom middle block, and it sits near the PD board and the Pi, so the 30 cm cables can reach. There
+  is no room for it under the flap: only about 95 mm is left there, with the pocket wall, the lid and
+  the middle block in the way. **Check** at the dry fit: only 64 mm is free from B to the tray, so each
+  socket and its cable bend must fit in that.
 - **It comes off with the back panel:** the plate stays on B, and every cable to it needs enough slack
   (the 15 cm of §5.4) to lift B off and put it down without unplugging. **Check** that the 30 cm
   cables reach; otherwise unplug them at the tray.
