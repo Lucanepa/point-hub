@@ -22,8 +22,9 @@ pointhubd: I2C bus, power budget, thermal cut-off, horn ──power──▶ poi
    match history and the OpenVolley data. The script refuses a non-removable disk and asks first.
 2. **On the Pi:** clone this repo, then `sudo provisioning/point-hub/setup-board.sh`, then reboot.
 3. **Check the small boards:** `/opt/pointhub/pointhubd.py probe`.
-4. **OpenVolley on the screen:** install the arm64 `.deb` from the "Build Desktop App" workflow
-   (manual run, artifact `escoresheet-desktop-linux-arm64`), then choose it in Settings > Board screen.
+4. **OpenVolley on the screen:** the screen runs it by default. Put the arm64 `.deb` from the
+   "Build Desktop App" workflow (manual run, artifact `escoresheet-desktop-linux-arm64`) in the repo
+   folder before step 2, or `sudo apt install` it afterwards. Until then the screen shows the console.
    It is a workflow artifact, not on APT: a release has one amd64 `.deb`, and APT stays amd64.
 5. **Last, before any hall use:** `sudo ./enable-readonly-root.sh`, reboot, and the security list.
 

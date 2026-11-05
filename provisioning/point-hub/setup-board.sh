@@ -19,7 +19,12 @@ echo "== packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y python3-pil i2c-tools build-essential curl rsync dnsmasq iptables \
-  labwc squeekboard chromium
+  labwc squeekboard chromium libglib2.0-bin dbus
+# The eScoresheet runs natively on the screen. The arm64 .deb is a workflow artifact, not on APT: put
+# it in the repo folder before this script, or install it later (the screen shows the console until then).
+for deb in "$REPO"/openvolley-escoresheet_*_arm64.deb; do
+  [ -e "$deb" ] && apt-get install -y "$deb"
+done
 
 echo "== boot config (managed block, replaced on every run)"
 CFG=/boot/firmware/config.txt
@@ -92,7 +97,8 @@ chown -R "$OWNER:$OWNER" "$BRIDGE"
 install -m 0644 "$REPO/systemd/ledbox-bridge.service" /etc/systemd/system/ledbox-bridge.service
 install -d -o "$OWNER" -g "$OWNER" "$STATE" /data/screen /data/backups /data/backups/openvolley
 # No board network to join, so no connect QR codes: the crest and the clock (BUILD.md section 10.1).
-[ -e "$STATE/settings.json" ] || { echo '{"idleQr":false}' > "$STATE/settings.json"; chown "$OWNER:$OWNER" "$STATE/settings.json"; }
+# The screen starts in the eScoresheet. Only on a new board: the C0270 has no screen and never reads it.
+[ -e "$STATE/settings.json" ] || { echo '{"idleQr":false,"screenApp":"openvolley"}' > "$STATE/settings.json"; chown "$OWNER:$OWNER" "$STATE/settings.json"; }
 
 echo "== sudo: only what the appliance calls, nothing else"
 cat > /etc/sudoers.d/020_pointhub <<CONF
@@ -146,6 +152,6 @@ cat <<DONE
 Done. Reboot, then:
   /opt/pointhub/pointhubd.py probe      which small boards answer
   journalctl -u pointhubd -u pointhub-led -u pointhub-openscore -u ledbox-bridge -b
-OpenVolley on the screen: sudo apt install ./openvolley-escoresheet_*_arm64.deb
+No openvolley-escoresheet_*_arm64.deb in the repo folder? Install it, the screen shows the console until then.
 Before any hall use: enable-readonly-root.sh, and README.md's security list.
 DONE
