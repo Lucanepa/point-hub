@@ -1,0 +1,3 @@
+# A stick or a card reader on the board's back-panel ports: start the backup copy; systemd stops it when
+# the device goes away.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", TAG+="systemd", ENV{SYSTEMD_WANTS}+="pointhub-backup-stick@%k.service"

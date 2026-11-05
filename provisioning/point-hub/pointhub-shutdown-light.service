@@ -1,0 +1,11 @@
+[Unit]
+Description=STATUS light: slow green blink while the board shuts down
+DefaultDependencies=no
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/bin/python3 /opt/pointhub/pointhubd.py ctl shutdown
+
+[Install]
+WantedBy=shutdown.target

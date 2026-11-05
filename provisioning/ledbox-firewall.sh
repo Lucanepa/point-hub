@@ -20,6 +20,9 @@
 # them landed.
 set -uo pipefail
 
+# shellcheck disable=SC1091
+[ -r /etc/default/ledbox-firewall ] && . /etc/default/ledbox-firewall
+
 # -w 5: without it a single insert can lose the xtables lock to NetworkManager or tailscale at
 # boot, fail, and (before this) still be followed by an unconditional `-P INPUT DROP` — the
 # scorer's tablet silently loses the console with nothing in any log to say why.
@@ -136,6 +139,13 @@ build() { # $1 = iptables or ip6tables
   #   192.168.5.1  ledbox-c0270.<tailnet>.ts.net
   # Using the bare IP instead gets a certificate warning, because the cert is for the name.
   a $B -A $CHAIN -i eth0 -p tcp --dport 8891 -j ACCEPT
+  # The Point Hub board running OpenVolley on its screen: the referee, bench and livescore tablets
+  # on the cable reach its relay here. Only ever eth0: wlan1 (the hall) never gets these. Set in
+  # /etc/default/ledbox-firewall; unset on the C0270, which then has exactly the rules above.
+  for extra in ${ETH0_EXTRA_PORTS:-}; do
+    case "$extra" in ''|*[!0-9]*) continue ;; esac
+    a $B -A $CHAIN -i eth0 -p tcp --dport "$extra" -j ACCEPT
+  done
   [ "$v6" = 0 ] && a $B -A $CHAIN -i eth0 -p icmp --icmp-type echo-request -j ACCEPT
 
   # ── wlan1: the house LAN. Least trusted.

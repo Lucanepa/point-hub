@@ -1,0 +1,50 @@
+#!/bin/bash
+# What the board's touchscreen runs: the console, the OpenVolley eScoresheet or nothing, as chosen in
+# Settings > Board screen (the appliance writes the file, pointhub-screen.path restarts this).
+#
+# labwc and not a one-app kiosk compositor, for the on-screen keyboard: the eScoresheet and the
+# console both need typing on a screen with no keyboard, squeekboard needs a compositor with the
+# Wayland input-method protocols, and labwc + squeekboard is what Raspberry Pi OS itself runs.
+#
+# HOME and the XDG dirs are on /data: the root is read-only, and OpenVolley keeps its matches in the
+# webview's IndexedDB under them. On the overlay they would vanish at the next power cut.
+set -u
+STATE=${POINTHUB_STATE:-/data/pointhub}
+SCREEN_HOME=${POINTHUB_SCREEN_HOME:-/data/screen}
+choice=$(cat "$STATE/screen-app" 2>/dev/null || echo console)
+
+mkdir -p "$SCREEN_HOME/.config/labwc" "$SCREEN_HOME/.cache" "$SCREEN_HOME/.local/share"
+# A fixed folder, so the stick copy (pointhub-backup-stick) knows where the backups are.
+export OPENVOLLEY_BACKUP_DIR=${OPENVOLLEY_BACKUP_DIR:-/data/backups/openvolley}
+mkdir -p "$OPENVOLLEY_BACKUP_DIR"
+export HOME="$SCREEN_HOME" XDG_CONFIG_HOME="$SCREEN_HOME/.config" XDG_CACHE_HOME="$SCREEN_HOME/.cache" \
+       XDG_DATA_HOME="$SCREEN_HOME/.local/share" XDG_CURRENT_DESKTOP=labwc:wlroots XDG_SESSION_TYPE=wayland
+
+case "$choice" in
+  openvolley)
+    # Tablets on the cable open http://192.168.5.1:5173/referee and so on; the app listens on all
+    # addresses and the firewall opens its ports on eth0 only (ETH0_EXTRA_PORTS).
+    app=(/usr/bin/openvolley-escoresheet) ;;
+  off)
+    # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
+    exec sleep infinity ;;
+  *)
+    app=(/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland
+         --enable-wayland-ime --password-store=basic --no-first-run "http://127.0.0.1:8890") ;;
+esac
+
+cat > "$SCREEN_HOME/.config/labwc/rc.xml" <<'XML'
+<?xml version="1.0"?>
+<labwc_config>
+  <windowRules>
+    <windowRule identifier="*" serverDecoration="no"><action name="Maximize"/></windowRule>
+  </windowRules>
+</labwc_config>
+XML
+{
+  printf 'squeekboard &\n'
+  printf 'exec'
+  printf ' %q' "${app[@]}"
+  printf '\n'
+} > "$SCREEN_HOME/.config/labwc/autostart"
+exec labwc

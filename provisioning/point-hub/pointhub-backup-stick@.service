@@ -1,0 +1,10 @@
+[Unit]
+Description=Copy the OpenVolley backups to the stick on %I
+BindsTo=dev-%i.device
+After=dev-%i.device pointhubd.service
+
+[Service]
+Type=simple
+ExecStart=/opt/pointhub/pointhub-backup-stick /dev/%I
+KillMode=mixed
+TimeoutStopSec=5

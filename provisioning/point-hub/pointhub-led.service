@@ -1,0 +1,19 @@
+[Unit]
+Description=Point Hub board LED driver (flushBuffer2, Piomatter)
+After=pointhubd.service ledbox-buffer-tmpfs.service
+Wants=pointhubd.service
+
+[Service]
+Type=simple
+User=pi
+SupplementaryGroups=gpio
+WorkingDirectory=/home/pi/ledbox/bin
+RuntimeDirectory=ledbox-panel
+RuntimeDirectoryPreserve=yes
+RuntimeDirectoryMode=0775
+ExecStart=/home/pi/ledbox/bin/startled
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

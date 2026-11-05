@@ -1,0 +1,9 @@
+[Unit]
+Description=Restart the Point Hub touchscreen when Settings > Board screen changes
+
+[Path]
+PathChanged=/data/pointhub/screen-app
+Unit=pointhub-screen-restart.service
+
+[Install]
+WantedBy=multi-user.target
