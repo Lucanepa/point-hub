@@ -76,6 +76,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Polycarbonate sheet vs battens on A | the front sheet was cut for the earlier frame and may overlap the battens | dry fit | §8.3 |
 | Piano hinge position | A's top corner must clear the top C1 when tilting | dry fit | §8.4 |
 | Pull-out foot rails | rail length and height | dry fit | §8.8 |
+| Port plate size | about 100–120 × 40 mm for the hole is only a first guess, and the room under the flap is tight | once all four sockets are here and measured, before cutting the hole | §8.9 |
 
 ---
 
@@ -89,7 +90,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Front | the **front panel tilts 0, 5, 10, 15 or 20°**: it hangs from a piano hinge along the top edge and its bottom swings out, so the screen leans back towards the first referee. No legs; the box itself never moves |
 | Scorer screen | **10.1″ touchscreen** (1280 × 800) in a flap in the back panel, hinged at its top, swings out like an awning — **Check:** only if the flicker test passes (§10.4) |
 | Power | **USB-C PD charger, 18–100 W**; 65 W or more for full brightness while charging the tablet |
-| Ports | low on the back under the flap: **USB-C POWER, USB-C DATA** (to the scorer tablet: network + charging), and **BACKUP: USB-A 3.0 + USB-C** for a stick or an SD reader |
+| Ports | one removable **port plate**, low on the back under the flap: **USB-C POWER, USB-C DATA** (to the scorer tablet: network + charging), and **BACKUP: USB-A 3.0 + USB-C** for a stick or an SD reader |
 | Wi-Fi | **out only**: the Pi's built-in radio joins the hall's Wi-Fi for internet; the board has no Wi-Fi network of its own |
 | Mounting | table (rubber pads + pull-out rear foot against tipping), 35 mm speaker stand, tripod or light stand (¼″ or ⅜″, rated 12 kg+) |
 | Horn | **fitted**: a 5 V piezo buzzer, about 95 dB, switched over I²C |
@@ -191,6 +192,8 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Tablet charging module | USB-C PD buck module, 12–30 V in (**DMyond PD 65 W**, or QIQIAZI PD65W), fed behind the 3 A fuse | 1 (+1 spare) | AliExpress or Amazon.de | 8 |
 | Panel-mount USB-C | female panel socket to male plug, 30 cm, all lines wired (CC, D+/D−), Adafruit 6069 | 2 | DigiKey CH | 8 |
 | Network cable | Cat 6, 25 cm | 1 | reichelt or any shop | 1–4 |
+| Port plate | **2–3 mm rigid plastic**, black (ABS, PVC or polycarbonate), a blank of about 160 × 80 until the sockets are measured (§8.9). Aluminium only after the meter check in §8.9 | 1 | any shop | Check |
+| Port plate screws | **4 × M4 × 20 pan head Torx T20**, with 4 of the M4 lock nuts below. M4 × 16 is too short: 6 mm panel + 3 mm plate + about 3 mm squeezed seal + 5 mm nut | 4 | Schraubenking.ch or any shop | Check |
 | Backup port, USB-A | **USB-A 3.0 panel-mount extension**, about 30 cm, shielded, screw flange: to a blue USB 3 port on the Pi | 1 | any shop | Check |
 | Backup port, USB-C | **USB-A 3.0 plug to USB-C panel socket**, about 30 cm. **Check before fitting:** with a USB power meter and a charger in the socket, no 5 V may appear (the socket must not take power in) | 1 | any shop | Check |
 | Stand cable | **USB-C, 3 m, PD + data** (any cable that does both): on a speaker stand or tripod the tablet stays on the scorer's table (about 4 m total at most) | 1 | any shop | 15 |
@@ -242,7 +245,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Gloss black spray | RAL 9005, 2K gloss, for the front face (respirator needed for 2K) | 1 | Hornbach | 21 |
 | Sandpaper | P120 and P180 (sanding sponges, see tools); finer between coats | 1 set | DIY store | 14 |
 | Silicone, black | sanitary silicone: a bead around the front sheet and the end windows, along the inside bottom joints | 1 cartridge | Hornbach | 6–8 |
-| Seal strip | self-adhesive **EPDM D-profile**, black, about 9 × 5 mm, 6 m: around the screen pocket and under the back-panel edge | 1 | Hornbach | 6–9 |
+| Seal strip | self-adhesive **EPDM D-profile**, black, about 9 × 5 mm, 6 m: around the screen pocket, under the back-panel edge and around the port plate's hole | 1 | Hornbach | 6–9 |
 | Brush seal | self-adhesive brush seal, about 2 m: the gap at the tilting front's bottom cap and cheeks | 1 | AliExpress | 3 |
 | USB-C dust caps | silicone, black, for POWER, DATA and BACKUP; a USB-A cap for the other BACKUP port | 1 pack | AliExpress | 2 |
 | Vent mesh | fine stainless or fibreglass mesh behind the vents (the vents face down) | 1 | Hornbach | 4–6 |
@@ -253,7 +256,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
 | Lettering | "POINT HUB" cut vinyl, matte silver-grey (Oracal 631-030), about 120 × 20 mm, letters 12–15 mm | 2 | Klebe-X or wir-machen-druck.ch | 5–7 |
-| Back label | about 100 × 60 mm, white vinyl, matte: "Point Hub · KSC Wiedikon", POWER, DATA, and **the status- and link-light legends** (§6) under the lights. Order once the port and light positions are fixed | 1 | wir-machen-druck.ch | 14 |
+| Back label | about 100 × 60 mm, white vinyl, matte: "Point Hub · KSC Wiedikon", POWER, DATA, BACKUP, and **the status- and link-light legends** (§6) under the lights. Order once the port plate and light positions are fixed | 1 | wir-machen-druck.ch | 14 |
 | Charger *(if the club has none)* | single-port USB-C PD, 65 W or more (100 W with a 5 A cable), labelled "board only" | 1 | Digitec or Amazon.de | 34–37 |
 | USB-C power meter | for the first power-up and the governor calibration (the club has a FNIRSI FNB48P) | 1 | — | 12 |
 | Transport covers | **3 mm poplar**: front 1020 × 380, ends 380 × 220 × 2, lid 300 × 225; **20 × N48 magnets Ø8 × 3**, 20 × M5 body washers (smaller for the lid), dark grey felt 0.8–1 mm (§8.12) | 1 set | Jumbo | 45 |
@@ -335,8 +338,8 @@ Sellers change chips between batches under the same listing.
 
 ```mermaid
 graph LR
-  PI["Pi 5 + Triple Bonnet"] -->|OUT 1| M1["module 1"] --> M2["module 2"] --> M3["module 3"]
-  PI -->|OUT 2| M4["module 4"] --> M5["module 5"] --> M6["module 6"]
+  PI["Pi 5 + Triple Bonnet"] -->|OUT 1| M3["module 3"] --> M2["module 2"] --> M1["module 1"]
+  PI -->|OUT 2| M6["module 6"] --> M5["module 5"] --> M4["module 4"]
   PI -->|OUT 3| BL["bench L"] --> BR["bench R"]
 ```
 
@@ -780,8 +783,8 @@ graph LR
   tie the tablet's 5 V to the converter's; and Android ignores a gadget link named `usb0`. The Pi's
   own USB-C socket stays empty.
 
-POWER and DATA are both on the back, low, under the flap, colour-ringed (gold POWER, blue DATA),
-with a dust cap each, and labelled.
+POWER, DATA and BACKUP are all on one **port plate** on the back, low, under the flap (§8.9),
+colour-ringed (gold POWER, blue DATA, white BACKUP), with a dust cap each, and labelled.
 
 ---
 
@@ -811,7 +814,7 @@ Jumbo does not cut pieces smaller than **230 × 150 mm**, so the small parts are
 | Part | Ordered (mm) | Qty | At home afterwards |
 |---|---|---|---|
 | **A** front frame | 1004 × 366 | 1 | window **960 × 320**, centred: 22 mm left and right, 23 mm top and bottom |
-| **B** back panel | 1020 × 380 | 1 | flap opening **280 × 205**; ports, vents, horn hole, screw holes |
+| **B** back panel | 1020 × 380 | 1 | flap opening **280 × 205**; port plate hole (§8.9), vents, horn hole, screw holes |
 | **C1** top | 1020 × 214 | 1 | two handle cut-outs **129 × 52** |
 | **C2** bottom | 1020 × 214 | 1 | stand flange Ø45, tripod inserts, vents (§8.10) |
 | **D** ends | 368 × 214 | 2 | window **160 × 320** each, for the bench modules |
@@ -1037,11 +1040,7 @@ edge.
 On the back panel:
 
 - the **flap opening** with the pocket (§8.5);
-- **POWER and DATA**, low, under the flap: USB-C cut-out 13 × 7 + 2 × Ø3 each (**check** against
-  the sockets that actually arrive), gold and blue rings, dust caps;
-- **BACKUP**, beside them: the USB-A 3.0 and the USB-C panel sockets, **white ring and a BACKUP label**, for
-  a stick or an SD reader only. They are the Pi's host ports: a charger or a tablet does not work there,
-  and a laptop does nothing useful. **Check** the cut-outs against the sockets that actually arrive;
+- the **port plate** over one rectangular hole, low, under the flap (below);
 - the **horn hole**: the SFM-27 buzzer is screwed on from inside over it. The spec says Ø30; the
   kit's hole saw is **Ø32**: **check** that the buzzer's ears still cover the hole;
 - the **button and lights**: a **Ø16** hole for the button with its green POWER ring, then two **Ø8**
@@ -1049,13 +1048,48 @@ On the back panel:
   the back label goes **under** them with the legend from §6 (shortened);
 - inside: the **fuse map, four spare fuses and a spare SD card**.
 
+**The port plate.** All four sockets sit on one removable plate over **a single rectangular hole**
+in B, instead of a hole for each. A socket cut wrong then costs a new plate, not a new back panel.
+
+- **Do not fix the size until all four sockets are here and measured.** About **100–120 × 40 mm** for the
+  hole is only a first guess. The plate is about **10 mm larger than the hole on each side**, so about
+  120–140 × 60 mm on that guess.
+- **Material: 2–3 mm rigid plastic.** Aluminium only after the meter check below.
+- **Order, left to right:** POWER (gold ring), DATA (blue ring), a **gap**, then BACKUP: USB-A 3.0 and
+  USB-C (white ring and a BACKUP label). Each socket has its **own cut-out and its own fixings**. Keep
+  the rings and labels. Try the gap with real plugs: a charger plug and a stick must fit side by side,
+  and DATA must not read as part of BACKUP.
+- **BACKUP is for a stick or an SD reader only.** These are the Pi's host ports: a charger or a tablet
+  does not work there, and a laptop does nothing useful.
+- **Screws at the four corners:** M4 × 20, 5 mm in from the plate's edges, with lock nuts inside (Ø4.5
+  holes through the plate and B).
+- **Seal it:** EPDM strip on the back of the plate, around the hole, cut at the corners rather than
+  pierced by the screws. Or a thin bead of black silicone, which has to be cut and redone each time
+  the plate comes off.
+- **Where it goes, tight:** in the design study about 95 mm of B is left under the flap opening. The
+  plate must clear the pocket wall and the transport lid (§8.12), about 15 mm below the opening, and
+  the middle screw block on B's bottom edge. **Check** it at the dry fit, with the button and lights
+  beside it; if it does not fit in the middle, move it to one side of the bottom block.
+- **It comes off with the back panel:** the plate stays on B, and every cable to it needs enough slack
+  (the 15 cm of §5.4) to lift B off and put it down without unplugging. **Check** that the 30 cm
+  cables reach; otherwise unplug them at the tray.
+- **Inside, everything stays separate:** POWER to the PD board, DATA to the Delock adapter, BACKUP on
+  two cables to the Pi's USB ports. The plate only holds them; nothing electrical crosses it.
+
+**Meter check, for an aluminium plate only.** A metal plate joins the sockets' metal shells, so it can
+connect things that should stay apart. Power off, charger and tablet out, every cable connected at
+the tray. On continuity, test each pair of shells with the sockets loose and note which beep. Then
+fit them on the plate and test again, and also from the plate to each socket's power and data pins
+as far as you can reach them. **Anything that beeps now and did not before means no aluminium:**
+use plastic.
+
 ### 8.10 Splash protection and finish
 
 - **Black silicone**: a bead around the smoked front sheet and the end windows, and along the
   inside joints of the bottom.
 - **EPDM D-seal** around the screen pocket and under the back-panel edge.
 - **Brush seal** on the gaps at the bottom cap K and the cheeks H.
-- **USB-C dust caps** on POWER and DATA when nothing is plugged in.
+- **Dust caps** on POWER, DATA and both BACKUP sockets when nothing is plugged in.
 - **Vents face down**, with **vent mesh** behind them. **Check** their exact place at the dry fit:
   clear of K's sweep, the foot rails and Y, and near the converter.
 - **Corners:** every outside edge is rounded with P120 (about 3 mm). The four front corners get
@@ -1067,7 +1101,7 @@ On the back panel:
 - **Torx throughout** (plain, not security Torx): T20 for the wood screws and M4 machine screws,
   T10 for the small parts.
 - **Stickers** after first light: a light-grey matte **"POINT HUB"** lettering bottom-right of the
-  front border, and a back label beside the ports ("Point Hub · KSC Wiedikon", POWER, DATA).
+  front border, and a back label beside the port plate ("Point Hub · KSC Wiedikon", POWER, DATA, BACKUP).
 
 ### 8.11 Inside layout
 
@@ -1106,7 +1140,8 @@ Rules:
   tall parts off the pocket, and measure the Pi + bonnet + ribbon stack at the dry fit.
 - No lead may hang into the Pi's fan.
 
-On the tray: the PD board by the POWER socket, the hub and the charging module by the DATA socket;
+On the tray: the PD board by the POWER socket, the hub and the charging module by the DATA socket
+(both sockets on the port plate, §8.9);
 RTC, temperature sensor, the two INA226 and the MCP23017; the AOD4184 module by the horn. **Put the Pi close to the back panel**,
 beside the pocket: its built-in Wi-Fi is the board's only internet link, and its antenna cannot see
 through the modules and the steel bars, while plywood lets the signal out. Keep USB 3 devices off
@@ -1195,8 +1230,11 @@ and do the checks marked in §8 at the dry fit, not after the glue.
     outline on cardboard) on the flap; check the stop and the cable route (§8.5).
 15. **Foot:** fit the two rails and T; check it slides 120 mm, the stop screws catch, and the turn
     button holds it in (§8.8).
-16. **Back panel:** fit B on its six blocks; mark the screw holes, the ports, and check the handles'
-    trays and nuts miss everything inside.
+16. **Back panel:** fit B on its six blocks; mark the screw holes, and check the handles' trays and
+    nuts miss everything inside. **Port plate (§8.9):** with all four sockets here, measure them, then
+    set the hole size and mark its place. Cut the hole as in step 2, and the plate with its four socket
+    cut-outs and corner holes, before B goes to paint. No sockets yet: leave the hole, and cut it before
+    step 25's paint or touch up afterwards.
 17. **Take everything apart** and mark where each batten, block and hinge goes.
 
 ### C — Glue-up (home)
@@ -1235,15 +1273,18 @@ and do the checks marked in §8 at the dry fit, not after the glue.
     power meter (it should read 9 V): **5.0–5.2 V at the fuse box**. 0 V or −5 V: unplug and check +
     and −. Then check 5 V on every fuse way with the multimeter.
 31. **Build the electronics tray** (§8.11): parts on standoffs on the 2 mm aluminium sheet, the two
-    posts into the box, then the tray onto them with 4 screws; fit both USB-C sockets in B. Solder the 10 kΩ
+    posts into the box, then the tray onto them with 4 screws. **Port plate:** each socket onto the
+    plate, rings and labels on, seal on the back, plate onto B with 4 × M4 × 20 and lock nuts. An
+    aluminium plate: meter check first (§8.9). Solder the 10 kΩ
     OE pull-up (§4.2), and the header pins on the MCP23017 and INA226 modules.
 32. **Modules:** box face-down on a blanket, A at 0°. Six modules onto the sheet, LEDs down, arrows
-    the same way; short ribbons 1 → 2 → 3 and 4 → 5 → 6; bars on, magnets snap on. Bench modules
+    the same way; short ribbons 3 → 2 → 1 and 6 → 5 → 4 (§4.1); bars on, magnets snap on. Bench modules
     behind the end windows, arrows up, four turn buttons each.
 33. **Connect everything:** each module, each bench module and the Pi to its fuse way; ribbon OUT 1 →
-    module 1, OUT 2 → module 4, OUT 3 → bench L → bench R; 120 mm slack to the front; I²C to pins
+    module 3, OUT 2 → module 6, OUT 3 → bench L → bench R; 120 mm slack to the front; I²C to pins
     27/28; MCP23017 → AOD4184 → buzzer on way 10; DATA socket → hub → patch cable → Pi network port;
-    charging module behind its 3 A fuse → hub. Label every plug.
+    charging module behind its 3 A fuse → hub; the two BACKUP cables → the Pi's USB ports, each on its
+    own. Check the cables have the slack to lift B off (§8.9). Label every plug.
 34. **Software and tests** (§10): first light, then the flicker test before the screen goes in for
     good, then the horn test.
 35. **Pads:** once the paint has cured, stick the rubber pads: 4 under the box, 2 under the back end
@@ -1255,7 +1296,7 @@ and do the checks marked in §8 at the dry fit, not after the glue.
 **Setting up at the hall:** on the table, pull the foot out; or on a speaker stand or tripod (sandbag
 on its feet). Tilt the front to the referee (pin in a notch). Charger into POWER, the tablet cable
 into DATA if used; open the flap for the scorer. **Opening it:** unplug the charger, undo the six T20
-screws, lift the back panel off. Swapping the SD card or a fuse takes under a minute.
+screws, lift the back panel off; the port plate comes with it, its cables still plugged in. Swapping the SD card or a fuse takes under a minute.
 
 ---
 
