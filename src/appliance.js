@@ -21,6 +21,10 @@ import { SourceManager } from './sourceManager.js'
 import { createControlServer } from './controlServer.js'
 import { Settings } from './settings.js'
 import { makeCableTrust } from './cableTrust.js'
+import { BoardHardware } from './boardHardware.js'
+import { readPanelGeometry } from './boardIdentity.js'
+import { PANEL_PATHS } from './panelBrightness.js'
+import { systemInfo } from './systemInfo.js'
 import { log as logStore, installProcessLogging } from './logStore.js'
 
 export async function startAppliance(config = loadConfig()) {
@@ -131,6 +135,8 @@ export async function startAppliance(config = loadConfig()) {
     // board's own boot-default layout and reconnects.
     defaultIdle: true,
     bootMessage, // set only when this boot follows a sport switch
+    // A 192 x 96 canvas is the Point Hub board: eight modules to number, not the C0270's three.
+    testModules: (readPanelGeometry(config.settingIni || PANEL_PATHS.settingIni)?.height ?? 64) >= 96 ? 8 : 3,
   })
   // The board's socket lifecycle is the single most useful thing in the log when a venue
   // reports "the panel froze" — every transition is recorded with the address in use, since
@@ -209,7 +215,17 @@ export async function startAppliance(config = loadConfig()) {
   if (cableTrust.enabled) log.info(`cable trust on: a tablet on ${cableTrust.address} from ${cableTrust.subnet} needs no scorer PIN`, { address: cableTrust.address, subnet: cableTrust.subnet })
   else if (cableTrust.off === 'invalid') log.warn(`cable trust OFF — not a usable address/subnet: ${cableTrust.address} ${cableTrust.subnet}`, { address: cableTrust.address, subnet: cableTrust.subnet })
   else log.info('cable trust off (CABLE_TRUST=0): a cabled tablet is asked for the PIN like any other')
+  // The Point Hub board's hardware service (boardHardware.js). A hand-built test config gets no real
+  // /run/pointhub: only a real boot, or a test that names a directory, looks for one.
+  const hardware = (config.hardwareDir || config.scheduleSync === true) ? new BoardHardware({
+    ...(config.hardwareDir ? { dir: config.hardwareDir } : {}),
+    log: logStore.child('hardware'),
+    ...(config.hardwareSettleMs != null ? { settleMs: config.hardwareSettleMs } : {}),
+  }) : null
+
   const server = createControlServer({
+    hardware,
+    localRelayUrl: config.localRelayUrl || null, // test hook: the board's own OpenVolley relay
     sourceManager,
     manualSource,
     ledbox,
@@ -275,6 +291,41 @@ export async function startAppliance(config = loadConfig()) {
         .then((info) => { if (!info) log.info('nothing saved to restore for this sport', { sport: sport.key }) })
         .catch((e) => log.error(`could not restore the interrupted match: ${e.message}`, { error: e.message }))
     })
+  }
+
+  // The board's own screen picks up what Settings says from this file (a systemd path unit restarts
+  // provisioning/point-hub/pointhub-screen when it changes), which is why no sudo is needed.
+  const writeScreenApp = () => {
+    if (!hardware || !hardware.present) return
+    try { fs.writeFileSync(path.resolve(stateDir, 'screen-app'), `${settings.values.screenApp}\n`) }
+    catch (err) { log.warn(`could not write the screen choice: ${err.message}`, { error: err.message }) }
+  }
+  server.onScreenAppChange = writeScreenApp
+  writeScreenApp()
+
+  // Live readings only the system knows, refreshed slowly: they only feed warnings.
+  let sysSlow = { cpuTempC: null, diskFreeBytes: null }
+  const refreshSys = () => systemInfo().then((s) => {
+    sysSlow = { cpuTempC: s?.cpu?.tempC ?? null, diskFreeBytes: s?.disk?.freeBytes ?? s?.disk?.free ?? null }
+  }).catch(() => {})
+  let sysTimer = null
+  if (hardware) {
+    refreshSys()
+    sysTimer = setInterval(refreshSys, 10_000)
+    if (sysTimer.unref) sysTimer.unref()
+    server.startHardware(() => ({ ...sysSlow, liveFailing: typeof livePush.failing === 'function' && livePush.failing() }))
+    // The power-on self-test (BUILD.md section 6): once, only over an idle panel, never when an
+    // interrupted match is coming back. A match would hide nothing a volunteer needs from it anyway.
+    if (!uncleanShutdown && !server.savedPrematch()) {
+      ledbox.once('ready', () => {
+        setTimeout(() => {
+          if (!hardware.present || !ledbox._idle) return
+          server.runHardwareSelfTest()
+            .then((r) => log.info(`power-on self-test: ${r.ok ? 'every module draws current' : (r.error || `no current on ${r.failed.join(', ')}`)}`, { stepsMa: r.stepsMa, failed: r.failed }))
+            .catch((e) => log.warn(`power-on self-test failed: ${e.message}`, { error: e.message }))
+        }, config.hardwareBootTestDelayMs ?? 3000).unref?.()
+      })
+    }
   }
 
   ledbox.connect()
@@ -369,6 +420,7 @@ export async function startAppliance(config = loadConfig()) {
     logStore.flush()
     livePush.detach()
     server.stopBackground()
+    if (sysTimer) clearInterval(sysTimer)
     sourceManager.stop()
     stopCertWatch()
     // Let go of the panel before waiting on anything HTTP-shaped, so nothing below can keep the

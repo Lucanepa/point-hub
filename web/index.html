@@ -880,6 +880,16 @@
   .dcard h4 .licon{width:14px;height:14px}
   .dbig{font-size:26px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;font-family:var(--mono)}
   .dsub{font-size:12px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .hwtag{margin-left:8px;padding:2px 8px;border:1.5px solid var(--line);border-radius:999px;background:none;
+    font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;font-variant-numeric:tabular-nums}
+  .hwtag.warn{border-color:var(--gold);color:var(--gold)}
+  .hwtag.bad{border-color:var(--bad);color:var(--bad)}
+  .hwrows{display:grid;gap:6px;margin:6px 0 10px}
+  .hwrow{display:grid;grid-template-columns:12px minmax(110px,170px) 1fr;gap:9px;align-items:baseline;font-size:13px}
+  .hwrow .hwdot{width:10px;height:10px;border-radius:50%;background:var(--ok);align-self:center}
+  .hwrow.warn .hwdot{background:var(--gold)}
+  .hwrow.bad .hwdot{background:var(--bad)}
+  .hwrow b{font-weight:700}
   .dsub.dmono{font-family:var(--mono);font-size:11px}
   .dsub.warn{color:var(--gold)}
   .dcard .hint{margin:8px 0 0;font-size:11px}
@@ -1156,7 +1166,7 @@
   <header class="topbar">
     <span class="brand"><img class="brandmark" src="favicon.svg" alt="" width="20" height="20"> Point Hub</span>
     <span id="dot" title="LedBox connection"><span id="dotIc"><svg class="licon l-wifi-off" viewBox="0 0 24 24" fill="none" stroke="#e0453d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /> <path d="M5 12.859a10 10 0 0 1 5.17-2.69" /> <path d="M19 12.859a10 10 0 0 0-2.007-1.523" /> <path d="M2 8.82a15 15 0 0 1 4.177-2.643" /> <path d="M22 8.82a15 15 0 0 0-11.288-3.764" /> <path d="m2 2 20 20" /></svg></span><span id="dotTxt">Board …</span></span>
-    <div id="mode"><span id="modeTag" hidden><b id="modeName">…</b><span id="matchTag"></span></span><span id="setNo"></span><button type="button" id="uplinkTag" class="uptag" hidden><svg class="licon l-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></svg><span class="utw" id="uplinkTagPre">Wi-Fi </span><span id="uplinkTagTxt"></span></button></div>
+    <div id="mode"><span id="modeTag" hidden><b id="modeName">…</b><span id="matchTag"></span></span><span id="setNo"></span><button type="button" id="hwTag" class="hwtag" hidden></button><button type="button" id="uplinkTag" class="uptag" hidden><svg class="licon l-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></svg><span class="utw" id="uplinkTagPre">Wi-Fi </span><span id="uplinkTagTxt"></span></button></div>
     <!-- Portrait-only copies of keep-awake / full screen (the centre column's are hidden there). -->
     <button class="iconbtn hdricon js-awake" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
     <button class="iconbtn hdricon js-fs" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
@@ -1425,6 +1435,18 @@
             whenever the match list is refreshed. Check saves the address and asks the laptop for
             its matches.</p>
         </fieldset>
+        <fieldset id="screenAppSet" hidden>
+          <legend>Board screen</legend>
+          <label class="row"><span>What the board's touchscreen shows</span>
+            <select data-set="screenApp">
+              <option value="console">This console</option>
+              <option value="openvolley">OpenVolley eScoresheet</option>
+              <option value="off">Nothing (screen off)</option>
+            </select></label>
+          <p class="hint">With OpenVolley on the screen the score is kept there, and the LED panel follows
+            the live match by itself. Other tablets on the cable can open the referee and bench screens
+            at http://192.168.5.1:5173. Saving restarts the screen, so change it between matches.</p>
+        </fieldset>
         <fieldset>
           <legend><svg class="licon l-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /> <path d="M9 18h6" /> <path d="M10 22h4" /></svg> Board feedback</legend>
           <label class="row"><span>Blink the point on the board</span>
@@ -1614,6 +1636,17 @@
             number. It goes back to the normal screen by itself after 20 seconds. Test horn sounds the
             horn once, unless it is switched off in Settings. Neither works during a match or a
             countdown.</p>
+        </div>
+
+        <!-- THE POINT HUB BOARD'S OWN HARDWARE (boardHardware.js): charger, temperature, currents, the
+             small boards, the per-module self-test. Stays hidden on a board without it (the C0270). -->
+        <div class="dcard wide" id="dcHardware" hidden>
+          <h4><svg class="licon l-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>Board health</h4>
+          <div class="hwrows" id="hwRows"></div>
+          <div class="ptbtns"><button type="button" id="hwSelfTest">Run self-test</button></div>
+          <p class="hint">The self-test lights each module alone and checks that it draws current: a module
+            that does not has a blown fuse, a loose power lead or is dead. The numbers and colours that
+            follow are for your eyes. It does not run during a match or a countdown.</p>
         </div>
 
         <div class="dcard" id="dcClock">
@@ -2098,7 +2131,7 @@
   // something that had already worked. /api/action is not in here: the server answers it without
   // waiting for the panel.
   const API_LAYOUT_TIMEOUT_MS = 25000;
-  const LAYOUT_PATHS = ["/api/idle", "/api/game", "/api/link"];
+  const LAYOUT_PATHS = ["/api/idle", "/api/game", "/api/link", "/api/hardware/selftest"];
   const HAS_TIMEOUT_SIGNAL = typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function";
   const deadline = (ms) => HAS_TIMEOUT_SIGNAL ? AbortSignal.timeout(ms) : undefined;
 
@@ -2529,6 +2562,7 @@
     renderPrematch(st);
     renderSuggest(st);
     renderUplinkBrief(st.uplink);
+    renderHardwareBrief(st.hardware);
     renderBoard(sides(st.state));
     renderSetStrip(st.state);
     markLinked();
@@ -4250,11 +4284,52 @@
     diagPrev = s;
   }
 
+  // The Point Hub board's hardware card and the test screen's wording. Text goes in through
+  // textContent: the check texts are ours, but this page never builds markup from data.
+  function renderHardware(h) {
+    const card = $("#dcHardware");
+    if (!card) return;
+    card.hidden = !(h && h.present);
+    if (!h || !h.present) return;
+    const rows = $("#hwRows");
+    rows.textContent = "";
+    for (const c of h.checks || []) {
+      const row = document.createElement("div");
+      row.className = "hwrow " + (c.level === "ok" ? "" : c.level);
+      const dot = document.createElement("span");
+      dot.className = "hwdot";
+      const label = document.createElement("b");
+      label.textContent = c.label;
+      const text = document.createElement("span");
+      text.textContent = c.text;
+      row.append(dot, label, text);
+      rows.append(row);
+    }
+    const worst = (h.checks || []).some((c) => c.level === "bad") ? "bad" : (h.checks || []).some((c) => c.level === "warn") ? "warn" : "";
+    setCard(card, worst);
+    const btn = $("#hwSelfTest");
+    btn.disabled = !!h.selfTesting;
+    btn.textContent = h.selfTesting ? "Self-test running…" : "Run self-test";
+  }
+  // The short form off /api/status: the charger in the header, so a weak one explains a dim board.
+  function renderHardwareBrief(b) {
+    const tag = $("#hwTag");
+    if (!tag) return;
+    tag.hidden = !b;
+    if (!b) return;
+    tag.textContent = (b.contract || "No charger reading") + (b.dimmed ? " · dimmed" : "");
+    tag.classList.toggle("warn", b.level === "warn");
+    tag.classList.toggle("bad", b.level === "bad");
+    $("#screenAppSet").hidden = false;
+  }
+
   const VIRTUAL_IFACE = /^(lo$|docker\d*$|veth|br-|virbr|vnet\d|cni|flannel)/;
   async function pollSystem() {
     if (document.hidden) return;
     try { renderSystem(await api("/api/system")); }
     catch { /* the offline banner already says the board is unreachable */ }
+    try { renderHardware(await api("/api/hardware")); }
+    catch { /* a board without the route (not yet updated) just shows no card */ }
   }
 
   // The tail is Server-Sent Events, which the board already serves and which reconnects on its
@@ -5903,6 +5978,22 @@
   $("#ubLogin").addEventListener("click", goToUplink);
   $("#ubClose").addEventListener("click", () => { upBannerDismissed = true; renderUplinkBrief(LAST_STATUS.uplink); });
   $("#uplinkTag").addEventListener("click", goToUplink);
+  $("#hwTag").addEventListener("click", () => goToTab("diag"));
+  $("#hwSelfTest").addEventListener("click", async () => {
+    const btn = $("#hwSelfTest");
+    btn.disabled = true;
+    btn.textContent = "Self-test running…";
+    try {
+      const r = await postJSON("/api/hardware/selftest", {});
+      if (r.hardware) renderHardware(r.hardware);
+      toast(r.ok ? "Every module draws current." : (r.error || "Check the Board health list."));
+    } catch (e) {
+      toast(e.message || "The self-test did not start.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Run self-test";
+    }
+  });
 
   // --- settings -----------------------------------------------------------
   // Persisted on the board, so they follow the scoreboard rather than the phone that set them.

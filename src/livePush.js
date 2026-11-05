@@ -642,7 +642,9 @@ export function createLivePush(opts = {}) {
     generation++ // a flush still in flight must not re-arm a retry for a detached publisher
   }
 
-  return { enabled, sport, channel: cfg.channel, push, attach, detach, isLive }
+  // Whether live results are being refused or not getting through right now (the LINK light).
+  const failing = () => enabled && isLive() && failures >= 2
+  return { enabled, sport, channel: cfg.channel, push, attach, detach, isLive, failing }
 }
 
 /**

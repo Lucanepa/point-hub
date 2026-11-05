@@ -47,6 +47,7 @@ const volleyMapper = {
   toResultSections: volley.toResultSections,
   toMessageSections: volley.toMessageSections,
   toTestSections: volley.toTestSections,
+  toSelfTestSections: volley.toSelfTestSections,
   toLeftRight: volley.toLeftRight,
 }
 

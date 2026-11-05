@@ -64,6 +64,8 @@ const ROUTES = {
   // Diagnostics ▸ Panel test: puts the test screen over whatever the hall is looking at, or sounds
   // the horn. The authed probe is 'stop', which with no test running changes nothing.
   '/api/paneltest': { guard: 'pin', body: { action: 'stop' } },
+  // The Point Hub self-test takes the panel, like the panel test. A board without the hardware says so.
+  '/api/hardware/selftest': { guard: 'pin', body: {} },
   '/api/history/clear': { guard: 'pin', body: {} },
   '/api/logs/level': { guard: 'pin', body: { level: 'info' } },
   '/api/logs/clear': { guard: 'pin', body: {} },

@@ -435,13 +435,32 @@ export const TEST_MODULES = 3
 export const TEST_FRAME = '255,255,255'
 export const TEST_BARS = { r: '255,0,0', g: '0,255,0', b: '0,0,255', w: '128,128,128' }
 
-export function toTestSections() {
+// The Point Hub board's two bench modules are named L and R on its fuse map, so they say so here too.
+const testLabel = (m, modules) => (modules === 8 && m > 6 ? (m === 7 ? 'L' : 'R') : String(m))
+
+export function toTestSections(modules = TEST_MODULES) {
   const out = []
-  for (let m = 1; m <= TEST_MODULES; m++) {
+  for (let m = 1; m <= modules; m++) {
     out.push(attr(`frame${m}`, 'color', '0,0,0'), attr(`frame${m}`, 'bordercolor', TEST_FRAME))
-    out.push(...text(`mod${m}`, String(m), TEST_FRAME))
+    out.push(...text(`mod${m}`, testLabel(m, modules), TEST_FRAME))
     for (const [k, c] of Object.entries(TEST_BARS)) {
       out.push(attr(`bar${m}${k}`, 'color', c), attr(`bar${m}${k}`, 'bordercolor', c))
+    }
+  }
+  return out
+}
+
+// The self-test's frames on the same layout (boardHardware.js runSelfTest): every module black
+// except `lit` (0-based; null = all black), which is solid white, so its current step can be read
+// on its own. The sections are the test screen's, so a board that has the test layout has these.
+export function toSelfTestSections(lit = null, modules = TEST_MODULES) {
+  const out = []
+  for (let m = 1; m <= modules; m++) {
+    const fill = m - 1 === lit ? TEST_FRAME : '0,0,0'
+    out.push(attr(`frame${m}`, 'color', fill), attr(`frame${m}`, 'bordercolor', fill))
+    out.push(...text(`mod${m}`, '', '0,0,0'))
+    for (const k of Object.keys(TEST_BARS)) {
+      out.push(attr(`bar${m}${k}`, 'color', fill), attr(`bar${m}${k}`, 'bordercolor', fill))
     }
   }
   return out

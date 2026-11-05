@@ -17,7 +17,7 @@ import { ResumeStore } from './resumeStore.js'
 import { SPORT_LIST, getSport } from './sports.js'
 import { PER_SPORT_KEYS, PIN_RE } from './settings.js'
 import { log, LEVELS } from './logStore.js'
-import { systemInfo } from './systemInfo.js'
+import { systemInfo, parseThrottled } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
 import { makeCableTrust } from './cableTrust.js'
 import { boardIdentity, readPanelGeometry } from './boardIdentity.js'
@@ -30,7 +30,7 @@ import { zurichDate } from './schedule.js'
 import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 import { PortalProxy } from './portalProxy.js'
 import { fixtureOf } from './liveFixture.js'
-import { applyBrightness, PANEL_PATHS } from './panelBrightness.js'
+import { applyBrightness, liveDriver, PANEL_PATHS } from './panelBrightness.js'
 import { toRow } from './livePush.js'
 import { toOverlay } from './overlay.js'
 import { EventEmitter } from 'node:events'
@@ -145,7 +145,7 @@ const PROBE_BODIES = {
 // setting.ini's [DISPLAY] block: the board's panel geometry for /api/status.board.caps.
 const SETTING_INI = PANEL_PATHS.settingIni
 
-export function createControlServer({ sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, hostname = null, settingIni = SETTING_INI }) {
+export function createControlServer({ hardware = null, localRelayUrl = null, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, hostname = null, settingIni = SETTING_INI }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -253,10 +253,20 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   // decided from the TCP connection alone — the address it arrived on and the one it came from —
   // never from a header. Off unless the appliance hands one in.
   const cable = cableTrust && typeof cableTrust.trusts === 'function' ? cableTrust : makeCableTrust({ enabled: false })
-  // 'cable' for a cable-trusted request, else null. Cached on the request: asked several times each.
+  // The Point Hub board's own touchscreen reaches the console over loopback, and whoever touches it
+  // is standing at the board, like the person at the other end of the cable. Both ends of the socket
+  // must be loopback, and only on a board with the hardware: the C0270 has no screen, and on it a
+  // loopback request stays an ordinary one.
+  const localScreen = (req) => {
+    if (!hardware || !hardware.present || !req.socket) return false
+    const isLoop = (a) => /^(::ffff:)?127\.0\.0\.1$/.test(String(a)) || a === '::1'
+    return isLoop(req.socket.localAddress) && isLoop(req.socket.remoteAddress)
+  }
+  // 'cable' or 'screen' for a trusted request, else null. Cached on the request: asked several times each.
   const trustOf = (req) => {
     if (!req) return null
     if (req._pinTrust === undefined) req._pinTrust = cable.trusts(req.socket) ? 'cable' : null
+    if (req._pinTrust === null && localScreen(req)) req._pinTrust = 'screen'
     return req._pinTrust
   }
   // Shared by pinOk and /api/unlock so guesses against either path count towards the same lock.
@@ -946,7 +956,14 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
         : { ok: false, error: r.error, games: [] })
     }
     if (pathname === '/api/system' && req.method === 'GET') {
-      return sendJson(res, 200, await systemInfo())
+      const info = await systemInfo()
+      // Newer kernels (the Point Hub's Pi 5) have no get_throttled in sysfs and this route never forks,
+      // so the flags come from pointhubd, which asks the firmware anyway.
+      if (hardware && hardware.present && info.cpu && !info.cpu.throttle) {
+        const { hw } = hardware.read()
+        if (hw && hw.throttled) info.cpu.throttle = parseThrottled(hw.throttled.raw)
+      }
+      return sendJson(res, 200, info)
     }
     // GET /api/uplink — the hall internet: { status: online|portal|offline|checking, portal, ssid,
     // validUntil, loggedInAt, step: idle|code, codeExpiresAt, checkedAt }. Open like every read.
@@ -1178,6 +1195,7 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
           brightness: updated.brightness,
         })
       }
+      if (typeof server.onScreenAppChange === 'function') server.onScreenAppChange()
       return sendJson(res, 200, { ...updated, scorerPin: '', ...pinSettingsView(req) })
     }
     // GET /api/sport — the active sport + the pickable list (drives the UI's sport selector).
@@ -1643,6 +1661,25 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
     }
 
     // ── /logs ────────────────────────────────────────────────────────────────
+    // GET /api/hardware — the Point Hub board's charger, sensors and checks (boardHardware.js). Open,
+    // like every read. { present: false } on a board without the hardware.
+    if (pathname === '/api/hardware' && req.method === 'GET') {
+      return sendJson(res, 200, hardware ? hardware.view() : { present: false })
+    }
+    // POST /api/hardware/selftest — each module alone in white while the 5 V sensor reads its current.
+    // PIN-gated, and refused during a match or a countdown for the reason the panel test is: it hides
+    // the score. Goes back to the screen it replaced whatever happens, through showTest's own timer.
+    if (pathname === '/api/hardware/selftest' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      if (!hardware || !hardware.present) return sendJson(res, 200, { ok: false, error: 'This board has no hardware service.' })
+      if (!ledbox || ledbox.ready !== true) return sendJson(res, 200, { ok: false, error: 'The board is not connected — there is no panel to test yet.' })
+      const busy = panelTestRefusal()
+      if (busy) return sendJson(res, 409, { ok: false, error: busy })
+      const result = await runHardwareSelfTest()
+      alog.info(`self-test: ${result.ok ? 'every module draws current' : (result.error || `no current on ${result.failed.join(', ')}`)}`, { stepsMa: result.stepsMa, failed: result.failed })
+      return sendJson(res, 200, { ...result, hardware: hardware.view() })
+    }
+
     // GET /api/logs?level=&scope=&q=&sinceId=&limit= — filtered slice of the ring buffer,
     // plus the stats the page needs to render its filter chips and counters.
     if (pathname === '/api/logs' && req.method === 'GET') {
@@ -1961,6 +1998,8 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
       // …and, beside it, which board this is and what it can do (boardIdentity.js): id, idSource,
       // label, caps { sports, panel, renderer }. Added, nothing renamed: fontsize stays where it was.
       board: { fontsize: matchFontsize(), ...identity() },
+      // The Point Hub board's charger and health, for the console header. Absent on the C0270.
+      ...(hardware && hardware.present ? { hardware: hardware.brief() } : {}),
       state: sourceManager.getState(),
       ...undoView(),
       ...logView(),
@@ -2195,7 +2234,64 @@ export function createControlServer({ sourceManager, manualSource, ledbox, relay
   server.autoPrepareTick = () => autoPrepare.tick()
   // Stop the schedule's timers and the auto-prepare ticker, and abort a fetch in flight. The
   // appliance calls it on shutdown.
+  // The self-test on the panel: the test screen goes up first, because it owns the way back. After
+  // the modules, the numbers and colour bars stay a few seconds for the eye: dead pixels and wrong
+  // colours cannot be measured. Exposed for the appliance's run at boot.
+  async function runHardwareSelfTest() {
+    const up = await ledbox.showTest({ ms: 30000 })
+    if (!up.ok) return { ok: false, failed: [], stepsMa: [], error: up.reason === 'missing' ? 'The board has no test screen yet.' : 'The test screen did not reach the panel.' }
+    const result = await hardware.runSelfTest({
+      modules: ledbox.testModules,
+      paint: (i) => ledbox.paintSelfTest(i),
+    })
+    await ledbox.showTest({ ms: 4000 }).catch(() => {})
+    return result
+  }
+  server.runHardwareSelfTest = runHardwareSelfTest
+
+  // The board's own OpenVolley on its touchscreen (Settings ▸ Board screen): nobody is at a second
+  // device to link the board to the match, so it follows the local relay by itself. Only ever a LIVE
+  // match, only one at a time, and never over a hand-scored game in play or a countdown. A match that
+  // is still live stays linked; a new one takes over once the old one has left the live list.
+  const LOCAL_RELAY = localRelayUrl || 'ws://127.0.0.1:8080'
+  let localRelayTimer = null
+  let localLinking = false
+  async function followLocalScorer() {
+    if (localLinking || opt('screenApp') !== 'openvolley' || !ledbox || ledbox.ready !== true || countdown) return
+    const { mode, matchId } = sourceManager.status
+    if (mode !== 'lan' && !ledbox._idle && matchInPlay(sourceManager.getState())) return
+    localLinking = true
+    try {
+      const r = await listFrom(relayHttpCandidates(LOCAL_RELAY, '', httpOpts), [])
+      if (!r) return
+      const live = r.list.filter((m) => m && m.status === 'live').map((m) => safeMatchId(m.id))
+      if (mode === 'lan' && live.includes(matchId)) return
+      if (live.length !== 1) return
+      if (ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
+      if (ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+      dropPrematch('the board\'s own OpenVolley has a live match')
+      clog.info(`following the live match ${live[0]} in the board's own OpenVolley`, { matchId: live[0] })
+      const lan = new LanSource({ relayUrl: LOCAL_RELAY, matchId: live[0], reconnectMs })
+      watchLinkedMatch(lan, live[0])
+      sourceManager.setSource(lan, { mode: 'lan', matchId: live[0] })
+    } catch (err) {
+      clog.warn(`could not follow the board's own OpenVolley: ${err.message}`, { error: err.message })
+    } finally {
+      localLinking = false
+    }
+  }
+  // The hardware and the screen exist only where pointhubd runs: nothing starts on the C0270.
+  server.startHardware = (inputs) => {
+    if (!hardware) return
+    hardware.start(() => ({ ...inputs(), uplink: uplink.state.status, panelConnected: !!ledbox && ledbox.ready === true, driverLive: !!liveDriver() }))
+    localRelayTimer = setInterval(() => { if (hardware.present) followLocalScorer().catch(() => {}) }, 3000)
+    if (localRelayTimer.unref) localRelayTimer.unref()
+  }
+  server.followLocalScorer = followLocalScorer
+
   server.stopBackground = () => {
+    if (localRelayTimer) clearInterval(localRelayTimer)
+    if (hardware) hardware.stop()
     if (matchUpload) matchUpload.stop()
     gameSheet.stop()
     autoPrepare.stop()
