@@ -280,10 +280,24 @@ _BOLD_FONT_CANDIDATES = [
 SMALL_TEXT_PX = 26
 
 
+# The Point Hub board's third HUB75 output: rows 64-95, 64 x 32 slots (BUILD.md section 4.1). A chain
+# keeps the LAST pixels clocked in the module nearest the Pi (seen on the glass, 5 Nov 2026), so with
+# two modules on a chain of three, the first slot is the one that falls off the end: bench L, nearest
+# the Pi, is the third slot and bench R the second.
+BENCH_ROW = 64
+BENCH_SLOT_W = 64
+BENCH_SLOT_H = 32
+BENCH_L_X = 128
+BENCH_R_X = 64
+
+
 class Renderer:
-    def __init__(self, width, height, buffer_path, base_dir, font_path=None, bold_font_path=None):
+    def __init__(self, width, height, buffer_path, base_dir, font_path=None, bold_font_path=None,
+                 bench_rotate=(90, 270)):
         self.width = width
         self.height = height
+        # Degrees (counter-clockwise) that turn each bench picture into its slot: left, right.
+        self.bench_rotate = bench_rotate
         self.buffer_path = buffer_path
         self.base_dir = base_dir
         # Make sure the frame's directory exists so the atomic os.replace() can land it
@@ -355,7 +369,12 @@ class Renderer:
     def render(self, layout: Layout):
         if not _HAVE_PIL:
             return
-        img = Image.new("RGB", (self.width, self.height), (0, 0, 0))
+        # A 192 x 64 layout on the Point Hub's taller canvas stays inside the front. Pillow's boxes
+        # include their far edge, so one reaching row 63 would otherwise light the bench modules' top
+        # row. Only a layout that means to draw down there (the test screen) gets the whole canvas.
+        tall = any(s.y >= BENCH_ROW for s in (layout.sections if layout else []))
+        front = self.height if (tall or self.height < BENCH_ROW) else BENCH_ROW
+        img = Image.new("RGB", (self.width, front), (0, 0, 0))
         draw = ImageDraw.Draw(img)
         for s in (layout.sections if layout else []):
             if not s.visible:
@@ -373,6 +392,15 @@ class Renderer:
                     self._draw_bar(draw, s)
             except Exception as e:  # noqa: BLE001 - a bad section must not blank the board
                 log.warning("render error on section %s: %s", s.name, e)
+        if self.height >= BENCH_ROW + BENCH_SLOT_H:
+            if front != self.height:
+                canvas = Image.new("RGB", (self.width, self.height), (0, 0, 0))
+                canvas.paste(img, (0, 0))
+                img = canvas
+            try:
+                self._draw_benches(img, layout)
+            except Exception as e:  # noqa: BLE001 - the front must keep painting whatever the benches do
+                log.warning("render error on the bench screens: %s", e)
         try:
             self._save(img)
         except OSError as e:
@@ -381,6 +409,55 @@ class Renderer:
             # OSError is read as "socket gone" and silently drops the bridge. Log it and keep the
             # last frame; if it persists, buffer.png goes stale and the board watchdog restarts us.
             log.warning("could not write %s: %s", self.buffer_path, e)
+
+    # --- The Point Hub board's bench screens ---------------------------------------------------
+    # The two end modules stand upright, so each is a 32 x 64 picture turned into its 64 x 32 slot in
+    # the canvas's third row (BUILD.md section 4.1). Drawn here, from the match sections already on
+    # the current layout, so the bridge and the protocol know nothing about them. On a screen without
+    # a score (crest, clock, result) they stay dark. Only a canvas of 96 rows gets here.
+    def _bench_picture(self, sections, own, other):
+        pic = Image.new("RGB", (BENCH_SLOT_H, BENCH_SLOT_W), (0, 0, 0))
+        draw = ImageDraw.Draw(pic)
+
+        def line(name, y, size, colour=None):
+            sec = sections.get(name)
+            text = (sec.text or "") if sec else ""
+            self._bench_text(draw, text, y, size, colour or (sec.color if sec else (255, 255, 255)))
+
+        # Own team on top, the way the bench reads it.
+        line("score%d" % own, 11, 22)
+        line("score%d" % other, 32, 22)
+        serve = sections.get("serve%d" % own), sections.get("serve%d" % other)
+        for sec, y in zip(serve, (2, 23)):
+            # The layout keeps the side not serving in a dim grey: on the benches it simply stays off.
+            if sec and max(sec.color) > 64:
+                draw.rectangle([0, y, 1, y + 17], fill=sec.color)
+        set_own, set_other = sections.get("set%d" % own), sections.get("set%d" % other)
+        if set_own and set_other:
+            self._bench_text(draw, "%s-%s" % (set_own.text or "0", set_other.text or "0"), 48, 9, (255, 255, 255))
+        timer = sections.get("timer")
+        if timer and timer.text:
+            self._bench_text(draw, timer.text, 58, 9, timer.color)
+        elif "timeout%d" % own in sections and "sub%d" % own in sections:
+            self._bench_text(draw, "T%s S%s" % (sections["timeout%d" % own].text or "0", sections["sub%d" % own].text or "0"),
+                             58, 9, (255, 255, 255))
+        return pic
+
+    def _bench_text(self, draw, text, y, size, colour):
+        if not text:
+            return
+        font, fitted = self._fit_font(draw, text, size, BENCH_SLOT_H - 2)
+        draw.fontmode = "1" if fitted <= SMALL_TEXT_PX else "L"
+        draw.text((BENCH_SLOT_H // 2, y), text, fill=colour, font=font, anchor="mm")
+
+    def _draw_benches(self, img, layout):
+        sections = {s.name: s for s in (layout.sections if layout else [])}
+        if "score1" not in sections or "score2" not in sections:
+            return
+        left = self._bench_picture(sections, 1, 2).rotate(self.bench_rotate[0], expand=True)
+        right = self._bench_picture(sections, 2, 1).rotate(self.bench_rotate[1], expand=True)
+        img.paste(left, (BENCH_L_X, BENCH_ROW))
+        img.paste(right, (BENCH_R_X, BENCH_ROW))
 
     def _draw_text(self, draw, s):
         if not s.text:
@@ -793,8 +870,11 @@ def build_config(base_dir):
         "version": version,
         "idle_layout": "waiting",
         "port": geti("TCP", "port", 8889),
-        "horn_cmd": ("aplay -q %s" % os.path.join(base_dir, "back.wav"))
-        if os.path.exists(os.path.join(base_dir, "back.wav")) else None,
+        # [HORN] cmd wins: the Point Hub board's horn is a switch on the I2C bus, not a sound file.
+        "horn_cmd": ini.get("HORN", "cmd", fallback=None) or (
+            ("aplay -q %s" % os.path.join(base_dir, "back.wav"))
+            if os.path.exists(os.path.join(base_dir, "back.wav")) else None),
+        "bench_rotate": (geti("DISPLAY", "bench_left_rotate", 90), geti("DISPLAY", "bench_right_rotate", 270)),
     }
 
 
@@ -817,7 +897,8 @@ def main():
     if not _HAVE_PIL:
         log.warning("Pillow not installed — running protocol-only (no buffer.png rendering)")
 
-    renderer = Renderer(cfg["width"], cfg["height"], cfg["buffer_path"], cfg["base_dir"], args.font)
+    renderer = Renderer(cfg["width"], cfg["height"], cfg["buffer_path"], cfg["base_dir"], args.font,
+                        bench_rotate=cfg.get("bench_rotate", (90, 270)))
     device = Device(cfg, renderer)
     device.start_heartbeat()
     Server(device, args.host, cfg["port"]).serve_forever()
