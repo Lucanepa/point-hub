@@ -6538,9 +6538,9 @@
   const syncGate = () => {
     // The tablet app: never. Its WebView is full screen already, element full screen does not exist
     // there, and the app holds the screen on itself — the gate could never be satisfied.
+    const want = IN_APP ? false : APP_MODE ? awakeRefused : canFS && isTouch() && !inFS();
     // The board's own screen: a kiosk window that is full screen and stays on, but not element full screen.
-    const want = IN_APP || ON_BOARD_SCREEN ? false : APP_MODE ? awakeRefused : canFS && isTouch() && !inFS();
-    document.body.classList.toggle("fs-gate", want && !fsSkipped);
+    document.body.classList.toggle("fs-gate", want && !fsSkipped && !ON_BOARD_SCREEN);
   };
   if (APP_MODE) {
     $("#fsGateT").nextElementSibling.textContent = "Tap once so the screen stays awake for the match.";
