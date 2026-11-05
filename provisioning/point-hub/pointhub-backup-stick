@@ -1,0 +1,67 @@
+#!/bin/bash
+# Copies OpenVolley's backups to a stick while it is plugged in, every few seconds. Scoring knows nothing
+# about this: the app writes to /data whether a stick is there or not, so plugging one in or pulling it
+# out mid-match cannot touch the match. A copy interrupted by pulling the stick leaves a temp file at
+# worst (rsync renames only finished files), and the next stick gets everything again.
+#
+# Started by 99-pointhub-backup-stick.rules, as root, for the mount:
+#   pointhub-backup-stick /dev/sda1
+# The bench and the tests, no mount and no root:
+#   pointhub-backup-stick --copy-once SRC DST
+#
+# FAT32 and exFAT only, so a stick cannot bring symlinks along for a root process to follow, and mounted
+# nosuid,nodev,noexec. Anything else is refused, and Diagnostics says how to fix it. The files are the
+# app's encrypted backups; opening one takes the game PIN or the referee PIN.
+set -u
+SRC=${PH_BACKUP_SRC:-/data/backups/openvolley}
+RUN=${PH_RUN_DIR:-/run/pointhub}
+EVERY=${PH_BACKUP_EVERY_S:-5}
+FOLDER=OpenVolley
+
+copy_once() { # src dst
+  mkdir -p "$2" || return 1
+  [ -d "$1" ] || return 0
+  rsync -rt --modify-window=1 --no-perms --no-owner --no-group --fsync --exclude='.*' "$1/" "$2/"
+}
+
+if [ "${1:-}" = --copy-once ]; then
+  copy_once "$2" "$3"
+  exit $?
+fi
+
+DEV=${1:?usage: pointhub-backup-stick /dev/sdXN}
+NAME=$(basename "$DEV")
+STATUS=$RUN/stick-$NAME.json
+MNT=/run/pointhub-stick/$NAME
+
+say() { # state files
+  printf '{"device":"%s","state":"%s","files":%d,"ts":%d}\n' "$NAME" "$1" "${2:-0}" "$(date +%s)" > "$STATUS.tmp" &&
+    mv "$STATUS.tmp" "$STATUS"
+}
+finish() {
+  rm -f "$STATUS" "$STATUS.tmp"
+  umount -l "$MNT" 2>/dev/null
+  rmdir "$MNT" 2>/dev/null
+}
+trap 'finish; exit 0' TERM INT
+
+case "$(blkid -o value -s TYPE "$DEV" 2>/dev/null)" in
+  vfat|exfat) ;;
+  *) say format; sleep infinity & wait $!; finish; exit 0 ;;
+esac
+
+mkdir -p "$MNT"
+if ! mount -o rw,nosuid,nodev,noexec,noatime "$DEV" "$MNT"; then
+  say mount-failed
+  sleep infinity & wait $!
+  finish
+  exit 0
+fi
+while :; do
+  if copy_once "$SRC" "$MNT/$FOLDER"; then
+    say ok "$(find "$MNT/$FOLDER" -type f ! -name '.*' 2>/dev/null | wc -l)"
+  else
+    say copy-failed
+  fi
+  sleep "$EVERY" & wait $!
+done

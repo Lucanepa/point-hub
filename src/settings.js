@@ -26,6 +26,8 @@ const SPORTS = ['volleyball', 'beach', 'basketball', 'simple']
 const BRANDINGS = ['kscw', 'plain']
 const LIVE_SYSTEMS = ['off', 'kscw']
 const ORIENTATIONS = ['behind', 'front']
+// What the Point Hub board's own touchscreen runs (provisioning/point-hub/pointhub-screen).
+export const SCREEN_APPS = ['ask', 'console', 'openvolley', 'off']
 
 // Shared across every sport.
 export const GLOBAL_DEFAULTS = {
@@ -58,6 +60,11 @@ export const GLOBAL_DEFAULTS = {
   // console reads it, to put each team card on the scorer's own side; the server, the sources and
   // the mappers keep PANEL sides whatever it says. Shared like branding: it is about the hall.
   orientation: 'behind',
+  // The board's own 10-inch touchscreen, where it has one, at power-up: 'ask' (the start screen, the
+  // new-board default from setup-board.sh), 'console' (this console), 'openvolley' (the OpenVolley
+  // eScoresheet, and the board follows its live match) or 'off'. The C0270 has no screen and never
+  // reads it.
+  screenApp: 'console',
   // Set up the pre-match on its own an hour before a home game in the season schedule (see
   // autoPrepare.js). Shared: it is about the hall's evening, not about one sport's rules.
   autoPrepare: true,
@@ -172,6 +179,7 @@ function sanitizeInto(out, keys, patch = {}) {
     if (k === 'boardLabel') { out[k] = String(patch[k] ?? '').replace(/[^\x20-\x7E]/g, '').trim().slice(0, 24); continue }
     if (k === 'branding') { out[k] = BRANDINGS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'liveScoring') { out[k] = LIVE_SYSTEMS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
+    if (k === 'screenApp') { out[k] = SCREEN_APPS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'orientation') { out[k] = ORIENTATIONS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
   }
   return out

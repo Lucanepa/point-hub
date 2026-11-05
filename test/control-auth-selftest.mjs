@@ -40,6 +40,7 @@ const ROUTES = {
   '/api/action': { guard: 'pin', body: { action: { type: 'point', side: 'left', delta: 1 } } },
   // During the setup only a save that SETS the first PIN gets through (asserted separately below).
   '/api/settings': { guard: 'pin', body: { brightness: 50 } },
+  '/api/screen': { guard: 'pin', body: { app: 'ask' }, setup: 'refused', skipAuthed: 'a PIN does not open it: only the board\'s own screen (point-hub-selftest)' },
   '/api/sport': { guard: 'pin', body: { sport: 'volleyball' }, skipAuthed: 'a real switch restarts the appliance' },
   '/api/link': { guard: 'pin', body: { source: 'lan', matchId: 'x' }, skipAuthed: 'reaches for an unreachable relay' },
   '/api/countdown': { guard: 'pin', body: { seconds: 5 } },
@@ -64,6 +65,8 @@ const ROUTES = {
   // Diagnostics ▸ Panel test: puts the test screen over whatever the hall is looking at, or sounds
   // the horn. The authed probe is 'stop', which with no test running changes nothing.
   '/api/paneltest': { guard: 'pin', body: { action: 'stop' } },
+  // The Point Hub self-test takes the panel, like the panel test. A board without the hardware says so.
+  '/api/hardware/selftest': { guard: 'pin', body: {} },
   '/api/history/clear': { guard: 'pin', body: {} },
   '/api/logs/level': { guard: 'pin', body: { level: 'info' } },
   '/api/logs/clear': { guard: 'pin', body: {} },
@@ -220,6 +223,7 @@ try {
     const want = spec.setup || (spec.guard === 'pin' ? 'setup' : spec.guard)
     const r = await sreq(route, { body: spec.body, from: `127.0.5.${++host}` })
     if (want === 'setup') ok(r.status === 403 && r.json && r.json.pinSetup === true && /Settings/.test(r.json.error) && /PIN/.test(r.json.error), `POST ${route} -> 403 pinSetup (got ${r.status})`)
+    else if (want === 'refused') ok(r.status === 403, `POST ${route} -> 403, not this board's own screen (got ${r.status})`)
     else if (want === 'open') ok(r.status < 400, `POST ${route} -> ${r.status}, open${spec.why ? `: ${spec.why}` : ' during the setup'}`)
     else ok(r.status === 409 && r.json && r.json.pinSetup === true && r.json.ok === false, `POST ${route} -> 409 pinSetup, no PIN to check (got ${r.status})`)
   }

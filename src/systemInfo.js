@@ -64,12 +64,33 @@ export function parseMilliC(raw) {
   return Number.isFinite(milli) ? Math.round(milli / 100) / 10 : null
 }
 
+// Where get_throttled lives depends on the Pi: the path under soc/ is the Pi 4's, and the Pi 5's
+// firmware node sits elsewhere in the device tree. Looked for once, in the few places it can be: no
+// walk of /sys on every poll.
+let throttledPath = null
+async function findThrottled() {
+  if (throttledPath) return throttledPath
+  const usual = '/sys/devices/platform/soc/soc:firmware/get_throttled'
+  if (await exists(usual)) return (throttledPath = usual)
+  const below = async (dir) => { try { return await fs.readdir(dir) } catch { return [] } }
+  for (const a of await below('/sys/devices/platform')) {
+    const top = `/sys/devices/platform/${a}`
+    const names = [a, ...(await below(top)).map((b) => `${a}/${b}`)]
+    for (const n of names) {
+      if (!/firmware/.test(n)) continue
+      const p = `/sys/devices/platform/${n}/get_throttled`
+      if (await exists(p)) return (throttledPath = p)
+    }
+  }
+  return usual
+}
+
 async function cpu() {
   return {
     tempC: parseMilliC(await read('/sys/class/thermal/thermal_zone0/temp')),
     load: os.loadavg().map((n) => Math.round(n * 100) / 100),
     cores: os.cpus().length,
-    throttle: parseThrottled(await read('/sys/devices/platform/soc/soc:firmware/get_throttled')),
+    throttle: parseThrottled(await read(await findThrottled())),
   }
 }
 

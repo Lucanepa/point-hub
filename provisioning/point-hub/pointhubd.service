@@ -1,0 +1,25 @@
+[Unit]
+Description=Point Hub board hardware service (power budget, thermal cut-off, lights, horn)
+# Early and with no shutdown dependency: the budget should be in force before the LEDs start, and the
+# STATUS light keeps blinking "shutting down" until the very end (pointhub-shutdown-light.service).
+DefaultDependencies=no
+After=local-fs.target systemd-modules-load.service
+Before=basic.target
+
+[Service]
+Type=simple
+User=pi
+SupplementaryGroups=i2c
+RuntimeDirectory=pointhub
+RuntimeDirectoryPreserve=restart
+RuntimeDirectoryMode=0755
+EnvironmentFile=-/etc/default/pointhubd
+ExecStart=/usr/bin/python3 -u /opt/pointhub/pointhubd.py
+# The latch holds its last value, so the horn must be cleared after ANY stop, a crash included.
+ExecStopPost=/usr/bin/python3 /opt/pointhub/pointhubd.py off
+Restart=always
+RestartSec=2
+TimeoutStopSec=5
+
+[Install]
+WantedBy=sysinit.target

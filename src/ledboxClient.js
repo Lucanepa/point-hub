@@ -62,6 +62,8 @@ export class LedboxClient extends EventEmitter {
     // The panel self-check (Diagnostics ▸ Panel test): module numbers, colour bars, a frame per
     // module. Optional; showTest refuses without it.
     testLayout = 'kscw_test',
+    // How many modules that layout numbers: the C0270's three, or the Point Hub board's eight.
+    testModules = 3,
     // How long after the last control-UI request a viewer still counts as present. The UI polls
     // /api/status every 1.5s, so this is ~13 missed polls: long enough that a brief wifi stall
     // or a tablet blanking its screen doesn't flap the panel back to the QR codes, short enough
@@ -140,7 +142,7 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, viewerTimeoutMs, idleTickMs, idleQr, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, brightness, defaultIdle, bootMessage })
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, testModules, viewerTimeoutMs, idleTickMs, idleQr, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, brightness, defaultIdle, bootMessage })
     this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
@@ -983,7 +985,7 @@ export class LedboxClient extends EventEmitter {
     blog.info(`panel test screen on for ${Math.round(ms / 1000)}s`, { ms, back: back.layout, idle: this._idle })
     try {
       await this.setLayoutIfNeeded(this.testLayout)
-      await this.sendSections(this.mapper.toTestSections())
+      await this.sendSections(this.mapper.toTestSections(this.testModules))
     } catch (err) {
       this._noteLayoutMissing(this.testLayout, err)
       const missing = Number(err.code) === 5
@@ -995,6 +997,14 @@ export class LedboxClient extends EventEmitter {
     // Something else took the panel while the test was being painted: it owns the panel now.
     if (this._test !== token) return { ok: false, reason: 'busy' }
     return { ok: true, endsAt: token.endsAt }
+  }
+
+  // One frame of the self-test (boardHardware.js) on the test layout: `lit` alone in white, or all
+  // dark for null. Only inside a running test, which is what guarantees the way back to the screen
+  // it replaced, even if the self-test dies half way.
+  async paintSelfTest(lit) {
+    if (!this.ready || !this._test) throw new Error('no test screen is up')
+    await this.sendSections(this.mapper.toSelfTestSections(lit, this.testModules))
   }
 
   // End a running test and go back to the screen it replaced. Returns whether one was running.

@@ -1,0 +1,14 @@
+#!/bin/bash
+# The Point Hub board's LED driver, with the tuning from ../setting.ini [DISPLAY]. Geometry is
+# compiled into the Piomatter build. Not the C0270's startled: that one needs the vendor's ini parser
+# and sudo, and its flags are the hzeller ones.
+cd "$(dirname "$0")" || exit 1
+ini() { awk -F= -v k="$1" '/^\[/{s=$0} s=="[DISPLAY]" && $1==k {print $2; exit}' ../setting.ini; }
+args=("--led-gpio-mapping=$(ini hardware_mapping)" "--led-multiplexing=$(ini multiplexing)"
+      "--led-pwm-bits=$(ini pwm_bits)" "--led-pwm-dither-bits=$(ini pwm_dither)"
+      "--led-brightness=$(ini brightness)" "--led-rgb-sequence=$(ini rgb_sequence)" --led-no-drop-privs)
+for pair in power_budget_ma:--power-budget-ma power_full_white_ma:--power-full-white-ma power_idle_ma:--power-idle-ma; do
+  v=$(ini "${pair%%:*}")
+  case "$v" in ''|*[!0-9]*) ;; *) args+=("${pair##*:}=$v") ;; esac
+done
+exec ./flushBuffer2 ../www/buffer.png "${args[@]}"

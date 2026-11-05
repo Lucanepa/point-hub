@@ -1,0 +1,14 @@
+[Unit]
+Description=Point Hub board renderer (openscore, TCP 8889 to www/buffer.png)
+After=pointhub-led.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ledbox
+ExecStart=/usr/bin/python3 -u /home/pi/ledbox/openscore.py --base-dir /home/pi/ledbox --host 127.0.0.1
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

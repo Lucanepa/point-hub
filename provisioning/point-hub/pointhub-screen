@@ -1,0 +1,76 @@
+#!/bin/bash
+# What the board's touchscreen runs: the start screen (Point Hub or OpenVolley eScoresheet), then the
+# app chosen there until the next power-up. Settings > Board screen can skip the question or turn the
+# screen off (the appliance writes the file, pointhub-screen.path restarts this).
+#
+# labwc and not a one-app kiosk compositor, for the on-screen keyboard: the eScoresheet and the
+# console both need typing on a screen with no keyboard, squeekboard needs a compositor with the
+# Wayland input-method protocols, and labwc + squeekboard is what Raspberry Pi OS itself runs.
+#
+# HOME and the XDG dirs are on /data: the root is read-only, and OpenVolley keeps its matches in the
+# webview's IndexedDB under them. On the overlay they would vanish at the next power cut.
+set -u
+STATE=${POINTHUB_STATE:-/data/pointhub}
+SCREEN_HOME=${POINTHUB_SCREEN_HOME:-/data/screen}
+OPENVOLLEY=/usr/bin/openvolley-escoresheet
+choice=$(cat "$STATE/screen-app" 2>/dev/null || echo ask)
+# The start screen's choice, written with this boot's id: a power-up asks again.
+if read -r now boot 2>/dev/null < "$STATE/screen-now" && [ "$boot" = "$(cat /proc/sys/kernel/random/boot_id)" ]; then
+  choice=$now
+fi
+# Not installed yet: the console, not a dead screen.
+ov_installed=1
+[ -x "$OPENVOLLEY" ] || { ov_installed=0; [ "$choice" != openvolley ] || choice=console; }
+
+mkdir -p "$SCREEN_HOME/.config/labwc" "$SCREEN_HOME/.cache" "$SCREEN_HOME/.local/share"
+# A fixed folder, so the stick copy (pointhub-backup-stick) knows where the backups are.
+export OPENVOLLEY_BACKUP_DIR=${OPENVOLLEY_BACKUP_DIR:-/data/backups/openvolley}
+mkdir -p "$OPENVOLLEY_BACKUP_DIR"
+export HOME="$SCREEN_HOME" XDG_CONFIG_HOME="$SCREEN_HOME/.config" XDG_CACHE_HOME="$SCREEN_HOME/.cache" \
+       XDG_DATA_HOME="$SCREEN_HOME/.local/share" XDG_CURRENT_DESKTOP=labwc:wlroots XDG_SESSION_TYPE=wayland
+
+case "$choice" in
+  openvolley)
+    # Tablets on the cable open http://192.168.5.1:5173/referee and so on; the app listens on all
+    # addresses and the firewall opens its ports on eth0 only (ETH0_EXTRA_PORTS).
+    # So its easy matches reach the local relay too: this board's panel follows them.
+    export OPENVOLLEY_POINTHUB_BOARD=1
+    app=("$OPENVOLLEY") ;;
+  off)
+    # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
+    exec sleep infinity ;;
+  *)
+    page="/?screen=1"
+    [ "$choice" != ask ] || page="/choose?ov=$ov_installed"
+    # The appliance may still be starting at power-up: not an error page on the screen.
+    for _ in $(seq 1 60); do
+      curl -fsS -o /dev/null "http://127.0.0.1:8890/choose" 2>/dev/null && break
+      sleep 1
+    done
+    app=(/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland
+         --enable-wayland-ime --password-store=basic --no-first-run "http://127.0.0.1:8890$page") ;;
+esac
+
+cat > "$SCREEN_HOME/.config/labwc/rc.xml" <<'XML'
+<?xml version="1.0"?>
+<labwc_config>
+  <windowRules>
+    <windowRule identifier="*" serverDecoration="no"><action name="Maximize"/></windowRule>
+  </windowRules>
+</labwc_config>
+XML
+# Team names need Ü: the Swiss layout first, kept in dconf under HOME. Writing needs a bus, reading not.
+dbus-run-session -- gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'ch'), ('xkb', 'us')]" || true
+# When the app ends, labwc ends too and the unit starts everything again. Without this a crash would
+# leave labwc running with an empty screen, and systemd would see nothing wrong. Quit in OpenVolley's
+# menu (exit 0) goes back to the start screen; a crash reopens the app. Only for OpenVolley: Chromium
+# also exits 0 when a switch closes it, and that must not wipe the choice just made.
+then_quit=
+[ "$choice" != openvolley ] || then_quit="[ \$? -ne 0 ] || rm -f $(printf %q "$STATE/screen-now"); "
+{
+  printf 'squeekboard &\n'
+  printf '('
+  printf ' %q' "${app[@]}"
+  printf '; %slabwc --exit) &\n' "$then_quit"
+} > "$SCREEN_HOME/.config/labwc/autostart"
+exec labwc

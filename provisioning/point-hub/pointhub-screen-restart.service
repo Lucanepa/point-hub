@@ -1,0 +1,6 @@
+[Unit]
+Description=Restart the Point Hub touchscreen
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart pointhub-screen.service

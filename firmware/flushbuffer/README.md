@@ -263,7 +263,7 @@ multiple of 100 Hz, a 1/100 s or 1/50 s shutter also cancels the hall lights' fl
 
 ## Raspberry Pi 5: the Piomatter backend
 
-**Status: written and compiled 02.11.2026, never run on a Pi 5 or on glass.** For the Point Hub
+**Status: written 02.11.2026. Run on a Pi 5 (Trixie, not root) with one module on Port 1, 05.11.2026: picture, colours (`RGB`) and the power file work. Ports 2 and 3, all modules, and refresh are untested.** For the Point Hub
 board (design D: Pi 5 + Adafruit Triple LED Matrix Bonnet 6358, 3 HUB75 outputs × three P5 64×32
 1/16-scan modules, ICN2037BP + 74HC138). The Pi 5's GPIO sits behind the RP1 chip, so the
 C0270's way of driving the panel does not work there; this backend drives it through the RP1's PIO
@@ -322,8 +322,9 @@ it (passing it does no harm). `setting.ini` for this board: `hardware_mapping=re
 output 2 = rows 32–63, output 3 = rows 64–95, x along each chain — the same canvas hzeller makes
 with `--led-parallel=3 --led-chain=3` ([BUILD.md §4.1](../../docs/diy-panel/BUILD.md)). The 192×64
 `buffer.png` lands on outputs 1+2; the bench rows stay black until openscore draws a taller
-picture. Both libraries clock x = 0 first, so which canvas slot is which physical module (and the
-bench rotation) should match hzeller's — still to be seen on glass.
+picture. x = 0 is clocked first, so the module nearest the Pi shows the LAST slot of its row (one
+module on Port 1 showed x = 128-191, on the glass, 5 Nov 2026). The bench rotation is still to be
+seen on glass.
 
 **Brightness.** Piomatter's brightness is a float 0–1 that shortens the OE time of every plane —
 linear in light — while hzeller's 1–100 goes through CIE1931 first. So level *b* is sent as
