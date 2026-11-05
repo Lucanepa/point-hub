@@ -2,7 +2,7 @@
 
 The illustrated, IKEA-style build manual for the Point Hub board: a 3D view of the finished board
 (design D: front frame tilting 0–20° on a piano hinge, the scorer's 10.1″ screen in a flap at the back,
-recessed handles, pull-out rear foot), the parts and tools, and the 27 build steps. Every drawing is generated to scale from the real
+recessed handles, pull-out rear foot), the parts and tools, and the build steps. Every drawing is generated to scale from the real
 dimensions in millimetres, so a change of size is a change of numbers, not a redraw.
 
 | File | What it is |
@@ -19,5 +19,7 @@ node docs/diy-panel/guide/gen.mjs
 # the same page without the document skeleton, for publishing:
 GUIDE_BARE=/path/to/manual.html node docs/diy-panel/guide/gen.mjs
 ```
+
+To print it as an A4 PDF (`point-hub-build-manual.pdf`): `PLAYWRIGHT=/path/to/node_modules/playwright node docs/diy-panel/guide/pdf.cjs`.
 
 The written guide, with the bill of materials, wiring and safety notes, is `docs/diy-panel/BUILD.md`.
