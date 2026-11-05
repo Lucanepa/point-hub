@@ -33,6 +33,8 @@ case "$choice" in
   openvolley)
     # Tablets on the cable open http://192.168.5.1:5173/referee and so on; the app listens on all
     # addresses and the firewall opens its ports on eth0 only (ETH0_EXTRA_PORTS).
+    # So its easy matches reach the local relay too: this board's panel follows them.
+    export OPENVOLLEY_POINTHUB_BOARD=1
     app=("$OPENVOLLEY") ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
