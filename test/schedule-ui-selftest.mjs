@@ -114,14 +114,7 @@ console.log('\n[2] starting a scheduled game')
 
 console.log('\n[3] every "Show clock" pins the clock screen and closes its dialog')
 {
-  const sc = lift(js, 'showClock')
-  ok(/postJSON\("\/api\/idle", \{ on: true, screen: "clock" \}\)/.test(sc), 'showClock posts /api/idle {on:true, screen:"clock"}')
-  ok(/board\.mode = "clock"/.test(sc), 'and puts the mirror on the clock')
-  ok(/id="spClock"/.test(index) && /Show clock<\/span><\/button>/.test(index), 'the sport picker has a Show clock button')
-  const sp = handler('spClockBtn.addEventListener'), gp = handler('gpClockBtn.addEventListener'), me = handler('$("#meClock").addEventListener')
-  ok(/showClock\(/.test(sp) && /closeSportPicker\(\)/.test(sp), 'picker: shows the clock, closes the picker')
-  ok(/showClock\(/.test(gp) && /closeGamePicker\(\)/.test(gp), 'game menu: shows the clock, closes the menu')
-  ok(/showClock\(/.test(me) && /closeMatchEnd\(\)/.test(me), 'match result: shows the clock, closes the dialog')
+  ok(!/id="(clockBtn|spClock|gpClock|meClock)"/.test(index) && !/showClock/.test(js), 'no Show clock anywhere in the console')
   ok(!/gameChoice\("clock"\)/.test(js), 'nothing uses the old {choice:"clock"} path any more')
   ok(/#bvPanel\[data-mode="clock"\] \.bvclock\{display:flex\}/.test(css), 'the mirror has a clock face')
 }
