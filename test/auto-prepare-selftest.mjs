@@ -161,7 +161,7 @@ try {
   await post('/api/game', { choice: 'new', prematch: true, gameId: 901, teams: { left: { name: 'KSC Wiedikon H1', short: 'KSCW H1' }, right: { name: 'VBC Züri Unterland H2', short: 'ZÜRI H2' } } })
   st = await status()
   ok(st.prematch === true && String(st.prematchGameId) === '901' && st.suggestion.length === 0, `"Set up": pre-match 901, the suggestion gone (${st.suggestion.length})`)
-  ok(mock.currentLayout === 'kscw_clock' && st.ledbox.clockHeld === true, `the panel keeps the clock (${mock.currentLayout})`)
+  ok(mock.currentLayout === 'kscw_idle' && st.ledbox.clockHeld === false, `the panel shows the names and the time (${mock.currentLayout})`)
 
   console.log('\n[4] never twice, never after a dismissal')
   r = await tick()
