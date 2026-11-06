@@ -104,14 +104,14 @@ console.log('\n[4] pre-match')
   ok(/if \(cb\) cb\(stopped\)/.test(body('finishCountdown')), 'the warm-up\'s end hands its onFinish the stop request')
   ok(/pre \? \(stopped\) =>/.test(body('startWarmup')) && /: null, \{ major: true, action: pre \? "End warm-up · start match" : "End warm-up"/.test(body('startWarmup')), 'outside a pre-match the warm-up is unchanged (no onFinish, same label)')
   ok(/<span class="pmready">Ready: <b id="pmTeams"><\/b> <span class="pmsub" id="pmSub">— board shows the team names<\/span><\/span>/.test(markup), 'banner reads "Ready: A vs B — board shows the team names"')
-  ok(/id="pmWarmup"[^>]*>[\s\S]*?Start warm-up<\/button>/.test(markup) && /id="pmStart" class="primary">Start match now<\/button>/.test(markup), 'two big buttons: Start warm-up, Start match now')
+  ok(/id="pmWarmup"[^>]*>[\s\S]*?Start official warm-up \(10 min\)<\/span><\/button>/.test(markup) && /id="pmStart" class="primary">Start match now<\/button>/.test(markup), 'two big buttons: Start warm-up, Start match now')
   ok(/\.prematch \.pmbtns button\{[^}]*min-height:52px/.test(css), 'banner buttons are big')
   // renderPrematch against stubs
   const nodes = {}
   const node = (id) => (nodes[id] ||= { hidden: false, textContent: '' })
   const document = { body: { classList: { on: new Set(), toggle(c, v) { v ? this.on.add(c) : this.on.delete(c) } } } }
   const make = new Function('$', 'document', 'board',
-    'let prematchOn = false;\nconst warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";\n' +
+    'let prematchOn = false;\nconst SETTINGS = {};\nconst fmt = (s) => String(s);\nconst warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";\n' +
     lift(js, 'renderPrematch') + '\nreturn { renderPrematch, get on() { return prematchOn } };')
   const board = { mode: 'match', cd: null }
   const pm = make((sel) => node(sel), document, board)
