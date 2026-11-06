@@ -92,7 +92,7 @@ console.log('\n[4] pre-match')
 {
   const ss = body('startScheduled')
   ok(/choice: "new", teams: \{[\s\S]*\}, prematch: true\b/.test(ss), 'a schedule start always asks for the pre-match')
-  ok(/board\.mode = r && r\.prematch === true \? "clock" : "match"/.test(ss), 'and the mirror follows the board onto the clock')
+  ok(/board\.mode = r && r\.prematch === true \? "idle" : "match"/.test(ss), 'and the mirror follows the board onto the names')
   ok(/if \(prematchOn\) return;/.test(body('showBoardLive')), 'opening the Game tab does not lift the pre-match clock')
   const srvSet = (server.match(/PREMATCH_ACTIONS = new Set\(\[([^\]]*)\]\)/) || [])[1] || ''
   const uiSet = (js.match(/PREMATCH_ACTIONS = \[([^\]]*)\]/) || [])[1] || ''
@@ -103,7 +103,7 @@ console.log('\n[4] pre-match')
   ok(/\$\("#warmupBtn"\)\.addEventListener\("click", startWarmup\)/.test(js) && /\$\("#pmWarmup"\)\.addEventListener\("click", startWarmup\)/.test(js), 'both warm-up buttons are one clock')
   ok(/if \(cb\) cb\(stopped\)/.test(body('finishCountdown')), 'the warm-up\'s end hands its onFinish the stop request')
   ok(/pre \? \(stopped\) =>/.test(body('startWarmup')) && /: null, \{ major: true, action: pre \? "End warm-up · start match" : "End warm-up"/.test(body('startWarmup')), 'outside a pre-match the warm-up is unchanged (no onFinish, same label)')
-  ok(/<span class="pmready">Ready: <b id="pmTeams"><\/b> <span class="pmsub" id="pmSub">— board shows the clock<\/span><\/span>/.test(markup), 'banner reads "Ready: A vs B — board shows the clock"')
+  ok(/<span class="pmready">Ready: <b id="pmTeams"><\/b> <span class="pmsub" id="pmSub">— board shows the team names<\/span><\/span>/.test(markup), 'banner reads "Ready: A vs B — board shows the team names"')
   ok(/id="pmWarmup"[^>]*>[\s\S]*?Start warm-up<\/button>/.test(markup) && /id="pmStart" class="primary">Start match now<\/button>/.test(markup), 'two big buttons: Start warm-up, Start match now')
   ok(/\.prematch \.pmbtns button\{[^}]*min-height:52px/.test(css), 'banner buttons are big')
   // renderPrematch against stubs

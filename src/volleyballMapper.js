@@ -318,6 +318,8 @@ export function toClubIdleSections(state, { fullNames = true, maxFontSize = 24, 
   const v = state ? toLeftRight(state) : null
   // The crest occupies x 3..56, so the name column starts at 67 and runs to the edge.
   const COLUMN = 192 - 67
+  // Two names and the time share the 64 rows (the layout's 20pt), whatever the setting allows.
+  const max = Math.min(maxFontSize, 20)
   const left = (fullNames ? v?.leftFull : v?.leftName) || 'KSCW'
   const right = (fullNames ? v?.rightFull : v?.rightName) || 'GAST'
   // Sized per side, not once for both: "KSC Wiedikon" vs "Zug" want very different sizes,
@@ -327,9 +329,9 @@ export function toClubIdleSections(state, { fullNames = true, maxFontSize = 24, 
   const rightIsClub = isClub(right, clubName) || isClub(v?.rightName, clubName)
   return [
     ...text('team1', left, leftIsClub ? CLUB_GOLD : v?.leftColor),
-    attr('team1', 'fontsize', fitFontSize(left, COLUMN, { max: maxFontSize })),
+    attr('team1', 'fontsize', fitFontSize(left, COLUMN, { max })),
     ...text('team2', right, rightIsClub ? CLUB_GOLD : v?.rightColor),
-    attr('team2', 'fontsize', fitFontSize(right, COLUMN, { max: maxFontSize })),
+    attr('team2', 'fontsize', fitFontSize(right, COLUMN, { max })),
   ]
 }
 

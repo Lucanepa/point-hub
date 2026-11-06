@@ -494,6 +494,13 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   }
   // The KSCW match sheet for the game on the board (gameSheet.js) — roster for the scorer to copy.
   const currentGameId = () => history.gameId ?? (prematch ? prematchGameId : null)
+  // Kickoff of the game on the board (epoch ms), for T-mm:ss. Null for a game not from the schedule.
+  const kickoffOfGame = () => {
+    const id = currentGameId()
+    const g = id != null && typeof schedule.game === 'function' ? schedule.game(id) : null
+    return g ? GameSheet.kickoff(g) : null
+  }
+  if (ledbox) ledbox.kickoffAt = kickoffOfGame
   const gameSheet = gameSheetIn || new GameSheet({
     file: path.resolve(stateHome, 'gamesheet.json'),
     trusted: clockTrusted,
@@ -564,6 +571,13 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   const holdClock = async () => {
     await stopCountdown({ expired: false, repaint: false })
     if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true, { screen: 'clock' })
+  }
+
+  // The pre-match: the names and the time until the warm-up or the start. A 0-0 this early reads as
+  // a match begun.
+  const holdPrematchScreen = async () => {
+    await stopCountdown({ expired: false, repaint: false })
+    if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true, { screen: 'auto' })
   }
 
   // --- the scorer laptop's relay ------------------------------------------------------------
@@ -650,8 +664,17 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   // countdown this link started, and a link edge only ever ends THAT one: a skip, a warm-up or a
   // timeout the operator started over it since is the operator's call, and the laptop's end of its
   // own break must not take it down.
+  // How the linked match is doing, for the console's Live tag and Link button:
+  // connecting (no score yet) | live | lost (the relay went away, retrying) | ended.
+  let linkState = null
   const watchLinkedMatch = (lan, matchId) => {
     const mine = () => sourceManager.active === lan
+    let scored = false
+    linkState = 'connecting'
+    lan.on('status', (s) => { if (mine() && linkState !== 'ended') linkState = s !== 'open' ? 'lost' : scored ? 'live' : 'connecting' })
+    lan.on('state', () => { if (mine() && linkState !== 'ended') { scored = true; linkState = 'live' } })
+    lan.on('match-ended', () => { if (mine()) linkState = 'ended' })
+    lan.on('match-resumed', () => { if (mine()) linkState = 'live' })
     let linked = null
     // Only for a sport whose eScoresheet is known to publish its breaks (sports.js `linkBreaks`),
     // only when Settings wants a countdown for that break at all, and never over a screen the
@@ -1328,6 +1351,11 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
     if (pathname === '/api/idle' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
+      // { timeMode } alone: the "H / T-" button, the time line and nothing else.
+      if (body && (body.timeMode === 'clock' || body.timeMode === 'countdown')) {
+        if (ledbox && typeof ledbox.setTimeMode === 'function') await ledbox.setTimeMode(body.timeMode)
+        return sendJson(res, 200, { ok: true, timeMode: body.timeMode, kickoffAt: kickoffOfGame() })
+      }
       const on = body ? body.on !== false : true
       const screen = on && body && body.screen === 'clock' ? 'clock' : 'auto'
       clog.info(on ? `operator switched to the idle screen${screen === 'clock' ? ' (clock)' : ''}` : 'operator returned to scoring', { idle: on, screen, ip: clientIp(req) })
@@ -1833,7 +1861,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   async function setupScheduledGame(sport, teams, { prematch: pre = false, gameId = null, why = 'schedule', ip = null } = {}) {
     const offMatch = ledbox && (ledbox._idle || (ledbox.currentLayout && ledbox.currentLayout !== ledbox.layout))
     if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
-    if (pre) await holdClock()
+    if (pre) await holdPrematchScreen()
     // Without a pre-match the new game is painted at once, so a countdown still running (a warm-up
     // started before the game was picked) must not keep the break screen over it.
     else await stopCountdown({ expired: false, repaint: false })
@@ -1864,8 +1892,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
     try { resume.save(sport, state, nowStamp(), { prematch: pre, gameId }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
     touchedSinceStart = false
     // One paint, of the new state. Lifting idle repaints from the state the client now holds;
-    // already on the scoreboard, push it. A pre-match paints nothing: the clock stays up.
-    if (pre) { /* held on the clock until beginMatch() */ }
+    // already on the scoreboard, push it. A pre-match: the names, now that the client has them,
+    // until beginMatch().
+    if (pre) { if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true, { screen: 'auto' }) }
     else if (offMatch && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
     else if (ledbox && typeof ledbox.pushState === 'function') await Promise.resolve(ledbox.pushState(state)).catch(() => {})
     clog.info(`new game from the ${why === 'automatic' ? 'schedule, automatically' : 'schedule'}${pre ? ' (pre-match: the board keeps the clock)' : ''}: ${teams.left.short || teams.left.name} v ${teams.right.short || teams.right.name}`, {
@@ -1940,15 +1969,16 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   }
 
   // Bring back a game saved during its pre-match (Continue, or a restart — see
-  // server.resumeInterruptedGame): the state goes in behind the held clock, and the pre-match is on
+  // server.resumeInterruptedGame): the state goes in behind the names, and the pre-match is on
   // again exactly as it was left.
   async function applyPrematch(sport, saved) {
     if (ledbox && typeof ledbox.clearResult === 'function') await ledbox.clearResult()
-    await holdClock()
+    await holdPrematchScreen()
     sourceManager.setSource(manualSource, { mode: 'manual' })
     manualSource.apply({ type: 'set-state', state: saved })
     clearUndo()
     prematch = true
+    if (ledbox && typeof ledbox.showIdle === 'function') await ledbox.showIdle(true, { screen: 'auto' })
     // The schedule's id for it, saved with the slot: without it a restored pre-match is known only
     // by its names, and one left over from an earlier slot could never give way (autoBoardFree).
     prematchGameId = resume.prematchGameId(sport)
@@ -1980,6 +2010,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       prematch,
       // Which of today's games that pre-match is (a Directus id), when the board knows; else null.
       prematchGameId: prematch ? prematchGameId : null,
+      timeMode: ledbox && ledbox.timeMode === 'countdown' ? 'countdown' : 'clock',
+      link: sourceManager.status.mode === 'lan' ? linkState : null,
+      kickoffAt: kickoffOfGame(),
       // Tonight's home game(s) the console offers to set up (autoPrepare.js): [] or
       // [{ id, date, time, home, away, homeShort, awayShort, hall, league }] — public schedule data.
       suggestion: liveSuggestion(),

@@ -124,6 +124,10 @@
      spent telling the scorer what they were already doing. */
   #modeTag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:1.5px solid var(--blue);color:var(--blue);font-weight:800}
   #modeTag b{color:var(--blue)}
+  #modeTag.linkok,#tabLinkBtn.linkok{background:var(--ok);border-color:var(--ok);color:var(--on-accent)}
+  #modeTag.linkok b{color:var(--on-accent)}
+  #modeTag.linkwarn,#tabLinkBtn.linkwarn{background:#facc15;border-color:#ca8a04;color:#1c1917}
+  #modeTag.linkwarn b{color:#1c1917}
   /* The set / period is what a scorer glances up for between rallies, so it is the biggest thing
      in the header rather than a 12px chip. */
   #setNo{display:inline-flex;align-items:center;min-height:34px;padding:2px 12px;border-radius:4px;font-size:18px;font-weight:800;font-family:var(--mono);color:var(--fg);background:var(--card);border:1.5px solid var(--line)}
@@ -214,7 +218,7 @@
   .servebox .lbl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   /* one consolidated SERVE pill: two arrows + label; the serving side fills its team colour */
   .servetoggle{display:flex;align-items:center;gap:4px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:4px}
-  .sv-arrow{display:flex;align-items:center;justify-content:center;width:var(--tap);height:var(--tap);border:0;background:transparent;color:var(--muted);border-radius:2px;cursor:pointer;transition:background .14s,color .14s}
+  .sv-arrow{display:flex;align-items:center;justify-content:center;width:var(--tap);height:var(--tap);border:1.5px solid var(--line);background:var(--card);color:var(--fg);border-radius:2px;cursor:pointer;transition:background .14s,color .14s}
   .sv-arrow:hover{color:var(--fg)}
   .sv-arrow[data-serve="left"].on{background:var(--left);color:var(--left-ink,#fff)}
   .sv-arrow[data-serve="right"].on{background:var(--right);color:var(--right-ink,#fff)}
@@ -311,7 +315,8 @@
   .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .actions button{min-height:44px;padding:0 16px;font-size:13px;font-weight:800;white-space:nowrap;border:1.5px solid var(--line);
     background:var(--card);color:var(--fg);border-radius:var(--r);cursor:pointer}
-  .actions .switch{color:var(--blue)}
+  #swapBtn{display:inline-flex;align-items:center;gap:6px;min-height:var(--tap);padding:0 12px;font-size:13px;font-weight:800;white-space:nowrap;
+    border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   /* Reset is pushed to the far end behind a hairline, away from Switch sides. The old
      `.danger:first-of-type` never matched (first-of-type counts <button>s, and VS is first), so the
      destructive button sat flush against the everyday one it is easiest to mistake for. */
@@ -389,6 +394,8 @@
      the roster is wiedisync's (Geb. · Nr. · Name, F.), Liberos written a second time, then the
      Offizielle. The scorer reads it off the tablet and types it into the eScoresheet. */
   .matchinfobtn{margin-top:14px}
+  #timeModeBtn{font-variant-numeric:tabular-nums;white-space:nowrap}
+  #timeModeBtn.on{border-color:var(--blue);color:var(--blue)}
   /* A page of its own, over the tabs and below the PIN pad and the confirm (z-index 80). */
   #matchInfo{position:fixed;inset:0;z-index:70;display:flex;background:var(--bg)}
   .mibox{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px}
@@ -761,15 +768,16 @@
   .bvidle{position:absolute;inset:0;display:none;align-items:center;justify-content:center;gap:5cqw;padding:0 6cqw;font-family:Arial,Helvetica,sans-serif}
   #bvPanel[data-mode="idle"] .bvidle,#bvPanel[data-mode="clock"] .bvidle{display:flex}
   .bvcrest{height:80cqh;width:auto;flex:0 0 auto}
-  /* "Show clock" (kscw_clock): the crest with the time and date beside it instead of the names. */
+  /* The clock screen (kscw_clock): the crest with the time and date beside it instead of the names. */
   .bvclock{display:none;flex:1 1 auto;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4cqh}
   #bvPanel[data-mode="clock"] .bvclock{display:flex}
   #bvPanel[data-mode="clock"] .bvnames{display:none}
   .bvclock .bvtime{font-weight:700;font-size:40cqh;line-height:1;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap}
   .bvclock .bvdate{font-weight:700;font-size:18cqh;line-height:1;color:#ffc832;white-space:nowrap}
   .bvnames{display:flex;flex-direction:column;justify-content:center;min-width:0}
-  .bvnames .bvn{font-weight:700;font-size:23cqh;line-height:1.02;letter-spacing:-.02em;white-space:nowrap}
-  .bvnames .bvsep{height:.6cqh;background:#39415f;margin:2.5cqh 0;border-radius:1cqh}
+  .bvnames .bvn{font-weight:700;font-size:26cqh;line-height:1.02;letter-spacing:-.02em;white-space:nowrap}
+  .bvnames .bvsep{height:.6cqh;background:#39415f;margin:1.5cqh 0;border-radius:1cqh}
+  .bvnames .bvidletime{font-weight:700;font-size:26cqh;line-height:1.1;color:#fff;font-variant-numeric:tabular-nums;text-align:center;margin-top:1cqh}
   .bvcd{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqh;font-family:Arial,Helvetica,sans-serif}
   #bvPanel[data-mode="countdown"] .bvcd{display:flex}
   #bvPanel[data-mode="countdown"] .bvcd.blink{animation:cdblink .7s steps(1,end) infinite}
@@ -829,7 +837,6 @@
   html:not(.in-app) body.touch .spfoot .getapp{margin:0}
   @media (max-width:560px){ .splist{grid-template-columns:repeat(2,minmax(0,1fr))} }
   /* A phone on its side: no room in the actions row for the label, so the clock icon alone. */
-  @media (max-width:720px) and (max-height:500px){ #clockBtn .cbtxt{display:none} }
   /* Utility row on the landing dialogs. Full screen and keep-awake used to live only in the Game
      tab's centre column, which is behind these two screens — so the one moment you actually want
      them (setting the tablet down on the table before the match) was the one moment they were
@@ -992,7 +999,7 @@
     .stat .num{font-size:20px}
     .taphint{margin-top:-3px}
     .centercol{display:grid;grid-template-columns:auto auto;justify-items:center;gap:6px;padding:8px}
-    .centercol .servebox,.centercol #beachServe,.centercol #periodBox{grid-column:1/-1}
+    .centercol .servebox,.centercol #swapBtn,.centercol #beachServe,.centercol #periodBox{grid-column:1/-1}
     .servetoggle{flex-wrap:wrap;justify-content:center;width:calc(var(--tap) * 2 + 15px)}
     .servetoggle .sv-lbl{order:-1;flex-basis:100%;text-align:center;padding:2px 0 0}
     #periodBox{gap:2px}
@@ -1105,7 +1112,7 @@
        full-width flex item: the one way to force a line break in a flex row, and it doubles as the
        divider. Same row count as before, so the footer still fits a 390x844 screen. */
     .gfooter::after{content:"";order:1;flex:1 1 100%;height:0;border-top:1.5px solid var(--line-soft)}
-    #idleBtn,#clockBtn,#warmupBtn,#resetBtn{order:2}
+    #idleBtn,#warmupBtn,#resetBtn{order:2}
     #resetBtn{margin-left:10px}
     /* Grow to fill each wrapped row, so a short last row reads as intended, not as spill-over. */
     .actions button,#undoBtn{flex:1 1 auto;justify-content:center;padding:0 10px}
@@ -1221,7 +1228,7 @@
   <div id="suggest" class="prematch suggest" hidden role="status" aria-live="polite"></div>
   <div id="prematch" class="prematch" hidden role="status" aria-live="polite">
     <div class="pmtext">
-      <span class="pmready">Ready: <b id="pmTeams"></b> <span class="pmsub" id="pmSub">— board shows the clock</span></span>
+      <span class="pmready">Ready: <b id="pmTeams"></b> <span class="pmsub" id="pmSub">— board shows the team names</span></span>
     </div>
     <div class="pmbtns">
       <button type="button" id="pmWarmup"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Start warm-up</button>
@@ -1259,11 +1266,12 @@
     <div class="centercol">
       <div class="servebox">
         <div class="servetoggle" role="group" aria-label="Serve">
-          <button class="sv-arrow" data-serve="left" aria-label="Serve left"><svg class="licon l-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></button>
+          <button class="sv-arrow" data-serve="left" aria-label="Serve left"><svg class="licon l-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
           <span class="lbl sv-lbl">SERVE</span>
-          <button class="sv-arrow" data-serve="right" aria-label="Serve right"><svg class="licon l-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></button>
+          <button class="sv-arrow" data-serve="right" aria-label="Serve right"><svg class="licon l-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
         </div>
       </div>
+      <button id="swapBtn" class="switch" title="Teams change ends"><svg class="licon l-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></svg> Switch sides</button>
       <div id="beachServe" hidden>
         <button class="plrbtn" id="servePlrBtn" title="Serving player — tap to switch" aria-label="Switch the serving player"><span class="plrlbl">PLAYER</span><span class="plrnum" id="servePlrNum">–</span></button>
         <button class="ordbtn" id="serveOrderBtn" title="Set the beach serve order">Serve order</button>
@@ -1327,14 +1335,11 @@
       <button id="logBtn" type="button" hidden title="Match log — every point, timeout and sub with its time"><svg class="licon l-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg><span class="lltime" id="logTime"></span><span class="lltext" id="logText"></span><span class="llscore" id="logScore"></span></button>
     </div>
     <div class="actions">
-      <button id="idleBtn" title="Show team names + VS on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
-      <!-- The board back on the crest and clock mid-evening (between matches, a long break) without
-           going through the game menu. The score underneath is kept; the next point lifts it. -->
-      <button id="clockBtn" title="Show the clock on the board (the score is kept)" aria-label="Show clock"><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="cbtxt"> Show clock</span></button>
+      <button id="idleBtn" title="Show the team names and the time on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
+      <button id="timeModeBtn" type="button" title="Time on the board: the clock, or the countdown to the game" aria-pressed="false">H / T-</button>
       <button id="matchInfoBtn" type="button" title="Game details and the KSCW roster"><svg class="licon l-clipboard-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg> Match info</button>
       <button id="warmupBtn" title="Pre-match warm-up countdown"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Warm-up</button>
       <button id="nextPeriodBtn" hidden title="End the quarter / period"><svg class="licon l-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /> <line x1="4" x2="4" y1="22" y2="15" /></svg> End period</button>
-      <button id="swapBtn" class="switch" title="Teams change ends"><svg class="licon l-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></svg> Switch sides</button>
       <!-- Reset used to sit beside a Blank button, both styled danger, both one vague verb — and
            only ONE of them destroyed anything. Blank has since been taken off the console (VS
            still takes the score off the panel, and Undo takes back a mis-tap), so Reset is
@@ -1836,7 +1841,6 @@
       <button type="button" class="js-awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg><span>Keep awake</span></button>
       <!-- The picker is what the tablet opens on, and on most evenings nobody is scoring yet —
            the board just wants to look like a clock until the first team walks in. -->
-      <button type="button" id="spClock" aria-label="Show the clock on the board"><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Show clock</span></button>
       <button type="button" id="spGameMenu" aria-label="Open the game menu for the current sport"><svg class="licon l-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13" /> <path d="M8 12h13" /> <path d="M8 18h13" /> <path d="M3 6h.01" /> <path d="M3 12h.01" /> <path d="M3 18h.01" /></svg><span>Game menu</span></button>
       <!-- The picker is the FIRST thing on screen every evening, and it covers the whole page.
            If the board is misbehaving, this is the moment you find out — so the way to look at
@@ -1898,10 +1902,6 @@
         <span class="gplabel">New game</span>
         <span class="gphint">From the schedule, linked to a scoresheet, or manual</span>
       </button>
-      <button class="gpopt" id="gpClock">
-        <span class="gplabel">Show clock</span>
-        <span class="gphint">Leave the board on the crest and clock</span>
-      </button>
       <button class="gpopt danger" id="gpDelete" hidden>
         <span class="gplabel">Delete saved game</span>
         <span class="gphint">Forget the match in progress</span>
@@ -1932,10 +1932,6 @@
       <button class="gpopt primary" id="meNew">
         <span class="gplabel">New game</span>
         <span class="gphint">Start the next match from 0–0</span>
-      </button>
-      <button class="gpopt" id="meClock">
-        <span class="gplabel">Show clock</span>
-        <span class="gphint">Leave the board on the crest and clock</span>
       </button>
     </div>
     <p class="spstatus" id="meStatus" hidden role="status" aria-live="polite"></p>
@@ -2437,6 +2433,12 @@
   let linkedMatchId = null;
   let lastState = null; // last raw a/b state seen — prefills the beach serve-order modal
   const MODE_LABELS = { manual: "Manual", lan: "Live (LAN)", cloud: "Cloud", idle: "Idle" };
+  const LINK_STATES = {
+    live: { text: "Live", tone: "ok" },
+    connecting: { text: "Waiting for the scoresheet", tone: "warn" },
+    lost: { text: "Link lost", tone: "warn" },
+    ended: { text: "Match ended", tone: "" },
+  };
 
   // Last FULL status seen. Optimistic post-action renders carry only the fields they know
   // (state + ledbox); merging them over this keeps sport / pinRequired / matchId / mode intact.
@@ -2530,6 +2532,7 @@
     if (seq < renderedSeq) return;
     renderedSeq = seq;
     st = LAST_STATUS = { ...LAST_STATUS, ...st };
+    renderTimeMode();
     if (st.build) noteBuild(st.build);
     appBackupTick(st);
     // Probed once; after that every quiet poll is a chance to make the move it is waiting for.
@@ -2584,8 +2587,17 @@
     // The source is only worth header space when the score is NOT coming from this tablet.
     const linked = !!st.mode && !["manual", "idle"].includes(st.mode);
     $("#modeTag").hidden = !linked;
-    $("#modeName").textContent = MODE_LABELS[st.mode]
+    // Colour and word together: green Live, yellow while the link is not delivering.
+    const link = LINK_STATES[st.link] || null;
+    $("#modeName").textContent = (link && link.text) || MODE_LABELS[st.mode]
       || (st.mode ? st.mode[0].toUpperCase() + st.mode.slice(1) : "Idle");
+    $("#modeTag").classList.toggle("linkok", !!link && link.tone === "ok");
+    $("#modeTag").classList.toggle("linkwarn", !!link && link.tone === "warn");
+    $("#modeTag").title = st.matchId ? "Match " + st.matchId : "";
+    const linkBtn = $("#tabLinkBtn");
+    linkBtn.classList.toggle("linkok", linked && !!link && link.tone === "ok");
+    linkBtn.classList.toggle("linkwarn", linked && !!link && link.tone === "warn");
+    linkBtn.title = linked && link ? "Link: " + link.text : "";
     renderUndo(st);
     renderLog(st);
     const setNo = $("#setNo");
@@ -2596,7 +2608,7 @@
     setNo.classList.toggle("clickable", final);
     setNo.title = final ? "Show the match result" : "";
     linkedMatchId = st.matchId != null ? String(st.matchId) : null;
-    $("#matchTag").textContent = st.matchId ? " · match " + st.matchId : "";
+    $("#matchTag").textContent = "";
     lastState = st.state || lastState;
     renderPrematch(st);
     renderSuggest(st);
@@ -2813,7 +2825,7 @@
       // mirror that lies. alt="" — the names beside it say what the screen is.
       '<img class="bvcrest" src="kscw_logo.svg" alt="">' +
       '<div class="bvclock"><span class="bvtime" data-n="clocktime"></span><span class="bvdate" data-n="clockdate"></span></div>' +
-      '<div class="bvnames"><span class="bvn" data-n="idle1"></span><span class="bvsep"></span><span class="bvn" data-n="idle2"></span></div>';
+      '<div class="bvnames"><span class="bvn" data-n="idle1"></span><span class="bvsep"></span><span class="bvn" data-n="idle2"></span><span class="bvidletime" data-n="idletime"></span></div>';
     p.appendChild(idle);
     const cd = document.createElement("div"); cd.className = "bvcd";
     cd.innerHTML =
@@ -2950,15 +2962,36 @@
 
   // Same text the board writes on kscw_clock (ledboxClient.formatClock): HH:MM:SS over "Wed 23.09.2026".
   let mirrorClockTimer = null;
+  function renderTimeMode() {
+    const b = $("#timeModeBtn"); if (!b) return;
+    const known = LAST_STATUS.kickoffAt != null;
+    const on = known && LAST_STATUS.timeMode === "countdown";
+    b.disabled = !known;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.title = known ? "Time on the board: the clock, or the countdown to the game" : "Start a game from the schedule to count down to it";
+    b.textContent = on ? "T- / H" : "H / T-";
+  }
+  // The same text as the board's _timeText.
+  function mirrorTimeText(now) {
+    const z = (n) => String(n).padStart(2, "0");
+    if (LAST_STATUS.timeMode === "countdown" && LAST_STATUS.kickoffAt != null) {
+      const left = Math.max(0, Math.ceil((LAST_STATUS.kickoffAt - now.getTime()) / 1000));
+      return "T-" + z(Math.floor(left / 60)) + ":" + z(left % 60);
+    }
+    return z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
+  }
   function paintMirrorClock() {
     const p = $("#bvPanel"); if (!p) return;
     const now = new Date(), z = (n) => String(n).padStart(2, "0");
     const t = p.querySelector('[data-n="clocktime"]'), d = p.querySelector('[data-n="clockdate"]');
-    if (t) t.textContent = z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
+    if (t) t.textContent = mirrorTimeText(now);
+    const it = p.querySelector('[data-n="idletime"]');
+    if (it) it.textContent = mirrorTimeText(now);
     if (d) d.textContent = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()] + " " + z(now.getDate()) + "." + z(now.getMonth() + 1) + "." + now.getFullYear();
   }
   // Reflect the board's non-match states onto the mirror: idle (crest + names), the clock (crest +
-  // time, from "Show clock"), or a break countdown (timeout / interval / warm-up).
+  // time, with no teams known), or a break countdown (timeout / interval / warm-up).
   function paintBoardMode() {
     const p = $("#bvPanel"); if (!p) return;
     buildBoard();
@@ -2970,9 +3003,9 @@
     const set = (n, v, c) => { const e = p.querySelector('[data-n="' + n + '"]'); if (e) { e.textContent = v; if (c) e.style.color = c; } };
     // The clock screen ticks on its own; the mirror follows it from THIS device's clock, which is
     // the one the board was handed at unlock (POST /api/clock) — close enough for a preview.
-    if (board.mode === "clock") {
+    if (board.mode === "clock" || board.mode === "idle") {
       paintMirrorClock();
-      if (!mirrorClockTimer) mirrorClockTimer = setInterval(() => { if (board.mode === "clock") paintMirrorClock(); }, 1000);
+      if (!mirrorClockTimer) mirrorClockTimer = setInterval(() => { if (board.mode === "clock" || board.mode === "idle") paintMirrorClock(); }, 1000);
     } else if (mirrorClockTimer) { clearInterval(mirrorClockTimer); mirrorClockTimer = null; }
     if (board.mode === "idle") {
       set("idle1", (s && s.left.short ? s.left.short : "HOME").toUpperCase(), s ? s.left.color : "#ffcf47");
@@ -4002,13 +4035,13 @@
         left: { name: String(g.home || home), short: home },
         right: { name: String(g.away || away), short: away },
       }, prematch: true, ...(g.id != null ? { gameId: g.id } : {}) });
-      clearCountdown(); board.mode = r && r.prematch === true ? "clock" : "match";
+      clearCountdown(); board.mode = r && r.prematch === true ? "idle" : "match";
       if (r) renderStatus(r);
       savedGame = null;
       // Embed mode: the Game tab, and the beach serve order with it, are the app's (showAppGame).
       if (EMBED) showAppGame();
       else goToTab("manual");
-      toast(home + " vs " + away + " — ready" + (r && r.prematch === true ? "; the board shows the clock" : ""));
+      toast(home + " vs " + away + " — ready" + (r && r.prematch === true ? "; the board shows the names and the time" : ""));
       if (!EMBED && curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
     } catch (e) {
       toast(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then tap the game again." : "Couldn't start that game: " + ((e && e.message) || e));
@@ -4779,7 +4812,7 @@
     document.body.classList.toggle("is-prematch", on);
     if (!on) {
       // Started elsewhere (another tablet, the warm-up running out): the panel is the scoreboard now.
-      if (was && board.mode === "clock") board.mode = "match";
+      if (was && (board.mode === "clock" || board.mode === "idle")) board.mode = "match";
       return;
     }
     const s = st.state || {};
@@ -5159,10 +5192,6 @@
     await openGamePicker();
     showNewGamePage();
   });
-  $("#meClock").addEventListener("click", async () => {
-    if (!await showClock((m) => meStatus(m, true))) return;
-    closeMatchEnd();
-  });
 
   // --- beach serve order + serve-player override ---------------------------
   let ordSel = { first: "left", left: 1, right: 1 };
@@ -5324,7 +5353,15 @@
   });
   // Pre-match warm-up: a plain 10-minute clock, no side effects when it ends — except in a
   // pre-match, where its end starts the match (startWarmup).
-  $("#clockBtn").addEventListener("click", async () => { if (await showClock()) toast("Clock on the board"); });
+  $("#timeModeBtn").addEventListener("click", async () => {
+    const next = LAST_STATUS.timeMode === "countdown" ? "clock" : "countdown";
+    try {
+      await postJSON("/api/idle", { timeMode: next });
+      LAST_STATUS = { ...LAST_STATUS, timeMode: next };
+      renderTimeMode(); paintMirrorClock();
+      toast(next === "countdown" ? "Countdown to the game on the board" : "Clock on the board");
+    } catch { toast("Couldn't switch the time"); }
+  });
   $("#warmupBtn").addEventListener("click", startWarmup);
   $("#swapBtn").addEventListener("click", (e) => sendAction({ type: "swap" }, e.currentTarget));
   // Both confirms say what is LOST, in the sport's own words, and name the verb in red — "Reset the
@@ -5349,23 +5386,6 @@
     return num(state.points_a) + num(state.points_b) + num(state.sets_won_a) + num(state.sets_won_b) > 0;
   }
 
-  // "Show clock", from every menu that offers it: the crest and the time, and it STAYS the clock.
-  // Plain /api/idle {on:true} is the names screen whenever teams are typed in, and the server's
-  // idle ticker would swap a clock back to it — screen:'clock' pins the clock until scoring
-  // resumes or idle is turned off. The score underneath is untouched. `onErr` puts the reason in
-  // the dialog the button lives in; without one it goes to a toast. Resolves true on success.
-  async function showClock(onErr) {
-    try {
-      await postJSON("/api/idle", { on: true, screen: "clock" });
-      clearCountdown(); board.mode = "clock"; paintBoardMode();
-      refreshStatus();
-      return true;
-    } catch (e) {
-      const m = /pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then try again." : "Couldn't show the clock: " + ((e && e.message) || e);
-      if (onErr) onErr(m); else toast(m);
-      return false;
-    }
-  }
 
   // --- sport selector -----------------------------------------------------
   // Shown on load (current sport pre-highlighted → one tap continues) and re-openable from the
@@ -5622,13 +5642,6 @@
     refreshStatus();
     toast("Saved game deleted");
   });
-  const gpClockBtn = $("#gpClock");
-  if (gpClockBtn) gpClockBtn.addEventListener("click", async () => {
-    gpBusy(true); gpStatus("");
-    try { if (!await showClock((m) => gpStatus(m, true))) return; }
-    finally { gpBusy(false); }
-    closeGamePicker();
-  });
   // Deliberately NOT part of gpBusy: when a choice is hanging on a board that isn't answering,
   // this is the one control that has to stay live. Backdrop tap dismisses too, same as #sportPicker.
   const gpCancelBtn = $("#gpCancel");
@@ -5656,15 +5669,6 @@
   // goToTab clicks the real nav button rather than toggling classes directly, so the Diagnostics
   // tab's own wiring runs — startDiag() opens the log stream and begins polling. Setting
   // .active by hand here would show the tab with every card reading "—" forever.
-  const spClockBtn = $("#spClock");
-  if (spClockBtn) spClockBtn.addEventListener("click", async () => {
-    const st = $("#spStatus");
-    spClockBtn.disabled = true;
-    try {
-      if (!await showClock((m) => { if (st) { st.hidden = false; st.classList.add("err"); st.textContent = m; } })) return;
-    } finally { spClockBtn.disabled = false; }
-    closeSportPicker(); toast("Clock on the board");
-  });
   const spDiagBtn = $("#spDiag");
   if (spDiagBtn) spDiagBtn.addEventListener("click", () => { closeSportPicker(); goToTab("diag"); });
   const sportPickerEl = $("#sportPicker");
