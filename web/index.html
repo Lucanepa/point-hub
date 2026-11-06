@@ -389,9 +389,9 @@
      the roster is wiedisync's (Geb. · Nr. · Name, F.), Liberos written a second time, then the
      Offizielle. The scorer reads it off the tablet and types it into the eScoresheet. */
   .matchinfobtn{margin-top:14px}
-  /* Above the tabs, below the PIN pad and the confirm (z-index 80). */
-  #matchInfo{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--scrim)}
-  .mibox{width:min(820px,96vw);max-height:92vh;display:flex;flex-direction:column;background:var(--card);border-radius:var(--r);padding:16px 18px}
+  /* A page of its own, over the tabs and below the PIN pad and the confirm (z-index 80). */
+  #matchInfo{position:fixed;inset:0;z-index:70;display:flex;background:var(--bg)}
+  .mibox{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px}
   .mihead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
   .mihead h2{font-size:18px;font-weight:800;margin:0}
   .mibtns{display:flex;gap:8px}
@@ -1860,7 +1860,7 @@
       <h2>Match info</h2>
       <div class="mibtns">
         <button id="sheetRefreshBtn" type="button">↻ Refresh</button>
-        <button id="miClose" type="button">Close</button>
+        <button id="miClose" type="button">‹ Back</button>
       </div>
     </div>
     <div id="sheet"></div>
@@ -4174,7 +4174,6 @@
   $("#matchInfoBtn").addEventListener("click", openMatchInfo);
   $("#matchInfoLinkBtn").addEventListener("click", openMatchInfo);
   $("#miClose").addEventListener("click", () => { $("#matchInfo").hidden = true; });
-  $("#matchInfo").addEventListener("click", (e) => { if (e.target.id === "matchInfo") $("#matchInfo").hidden = true; });
 
   function markLinked() {
     $$("#matches li").forEach((li) => {
