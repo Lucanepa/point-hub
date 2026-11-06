@@ -388,7 +388,16 @@
      scorer copies box for box: Game info is the sheet's ruled header (German labels, its order),
      the roster is wiedisync's (Geb. · Nr. · Name, F.), Liberos written a second time, then the
      Offizielle. The scorer reads it off the tablet and types it into the eScoresheet. */
-  #sheetWrap{margin-top:14px}
+  .matchinfobtn{margin-top:14px}
+  /* Above the tabs, below the PIN pad and the confirm (z-index 80). */
+  #matchInfo{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--scrim)}
+  .mibox{width:min(820px,96vw);max-height:92vh;display:flex;flex-direction:column;background:var(--card);border-radius:var(--r);padding:16px 18px}
+  .mihead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .mihead h2{font-size:18px;font-weight:800;margin:0}
+  .mibtns{display:flex;gap:8px}
+  .mibtns button,.matchinfobtn{min-height:var(--tap);padding:0 14px}
+  #sheet{overflow-y:auto;min-height:0}
+  .gpsec{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:2px 0 -4px}
   .sheetcard{border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);margin-bottom:10px;overflow:hidden}
   .sheetcard h3{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);border-bottom:1.5px solid var(--line)}
   .sheetcard h3 span{flex:1;min-width:0}
@@ -1322,6 +1331,7 @@
       <!-- The board back on the crest and clock mid-evening (between matches, a long break) without
            going through the game menu. The score underneath is kept; the next point lifts it. -->
       <button id="clockBtn" title="Show the clock on the board (the score is kept)" aria-label="Show clock"><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="cbtxt"> Show clock</span></button>
+      <button id="matchInfoBtn" type="button" title="Game details and the KSCW roster"><svg class="licon l-clipboard-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg> Match info</button>
       <button id="warmupBtn" title="Pre-match warm-up countdown"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Warm-up</button>
       <button id="nextPeriodBtn" hidden title="End the quarter / period"><svg class="licon l-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /> <line x1="4" x2="4" y1="22" y2="15" /></svg> End period</button>
       <button id="swapBtn" class="switch" title="Teams change ends"><svg class="licon l-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></svg> Switch sides</button>
@@ -1354,13 +1364,7 @@
       <!-- The game on the board, while it is connected to live scoring: what the scorer copies into
            the eScoresheet. Game info is the public schedule; the roster comes from wiedisync and
            holds birthdates, so it is only fetched behind the scorer PIN. -->
-      <div id="sheetWrap" hidden>
-        <div class="linkhead">
-          <h2 class="linkh">This game</h2>
-          <button id="sheetRefreshBtn" type="button">↻ Refresh</button>
-        </div>
-        <div id="sheet"></div>
-      </div>
+      <button id="matchInfoLinkBtn" class="matchinfobtn" type="button"><svg class="licon l-clipboard-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg> Match info</button>
       <!-- The rest of the season's home games, a day per group. Tap one to set it up in advance
            (same pre-match as tonight's). Built lazily: a season is a few hundred rows, and a
            collapsed day costs nothing until someone opens it. -->
@@ -1850,18 +1854,49 @@
 
 <!-- Game menu: what to do with THIS sport, once the sport itself is settled. Continue and Delete
      only exist when the board actually has a saved game for the active sport. -->
+<div id="matchInfo" hidden role="dialog" aria-modal="true" aria-label="Match info">
+  <div class="mibox">
+    <div class="mihead">
+      <h2>Match info</h2>
+      <div class="mibtns">
+        <button id="sheetRefreshBtn" type="button">↻ Refresh</button>
+        <button id="miClose" type="button">Close</button>
+      </div>
+    </div>
+    <div id="sheet"></div>
+  </div>
+</div>
 <div id="gamePicker" hidden role="dialog" aria-modal="true" aria-label="Start or continue a game">
   <div class="spbox">
     <div class="sptitle" id="gpTitle">Game</div>
     <p class="spsub" id="gpSub">What would you like to do?</p>
-    <div class="gplist">
+    <div class="gplist" id="gpNewPage" hidden>
+      <p class="gpsec" id="gpTodayHead">Today's home games</p>
+      <div class="gplist" id="gpToday"></div>
+      <button class="gpopt" id="gpOtherGame">
+        <span class="gplabel">Another game from the schedule</span>
+        <span class="gphint">Opens the season's home games</span>
+      </button>
+      <button class="gpopt" id="gpLinkGame">
+        <span class="gplabel">Link a scoresheet</span>
+        <span class="gphint">The board follows a match scored in OpenVolley</span>
+      </button>
+      <button class="gpopt" id="gpManual">
+        <span class="gplabel">Manual</span>
+        <span class="gphint">Type the names, score from 0–0</span>
+      </button>
+      <button class="gpopt" id="gpNewBack">
+        <span class="gplabel">Back</span>
+      </button>
+    </div>
+    <div class="gplist" id="gpMainPage">
       <button class="gpopt" id="gpContinue" hidden>
         <span class="gplabel">Continue game</span>
         <span class="gphint" id="gpContinueHint"></span>
       </button>
       <button class="gpopt" id="gpNew">
         <span class="gplabel">New game</span>
-        <span class="gphint">Start from 0–0</span>
+        <span class="gphint">From the schedule, linked to a scoresheet, or manual</span>
       </button>
       <button class="gpopt" id="gpClock">
         <span class="gplabel">Show clock</span>
@@ -2507,7 +2542,7 @@
     // Another game on the board (a schedule tap, the automatic pre-match, a reset): the card follows.
     // Until it has the whole answer (roster not open yet, no internet, schedule still loading) it
     // asks again every 20 s while the tab is open, so it fills in by itself.
-    if ($("#tab-link").classList.contains("active") && ((st.gameId ?? null) !== sheetGameId || (!sheetDone && Date.now() - sheetAt > 20000) || sheetPinStale())) refreshSheet(false);
+    if (!$("#matchInfo").hidden && ((st.gameId ?? null) !== sheetGameId || (!sheetDone && Date.now() - sheetAt > 20000) || sheetPinStale())) refreshSheet(false);
     // Where the scorer sits rides on every poll, so a change made on another tablet lands here too.
     // Not in the few seconds after this tablet saved it: a poll already in the air says the old one.
     if ((st.orientation === "behind" || st.orientation === "front") && st.orientation !== SETTINGS.orientation
@@ -3982,8 +4017,8 @@
   $("#schedRefreshBtn").addEventListener("click", () => refreshSchedule(true));
 
   // --- the match sheet (POST /api/gamesheet) ---------------------------------
-  // Game info and the KSCW roster of the game on the board, shown under the schedule while the
-  // board is connected to live scoring, for the scorer to read off and type into the eScoresheet.
+  // Game info and the KSCW roster of the game on the board, in the Match info dialog, for the scorer
+  // to read off and type into the eScoresheet. Without a game or live scoring the board says why.
   // Everything came from the club's API via the board: textContent only.
   const fmtDob = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "")); return m ? m[3] + "." + m[2] + "." + m[1] : ""; };
   function sheetCard(title) {
@@ -4104,14 +4139,10 @@
     sheetNote(rc, [src ? "From " + src : "", at ? "loaded " + at.dm + " " + at.hm : "", ro.warning || ""].filter(Boolean).join(" · "));
     box.appendChild(rc);
   }
-  // Shown only while the board is connected to live scoring AND set up for a schedule game.
   async function refreshSheet(force) {
-    const wrap = $("#sheetWrap");
     const id = LAST_STATUS && LAST_STATUS.gameId != null ? LAST_STATUS.gameId : null;
     sheetGameId = id;
-    const on = SETTINGS.liveScoring === "kscw" && id != null;
-    wrap.hidden = !on;
-    if (!on || sheetLoading) return;
+    if (sheetLoading) return;
     sheetLoading = true; sheetAt = Date.now();
     const btn = $("#sheetRefreshBtn"); if (btn) btn.disabled = true;
     try {
@@ -4136,9 +4167,14 @@
   // through nothing here, so the next status notices instead. Compared with the PIN the request
   // was MADE with, so an unlock landing while one is in the air is not lost either.
   function sheetPinStale() {
-    return EMBED && !$("#sheetWrap").hidden && pinNow() !== sheetPin;
+    return EMBED && !$("#matchInfo").hidden && pinNow() !== sheetPin;
   }
   $("#sheetRefreshBtn").addEventListener("click", () => refreshSheet(true));
+  function openMatchInfo() { $("#matchInfo").hidden = false; refreshSheet(false); }
+  $("#matchInfoBtn").addEventListener("click", openMatchInfo);
+  $("#matchInfoLinkBtn").addEventListener("click", openMatchInfo);
+  $("#miClose").addEventListener("click", () => { $("#matchInfo").hidden = true; });
+  $("#matchInfo").addEventListener("click", (e) => { if (e.target.id === "matchInfo") $("#matchInfo").hidden = true; });
 
   function markLinked() {
     $$("#matches li").forEach((li) => {
@@ -4643,7 +4679,6 @@
     $$(".tab").forEach((t) => t.classList.toggle(
       "active", t.id === "tab-" + b.dataset.tab));
     if (b.dataset.tab === "link") refreshSchedule(false);   // cheap: the server caches it
-    if (b.dataset.tab === "link") refreshSheet(false);      // …and the match sheet, under it
     if (b.dataset.tab === "link" && !$("#matches").children.length) refreshMatches();
     if (b.dataset.tab === "history") refreshHistory();
     if (b.dataset.tab === "settings" || b.dataset.tab === "diag") refreshUplink();
@@ -4877,7 +4912,7 @@
   // a new dialog only needs an entry here. Value = the button Escape presses (null: no Escape).
   const MODALS = {
     confirm: "#confirmNo", edit: "#editCancel", pinModal: "#pinCancel", serveOrder: "#ordCancel",
-    matchEnd: "#meClose", liveLog: "#llClose", gamePicker: "#gpCancel", sportPicker: "#spCancel", lockGate: null,
+    matchEnd: "#meClose", liveLog: "#llClose", matchInfo: "#miClose", gamePicker: "#gpCancel", sportPicker: "#spCancel", lockGate: null,
   };
   const modalEls = () => Object.keys(MODALS).map((id) => document.getElementById(id)).filter(Boolean);
   const isShown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
@@ -5121,8 +5156,9 @@
     if (!await gameChoice("new")) { meStatus("Couldn't start a new game — try the game menu.", true); return; }
     clearCountdown(); closeMatchEnd();
     if (EMBED) { showAppGame(); return; }   // never shown in embed mode, but kept right
-    goToTab("manual");
-    if (curSport() === "beach") { beachSeenPoints = false; beachAskedSets = -1; openServeOrder(); }
+    savedGame = null;
+    await openGamePicker();
+    showNewGamePage();
   });
   $("#meClock").addEventListener("click", async () => {
     if (!await showClock((m) => meStatus(m, true))) return;
@@ -5454,6 +5490,7 @@
     if (EMBED) return;   // never in embed mode: the game menu is the app's Game tab
     closeSportPicker();
     $("#gpTitle").textContent = sportLabel(curSport());
+    $("#gpNewPage").hidden = true; $("#gpMainPage").hidden = false;
     gpStatus(""); gpBusy(false);
     $("#gamePicker").hidden = false;
     try { const r = await api("/api/game"); savedGame = (r && r.saved) || null; }
@@ -5508,10 +5545,52 @@
     }
     closeGamePicker(); goToTab("manual");
   });
+  // New game asks how: a game from today's schedule, another one, a linked scoresheet, or by hand.
+  async function showNewGamePage() {
+    $("#gpMainPage").hidden = true; $("#gpNewPage").hidden = false;
+    $("#gpTitle").textContent = "New game";
+    $("#gpSub").textContent = "How do you want to score it?";
+    const list = $("#gpToday"), head = $("#gpTodayHead");
+    list.innerHTML = ""; head.hidden = false; head.textContent = "Today's home games";
+    let r = null;
+    try {
+      const here = (schedLocal(new Date()) || {}).day || "";
+      r = await api("/api/schedule" + (here ? "?today=" + here : ""));
+    } catch { /* below */ }
+    if ($("#gpNewPage").hidden) return;
+    const games = r && Array.isArray(r.games) ? r.games : [];
+    if (!games.length) { head.textContent = r && r.ok ? "No home game today" : "Today's games could not be loaded"; return; }
+    games.forEach((g, i) => {
+      const b = document.createElement("button");
+      b.className = "gpopt" + (i === 0 ? " primary" : "");
+      const label = document.createElement("span"); label.className = "gplabel";
+      label.textContent = [g.time, schedShort(g.homeShort, g.home) + " vs " + schedShort(g.awayShort, g.away)].filter(Boolean).join("  ");
+      const hint = document.createElement("span"); hint.className = "gphint";
+      hint.textContent = [g.league, g.hall].filter(Boolean).join(" · ");
+      b.append(label, hint);
+      b.addEventListener("click", async () => {
+        if (!await confirmDiscardSaved()) return;
+        await startScheduled(g, b, { confirm: false });
+        closeGamePicker();
+      });
+      list.appendChild(b);
+    });
+  }
+  // Starting over discards a real match, so make it deliberate — but only when there is one to lose.
+  // startScheduled asks by itself when there is a score on the board.
+  async function confirmDiscardSaved() {
+    if (!savedGame || hasScore(lastState)) return true;
+    return askConfirm("Start a new game? The saved match (" + describeSaved(savedGame) + ") will be deleted.", { yes: "Start new game", danger: true });
+  }
   const gpNewBtn = $("#gpNew");
-  if (gpNewBtn) gpNewBtn.addEventListener("click", async () => {
-    // Starting over discards a real match, so make it deliberate — but only when there is one
-    // to lose. On an empty board this must stay a single tap.
+  if (gpNewBtn) gpNewBtn.addEventListener("click", showNewGamePage);
+  $("#gpNewBack").addEventListener("click", () => openGamePicker());
+  const leaveToLink = (then) => { closeGamePicker(); goToTab("link"); if (then) then(); };
+  $("#gpOtherGame").addEventListener("click", () => leaveToLink(() => refreshSchedule(false)));
+  $("#gpLinkGame").addEventListener("click", () => leaveToLink(() => refreshMatches()));
+  const gpManualBtn = $("#gpManual");
+  if (gpManualBtn) gpManualBtn.addEventListener("click", async () => {
+    // On an empty board this must stay a single tap.
     if (savedGame && !await askConfirm("Start a new game? The saved match (" + describeSaved(savedGame) + ") will be deleted.", { yes: "Start new game", danger: true })) return;
     if (!await gameChoice("new")) return;
     clearCountdown();   // any SET ENDED / interval card was about the match just discarded
@@ -6394,7 +6473,7 @@
         SCORER_PIN = pin; try { localStorage.setItem("kscwScorerPin", pin); } catch {}
         tellAppPin(pin);
         closePinModal(); updateLock(); toast("Unlocked — you can score");
-        if ($("#tab-link").classList.contains("active")) refreshSheet(false);
+        if (!$("#matchInfo").hidden) refreshSheet(false);
         offerClock();
       } else { const i = $("#pinInput"); i.value = ""; i.focus(); toast("Wrong PIN"); }
     } catch (e) { toast(e.message); }

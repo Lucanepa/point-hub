@@ -179,6 +179,8 @@ console.log('\n[5] the switch in Settings')
 
 console.log('\n[5b] the tablet date and a leftover match (02.11.2026: a board booted days behind)')
 ok(/const here = \(schedLocal\(new Date\(\)\) \|\| \{\}\)\.day;\s*\n\s*r = await api\("\/api\/schedule\?range=season" \+ \(force \? "&refresh=1" : ""\) \+ \(here \? "&today=" \+ here : ""\)\)/.test(js), 'the schedule request carries this tablet\'s date (&today=YYYY-MM-DD)')
+ok(/id="gpManual"/.test(index) && /id="gpOtherGame"/.test(index) && /id="gpLinkGame"/.test(index) && /addEventListener\("click", showNewGamePage\)/.test(js), 'New game asks how: schedule, link or manual')
+ok(/id="matchInfoBtn"/.test(index) && /id="matchInfoLinkBtn"/.test(index) && !/id="sheetWrap"/.test(index), 'Match info is a button, not a section that appears')
 ok(/const old = !!\(savedDay && here && /.test(js) && /\$\("#gpNew"\)\.classList\.toggle\("primary", !has \|\| old\)/.test(js), 'a match saved on an earlier day makes New game the primary')
 ok(/"An unfinished match from " \+ fmtSchedDate\(savedDay\)/.test(js), 'and the game menu says which day it is from')
 
