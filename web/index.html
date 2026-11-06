@@ -2977,7 +2977,7 @@
     const z = (n) => String(n).padStart(2, "0");
     if (LAST_STATUS.timeMode === "countdown" && LAST_STATUS.kickoffAt != null) {
       const left = Math.max(0, Math.ceil((LAST_STATUS.kickoffAt - now.getTime()) / 1000));
-      return "T-" + z(Math.floor(left / 60)) + ":" + z(left % 60);
+      return "T - " + z(Math.floor(left / 60)) + ":" + z(left % 60);
     }
     return z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
   }
