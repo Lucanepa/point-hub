@@ -120,6 +120,14 @@ const CORS = {
   Vary: 'Origin',
 }
 
+// Game info for the scorer: the public schedule.
+const gameSheetInfo = (g) => ({
+  id: g.id, number: g.number || null, date: g.date, time: g.time, home: g.home, away: g.away,
+  homeShort: g.homeShort || null, awayShort: g.awayShort || null,
+  league: g.league, round: g.round || null, hall: g.hall, referees: Array.isArray(g.referees) ? g.referees : [],
+  kscwIsHome: g.kscwIsHome,
+})
+
 // Max accepted request body — one bad/slow-drip POST must not exhaust the heap.
 const MAX_BODY = 1 << 20 // 1 MiB
 
@@ -494,13 +502,18 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   }
   // The KSCW match sheet for the game on the board (gameSheet.js) — roster for the scorer to copy.
   const currentGameId = () => history.gameId ?? (prematch ? prematchGameId : null)
+  // The game OpenVolley on the board's screen asked for (POST /api/scoresheet/sheet). Not kept.
+  let scoresheetGameId = null
   const gameSheet = gameSheetIn || new GameSheet({
     file: path.resolve(stateHome, 'gamesheet.json'),
     trusted: clockTrusted,
-    // No PIN on the board = the roster could never be shown, so it is never fetched either.
-    enabled: () => opt('liveScoring') === 'kscw' && !!(settings && settings.values.scorerPin),
+    // No PIN on the board = the roster could never be shown, so it is never fetched either. A game
+    // picked on the board's own screen asks for itself, whatever the live scoring setting.
+    enabled: () => (opt('liveScoring') === 'kscw' || scoresheetGameId != null) && !!(settings && settings.values.scorerPin),
     currentGame: () => {
-      const id = currentGameId()
+      // With OpenVolley on the screen the pick is the game. In the console the board's game comes first.
+      const inConsole = (screenNow || opt('screenApp')) === 'console'
+      const id = inConsole ? (currentGameId() ?? scoresheetGameId) : (scoresheetGameId ?? currentGameId())
       return id != null && typeof schedule.game === 'function' ? schedule.game(id) : null
     },
   })
@@ -744,6 +757,13 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       const url = new URL(req.url, 'http://localhost')
       const { pathname } = url
 
+      // The one exception to same-origin (see CORS above): OpenVolley on this board's own screen is
+      // served from its own port. A tablet's page has another origin and is not on loopback.
+      if (pathname.startsWith('/api/scoresheet/') && localScreen(req) && /^http:\/\/localhost:\d+$/.test(req.headers.origin || '')) {
+        res._cors = { ...CORS, 'Access-Control-Allow-Origin': req.headers.origin }
+        res._scoresheetOrigin = true
+      }
+
       // Before the generic OPTIONS: the login page's own preflights are answered by the proxy.
       if (portalProxy.owns(pathname)) return await portalProxy.handle(req, res, url, clientIp(req))
       const strayTo = portalProxy.stray(req, pathname, clientIp(req))
@@ -840,7 +860,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
     // HEAD is listed with GET because it is a safe method that carries no body — uptime probes and
     // curl -I were answering 415 otherwise, which reads as a broken board rather than a refused one.
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
-      if (!isSameOrigin(req)) {
+      if (!isSameOrigin(req) && !res._scoresheetOrigin) {
         clog.warn(`rejected a cross-origin ${req.method} ${pathname}`, { path: pathname, origin: String(req.headers.origin || ''), ip: clientIp(req) })
         return sendJson(res, 403, { error: 'cross-origin request refused' })
       }
@@ -1362,6 +1382,29 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       if (was) alog.info('start match now', { ip: clientIp(req) })
       return sendJson(res, 200, { ok: true, started, ...status(req) })
     }
+    // OpenVolley on the board's own screen fills its match setup from these two. Only from there:
+    // both ends of the socket on loopback, see the CORS exception in the request handler.
+    // GET /api/scoresheet/games — today's KSCW home games still on: { ok, date, games, error? }.
+    if (pathname === '/api/scoresheet/games' && req.method === 'GET') {
+      if (!localScreen(req)) return sendJson(res, 403, { ok: false, error: "Only the board's own screen" })
+      const hint = new URL(req.url, 'http://localhost').searchParams.get('today')
+      const r = await schedule.today({ sport: 'volleyball', hint })
+      if (!r.ok) return sendJson(res, 200, { ok: false, error: r.error, games: [] })
+      const on = (g) => g.kscwIsHome !== false && !(typeof schedule.game === 'function' && (schedule.game(g.id) || {}).cancelled)
+      return sendJson(res, 200, { ok: true, date: r.date, games: r.games.filter(on) })
+    }
+    // POST /api/scoresheet/sheet { gameId } — the same answer as /api/gamesheet, for that game.
+    if (pathname === '/api/scoresheet/sheet' && req.method === 'POST') {
+      if (!localScreen(req)) return sendJson(res, 403, { ok: false, error: "Only the board's own screen" })
+      const body = await readJson(req)
+      const g = typeof schedule.game === 'function' ? schedule.game(Number(body && body.gameId)) : null
+      if (!g) return sendJson(res, 200, { ok: false, error: 'The board does not know this game. Check its internet and try again.' })
+      scoresheetGameId = Number(g.id)
+      const roster = settings && settings.values.scorerPin
+        ? await gameSheet.view({ refresh: true })
+        : { ok: false, error: 'Set a scorer PIN first: Point Hub, Settings. The roster holds birthdates, so the board only shows it behind one.' }
+      return sendJson(res, 200, { ok: true, info: gameSheetInfo(g), roster })
+    }
     // POST /api/gamesheet { refresh? } — Game info + the KSCW roster for the game on the board, so
     // the scorer can copy them into the eScoresheet. Game info is the public schedule. The roster
     // holds birthdates (minors included), so unlike every other read it needs the scorer PIN, and a
@@ -1373,11 +1416,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       const id = currentGameId()
       const g = id != null && typeof schedule.game === 'function' ? schedule.game(id) : null
       if (!g) return sendJson(res, 200, { ok: false, live, error: 'Start a game from the schedule first — the sheet belongs to the game on the board.' })
-      const info = {
-        id: g.id, number: g.number || null, date: g.date, time: g.time, home: g.home, away: g.away,
-        league: g.league, round: g.round || null, hall: g.hall, referees: Array.isArray(g.referees) ? g.referees : [],
-        kscwIsHome: g.kscwIsHome,
-      }
+      const info = gameSheetInfo(g)
       let roster
       if (!live) roster = { ok: false, error: 'Turn on Settings ▸ Connect to live scoring to load the roster.' }
       else if (!(settings && settings.values.scorerPin)) roster = { ok: false, error: 'Set a scorer PIN first (Settings) — the roster holds birthdates, so the board only shows it behind the PIN.' }

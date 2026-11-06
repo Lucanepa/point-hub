@@ -100,6 +100,22 @@ install -d -o "$OWNER" -g "$OWNER" "$STATE" /data/screen /data/backups /data/bac
 # The screen starts by asking: Point Hub or OpenVolley. Only on a new board: the C0270 has no screen.
 [ -e "$STATE/settings.json" ] || { echo '{"idleQr":false,"screenApp":"ask"}' > "$STATE/settings.json"; chown "$OWNER:$OWNER" "$STATE/settings.json"; }
 
+# What the screen's "Load from Wiedisync" needs: the club's board token and a scorer PIN, because the
+# roster holds birthdates. Asked once; empty skips it, and OpenVolley then says what is missing.
+if [ -t 0 ] && ! grep -q '^LIVE_PUBLISH_TOKEN=' "$BRIDGE/.env"; then
+  read -r -s -p "Wiedisync board token (LIVE_PUBLISH_TOKEN, Enter to skip): " token; echo
+  [ -z "$token" ] || { umask 077; printf 'LIVE_PUBLISH_TOKEN=%s\n' "$token" >> "$BRIDGE/.env"; }
+  chown "$OWNER:$OWNER" "$BRIDGE/.env"; chmod 600 "$BRIDGE/.env"
+fi
+if [ -t 0 ] && ! grep -q '"scorerPin": *"[0-9]' "$STATE/settings.json"; then
+  read -r -s -p "Scorer PIN for this board, 1-8 digits (Enter to skip): " pin; echo
+  case "$pin" in
+    '') ;;
+    *[!0-9]*|?????????*) echo "Not 1-8 digits: set it later in Point Hub, Settings." ;;
+    *) PIN="$pin" python3 -c 'import json,os,sys; f=sys.argv[1]; d=json.load(open(f)); d["scorerPin"]=os.environ["PIN"]; json.dump(d,open(f,"w"))' "$STATE/settings.json" ;;
+  esac
+fi
+
 echo "== sudo: only what the appliance calls, nothing else"
 cat > /etc/sudoers.d/020_pointhub <<CONF
 $OWNER ALL=(root) NOPASSWD: /usr/bin/systemctl restart ledbox-bridge, /usr/bin/systemctl restart pointhub-led, /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff, /usr/bin/date -s *, /usr/sbin/fake-hwclock save
