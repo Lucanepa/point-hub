@@ -86,6 +86,21 @@ ok(dTimes() === dFirst, 'no write while the second is the same')
 fake = { time: '19:42:06', date: 'Fri 06.11.2026' }
 await d._idleTick()
 ok(d.seq.includes('time:19:42:06') && dTimes() === dFirst + 1, 'a new second writes once')
+// H / T-: the time line counts down to kickoff, and only when there is one.
+const realNow = Date.now
+Date.now = () => 1_000_000_000_000
+d.kickoffAt = () => 1_000_000_000_000 + 125 * 60_000 + 30_000
+await d.setTimeMode('countdown')
+ok(d.seq.includes('time:T-125:30'), 'T-mm:ss, minutes past 59')
+d.kickoffAt = () => 1_000_000_000_000 - 5000
+d._idleTimeText = null
+ok(d._timeText() === 'T-00:00', 'stops at T-00:00 once the game is due')
+d.kickoffAt = () => null
+ok(d._timeText() === fake.time, 'no kickoff known: the clock')
+await d.setTimeMode('clock')
+d.kickoffAt = () => 1_000_000_000_000 + 60_000
+ok(d._timeText() === fake.time, 'back to the clock on the button')
+Date.now = realNow
 const oldLayout = client()
 oldLayout.noteViewer()
 oldLayout._lastState = { leftName: 'KSCW', rightName: 'GAST' }

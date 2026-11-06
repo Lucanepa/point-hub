@@ -389,6 +389,8 @@
      the roster is wiedisync's (Geb. · Nr. · Name, F.), Liberos written a second time, then the
      Offizielle. The scorer reads it off the tablet and types it into the eScoresheet. */
   .matchinfobtn{margin-top:14px}
+  #timeModeBtn{font-variant-numeric:tabular-nums;white-space:nowrap}
+  #timeModeBtn.on{border-color:var(--blue);color:var(--blue)}
   /* A page of its own, over the tabs and below the PIN pad and the confirm (z-index 80). */
   #matchInfo{position:fixed;inset:0;z-index:70;display:flex;background:var(--bg)}
   .mibox{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px}
@@ -1331,6 +1333,7 @@
       <button id="idleBtn" title="Show the team names and the time on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
       <!-- The board back on the crest and clock mid-evening (between matches, a long break) without
            going through the game menu. The score underneath is kept; the next point lifts it. -->
+      <button id="timeModeBtn" type="button" title="Time on the board: the clock, or the countdown to the game" aria-pressed="false">H / T-</button>
       <button id="clockBtn" title="Show the clock on the board (the score is kept)" aria-label="Show clock"><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="cbtxt"> Show clock</span></button>
       <button id="matchInfoBtn" type="button" title="Game details and the KSCW roster"><svg class="licon l-clipboard-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg> Match info</button>
       <button id="warmupBtn" title="Pre-match warm-up countdown"><svg class="licon l-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></svg> Warm-up</button>
@@ -2531,6 +2534,7 @@
     if (seq < renderedSeq) return;
     renderedSeq = seq;
     st = LAST_STATUS = { ...LAST_STATUS, ...st };
+    renderTimeMode();
     if (st.build) noteBuild(st.build);
     appBackupTick(st);
     // Probed once; after that every quiet poll is a chance to make the move it is waiting for.
@@ -2951,13 +2955,32 @@
 
   // Same text the board writes on kscw_clock (ledboxClient.formatClock): HH:MM:SS over "Wed 23.09.2026".
   let mirrorClockTimer = null;
+  function renderTimeMode() {
+    const b = $("#timeModeBtn"); if (!b) return;
+    const known = LAST_STATUS.kickoffAt != null;
+    const on = known && LAST_STATUS.timeMode === "countdown";
+    b.disabled = !known;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.title = known ? "Time on the board: the clock, or the countdown to the game" : "Start a game from the schedule to count down to it";
+    b.textContent = on ? "T- / H" : "H / T-";
+  }
+  // The same text as the board's _timeText.
+  function mirrorTimeText(now) {
+    const z = (n) => String(n).padStart(2, "0");
+    if (LAST_STATUS.timeMode === "countdown" && LAST_STATUS.kickoffAt != null) {
+      const left = Math.max(0, Math.ceil((LAST_STATUS.kickoffAt - now.getTime()) / 1000));
+      return "T-" + z(Math.floor(left / 60)) + ":" + z(left % 60);
+    }
+    return z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
+  }
   function paintMirrorClock() {
     const p = $("#bvPanel"); if (!p) return;
     const now = new Date(), z = (n) => String(n).padStart(2, "0");
     const t = p.querySelector('[data-n="clocktime"]'), d = p.querySelector('[data-n="clockdate"]');
-    if (t) t.textContent = z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
+    if (t) t.textContent = mirrorTimeText(now);
     const it = p.querySelector('[data-n="idletime"]');
-    if (it) it.textContent = z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
+    if (it) it.textContent = mirrorTimeText(now);
     if (d) d.textContent = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()] + " " + z(now.getDate()) + "." + z(now.getMonth() + 1) + "." + now.getFullYear();
   }
   // Reflect the board's non-match states onto the mirror: idle (crest + names), the clock (crest +
@@ -5328,6 +5351,15 @@
   // Pre-match warm-up: a plain 10-minute clock, no side effects when it ends — except in a
   // pre-match, where its end starts the match (startWarmup).
   $("#clockBtn").addEventListener("click", async () => { if (await showClock()) toast("Clock on the board"); });
+  $("#timeModeBtn").addEventListener("click", async () => {
+    const next = LAST_STATUS.timeMode === "countdown" ? "clock" : "countdown";
+    try {
+      await postJSON("/api/idle", { timeMode: next });
+      LAST_STATUS = { ...LAST_STATUS, timeMode: next };
+      renderTimeMode(); paintMirrorClock();
+      toast(next === "countdown" ? "Countdown to the game on the board" : "Clock on the board");
+    } catch { toast("Couldn't switch the time"); }
+  });
   $("#warmupBtn").addEventListener("click", startWarmup);
   $("#swapBtn").addEventListener("click", (e) => sendAction({ type: "swap" }, e.currentTarget));
   // Both confirms say what is LOST, in the sport's own words, and name the verb in red — "Reset the

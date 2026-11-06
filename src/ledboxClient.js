@@ -152,6 +152,8 @@ export class LedboxClient extends EventEmitter {
     // after anything else. Only meaningful while `_idle` is true; everything that takes the panel
     // off idle clears it. See showIdle.
     this._clockHeld = false
+    this.timeMode = 'clock' // 'countdown': T-mm:ss on the time sections, see _timeText
+    this.kickoffAt = null   // () => epoch ms of the board's game, or null (set by the control server)
     // Last time the control UI was seen (epoch ms). 0 = never; the board boots showing the QRs.
     this._viewerAt = 0
     // Last clock text actually pushed, so the ticker only writes when it actually changed.
@@ -768,8 +770,26 @@ export class LedboxClient extends EventEmitter {
     }
   }
 
+  // What the time sections say: the clock, or T-mm:ss to kickoff when the operator chose that and
+  // the board's game has a kickoff. Minutes run past 59 (T-125:30); it stops at T-00:00.
+  _timeText() {
+    const kickoff = this.timeMode === 'countdown' && this.kickoffAt ? this.kickoffAt() : null
+    if (kickoff == null) return this.formatClock().time
+    const left = Math.max(0, Math.ceil((kickoff - Date.now()) / 1000))
+    const p = (n) => String(n).padStart(2, '0')
+    return `T-${p(Math.floor(left / 60))}:${p(left % 60)}`
+  }
+
+  setTimeMode(mode) {
+    this.timeMode = mode === 'countdown' ? 'countdown' : 'clock'
+    this._clockText = null
+    this._idleTimeText = null
+    return this._idleTick()
+  }
+
   async _paintClock(force = false) {
-    const { time, date } = this.formatClock()
+    const { date } = this.formatClock()
+    const time = this._timeText()
     const stamp = `${time}|${date}`
     if (!force && stamp === this._clockText) return false
     await this.sendSections([
@@ -784,7 +804,7 @@ export class LedboxClient extends EventEmitter {
   // layout (a whole write is refused for one unknown section) keeps the names, and is not asked again.
   async _paintIdleTime(force = false) {
     if (this._idleTimeRefused) return false
-    const { time } = this.formatClock()
+    const time = this._timeText()
     if (!force && time === this._idleTimeText) return false
     try {
       await this.sendSections([{ name: this.clockTimeSection, value: { attrib: 'text', value: time } }])

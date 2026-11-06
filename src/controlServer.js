@@ -494,6 +494,13 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   }
   // The KSCW match sheet for the game on the board (gameSheet.js) — roster for the scorer to copy.
   const currentGameId = () => history.gameId ?? (prematch ? prematchGameId : null)
+  // Kickoff of the game on the board (epoch ms), for T-mm:ss. Null for a game not from the schedule.
+  const kickoffOfGame = () => {
+    const id = currentGameId()
+    const g = id != null && typeof schedule.game === 'function' ? schedule.game(id) : null
+    return g ? GameSheet.kickoff(g) : null
+  }
+  if (ledbox) ledbox.kickoffAt = kickoffOfGame
   const gameSheet = gameSheetIn || new GameSheet({
     file: path.resolve(stateHome, 'gamesheet.json'),
     trusted: clockTrusted,
@@ -1328,6 +1335,11 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
     if (pathname === '/api/idle' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
+      // { timeMode } alone: the "H / T-" button, the time line and nothing else.
+      if (body && (body.timeMode === 'clock' || body.timeMode === 'countdown')) {
+        if (ledbox && typeof ledbox.setTimeMode === 'function') await ledbox.setTimeMode(body.timeMode)
+        return sendJson(res, 200, { ok: true, timeMode: body.timeMode, kickoffAt: kickoffOfGame() })
+      }
       const on = body ? body.on !== false : true
       const screen = on && body && body.screen === 'clock' ? 'clock' : 'auto'
       clog.info(on ? `operator switched to the idle screen${screen === 'clock' ? ' (clock)' : ''}` : 'operator returned to scoring', { idle: on, screen, ip: clientIp(req) })
@@ -1980,6 +1992,8 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       prematch,
       // Which of today's games that pre-match is (a Directus id), when the board knows; else null.
       prematchGameId: prematch ? prematchGameId : null,
+      timeMode: ledbox && ledbox.timeMode === 'countdown' ? 'countdown' : 'clock',
+      kickoffAt: kickoffOfGame(),
       // Tonight's home game(s) the console offers to set up (autoPrepare.js): [] or
       // [{ id, date, time, home, away, homeShort, awayShort, hall, league }] — public schedule data.
       suggestion: liveSuggestion(),
