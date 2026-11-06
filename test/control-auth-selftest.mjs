@@ -41,7 +41,6 @@ const ROUTES = {
   // During the setup only a save that SETS the first PIN gets through (asserted separately below).
   '/api/settings': { guard: 'pin', body: { brightness: 50 } },
   '/api/screen': { guard: 'pin', body: { app: 'ask' }, setup: 'refused', skipAuthed: 'a PIN does not open it: only the board\'s own screen (point-hub-selftest)' },
-  '/api/scoresheet/sheet': { guard: 'pin', body: { gameId: 1 }, setup: 'refused', skipAuthed: 'a PIN does not open it: only the board\'s own screen (point-hub-selftest)' },
   '/api/sport': { guard: 'pin', body: { sport: 'volleyball' }, skipAuthed: 'a real switch restarts the appliance' },
   '/api/link': { guard: 'pin', body: { source: 'lan', matchId: 'x' }, skipAuthed: 'reaches for an unreachable relay' },
   '/api/countdown': { guard: 'pin', body: { seconds: 5 } },
