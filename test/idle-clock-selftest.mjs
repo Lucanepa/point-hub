@@ -91,10 +91,10 @@ const realNow = Date.now
 Date.now = () => 1_000_000_000_000
 d.kickoffAt = () => 1_000_000_000_000 + 125 * 60_000 + 30_000
 await d.setTimeMode('countdown')
-ok(d.seq.includes('time:T-125:30'), 'T-mm:ss, minutes past 59')
+ok(d.seq.includes('time:T - 125:30'), 'T - mm:ss, minutes past 59')
 d.kickoffAt = () => 1_000_000_000_000 - 5000
 d._idleTimeText = null
-ok(d._timeText() === 'T-00:00', 'stops at T-00:00 once the game is due')
+ok(d._timeText() === 'T - 00:00', 'stops at T - 00:00 once the game is due')
 d.kickoffAt = () => null
 ok(d._timeText() === fake.time, 'no kickoff known: the clock')
 await d.setTimeMode('clock')

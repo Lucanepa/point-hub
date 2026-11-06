@@ -770,14 +770,14 @@ export class LedboxClient extends EventEmitter {
     }
   }
 
-  // What the time sections say: the clock, or T-mm:ss to kickoff when the operator chose that and
-  // the board's game has a kickoff. Minutes run past 59 (T-125:30); it stops at T-00:00.
+  // What the time sections say: the clock, or T - mm:ss to kickoff when the operator chose that and
+  // the board's game has a kickoff. Minutes run past 59 (T - 125:30); it stops at T - 00:00.
   _timeText() {
     const kickoff = this.timeMode === 'countdown' && this.kickoffAt ? this.kickoffAt() : null
     if (kickoff == null) return this.formatClock().time
     const left = Math.max(0, Math.ceil((kickoff - Date.now()) / 1000))
     const p = (n) => String(n).padStart(2, '0')
-    return `T-${p(Math.floor(left / 60))}:${p(left % 60)}`
+    return `T - ${p(Math.floor(left / 60))}:${p(left % 60)}`
   }
 
   setTimeMode(mode) {
