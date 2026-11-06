@@ -638,6 +638,7 @@ export class LedboxClient extends EventEmitter {
           try {
             await this.setLayoutIfNeeded(this.idleLayout)
             await this.sendSections(this.mapper.toClubIdleSections(this._lastState, { fullNames: this.idleFullNames, maxFontSize: this.idleFontMax, clubName: this.clubName }))
+            await this._paintIdleTime(true)
             return true
           } catch (err) {
             if (superseded()) return false
@@ -779,6 +780,23 @@ export class LedboxClient extends EventEmitter {
     return true
   }
 
+  // The time under the two names on idleLayout. Its own write, so a board still holding the old
+  // layout (a whole write is refused for one unknown section) keeps the names, and is not asked again.
+  async _paintIdleTime(force = false) {
+    if (this._idleTimeRefused) return false
+    const { time } = this.formatClock()
+    if (!force && time === this._idleTimeText) return false
+    try {
+      await this.sendSections([{ name: this.clockTimeSection, value: { attrib: 'text', value: time } }])
+    } catch (err) {
+      this._idleTimeRefused = true
+      blog.warn(`no time on the names screen: ${err.message}`, { layout: this.idleLayout })
+      return false
+    }
+    this._idleTimeText = time
+    return true
+  }
+
   // One timer covering both idle-screen jobs: noticing that a viewer arrived or left (QR crest
   // <-> clock) and rolling the clock over. Both only apply to the same screen and both are cheap.
   _startIdleTicker() {
@@ -809,8 +827,11 @@ export class LedboxClient extends EventEmitter {
     if (!this.ready || !this._idle || this._suppressPaint || this._confirming || this._test) return
     // The test screen up with no test running (its timer lost somehow): never leave it there.
     if (this.testLayout && this.currentLayout === this.testLayout) { await this.showIdle(true); return }
-    // The named idle screen is up; no room for a clock there — unless the operator asked for it.
-    if (this._hasTeams() && !this._clockHeld) return
+    // The named idle screen is up: it carries the time.
+    if (this._hasTeams() && !this._clockHeld) {
+      if (this.currentLayout === this.idleLayout) await this._paintIdleTime()
+      return
+    }
     const want = (this._layoutAvailable(this.clockLayout) && this._clockWanted())
       ? this.clockLayout
       : (this._layoutAvailable(this.crestLayout) ? this.crestLayout : null)

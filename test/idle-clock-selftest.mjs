@@ -75,6 +75,25 @@ await d.showIdle(true)
 ok(d.currentLayout === 'kscw_idle', 'uses the team-name idle screen, not the clock')
 await d._idleTick()
 ok(d.currentLayout === 'kscw_idle', 'and the ticker leaves it alone')
+d.formatClock = () => fake
+fake = { time: '19:42:05', date: 'Fri 06.11.2026' }
+await d.showIdle(true)
+ok(d.seq.includes('time:19:42:05'), 'the names screen carries the time, with seconds')
+const dTimes = () => d.seq.filter((x) => x.startsWith('time:')).length
+const dFirst = dTimes()
+await d._idleTick()
+ok(dTimes() === dFirst, 'no write while the second is the same')
+fake = { time: '19:42:06', date: 'Fri 06.11.2026' }
+await d._idleTick()
+ok(d.seq.includes('time:19:42:06') && dTimes() === dFirst + 1, 'a new second writes once')
+const oldLayout = client()
+oldLayout.noteViewer()
+oldLayout._lastState = { leftName: 'KSCW', rightName: 'GAST' }
+oldLayout._paintIdleTime = LedboxClient.prototype._paintIdleTime
+const send = oldLayout.sendSections.bind(oldLayout)
+oldLayout.sendSections = async (sections) => { if (sections.some((x) => x.name === 'time')) throw new Error('code 5'); return send(sections) }
+ok(await oldLayout.showIdle(true) === true && oldLayout.currentLayout === 'kscw_idle', 'a board with the old layout keeps the names')
+ok(oldLayout._idleTimeRefused === true, 'and is not asked for the time again')
 
 console.log('\nboard without the clock layout falls back:')
 const e = client()

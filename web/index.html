@@ -768,8 +768,9 @@
   .bvclock .bvtime{font-weight:700;font-size:40cqh;line-height:1;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap}
   .bvclock .bvdate{font-weight:700;font-size:18cqh;line-height:1;color:#ffc832;white-space:nowrap}
   .bvnames{display:flex;flex-direction:column;justify-content:center;min-width:0}
-  .bvnames .bvn{font-weight:700;font-size:23cqh;line-height:1.02;letter-spacing:-.02em;white-space:nowrap}
-  .bvnames .bvsep{height:.6cqh;background:#39415f;margin:2.5cqh 0;border-radius:1cqh}
+  .bvnames .bvn{font-weight:700;font-size:26cqh;line-height:1.02;letter-spacing:-.02em;white-space:nowrap}
+  .bvnames .bvsep{height:.6cqh;background:#39415f;margin:1.5cqh 0;border-radius:1cqh}
+  .bvnames .bvidletime{font-weight:700;font-size:26cqh;line-height:1.1;color:#fff;font-variant-numeric:tabular-nums;text-align:center;margin-top:1cqh}
   .bvcd{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqh;font-family:Arial,Helvetica,sans-serif}
   #bvPanel[data-mode="countdown"] .bvcd{display:flex}
   #bvPanel[data-mode="countdown"] .bvcd.blink{animation:cdblink .7s steps(1,end) infinite}
@@ -1327,7 +1328,7 @@
       <button id="logBtn" type="button" hidden title="Match log — every point, timeout and sub with its time"><svg class="licon l-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg><span class="lltime" id="logTime"></span><span class="lltext" id="logText"></span><span class="llscore" id="logScore"></span></button>
     </div>
     <div class="actions">
-      <button id="idleBtn" title="Show team names + VS on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
+      <button id="idleBtn" title="Show the team names and the time on the board"><svg class="licon l-volleyball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 7a16 16 20 0 1 10.98 4.362" /> <path d="M12 12a13 13 0 0 1-8.66 5" /> <path d="M16.83 13.634a16 16 0 0 1-9.267 7.328" /> <path d="M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10" /> <path d="M8.17 15.366a16 16 0 0 1-1.713-11.69" /> <circle cx="12" cy="12" r="10" /></svg> VS</button>
       <!-- The board back on the crest and clock mid-evening (between matches, a long break) without
            going through the game menu. The score underneath is kept; the next point lifts it. -->
       <button id="clockBtn" title="Show the clock on the board (the score is kept)" aria-label="Show clock"><svg class="licon l-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="cbtxt"> Show clock</span></button>
@@ -2813,7 +2814,7 @@
       // mirror that lies. alt="" — the names beside it say what the screen is.
       '<img class="bvcrest" src="kscw_logo.svg" alt="">' +
       '<div class="bvclock"><span class="bvtime" data-n="clocktime"></span><span class="bvdate" data-n="clockdate"></span></div>' +
-      '<div class="bvnames"><span class="bvn" data-n="idle1"></span><span class="bvsep"></span><span class="bvn" data-n="idle2"></span></div>';
+      '<div class="bvnames"><span class="bvn" data-n="idle1"></span><span class="bvsep"></span><span class="bvn" data-n="idle2"></span><span class="bvidletime" data-n="idletime"></span></div>';
     p.appendChild(idle);
     const cd = document.createElement("div"); cd.className = "bvcd";
     cd.innerHTML =
@@ -2955,6 +2956,8 @@
     const now = new Date(), z = (n) => String(n).padStart(2, "0");
     const t = p.querySelector('[data-n="clocktime"]'), d = p.querySelector('[data-n="clockdate"]');
     if (t) t.textContent = z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
+    const it = p.querySelector('[data-n="idletime"]');
+    if (it) it.textContent = z(now.getHours()) + ":" + z(now.getMinutes()) + ":" + z(now.getSeconds());
     if (d) d.textContent = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()] + " " + z(now.getDate()) + "." + z(now.getMonth() + 1) + "." + now.getFullYear();
   }
   // Reflect the board's non-match states onto the mirror: idle (crest + names), the clock (crest +
@@ -2970,9 +2973,9 @@
     const set = (n, v, c) => { const e = p.querySelector('[data-n="' + n + '"]'); if (e) { e.textContent = v; if (c) e.style.color = c; } };
     // The clock screen ticks on its own; the mirror follows it from THIS device's clock, which is
     // the one the board was handed at unlock (POST /api/clock) — close enough for a preview.
-    if (board.mode === "clock") {
+    if (board.mode === "clock" || board.mode === "idle") {
       paintMirrorClock();
-      if (!mirrorClockTimer) mirrorClockTimer = setInterval(() => { if (board.mode === "clock") paintMirrorClock(); }, 1000);
+      if (!mirrorClockTimer) mirrorClockTimer = setInterval(() => { if (board.mode === "clock" || board.mode === "idle") paintMirrorClock(); }, 1000);
     } else if (mirrorClockTimer) { clearInterval(mirrorClockTimer); mirrorClockTimer = null; }
     if (board.mode === "idle") {
       set("idle1", (s && s.left.short ? s.left.short : "HOME").toUpperCase(), s ? s.left.color : "#ffcf47");
