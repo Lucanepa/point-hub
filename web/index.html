@@ -276,6 +276,10 @@
     font-size:15px;font-weight:800;line-height:1.15;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .prematch .pmbtns button.primary{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
   .prematch .pmbtns button:disabled{opacity:.5;cursor:default}
+  /* One row whatever the screen: the buttons stack on a phone rather than breaking the words. */
+  .prematch .pmbtns{flex-wrap:wrap}
+  .prematch .pmbtns #pmWarmup{flex:1 0 auto;white-space:nowrap}
+  #pmWarmup.invite{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue);animation:closeinvite 1s ease-in-out infinite}
   /* Hall Wi-Fi needs a login (see #uplinkBanner). Red-edged rather than gold: gold is "the board is
      waiting on you to start", this is "something the public sees has stopped". One row, so on a
      phone held sideways it costs the score one line and no more. */
@@ -4856,6 +4860,8 @@
 
   let prematchOn = false;
   const warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";
+  const WARMUP_DUE_MS = 14 * 60 * 1000;
+  const warmupDue = (kickoffAt, now) => kickoffAt != null && kickoffAt - now <= WARMUP_DUE_MS;
   function renderPrematch(st) {
     const on = !!(st && st.prematch === true);
     const was = prematchOn;
@@ -4878,9 +4884,12 @@
     $("#pmSub").textContent = warm ? "— warm-up running; the match starts when it ends"
       : names ? "— board shows the team names" : "— board shows the clock";
     const wb = $("#pmWarmup"); if (wb) wb.hidden = warm;
+    // 14 minutes before the game the official warm-up is due, so the button asks until it is tapped.
+    const due = warmupDue(st.kickoffAt, Date.now());
+    if (wb) wb.classList.toggle("invite", due);
     // What the button will run: Settings' warm-up, 10 minutes unless someone changed it.
     const wt = $("#pmWarmupText"), secs = Number(SETTINGS.warmupSeconds) || 600;
-    if (wt) wt.textContent = "Start official warm-up (" + (secs % 60 ? fmt(secs) : secs / 60 + " min") + ")";
+    if (wt) wt.textContent = due ? "Start the official warm-up?" : "Start official warm-up (" + (secs % 60 ? fmt(secs) : secs / 60 + " min") + ")";
   }
   // The Game tab's Warm-up and the banner's "Start warm-up" are the same clock. In a pre-match its
   // end is the start of the match — the server paints the 0–0 scoreboard when it stops — so the

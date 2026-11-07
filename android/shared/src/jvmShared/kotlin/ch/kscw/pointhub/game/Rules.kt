@@ -154,6 +154,11 @@ object Rules {
 
     data class ResultLines(val winner: String, val score: String, val history: String)
 
+    private const val WARMUP_DUE_MS = 14 * 60 * 1000L
+
+    /** The official warm-up is due 14 minutes before the game (`warmupDue`). */
+    fun warmupDue(kickoffAt: Long?, now: Long): Boolean = kickoffAt != null && kickoffAt - now <= WARMUP_DUE_MS
+
     /** The three lines for the panel's result screen, winner first (`resultLines`); null = a draw. */
     fun resultLines(sport: String?, s: LiveState): ResultLines? {
         val nameA = s.teamAShort.ifEmpty { s.teamAName }.ifEmpty { "TEAM A" }.uppercase()

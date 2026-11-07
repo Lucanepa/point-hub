@@ -228,13 +228,28 @@ private fun PrematchBanner(g: GameController) {
             )
             Text(sub, color = c.gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
-        if (!warm) PhTextButton("Start official warm-up (${warmupWords(g.settings.warmupSeconds)})", { g.startWarmup() }, icon = PhIcons.timer, fontSize = 15, minHeight = 52.dp)
+        if (!warm) {
+            // 14 minutes before the game the official warm-up is due, so the button asks until it is tapped.
+            val due = Rules.warmupDue(g.status.kickoffAt, g.nowMs)
+            val on = due && flashOn(g.nowMs)
+            PhTextButton(
+                if (due) "Start the official warm-up?" else "Start official warm-up (${warmupWords(g.settings.warmupSeconds)})",
+                { g.startWarmup() }, icon = PhIcons.timer, fontSize = 15, minHeight = 52.dp,
+                fg = if (on) c.onAccent else if (due) c.blue else c.fg,
+                bg = if (on) c.blue else c.card,
+                border = if (due) c.blue else c.line,
+                borderWidth = if (due) 3.dp else Ph.hairline,
+            )
+        }
         PhTextButton(
             "Start match now", { g.startMatchNow() }, enabled = !g.startingMatch,
             bg = c.blue, border = c.blue, fg = c.onAccent, fontSize = 15, minHeight = 52.dp,
         )
     }
 }
+
+/** The flashing buttons: filled for half of every second. */
+private fun flashOn(nowMs: Long) = (nowMs % 1000) / 1000f in 0.25f..0.75f
 
 private fun warmupWords(seconds: Int): String =
     if (seconds % 60 != 0) Rules.fmtCountdown(seconds.toDouble()) else "${seconds / 60} min"
@@ -764,9 +779,7 @@ private fun CountdownCard(g: GameController, modifier: Modifier) {
             Text(cd.label.uppercase(), color = if (cd.blink) c.blue else c.fg, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp,
                 modifier = Modifier.alpha(if (blinkOff) 0.15f else 1f))
             if (cd.invite) {
-                // The flash: filled for half of every second.
-                val phase = (g.nowMs % 1000) / 1000f
-                val on = phase in 0.25f..0.75f
+                val on = flashOn(g.nowMs)
                 PhTextButton(cd.action ?: "✕", { g.tapCountdownButton() },
                     fg = if (on) c.onAccent else c.blue, bg = if (on) c.blue else c.card, border = c.blue,
                     borderWidth = 3.dp, fontSize = 16)
