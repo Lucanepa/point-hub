@@ -30,6 +30,7 @@ import { zurichDate } from './schedule.js'
 import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 import { PortalProxy } from './portalProxy.js'
 import { fixtureOf } from './liveFixture.js'
+import { isOver } from './livePush.js'
 import { applyBrightness, liveDriver, PANEL_PATHS } from './panelBrightness.js'
 import { toRow } from './livePush.js'
 import { toOverlay } from './overlay.js'
@@ -1068,6 +1069,24 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       scrubColors(action, (bad) => {
         alog.warn(`dropped an invalid team colour: ${bad.slice(0, 40)}`, { color: bad.slice(0, 120), side: action.side, ip: clientIp(req) })
       })
+      // "Reset match" says it: throw this match away and start again from 0-0. During an unfinished
+      // scheduled game that means THIS game. Clearing the names too cut it from its game row, its
+      // sheet and its result prefill, and the crew retyped the teams as short codes (D1, 07.11). A
+      // finished match, a hand-typed game or a linked one reset to a clean board as before.
+      let keptGame = null
+      delete action.keep
+      if (action.type === 'reset' && sourceManager.status.mode === 'manual' && currentGameId() != null) {
+        const s = manualSource.getState()
+        if (!isOver(s, activeSport())) {
+          keptGame = currentGameId()
+          // Home back on the left, where a schedule start puts it (liveFixture homeStartsLeft).
+          const [l, r] = s.ends_swapped ? ['b', 'a'] : ['a', 'b']
+          action.keep = {
+            team_a_name: s[`team_${l}_name`], team_a_short: s[`team_${l}_short`], team_a_color: s[`team_${l}_color`],
+            team_b_name: s[`team_${r}_name`], team_b_short: s[`team_${r}_short`], team_b_color: s[`team_${r}_color`],
+          }
+        }
+      }
       if (sourceManager.status.mode !== 'manual') {
         sourceManager.setSource(manualSource, { mode: 'manual' })
       }
@@ -1125,6 +1144,11 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       pulseForAction(ledbox, action, settings, newState)
       // Match history + resume slot, so a power cut mid-set loses nothing (see persist()).
       persist(action, newState, manualSource.lastEvent)
+      if (keptGame != null) {
+        // The reset closed the match in the history, which forgets the game; the next one is the same game.
+        history.setGame(keptGame)
+        try { resume.save(activeSport(), newState, nowStamp(), { prematch, gameId: keptGame }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) }
+      }
       return sendJson(res, 200, { ok: true, state: newState, event: manualSource.lastEvent, ...undoView(), ...logView() })
     }
     // GET /api/settings — operator preferences (persisted on the Pi)

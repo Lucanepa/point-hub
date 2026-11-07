@@ -79,7 +79,7 @@ const SETS_TO_WIN = { volleyball: 3, beach: BEACH.setsToWin }
 // Is the match on this board finished? From MATCH STATE only — see toRow() for why not the event.
 // The manual and beach sources report the format the operator actually picked (`sets_to_win`); the
 // constant is only the fallback for a state that doesn't carry it (a linked OpenVolley match).
-function isOver(state, sport) {
+export function isOver(state, sport) {
   if (sport === 'basketball') return !!state.over
   const reported = Number(state.sets_to_win)
   const toWin = Number.isInteger(reported) && reported > 0 ? reported : SETS_TO_WIN[sport]
@@ -201,6 +201,14 @@ function whoIsPlaying(s) {
     .map(String).sort().join('|')
 }
 
+// A game row the board has left behind: nothing on it, nobody holding it. Names stay, they are the game's.
+function clearedFixture() {
+  return {
+    status: 'idle', event: null, ts: Date.now(), over: false, period: 1, serving_team: null, set_results: [], source: null,
+    points_a: 0, points_b: 0, sets_won_a: 0, sets_won_b: 0, timeouts_a: 0, timeouts_b: 0, subs_a: 0, subs_b: 0, fouls_a: 0, fouls_b: 0,
+  }
+}
+
 export function createLivePush(opts = {}) {
   const cfg = { ...DEFAULTS, ...opts }
   const base = String(cfg.url || '').replace(/\/$/, '')
@@ -246,6 +254,9 @@ export function createLivePush(opts = {}) {
   // row, so it reads as unscheduled.
   const fixtureFor = typeof opts.fixture === 'function' ? opts.fixture : () => null
   const refused = new Map() // fixture channel -> ms epoch until which it is left alone (writeFixture)
+  // The game row this board last left 'live', until it is final or cleared (flush). A row nobody
+  // writes any more kept saying "live 1:0" all evening: one stray point in the warm-up, taken back.
+  let openFixture = null
 
   // Kept for the incidental call sites; the interesting ones log structured data directly.
   function log(...a) { plog.debug(a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')) }
@@ -455,9 +466,19 @@ export function createLivePush(opts = {}) {
       // openvolley main, 3.0.1) — the board mirroring it is the only way a match scored there
       // reaches "Watch live" and the result prefill. If OpenVolley ever writes `game-<id>` itself,
       // the linked case has to stand down here (see controlServer liveFixture).
-      if (fixture && !isFresh(payload.state)) {
+      //
+      // A board that left an UNFINISHED game row behind is different: back at 0-0, a reset, or on to
+      // another game, nobody will ever write that row again. It is cleared, source and all, so wiedisync
+      // does not keep it live and phone scoring can have the game. A final row is never touched.
+      const playing = fixture && !isFresh(payload.state)
+      if (openFixture && !(playing && fixture.channel === openFixture)) {
+        if (await writeFixture(openFixture, clearedFixture())) retry = true
+        else openFixture = null
+      }
+      if (playing) {
         const body = { ...toHomeAway(row, fixture.side), game_id: fixture.id, source: `board:${cfg.channel}` }
         if (await writeFixture(fixture.channel, body)) retry = true
+        openFixture = row.status === 'final' ? null : fixture.channel
       }
 
       // Archive the result the FIRST time a match reads as finished, so /live can

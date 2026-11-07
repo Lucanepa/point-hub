@@ -264,7 +264,8 @@ export class BasketballSource extends EventEmitter {
         break
       }
       case 'reset':
-        this._fromLiveState(NEUTRAL)
+        // `keep` = the teams (controlServer: restarting a scheduled game), else a clean board.
+        this._fromLiveState(action.keep ? { ...NEUTRAL, ...action.keep } : NEUTRAL)
         break
       case 'set-state':
         this._fromLiveState(action.state || NEUTRAL)
