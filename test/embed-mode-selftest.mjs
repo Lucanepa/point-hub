@@ -574,7 +574,20 @@ console.log('\n[2] in a plain browser: the console as it always was')
   q.board.state = { ...STATE(), sets_won_a: 3, sets_won_b: 1, set_results: [{ a: 25, b: 20 }, { a: 20, b: 25 }, { a: 25, b: 18 }, { a: 25, b: 22 }] }
   q.$('#spCancel').click(); q.$('#pinCancel').click()
   await q.poll()
-  ok(q.$('#confirm').hidden === false && /Match finished/.test(q.$('#confirmMsg').textContent), 'a finished match asks "Match finished — show the result?"')
+  ok(q.$('#cd').hidden === false && q.$('#cdLabel').textContent === 'MATCH ENDED' && /Close match/.test(q.$('#cdStop').textContent), 'a finished match offers "Close match"')
+  ok(q.$('#cdStop').classList.contains('invite'), 'and the button flashes')
+  ok(q.$('#matchEnd').hidden === true && q.req('/api/result').length === 0, 'nothing goes on the panel before the tap')
+  q.board.state = { ...STATE(), sets_won_a: 2, sets_won_b: 1, set_results: [{ a: 25, b: 20 }, { a: 20, b: 25 }, { a: 25, b: 18 }] }
+  await q.poll()
+  ok(q.$('#cd').hidden === true || q.$('#cdLabel').textContent !== 'MATCH ENDED', 'the match point taken back takes MATCH ENDED down')
+  q.board.state = { ...STATE(), sets_won_a: 3, sets_won_b: 1, set_results: [{ a: 25, b: 20 }, { a: 20, b: 25 }, { a: 25, b: 18 }, { a: 25, b: 22 }] }
+  await q.poll()
+  q.$('#cdStop').click()
+  await flush()
+  ok(q.$('#matchEnd').hidden === false && q.$('#cd').hidden === true, 'the tap opens the result and takes the card down')
+  q.$('#matchEnd').hidden = true
+  await q.poll()
+  ok(q.$('#cd').hidden === true, 'and a closed match does not offer it again')
 }
 
 // ─── [3] ─────────────────────────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { LanSource, resultFromLiveState } from './lanSource.js'
 import { parseRelayAddress, relayWsUrl, relayHttpCandidates, relayHostLabel, discoverRelays } from './relayAddress.js'
-import { toLeftRight } from './volleyballMapper.js'
+import { toLeftRight, teamsCrossed } from './volleyballMapper.js'
 import { hexToRgb } from './ledboxProtocol.js'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -1133,7 +1133,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       // Never hand the PIN to a client — expose only whether one is set.
       // perSportKeys tells the UI which fields belong to the active sport (settings.values already
       // carries the active sport's values, since it's a flat merged view).
-      return sendJson(res, 200, { ...settings.values, scorerPin: '', ...pinSettingsView(req), perSportKeys: PER_SPORT_KEYS })
+      return sendJson(res, 200, { ...panelFontView(settings.values), scorerPin: '', ...pinSettingsView(req), perSportKeys: PER_SPORT_KEYS })
     }
     // POST /api/screen { app } — the start screen's choice, or back to it. Only from the board's own
     // screen: a tablet on the cable must not close the app the scorer is using.
@@ -1190,7 +1190,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       }
       const before = { ...settings.values }
       const prevBrightness = settings.values.brightness
-      const updated = settings.update(patch)
+      const updated = settings.update(panelFontView(patch))
       if (before.relayAddress !== updated.relayAddress) forgetRelay()
       if (clearPin) clog.warn('scorer PIN removed — scoring is open to anyone on the network', { ip: clientIp(req) })
       if (firstPin) clog.warn('scorer PIN set for the first time — the board now asks every Wi-Fi device for it', { ip: clientIp(req), cable: !!trustOf(req) })
@@ -1234,7 +1234,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       }
       if (updated.screenApp !== before.screenApp) screenNow = null
       if (typeof server.onScreenAppChange === 'function') server.onScreenAppChange(updated.screenApp !== before.screenApp)
-      return sendJson(res, 200, { ...updated, scorerPin: '', ...pinSettingsView(req) })
+      return sendJson(res, 200, { ...panelFontView(updated), scorerPin: '', ...pinSettingsView(req) })
     }
     // GET /api/sport — the active sport + the pickable list (drives the UI's sport selector).
     if (pathname === '/api/sport' && req.method === 'GET') {
@@ -2045,7 +2045,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       // own size instead of guessing (and a long name no longer runs into the set score there).
       // …and, beside it, which board this is and what it can do (boardIdentity.js): id, idSource,
       // label, caps { sports, panel, renderer }. Added, nothing renamed: fontsize stays where it was.
-      board: { fontsize: matchFontsize(), ...identity() },
+      board: { fontsize: matchFontsize(), fontMax: matchFontMax(), ...identity() },
       // The Point Hub board's charger and health, for the console header. Absent on the C0270.
       ...(hardware && hardware.present ? { hardware: hardware.brief() } : {}),
       state: sourceManager.getState(),
@@ -2110,8 +2110,29 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
     const state = sourceManager.getState() || {}
     return sectionsToScreen(ledbox.mapper.toSections(state, {
       totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs,
-      matchFontMaxLeft: ledbox.matchFontMaxLeft, matchFontMaxRight: ledbox.matchFontMaxRight,
+      ...ledbox.fontCeilings(state),
     }))
+  }
+
+  // The name sizes are stored per team, as the left and the right team at the start of the match,
+  // so a court switch takes each size along. Every client speaks panel halves, the tablet app's
+  // Game tab included, so the API swaps the two keys while the teams are on the other halves. The
+  // same swap works in both directions, and on a patch that carries only one of the keys.
+  function panelFontView(values) {
+    if (!teamsCrossed(sourceManager.getState())) return values
+    const out = { ...values }
+    delete out.matchFontMaxLeft
+    delete out.matchFontMaxRight
+    if ('matchFontMaxLeft' in values) out.matchFontMaxRight = values.matchFontMaxLeft
+    if ('matchFontMaxRight' in values) out.matchFontMaxLeft = values.matchFontMaxRight
+    return out
+  }
+
+  // The ceilings per panel half, so a console notices that a court switch moved them.
+  function matchFontMax() {
+    if (!settings) return null
+    const v = panelFontView(settings.values)
+    return { left: v.matchFontMaxLeft, right: v.matchFontMaxRight }
   }
 
   // Per-side team-name font size of the match screen (team1 = panel left, team2 = panel right in

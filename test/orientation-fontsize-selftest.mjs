@@ -85,10 +85,11 @@ try {
   ok(st.board.fontsize.right === 12 && st.board.fontsize.left === fs1.left, `name size −: right follows at once (${st.board.fontsize.right}), left unchanged`)
   ok(Number(mock.fontsize('team2')) === 12, 'and the panel agrees')
 
-  // Panel sides, not team sides: after a swap the long name is on the right.
+  // Still per PANEL side, and each size went along with its name: after a swap the long name is on
+  // the right, shrunk as before, and the short one on the left at the 12 it was given.
   await post('/api/action', { action: { type: 'swap' } })
   st = await get('/api/status')
-  ok(st.board.fontsize.right < 12 && st.board.fontsize.left === 30, `swap: panel right now holds the long name (shrunk), panel left the short one at 30 (${JSON.stringify(st.board.fontsize)})`)
+  ok(st.board.fontsize.right === fs1.left && st.board.fontsize.left === 12, `swap: the sizes moved with the names (${JSON.stringify(st.board.fontsize)})`)
   ok(Number(mock.fontsize('team1')) === st.board.fontsize.left && Number(mock.fontsize('team2')) === st.board.fontsize.right, 'still matching the panel after the swap')
   const board = await get('/api/board')
   ok(Number(board.screen.team1.fontsize) === st.board.fontsize.left, '/api/board carries the same fontsize for the mirror')

@@ -7,7 +7,7 @@
 import net from 'node:net'
 import { EventEmitter } from 'node:events'
 import { encode, StreamDecoder } from './ledboxProtocol.js'
-import { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight } from './volleyballMapper.js'
+import { teamsCrossed, toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight } from './volleyballMapper.js'
 import { log } from './logStore.js'
 import { ledSafeSections, textColor, sectionPx } from './ledColor.js'
 
@@ -477,13 +477,16 @@ export class LedboxClient extends EventEmitter {
     if (!this.ready) return this._skipPaint('board not ready')
     // A countdown layout has none of the match sections; writing them there is an error 6.
     // Hold the state instead — pushCountdown(null) repaints it when the countdown ends.
-    if (this.currentLayout && this.currentLayout !== this.layout) {
-      return this._skipPaint('another layout is up', { currentLayout: this.currentLayout, matchLayout: this.layout })
+    // The same goes for a switch still on its way: the time-out button posts the countdown and the
+    // action together, so this paint can land while SetLayout is in flight and `currentLayout` still
+    // names the match screen.
+    if (this._leavingMatchLayout()) {
+      return this._skipPaint('another layout is up', { currentLayout: this.currentLayout, pendingLayout: this._layoutTarget, matchLayout: this.layout })
     }
     // Idle overrides scoring: while the idle screen is up, a stray state push (e.g. a poll)
     // must not repaint the scoreboard over it. showIdle(false) lifts this.
     if (this._idle) return this._skipPaint('idle screen is up')
-    const paint = () => this.sendSections(this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight }))
+    const paint = () => this.sendSections(this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, ...this.fontCeilings(state) }))
     // Wrapped: reading the state for a log line must never be what breaks a paint.
     try {
       const v = this.mapper.toLeftRight(state)
@@ -498,6 +501,12 @@ export class LedboxClient extends EventEmitter {
       // the board's own boot sequence, which paints its info screen AFTER we've set ours.
       // Re-assert the layout once and repaint, rather than silently dropping the score.
       if (!/not found \(6\)/.test(err.message)) throw err
+      // Not behind our back if we switched away ourselves while this write was travelling. Putting
+      // the match layout back here is what flashed the scoreboard at the start of a time-out; the
+      // state is held in _lastState, and the end of the countdown paints it.
+      if (this._leavingMatchLayout()) {
+        return this._skipPaint('another layout came up during the paint', { currentLayout: this.currentLayout, pendingLayout: this._layoutTarget, matchLayout: this.layout })
+      }
       blog.warn('section not found — re-asserting the layout and repainting', {
         assumedLayout: this.currentLayout, layout: this.layout, error: err.message,
       })
@@ -659,7 +668,7 @@ export class LedboxClient extends EventEmitter {
         ? this._matchIdleSections()
         : this.mapper.toSections(this._lastState || {}, {
           totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs,
-          matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight,
+          ...this.fontCeilings(this._lastState),
         })
       await this.sendSections(sections)
       return true
@@ -1180,7 +1189,7 @@ export class LedboxClient extends EventEmitter {
         ? this.mapper.toBreakSections(this._lastState, {
           timerText, label, content, team, side,
           // Same name ceilings as the scoreboard — see toBreakSections.
-          matchFontMaxLeft: this.matchFontMaxLeft, matchFontMaxRight: this.matchFontMaxRight,
+          ...this.fontCeilings(this._lastState),
         })
         : this.mapper.toCountdownSections(this._lastState, { timerText, label, content })
       await this.sendSections(sections)
@@ -1304,18 +1313,39 @@ export class LedboxClient extends EventEmitter {
     if (restore.length && this.ready) this.send('SetSections', restore).catch(() => {})
   }
 
+  // True while another screen is up, or a switch to one is on its way.
+  _leavingMatchLayout() {
+    if (this._layoutTarget) return this._layoutTarget !== this.layout
+    return !!this.currentLayout && this.currentLayout !== this.layout
+  }
+
+  // The name sizes for one paint, per PANEL half. The two settings stay with the teams: a court
+  // switch moves a name to the other half and its size goes with it (see teamsCrossed).
+  fontCeilings(state) {
+    const crossed = teamsCrossed(state)
+    return {
+      matchFontMaxLeft: crossed ? this.matchFontMaxRight : this.matchFontMaxLeft,
+      matchFontMaxRight: crossed ? this.matchFontMaxLeft : this.matchFontMaxRight,
+    }
+  }
+
   // Switch layouts only when it actually changes. Re-asking for the current layout gets no
   // reply at all (the device advertises noresend), which would stall for the full timeout.
   async setLayoutIfNeeded(name) {
     if (!name || this.currentLayout === name) return
+    this._layoutTarget = name
     this.clearPulses()
     // What the panel is SHOWING is the single most useful thing to have on the record — a
     // wrong screen is the most visible failure this appliance has.
     blog.info(`layout → ${name}`, { from: this.currentLayout, to: name })
-    await this.setLayout(name).catch((err) => {
-      if (!/timed out/.test(err.message)) throw err // silence here just means "already there"
-    })
-    this.currentLayout = name
+    try {
+      await this.setLayout(name).catch((err) => {
+        if (!/timed out/.test(err.message)) throw err // silence here just means "already there"
+      })
+      this.currentLayout = name
+    } finally {
+      if (this._layoutTarget === name) this._layoutTarget = null
+    }
     // No settle here any more — see sendSections(), which pays the delay only if the board
     // actually says it wasn't ready. Sleeping unconditionally at this point is what put the
     // bare layout on the panel before its data every single time it changed.
