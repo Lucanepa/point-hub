@@ -218,7 +218,9 @@ console.log('\n[5] link mode')
   stubFetch()
   lp.push(ov({ game_n: '999999', points_a: 1, points_b: 0 }))
   await settle()
-  ok(toChannel('kscw').length === 1 && !calls.some((c) => c.url.includes('game-')), 'an unknown match number writes no fixture row')
+  // The game it was showing is left behind unfinished, so that row is cleared: never given this score.
+  ok(toChannel('kscw').length === 1 && !calls.some((c) => c.url.includes('game-') && c.body.status !== 'idle'), 'an unknown match number writes no score to a fixture row')
+  ok(lastTo('game-9')?.status === 'idle', 'and the game it left unfinished is cleared')
   lp.detach()
 }
 
@@ -272,6 +274,64 @@ console.log('\n[7] a 0-0 board never reaches the fixture row')
   await settle()
   ok(toChannel('game-9').length === finals && lastTo('game-9').status === 'final', 'a reset (and the same names at 0-0) leaves the final result standing')
   lp.detach()
+}
+
+console.log('\n[7b] a game row the board left unfinished is cleared')
+{
+  stubFetch()
+  const lp = createLivePush({ ...CFG, fixture: () => FIX })
+  const src = scheduledBoard()
+  src.apply({ type: 'point', side: 'left', delta: 1 }) // the stray point in the warm-up
+  lp.push(src.getState())
+  await settle()
+  ok(lastTo('game-9')?.status === 'live' && lastTo('game-9')?.points_a === 1, 'a stray point reaches the game row')
+  src.apply({ type: 'point', side: 'left', delta: -1 })
+  lp.push(src.getState())
+  await settle()
+  const cleared = lastTo('game-9')
+  ok(cleared?.status === 'idle' && cleared?.points_a === 0 && cleared?.source === null, 'taken back to 0-0: the row is cleared and let go')
+  ok(toChannel('game-9').length === 2, 'cleared once')
+  lp.push(src.getState())
+  await settle()
+  ok(toChannel('game-9').length === 2, 'and not again on the next 0-0 state')
+  src.apply({ type: 'point', side: 'right', delta: 1 })
+  lp.push(src.getState())
+  await settle()
+  ok(lastTo('game-9')?.status === 'live' && lastTo('game-9')?.source === 'board:kscw', 'the first real point takes the row again')
+  lp.detach()
+
+  // Moving on to another game with this one unfinished.
+  stubFetch()
+  let fixture = FIX
+  const lp2 = createLivePush({ ...CFG, fixture: () => fixture })
+  const src2 = scheduledBoard()
+  src2.apply({ type: 'point', side: 'left', delta: 3 })
+  lp2.push(src2.getState())
+  await settle()
+  fixture = null // a hand-typed game on the board now
+  src2.apply({ type: 'team', side: 'left', name: '', short: 'OTHER' })
+  src2.apply({ type: 'point', side: 'left', delta: 1 })
+  lp2.push(src2.getState())
+  await settle()
+  ok(lastTo('game-9')?.status === 'idle', 'a hand-typed game on the board: the old game row is cleared')
+  ok(lastTo('kscw')?.status === 'live', 'the board row carries on')
+  lp2.detach()
+
+  // Directus failing the clear: tried again, not forgotten.
+  let failing = true
+  stubFetch((c) => (failing && c.url.endsWith('/game-9') && c.body.status === 'idle' ? 503 : 200))
+  const lp3 = createLivePush({ ...CFG, fixture: () => FIX, retryBaseMs: 10 })
+  const src3 = scheduledBoard()
+  src3.apply({ type: 'point', side: 'left', delta: 1 })
+  lp3.push(src3.getState())
+  await settle()
+  src3.apply({ type: 'point', side: 'left', delta: -1 })
+  lp3.push(src3.getState())
+  await settle()
+  failing = false
+  await sleep(120)
+  ok(lastTo('game-9')?.status === 'idle', 'a failed clear is sent again')
+  lp3.detach()
 }
 
 console.log('\n[8] refusals')
@@ -467,11 +527,13 @@ console.log('\n[10] end to end on a booted appliance')
     ok(same(last('game-9')?.team_a_name, HOME) && last('game-9')?.points_a === 1 && last('game-9')?.points_b === 2, 'the game row still has home on A (1-2)')
 
     // A hand-typed game: the board's channel only.
-    const before = to('game-9').length
+    // (The game it replaces is unfinished, so its row is cleared, once; it is never given this score.)
+    const scored = () => to('game-9').filter((w) => w.body?.status !== 'idle').length
+    const before = scored()
     r = await post('/api/game', { choice: 'new', teams: { left: { name: 'Heim', short: 'HEIM' }, right: { name: 'Gast', short: 'GAST' } } })
     ok(r.status === 200 && r.body.gameId == null, 'a hand-typed game has no game id')
     await act({ type: 'point', side: 'left', delta: 1 }); await wait()
-    ok(same(last('kscw')?.team_a_name, 'Heim') && to('game-9').length === before && !writes.some((w) => /^game-(?!9$)/.test(w.channel || '')), 'unscheduled: kscw only, game-9 untouched')
+    ok(same(last('kscw')?.team_a_name, 'Heim') && scored() === before && last('game-9')?.status === 'idle' && !writes.some((w) => /^game-(?!9$)/.test(w.channel || '')), 'unscheduled: kscw only, game-9 untouched')
 
     // The schedule game again, then a LINKED match that is a different one: the link never borrows it.
     r = await post('/api/game', { choice: 'new', teams: { left: { name: HOME, short: GAME.homeShort }, right: { name: AWAY, short: GAME.awayShort } }, prematch: true, gameId: 9 })
@@ -481,7 +543,7 @@ console.log('\n[10] end to end on a booted appliance')
     ok(r.status === 200 && r.body.mode === 'lan', `linked (${r.status} ${r.body?.mode})`)
     await wait()
     live({ game_n: '777777', team_a_name: HOME, team_b_name: AWAY, points_a: 5, points_b: 2 }); await wait()
-    ok(last('kscw')?.points_a === 5 && to('game-9').length === before, 'a linked match the season does not know: kscw only — not the game the board was set up for')
+    ok(last('kscw')?.points_a === 5 && scored() === before, 'a linked match the season does not know: kscw only — not the game the board was set up for')
 
     // The linked match IS game 9, with OpenVolley's team A the away team.
     live({ points_a: 3, points_b: 6, sets_won_b: 1, current_set: 2, side_a: 'right', serving_team: 'right' }); await wait()
@@ -502,6 +564,29 @@ console.log('\n[10] end to end on a booted appliance')
     ok(r.status === 200 && r.body.gameId === 9, `Continue after the restart: the board knows the game again (${r.body?.gameId})`)
     await act({ type: 'point', side: 'right', delta: 1 }); await wait()
     ok(last('game-9')?.points_a === 1 && last('game-9')?.points_b === 1, `the next point reaches the game row (${last('game-9')?.points_a}-${last('game-9')?.points_b})`)
+
+    // Reset match during the game: this game again from 0-0, not a stranger's board. Home is back
+    // on the left, the game row is cleared, and the first point writes it again.
+    await act({ type: 'swap' }); await wait()
+    r = await act({ type: 'reset' }); await wait()
+    ok(r.status === 200 && same(r.body.state.team_a_name, HOME) && same(r.body.state.team_b_name, AWAY) && r.body.state.team_a_short === GAME.homeShort,
+      `Reset match keeps the teams, home on the left (${r.body?.state?.team_a_name} v ${r.body?.state?.team_b_name})`)
+    ok(r.body.state.points_a === 0 && r.body.state.points_b === 0 && r.body.state.ends_swapped === false, 'and starts again from 0-0')
+    ok(last('game-9')?.status === 'idle', 'the game row is cleared by the reset')
+    await act({ type: 'point', side: 'left', delta: 1 }); await wait()
+    ok(last('game-9')?.status === 'live' && last('game-9')?.points_a === 1, 'the first point after the reset reaches the game row')
+    await reboot()
+    r = await post('/api/game', { choice: 'continue' })
+    ok(r.status === 200 && r.body.gameId === 9, `a restart after the reset still knows the game (${r.body?.gameId})`)
+    r = await act({ type: 'undo' })
+    r = await act({ type: 'reset', keep: { team_a_name: 'INJECTED' } })
+    ok(r.status === 200 && !String(r.body.state.team_a_name).includes('INJECTED'), 'a client cannot hand in its own teams')
+
+    // A hand-typed game resets to a clean board, as before.
+    r = await post('/api/game', { choice: 'new', teams: { left: { name: 'A Team', short: 'A' }, right: { name: 'B Team', short: 'B' } } })
+    await act({ type: 'point', side: 'left', delta: 1 })
+    r = await act({ type: 'reset' }); await wait()
+    ok(!r.body.state.team_a_name && r.body.state.team_a_short === 'HOME', 'a hand-typed game still resets to a clean board')
 
     // A deploy during the pre-match: the pre-match comes back at boot, and the match it starts is
     // still that game's.
