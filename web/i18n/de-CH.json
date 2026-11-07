@@ -1,0 +1,1522 @@
+{
+ "exact": {
+  "Point Hub": "Point Hub",
+  "Point Hub — KSCW Scoreboard": "Point Hub — KSCW Aazeigetafle",
+  "LedBox connection": "LedBox-Verbindig",
+  "LedBox not connected": "LedBox nöd verbunde",
+  "Board …": "Tafle …",
+  "Board ✓": "Tafle ✓",
+  "Board ✗": "Tafle ✗",
+  "Keep the screen awake": "Bildschirm aa laa",
+  "Keep screen awake": "Bildschirm aa laa",
+  "Keep awake": "Aa laa",
+  "Full screen": "Vollbild",
+  "Exit full screen": "Vollbild verlah",
+  "Back to the start screen: Point Hub or OpenVolley eScoresheet": "Zrugg zum Startbildschirm: Point Hub oder OpenVolley eScoresheet",
+  "Switch app": "App wächsle",
+  "Change sport": "Sportart wächsle",
+  "Game": "Spiil",
+  "Link": "Verbinde",
+  "Linked": "Verbunde",
+  "History": "Verlauf",
+  "Diagnostics": "Diagnose",
+  "Settings": "Iistellige",
+  "Scorer lock": "Schreiber-Sperri",
+  "Scoring locked — tap to enter PIN": "Zelle gsperrt — tippe für PIN",
+  "Scoring unlocked — tap to lock this device": "Zelle frei — tippe zum das Grät sperre",
+  "Manual": "Manuell",
+  "Live": "Live",
+  "Live (LAN)": "Live (LAN)",
+  "Cloud": "Cloud",
+  "Idle": "Ruebild",
+  "Waiting for the scoresheet": "Warte ufs eScoresheet",
+  "Link lost": "Verbindig verlore",
+  "Match ended": "Spiil fertig",
+  "Show the match result": "Spiilresultat aazeige",
+  "Final": "Fertig",
+  "FINAL": "FERTIG",
+  "Board not connected": "Tafle nöd verbunde",
+  "Scores are still being recorded — the panel is not updating.": "D Pünkt werded wiiter erfasst — d Aazeig wird nöd aktualisiert.",
+  "Hide this notice": "Hiiwiis usblände",
+  "Not connected — taps are not reaching the board": "Nöd verbunde — s Tippe chunnt nöd bi de Tafle aa",
+  "The controller has not answered yet. Retrying on its own — check the tablet is on the board's Wi-Fi.": "D Stüürig hät no nöd antwortet. Neue Versuech lauft vo sälber — lueg, öb s Tablet im Wi-Fi vo de Tafle isch.",
+  "Not connected to the scoreboard controller": "Nöd mit de Stüürig vo de Aazeigetafle verbunde",
+  "Connection back — check the board score, then carry on": "Verbindig wieder da — lueg de Stand uf de Tafle aa und mach dänn wiiter",
+  "The scoreboard has not been found yet.": "D Aazeigetafle isch no nöd gfunde worde.",
+  "Hall Wi-Fi": "Halle-Wi-Fi",
+  "Hall Wi-Fi needs a login": "Halle-Wi-Fi bruucht e Aamäldig",
+  "Hall Wi-Fi needs a login — live scoring is paused": "Halle-Wi-Fi bruucht e Aamäldig — Live-Scoring isch pausiert",
+  "Hall Wi-Fi needs a login — the board has no internet": "Halle-Wi-Fi bruucht e Aamäldig — d Tafle hät kei Internet",
+  "— live scoring is paused": "— Live-Scoring isch pausiert",
+  "— the board has no internet": "— d Tafle hät kei Internet",
+  "Hall Wi-Fi — its login page is not answering": "Halle-Wi-Fi — d Aamäldesiite antwortet nöd",
+  "Log in": "Aamälde",
+  "Wi-Fi Log in": "Wi-Fi aamälde",
+  "Wi-Fi until": "Wi-Fi bis",
+  "The hall Wi-Fi has logged the board out — tap to log in": "S Halle-Wi-Fi hät d Tafle abgmäldet — zum Aamälde tippe",
+  "The hall Wi-Fi login runs out soon — tap to log in again": "D Aamäldig im Halle-Wi-Fi lauft bald ab — zum neu Aamälde tippe",
+  "Hall internet": "Internet vo de Halle",
+  "Checking the internet…": "Internet wird prüeft…",
+  "Your mobile number — the code comes by SMS": "Dini Handynummere — de Code chunnt per SMS",
+  "Send code": "Code schicke",
+  "Code from the SMS": "Code us em SMS",
+  "Use a different number": "Anderi Nummere bruuche",
+  "Log in by SMS": "Per SMS aamälde",
+  "Open the login page": "Aamäldesiite ufmache",
+  "Check again": "Nomal prüefe",
+  "The hall's free Wi-Fi lets the board onto the internet only after a login with a code by SMS, and the login lasts about a day. Live scoring, the club schedule and the board's clock need it; the scoreboard itself does not. Type your own mobile number — it is used for this login only and is not saved on the board.": "S Gratis-Wi-Fi vo de Halle laat d Tafle erscht nach ere Aamäldig mit SMS-Code is Internet, und d Aamäldig hebt öppe en Tag. Live-Scoring, de Spiilplan vom Verein und d Uhr vo de Tafle bruuched das; d Aazeigetafle sälber nöd. Gib dini eigeti Handynummere ii — si wird nur für die Aamäldig bruucht und nöd uf de Tafle gspeicheret.",
+  "Not available on this board": "Uf dere Tafle nöd verfüegbar",
+  "Update the appliance to log in to the hall Wi-Fi from here.": "Aktualisier d Tafle, dänn chasch si vo da us im Halle-Wi-Fi aamälde.",
+  "Online — the board has internet": "Online — d Tafle hät Internet",
+  "The login runs out at any moment. Live scoring stops then until someone logs in again here — it takes a minute and a phone.": "D Aamäldig lauft grad ab. Dänn stoppt s Live-Scoring, bis sich da öpper neu aamäldet — das bruucht e Minute und es Handy.",
+  "The board has no internet until it is logged in.": "D Tafle hät kei Internet, bis si aagmäldet isch.",
+  "Live scoring is paused until the board is logged in.": "Live-Scoring isch pausiert, bis d Tafle aagmäldet isch.",
+  "The board is on the hall Wi-Fi but cannot reach the internet. Try the SMS login, or open the hall's own login page — the board walks it for you.": "D Tafle isch im Halle-Wi-Fi, chunnt aber nöd is Internet. Probier d SMS-Aamäldig oder mach d Aamäldesiite vo de Halle uf — d Tafle gaht si für dich dure.",
+  "No internet uplink": "Kei Internet",
+  "The board is not on any Wi-Fi with internet. The scoreboard works without it; live scoring, the schedule and the clock wait.": "D Tafle isch i keim Wi-Fi mit Internet. D Aazeigetafle lauft au so; Live-Scoring, Spiilplan und Uhr warted.",
+  "That login timed out — send a new code.": "Die Aamäldig isch abgloffe — schick en neue Code.",
+  "The hall Wi-Fi's login page didn't answer in time — try again.": "D Aamäldesiite vom Halle-Wi-Fi hät nöd rächtziitig antwortet — probier s nomal.",
+  "Unlock scoring first (the padlock at the top), then try again.": "Entsperr zersch s Zelle (Schloss obe) und probier s dänn nomal.",
+  "Couldn't reach the board — try again.": "Tafle nöd erreichbar — probier s nomal.",
+  "Type the mobile number the code should go to.": "Gib d Handynummere ii, wo de Code ane söll.",
+  "That doesn't look like a mobile number — e.g. 079 123 45 67.": "Das gseht nöd nach ere Handynummere us — z. B. 079 123 45 67.",
+  "Sending…": "Wird gschickt…",
+  "The hall Wi-Fi didn't send a code — try again.": "S Halle-Wi-Fi hät kei Code gschickt — probier s nomal.",
+  "Code sent by SMS": "Code per SMS gschickt",
+  "Type the code from the SMS — the digits only.": "Gib de Code us em SMS ii — nur d Ziffere.",
+  "Logging in…": "Wird aagmäldet…",
+  "That code was not accepted — check the SMS and try again.": "De Code isch nöd akzeptiert worde — lueg s SMS aa und probier s nomal.",
+  "Online": "Online",
+  "Checking…": "Wird prüeft…",
+  "Opening…": "Wird ufgmacht…",
+  "The board could not open the login page — try again.": "D Tafle hät d Aamäldesiite nöd chönne ufmache — probier s nomal.",
+  "This board cannot open the login page yet — it needs an update.": "Die Tafle cha d Aamäldesiite no nöd ufmache — si bruucht es Update.",
+  "Ready:": "Parat:",
+  "— board shows the team names": "— d Tafle zeigt d Teamnäme",
+  "— board shows the clock": "— d Tafle zeigt d Uhr",
+  "— warm-up running; the match starts when it ends": "— Iiwärme lauft; s Spiil fangt dänn aa",
+  "Start official warm-up (10 min)": "Offiziells Iiwärme (10 min)",
+  "Start match now": "Spiil jetzt starte",
+  "Not now": "Jetzt nöd",
+  "Set up": "Iirichte",
+  "Tonight's game:": "Spiil vo hüt Abig:",
+  "Which game is on this board?": "Weles Spiil lauft uf dere Tafle?",
+  "Not now — tonight's games stay on the Link tab.": "Jetzt nöd — d Spiil vo hüt bliibed im Tab Verbinde.",
+  "Scoring is locked — enter the scorer PIN first.": "Zelle isch gsperrt — gib zersch d Schreiber-PIN ii.",
+  "Match on — the scoreboard is on the board": "Spiil lauft — de Spiilstand isch uf de Tafle",
+  "Scoring is locked — enter the scorer PIN, then try again.": "Zelle isch gsperrt — gib d Schreiber-PIN ii und probier s nomal.",
+  "TEAM L": "TEAM L",
+  "TEAM R": "TEAM R",
+  "LEFT": "LINKS",
+  "RIGHT": "RÄCHTS",
+  "Left": "Links",
+  "Right": "Rächts",
+  "Left team name": "Name linggs Team",
+  "Right team name": "Name rächts Team",
+  "Left team colour": "Farb linggs Team",
+  "Right team colour": "Farb rächts Team",
+  "left team colour": "Farb linggs Team",
+  "right team colour": "Farb rächts Team",
+  "Change this team's colour": "Teamfarb ändere",
+  "Use colour": "Farb bruuche",
+  "Size of this name on the LED panel — a long name still shrinks to fit": "Grössi vo dem Name uf de Aazeig — en lange Name wird trotzdem chliner, bis er passt",
+  "Smaller name for this team on the panel": "Chlinere Name für das Team uf de Aazeig",
+  "Bigger name for this team on the panel": "Grössere Name für das Team uf de Aazeig",
+  "Font size": "Schriftgrössi",
+  "Font\nsize": "Schrift-\ngrössi",
+  "Tap to set the score manually": "Tippe: Pünkt vo Hand setze",
+  "Set the score manually": "Pünkt vo Hand setze",
+  "Set timeouts manually": "Timeouts vo Hand setze",
+  "Set sets manually": "Sätz vo Hand setze",
+  "Set subs manually": "Wächsel vo Hand setze",
+  "Set fouls manually": "Fouls vo Hand setze",
+  "T/O": "T/O",
+  "Sets": "Sätz",
+  "SETS": "SÄTZ",
+  "Subs": "Wächsel",
+  "SUBS": "WÄCHSEL",
+  "Fouls": "Fouls",
+  "FOULS": "FOULS",
+  "Period": "Periode",
+  "PERIOD": "PERIODE",
+  "Serve": "Ufschlag",
+  "SERVE": "UFSCHLAG",
+  "POSS.": "BALL",
+  "Serve left": "Ufschlag links",
+  "Serve right": "Ufschlag rächts",
+  "PLAYER": "SPIELER",
+  "Player 1": "Spieler 1",
+  "Player 2": "Spieler 2",
+  "Teams change ends": "Teams wächsled d Siite",
+  "Switch sides": "Siite wächsle",
+  "Switch sides?": "Siite wächsle?",
+  "Serving player — tap to switch": "Ufschläger — zum Wächsle tippe",
+  "Switch the serving player": "Ufschläger wächsle",
+  "Set the beach serve order": "Beach-Ufschlagfolg feschtlege",
+  "Serve order": "Ufschlagfolg",
+  "Previous period": "Vorherigi Periode",
+  "Next period": "Nächschti Periode",
+  "Seen from the court": "Vom Fäld us gseh",
+  "SEEN FROM THE COURT": "VOM FÄLD US GSEH",
+  "(mirrored — you sit behind the board)": "(gspieglet — du sitzisch hinder de Tafle)",
+  "  (mirrored — you sit behind the board)": "  (gspieglet — du sitzisch hinder de Tafle)",
+  "Board preview": "Vorschau vo de Tafle",
+  "Undo": "Rückgängig",
+  "Nothing to undo yet": "No nüt zum Rückgängig mache",
+  "Nothing to undo": "Nüt zum Rückgängig mache",
+  "Remove last set": "Letschte Satz entferne",
+  "Remove the last set result?": "Letschts Satzresultat entferne?",
+  "Remove set": "Satz entferne",
+  "Match log — every point, timeout and sub with its time": "Spiilprotokoll — jede Punkt, jedes Timeout und jede Wächsel mit Ziit",
+  "Show the team names and the time on the board": "Teamnäme und Ziit uf de Tafle zeige",
+  "Time on the board: the clock, or the countdown to the game": "Ziit uf de Tafle: Uhr oder Countdown zum Spiil",
+  "Start a game from the schedule to count down to it": "Start es Spiil us em Spiilplan, zum druf abezelle",
+  "Countdown to the game on the board": "Countdown zum Spiil uf de Tafle",
+  "Clock on the board": "Uhr uf de Tafle",
+  "Couldn't switch the time": "Ziit hät nöd chönne umgschaltet werde",
+  "Game details and the KSCW roster": "Spiildetails und KSCW-Kader",
+  "Match info": "Spiilinfo",
+  "Pre-match warm-up countdown": "Countdown fürs Iiwärme vor em Spiil",
+  "Warm-up": "Iiwärme",
+  "End the quarter / period": "Viertel / Periode beände",
+  "End period": "Periode beände",
+  "End this period?": "Die Periode beände?",
+  "Throw this match away and start again from 0–0": "Das Spiil verwerfe und ab 0–0 neu aafange",
+  "Reset match": "Spiil zruggsetze",
+  "Idle screen on the board": "Ruebild uf de Tafle",
+  "Reset to 0–0? Both scores are cleared.": "Uf 0–0 zruggsetze? Beidi Ständ werded glöscht.",
+  "Reset to 0–0? The score, period, timeouts and fouls for this game are cleared. An unfinished match will not appear in History.": "Uf 0–0 zruggsetze? Spiilstand, Periode, Timeouts und Fouls vo dem Spiil werded glöscht. Es unfertigs Spiil chunnt nöd in Verlauf.",
+  "Reset to 0–0? Scores, sets and timeouts for this match are cleared. An unfinished match will not appear in History.": "Uf 0–0 zruggsetze? Pünkt, Sätz und Timeouts vo dem Spiil werded glöscht. Es unfertigs Spiil chunnt nöd in Verlauf.",
+  "Reset to 0–0? Scores, sets, timeouts and subs for this match are cleared. An unfinished match will not appear in History.": "Uf 0–0 zruggsetze? Pünkt, Sätz, Timeouts und Wächsel vo dem Spiil werded glöscht. Es unfertigs Spiil chunnt nöd in Verlauf.",
+  "Reset to 0–0? The score, period, timeouts and fouls for this game are cleared.": "Uf 0–0 zruggsetze? Spiilstand, Periode, Timeouts und Fouls vo dem Spiil werded glöscht.",
+  "Reset to 0–0? Scores, sets and timeouts for this match are cleared.": "Uf 0–0 zruggsetze? Pünkt, Sätz und Timeouts vo dem Spiil werded glöscht.",
+  "Reset to 0–0? Scores, sets, timeouts and subs for this match are cleared.": "Uf 0–0 zruggsetze? Pünkt, Sätz, Timeouts und Wächsel vo dem Spiil werded glöscht.",
+  "left plus point": "Links: Punkt dezue",
+  "left minus point": "Links: Punkt weg",
+  "Left plus point": "Links: Punkt dezue",
+  "Left minus point": "Links: Punkt weg",
+  "left timeout plus": "Links: Timeout dezue",
+  "left timeout minus": "Links: Timeout weg",
+  "left set plus": "Links: Satz dezue",
+  "left set minus": "Links: Satz weg",
+  "left sub plus": "Links: Wächsel dezue",
+  "left sub minus": "Links: Wächsel weg",
+  "left timeouts plus": "Links: Timeout dezue",
+  "left timeouts minus": "Links: Timeout weg",
+  "left sets plus": "Links: Satz dezue",
+  "left sets minus": "Links: Satz weg",
+  "left subs plus": "Links: Wächsel dezue",
+  "left subs minus": "Links: Wächsel weg",
+  "left fouls plus": "Links: Foul dezue",
+  "left fouls minus": "Links: Foul weg",
+  "Left add 1 point": "Links: 1 Punkt dezue",
+  "Left plus 1": "Links plus 1",
+  "Left minus 1": "Links minus 1",
+  "Left add 2 points": "Links: 2 Pünkt dezue",
+  "Left plus 2": "Links plus 2",
+  "Left minus 2": "Links minus 2",
+  "Left add 3 points": "Links: 3 Pünkt dezue",
+  "Left plus 3": "Links plus 3",
+  "Left minus 3": "Links minus 3",
+  "Left correct minus one": "Links: Korrektur minus eis",
+  "Left score": "Links Pünkt",
+  "LEFT SCORE": "LINKS PÜNKT",
+  "Left sets": "Links Sätz",
+  "LEFT SETS": "LINKS SÄTZ",
+  "Left timeouts": "Links Timeouts",
+  "LEFT TIMEOUTS": "LINKS TIMEOUTS",
+  "Left subs": "Links Wächsel",
+  "LEFT SUBS": "LINKS WÄCHSEL",
+  "Left fouls": "Links Fouls",
+  "LEFT FOULS": "LINKS FOULS",
+  "Left colour": "Farb links",
+  "LEFT COLOUR": "FARB LINKS",
+  "TO LEFT": "TIMEOUT LINKS",
+  "Timeout · LEFT": "Timeout · LINKS",
+  "Timeout taken back · LEFT": "Timeout zruggnoh · LINKS",
+  "Substitution · LEFT": "Uswächslig · LINKS",
+  "Substitution taken back · LEFT": "Uswächslig zruggnoh · LINKS",
+  "Team foul · LEFT": "Teamfoul · LINKS",
+  "Team foul taken back · LEFT": "Teamfoul zruggnoh · LINKS",
+  "right plus point": "Rächts: Punkt dezue",
+  "right minus point": "Rächts: Punkt weg",
+  "Right plus point": "Rächts: Punkt dezue",
+  "Right minus point": "Rächts: Punkt weg",
+  "right timeout plus": "Rächts: Timeout dezue",
+  "right timeout minus": "Rächts: Timeout weg",
+  "right set plus": "Rächts: Satz dezue",
+  "right set minus": "Rächts: Satz weg",
+  "right sub plus": "Rächts: Wächsel dezue",
+  "right sub minus": "Rächts: Wächsel weg",
+  "right timeouts plus": "Rächts: Timeout dezue",
+  "right timeouts minus": "Rächts: Timeout weg",
+  "right sets plus": "Rächts: Satz dezue",
+  "right sets minus": "Rächts: Satz weg",
+  "right subs plus": "Rächts: Wächsel dezue",
+  "right subs minus": "Rächts: Wächsel weg",
+  "right fouls plus": "Rächts: Foul dezue",
+  "right fouls minus": "Rächts: Foul weg",
+  "Right add 1 point": "Rächts: 1 Punkt dezue",
+  "Right plus 1": "Rächts plus 1",
+  "Right minus 1": "Rächts minus 1",
+  "Right add 2 points": "Rächts: 2 Pünkt dezue",
+  "Right plus 2": "Rächts plus 2",
+  "Right minus 2": "Rächts minus 2",
+  "Right add 3 points": "Rächts: 3 Pünkt dezue",
+  "Right plus 3": "Rächts plus 3",
+  "Right minus 3": "Rächts minus 3",
+  "Right correct minus one": "Rächts: Korrektur minus eis",
+  "Right score": "Rächts Pünkt",
+  "RIGHT SCORE": "RÄCHTS PÜNKT",
+  "Right sets": "Rächts Sätz",
+  "RIGHT SETS": "RÄCHTS SÄTZ",
+  "Right timeouts": "Rächts Timeouts",
+  "RIGHT TIMEOUTS": "RÄCHTS TIMEOUTS",
+  "Right subs": "Rächts Wächsel",
+  "RIGHT SUBS": "RÄCHTS WÄCHSEL",
+  "Right fouls": "Rächts Fouls",
+  "RIGHT FOULS": "RÄCHTS FOULS",
+  "Right colour": "Farb rächts",
+  "RIGHT COLOUR": "FARB RÄCHTS",
+  "TO RIGHT": "TIMEOUT RÄCHTS",
+  "Timeout · RIGHT": "Timeout · RÄCHTS",
+  "Timeout taken back · RIGHT": "Timeout zruggnoh · RÄCHTS",
+  "Substitution · RIGHT": "Uswächslig · RÄCHTS",
+  "Substitution taken back · RIGHT": "Uswächslig zruggnoh · RÄCHTS",
+  "Team foul · RIGHT": "Teamfoul · RÄCHTS",
+  "Team foul taken back · RIGHT": "Teamfoul zruggnoh · RÄCHTS",
+  "The left team and the right team look alike on the board.": "S linggs und s rächts Team gsehnd uf de Tafle glich us.",
+  "The left team and the right team look alike to red-green colour-blind spectators.": "S linggs und s rächts Team gsehnd für rot-grüen-blindi Zueschauer glich us.",
+  "Both colours are too dark for the LEDs, so the board shows them light grey.": "Beidi Farbe sind z dunkel für d LEDs, drum zeigt d Tafle si hellgrau.",
+  "The left team's colour is too dark for the LEDs, so the board shows it light grey.": "D Farb vom linke Team isch z dunkel für d LEDs, drum zeigt d Tafle si hellgrau.",
+  "The right team's colour is too dark for the LEDs, so the board shows it light grey.": "D Farb vom rächte Team isch z dunkel für d LEDs, drum zeigt d Tafle si hellgrau.",
+  "Try": "Probier",
+  "for the left team": "fürs linggs Team",
+  "for the right team": "fürs rächts Team",
+  "SET ENDED": "SATZENDI",
+  "MATCH ENDED": "SPIILENDI",
+  "Close set →": "Satz schliesse →",
+  "Close match →": "Match schliesse →",
+  "Close the set and start the interval": "Satz schliesse und Satzpause starte",
+  "Close the match and show the result": "Match schliesse und Resultat zeige",
+  "Start next set →": "Nächschte Satz starte →",
+  "INTERVAL": "SATZPAUSE",
+  "WARM UP": "IIWÄRME",
+  "TIME OUT": "TIMEOUT",
+  "OFFICIAL WARM-UP": "OFFIZIELLS IIWÄRME",
+  "Start the official warm-up?": "Offiziells Iiwärme starte?",
+  "Start the official warm-up": "Offiziells Iiwärme starte",
+  "End warm-up": "Iiwärme beände",
+  "End warm-up · start match": "Iiwärme beände · Spiil starte",
+  "Technical Time-Out": "Technischs Timeout",
+  "TECHNICAL TIME-OUT": "TECHNISCHS TIMEOUT",
+  "End time-out →": "Timeout beände →",
+  "Skip": "Überspringe",
+  "Dismiss": "Schliesse",
+  "Set is over — tap Close set": "Satz isch fertig — tipp uf Satz schliesse",
+  "This period is over — tap End period": "Die Periode isch fertig — tipp uf Periode beände",
+  "The match is over — start a new game from the game menu": "S Spiil isch fertig — start es neus Spiil im Spiilmenü",
+  "Still sending the last action — that one didn't go through.": "Di letscht Aktion wird no gschickt — die isch nöd dure cho.",
+  "Not sent — board unreachable": "Nöd gschickt — Tafle nöd erreichbar",
+  "Not sent — board unreachable. Check the score on the board before tapping again.": "Nöd gschickt — Tafle nöd erreichbar. Lueg de Stand uf de Tafle aa, bevor du nomal tippsch.",
+  "Bonus — the opponent shoots free throws": "Bonus — de Gegner wirft Freiwürf",
+  "Game over": "Spiil fertig",
+  "Sides switched — the board has no announcement screen.": "Siite gwächslet — d Tafle hät kei Aasagbildschirm.",
+  "Something else was entered since — use Undo beside the set results.": "Underdesse isch öppis anders erfasst worde — nimm Rückgängig näbed de Satzresultat.",
+  "Last action undone": "Letschti Aktion rückgängig gmacht",
+  "the last action": "di letscht Aktion",
+  "Match log": "Spiilprotokoll",
+  "Time": "Ziit",
+  "TIME": "ZIIT",
+  "What": "Was",
+  "WHAT": "WAS",
+  "Loading…": "Lade…",
+  "Nothing logged yet.": "No nüt protokolliert.",
+  "Ends changed": "Siite gwächslet",
+  "Court switch due": "Siitewächsel fällig",
+  "Set removed": "Satz entfernt",
+  "Match over": "Spiil fertig",
+  "Undo: Serve order": "Rückgängig: Ufschlagfolg",
+  "Undone: Serve order": "Rückgängig: Ufschlagfolg",
+  "Server": "Ufschläger",
+  "Undo: Server": "Rückgängig: Ufschläger",
+  "Undone: Server": "Rückgängig: Ufschläger",
+  "Undo: Switch sides": "Rückgängig: Siite wächsle",
+  "Undone: Switch sides": "Rückgängig: Siite wächsle",
+  "Next set": "Nächschte Satz",
+  "Undo: Next set": "Rückgängig: Nächschte Satz",
+  "Undone: Next set": "Rückgängig: Nächschte Satz",
+  "Undo: Remove set": "Rückgängig: Satz entferne",
+  "Undone: Remove set": "Rückgängig: Satz entferne",
+  "Reset": "Zruggsetze",
+  "Undo: Reset": "Rückgängig: Zruggsetze",
+  "Undone: Reset": "Rückgängig: Zruggsetze",
+  "Board edit": "Tafle bearbeitet",
+  "Undo: Board edit": "Rückgängig: Tafle bearbeitet",
+  "Undone: Board edit": "Rückgängig: Tafle bearbeitet",
+  "Undo: End period": "Rückgängig: Periode beände",
+  "Undone: End period": "Rückgängig: Periode beände",
+  "Remove period": "Periode entferne",
+  "Undo: Remove period": "Rückgängig: Periode entferne",
+  "Undone: Remove period": "Rückgängig: Periode entferne",
+  "Undo: the last action": "Rückgängig: di letscht Aktion",
+  "Edit": "Bearbeite",
+  "Cancel": "Abbräche",
+  "Set": "Setze",
+  "Enter a number": "Gib e Zahl ii",
+  "Confirm": "Bestätige",
+  "Beach serve order": "Beach-Ufschlagfolg",
+  "Who serves first, and each pair's first server. The board tracks it automatically after that — override any time.": "Wer zersch ufschlaht und de erscht Ufschläger vo jedem Paar. Dänn füehrt d Tafle das sälber nah — du chasch jederziit iigriife.",
+  "Serves first": "Schlaht zersch uf",
+  "Team L — first server": "Team L — erschte Ufschläger",
+  "Team R — first server": "Team R — erschte Ufschläger",
+  "Set order": "Reiefolg setze",
+  "Enter scorer PIN": "Schreiber-PIN iigäh",
+  "ENTER SCORER PIN": "SCHREIBER-PIN IIGÄH",
+  "Unlock": "Entsperre",
+  "Scoreboard locked": "Aazeigetafle gsperrt",
+  "Enter the scorer PIN to open the controller.": "Gib d Schreiber-PIN ii, zum d Stüürig ufmache.",
+  "Scorer PIN": "Schreiber-PIN",
+  "Set a scorer PIN": "Schreiber-PIN feschtlege",
+  "This board has no scorer PIN yet, and it needs one before anyone can score. Choose 1–8 digits. Anyone can still watch; only people with the PIN can change the score.": "Die Tafle hät no kei Schreiber-PIN und bruucht eini, bevor öpper cha zelle. Wähl 1–8 Ziffere. Zueluege chönd alli; nur wer d PIN hät, cha de Spiilstand ändere.",
+  "New scorer PIN": "Neui Schreiber-PIN",
+  "New PIN": "Neui PIN",
+  "The same PIN again": "Die glich PIN nomal",
+  "Again": "Nomal",
+  "Set PIN": "PIN setze",
+  "Write it down for the coaches. This tablet remembers it; every other tablet asks for it once. A tablet on the cable never needs it.": "Schriib si für d Coaches uf. Das Tablet merkt sich si; jedes anderi Tablet fragt eimal dernah. Es Tablet am Kabel bruucht si nie.",
+  "The PIN must be 1–8 digits.": "D PIN muess 1–8 Ziffere ha.",
+  "PIN must be 1–8 digits": "PIN muess 1–8 Ziffere ha",
+  "The two don't match — type the PIN again.": "Di beide stimmed nöd überii — gib d PIN nomal ii.",
+  "Scorer PIN set. Write it down for the coaches — every other tablet asks for it once.": "Schreiber-PIN gsetzt. Schriib si für d Coaches uf — jedes anderi Tablet fragt eimal dernah.",
+  "A PIN was set from another device just now — ask for it.": "Grad isch uf emne andere Grät e PIN gsetzt worde — frag dernah.",
+  "Wrong PIN": "Falschi PIN",
+  "Wrong PIN — try again.": "Falschi PIN — probier s nomal.",
+  "Unlocked — you can score": "Entsperrt — du chasch zelle",
+  "Lock scoring on this device? You'll need the PIN to score again.": "S Zelle uf däm Grät sperre? Zum Wiiterzelle bruuchsch dänn d PIN.",
+  "Lock scoring": "Zelle sperre",
+  "Locked — the PIN is needed to score": "Gsperrt — zum Zelle bruuchts d PIN",
+  "No scorer PIN yet. This tablet is on the cable and needs none — but Wi-Fi tablets can't score until one is set (Settings ▸ Access).": "No kei Schreiber-PIN. Das Tablet isch am Kabel und bruucht keini — aber Wi-Fi-Tablets chönd erscht zelle, wänn eini gsetzt isch (Iistellige ▸ Zuegriff).",
+  "No scorer PIN yet. This tablet is on the cable, so it never needs one — but tablets on the board's Wi-Fi can't score until you set one here.": "No kei Schreiber-PIN. Das Tablet isch am Kabel und bruucht nie eini — aber Tablets im Wi-Fi vo de Tafle chönd erscht zelle, wänn du da eini setzisch.",
+  "This tablet is on the cable, so it never needs the PIN. Tablets on the board's Wi-Fi do.": "Das Tablet isch am Kabel und bruucht d PIN nie. Tablets im Wi-Fi vo de Tafle scho.",
+  "This board must have a scorer PIN: type a new one to change it. It can't be removed.": "Die Tafle bruucht e Schreiber-PIN: Gib zum Ändere e neui ii. Entferne gaht nöd.",
+  "Shutting down…": "Wird abegfahre…",
+  "The panel will go dark in a few seconds.": "D Aazeig wird i es paar Sekunde dunkel.",
+  "Now press the power button to switch it off": "Druck jetzt de Power-Chnopf zum Usschalte",
+  "Back to the scoreboard": "Zrugg zur Aazeigetafle",
+  "Restarting…": "Wird neu gstartet…",
+  "The panel goes dark, then comes back in about 45 seconds. This page reconnects by itself.": "D Aazeig wird dunkel und chunnt nach öppe 45 Sekunde zrugg. Die Siite verbindet sich vo sälber neu.",
+  "Shut down the scoreboard?": "Aazeigetafle abefahre?",
+  "Shut down": "Abefahre",
+  "Shutdown failed": "Abefahre fählgschlage",
+  "Restart the scoreboard? It is back in about 45 seconds; the game is kept.": "Aazeigetafle neu starte? Si isch nach öppe 45 Sekunde zrugg; s Spiil bliibt erhalte.",
+  "Restart": "Neu starte",
+  "Restart failed": "Neustart fählgschlage",
+  "Go back to the start screen? The score stays saved.": "Zrugg zum Startbildschirm? De Spiilstand bliibt gspeicheret.",
+  "That did not work. Tap again.": "Das hät nöd klappet. Tipp nomal.",
+  "Choose the sport": "Sportart wähle",
+  "Switching restarts the board with the new rules and layout — about 8 seconds.": "Bim Wächsle startet d Tafle mit de neue Regle und em neue Layout neu — öppe 8 Sekunde.",
+  "Game menu": "Spiilmenü",
+  "Open the game menu for the current sport": "Spiilmenü vo de aktuelle Sportart ufmache",
+  "Open diagnostics and the live log": "Diagnose und Live-Log ufmache",
+  "Keep current sport": "Aktuelli Sportart bhalte",
+  "Get the Point Hub app": "Point Hub App hole",
+  "Get the Point Hub app for this tablet": "Point Hub App für das Tablet hole",
+  "current": "aktuell",
+  "CURRENT": "AKTUELL",
+  "Volleyball": "Volleyball",
+  "Switching to Volleyball… the board restarts (about 8 seconds).": "Wächsel zu Volleyball … d Tafle startet neu (öppe 8 Sekunde).",
+  "Volleyball ready": "Volleyball parat",
+  "Timing, allowances, blink and match format apply to Volleyball. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Ziite, Limite, Blinke und Spiilformat gälted für Volleyball. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatischi Spiilvorbereitig gälted für alli Sportarte.",
+  "Beach volleyball": "Beachvolleyball",
+  "Switching to Beach volleyball… the board restarts (about 8 seconds).": "Wächsel zu Beachvolleyball … d Tafle startet neu (öppe 8 Sekunde).",
+  "Beach volleyball ready": "Beachvolleyball parat",
+  "Timing, allowances, blink and match format apply to Beach volleyball. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Ziite, Limite, Blinke und Spiilformat gälted für Beachvolleyball. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatischi Spiilvorbereitig gälted für alli Sportarte.",
+  "Basketball": "Basketball",
+  "Switching to Basketball… the board restarts (about 8 seconds).": "Wächsel zu Basketball … d Tafle startet neu (öppe 8 Sekunde).",
+  "Basketball ready": "Basketball parat",
+  "Timing, allowances, blink and match format apply to Basketball. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Ziite, Limite, Blinke und Spiilformat gälted für Basketball. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatischi Spiilvorbereitig gälted für alli Sportarte.",
+  "Simple scoreboard": "Eifachi Aazeigetafle",
+  "Switching to Simple scoreboard… the board restarts (about 8 seconds).": "Wächsel zu Eifachi Aazeigetafle … d Tafle startet neu (öppe 8 Sekunde).",
+  "Simple scoreboard ready": "Eifachi Aazeigetafle parat",
+  "Timing, allowances, blink and match format apply to Simple scoreboard. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Ziite, Limite, Blinke und Spiilformat gälted für Eifachi Aazeigetafle. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatischi Spiilvorbereitig gälted für alli Sportarte.",
+  "The board is taking a while to restart — it'll switch on its own once it's back.": "D Tafle bruucht chli länger für de Neustart — si wächslet vo sälber, sobald si zrugg isch.",
+  "Scoring is locked — enter the scorer PIN, then choose again.": "Zelle isch gsperrt — gib d Schreiber-PIN ii und wähl nomal.",
+  "Start or continue a game": "Spiil starte oder wiiterfüehre",
+  "What would you like to do?": "Was wotsch mache?",
+  "Today's home games": "Heimspiil hüt",
+  "TODAY'S HOME GAMES": "HEIMSPIIL HÜT",
+  "No home game today": "Hüt kei Heimspiil",
+  "NO HOME GAME TODAY": "HÜT KEI HEIMSPIIL",
+  "Today's games could not be loaded": "D Spiil vo hüt händ nöd chönne glade werde",
+  "TODAY'S GAMES COULD NOT BE LOADED": "D SPIIL VO HÜT HÄND NÖD CHÖNNE GLADE WERDE",
+  "Another game from the schedule": "Anders Spiil us em Spiilplan",
+  "Opens the season's home games": "Macht d Heimspiil vo de Saison uf",
+  "Link a scoresheet": "eScoresheet verbinde",
+  "The board follows a match scored in OpenVolley": "D Tafle folgt emne Spiil, wo i OpenVolley zellt wird",
+  "Type the names, score from 0–0": "Näme iigäh, ab 0–0 zelle",
+  "Back": "Zrugg",
+  "‹ Back": "‹ Zrugg",
+  "Continue game": "Spiil wiiterfüehre",
+  "New game": "Neus Spiil",
+  "How do you want to score it?": "Wie wotsch zelle?",
+  "From the schedule, linked to a scoresheet, or manual": "Us em Spiilplan, mit eScoresheet oder manuell",
+  "Delete saved game": "Gspeicherets Spiil lösche",
+  "Forget the match in progress": "Laufends Spiil vergässe",
+  "Nothing saved for this sport yet.": "Für die Sportart isch no nüt gspeicheret.",
+  "There's a match in progress on this board.": "Uf dere Tafle lauft es Spiil.",
+  "That saved game is gone — it was cleared from somewhere else. Start a new one.": "Das gspeicheret Spiil isch weg — es isch susch wo glöscht worde. Start es neus.",
+  "Start new game": "Neus Spiil starte",
+  "Delete": "Lösche",
+  "Saved game deleted": "Gspeicherets Spiil glöscht",
+  "Scoring is locked — enter the scorer PIN, then tap the game again.": "Zelle isch gsperrt — gib d Schreiber-PIN ii und tipp s Spiil nomal aa.",
+  "Prepare game": "Spiil vorbereite",
+  "Start game": "Spiil starte",
+  "Couldn't start a new game — try the game menu.": "Neus Spiil hät nöd chönne gstartet werde — probier s im Spiilmenü.",
+  "Match result": "Spiilresultat",
+  "Match drawn": "Unentschiede",
+  "Start the next match from 0–0": "Nächschts Spiil ab 0–0 starte",
+  "Close": "Schliesse",
+  "No completed periods recorded": "Kei abgschlossni Periode erfasst",
+  "No completed sets recorded": "Kei abgschlossni Sätz erfasst",
+  "Shown here only — the board has no result screen.": "Nur da aazeigt — d Tafle hät kei Resultatbildschirm.",
+  "Update ready — it installs itself between matches.": "Update parat — es installiert sich sälber zwüsche de Spiil.",
+  "Reload now": "Jetzt neu lade",
+  "Secure address available — it switches between matches.": "Sicheri Adrässe verfüegbar — si wächslet zwüsche de Spiil.",
+  "Switch": "Wächsle",
+  "Opens full screen, in landscape, and keeps the screen awake for the match.": "Gaht im Vollbild und Querformat uf und laat de Bildschirm während em Spiil aa.",
+  "Tap to start": "Zum Starte tippe",
+  "Continue without full screen": "Ohni Vollbild wiiter",
+  "Continue without": "Ohni wiiter",
+  "Tap once so the screen stays awake for the match.": "Eimal tippe, dass de Bildschirm während em Spiil aa bliibt.",
+  "Tip: turn the phone sideways for bigger buttons.": "Tipp: Drääj s Handy quer für grösseri Chnöpf.",
+  "Hide this tip": "Tipp usblände",
+  "Full screen isn't supported by this browser": "De Browser cha kei Vollbild",
+  "Full screen is blocked inside this frame — open the page in its own tab": "Vollbild isch i däm Rahme blockiert — mach d Siite imene eigete Tab uf",
+  "Screen will stay awake": "Bildschirm bliibt aa",
+  "Couldn't hold the screen on — set the tablet's display timeout to Never": "Bildschirm bliibt nöd aa — stell d Bildschirmziit vom Tablet uf «Nie»",
+  "Today at the hall": "Hüt i de Halle",
+  "↻ Refresh": "↻ Aktualisiere",
+  "Loading today's games…": "D Spiil vo hüt werded glade…",
+  "Upcoming home games": "Nächschti Heimspiil",
+  "Show whole season": "Ganzi Saison zeige",
+  "Show whole season (1 more day)": "Ganzi Saison zeige (no 1 Tag)",
+  "Live matches on this network": "Live-Spiil i däm Netz",
+  "↻ Refresh matches": "↻ Spiil aktualisiere",
+  "Tap “Refresh matches” to find a match an OpenVolley laptop is scoring on this network.": "Tipp uf «Spiil aktualisiere», zum es Spiil finde, wo en OpenVolley-Laptop i däm Netz zellt.",
+  "No schedule yet — the board downloads it as soon as it has internet": "No kei Spiilplan — d Tafle ladet en abe, sobald si Internet hät",
+  "offline — showing the schedule saved on the board": "offline — Spiilplan vo de Tafle",
+  "Season schedule": "Spiilplan vo de Saison",
+  "Couldn't load today's games from the board.": "D Spiil vo hüt händ nöd chönne vo de Tafle glade werde.",
+  "Couldn't load today's games.": "D Spiil vo hüt händ nöd chönne glade werde.",
+  "Couldn't load today's games from the board. You can still type the names on the Game tab.": "D Spiil vo hüt händ nöd chönne vo de Tafle glade werde. Du chasch d Näme immer no im Tab Spiil iigäh.",
+  "Couldn't load today's games. You can still type the names on the Game tab.": "D Spiil vo hüt händ nöd chönne glade werde. Du chasch d Näme immer no im Tab Spiil iigäh.",
+  "No home games today.": "Hüt kei Heimspiil.",
+  "1 game": "1 Spiil",
+  "Prepare": "Vorbereite",
+  "Start": "Starte",
+  "Postponed": "Verschobe",
+  "Cancelled": "Abgseit",
+  "No match on the scorer laptop yet. Open the match there, then tap Refresh.": "No kei Spiil ufem Schreiber-Laptop. Mach s Spiil det uf und tipp dänn uf Aktualisiere.",
+  "Live match linking isn't set up on this board — type the scorer laptop's address in Settings. Scoring by hand on the Game tab works as normal.": "Verbinde mit Live-Spiil isch uf dere Tafle nöd iigrichtet — gib d Adrässe vom Schreiber-Laptop i de Iistellige ii. Vo Hand zelle im Tab Spiil gaht wie immer.",
+  "The OpenVolley laptop isn't on this network. Scoring by hand on the Game tab works as normal.": "De OpenVolley-Laptop isch nöd i däm Netz. Vo Hand zelle im Tab Spiil gaht wie immer.",
+  "The OpenVolley laptop isn't on this network. Connect it to the board's Wi-Fi, or type its address in Settings. Scoring by hand on the Game tab works as normal.": "De OpenVolley-Laptop isch nöd i däm Netz. Verbind en mit em Wi-Fi vo de Tafle oder gib sini Adrässe i de Iistellige ii. Vo Hand zelle im Tab Spiil gaht wie immer.",
+  "Can't reach the scoresheet server — the board may have no internet connection. Scoring by hand on the Game tab still works.": "De eScoresheet-Server isch nöd erreichbar — vilicht hät d Tafle kei Internet. Vo Hand zelle im Tab Spiil gaht immer no.",
+  "The scoresheet server answered with an error. Try Refresh in a minute — scoring by hand still works.": "De eScoresheet-Server hät mit emne Fähler antwortet. Tipp i ere Minute uf Aktualisiere — vo Hand zelle gaht immer no.",
+  "⚠ Live match linking isn't set up on this board — type the scorer laptop's address in Settings. Scoring by hand on the Game tab works as normal.": "⚠ Verbinde mit Live-Spiil isch uf dere Tafle nöd iigrichtet — gib d Adrässe vom Schreiber-Laptop i de Iistellige ii. Vo Hand zelle im Tab Spiil gaht wie immer.",
+  "⚠ The OpenVolley laptop isn't on this network. Scoring by hand on the Game tab works as normal.": "⚠ De OpenVolley-Laptop isch nöd i däm Netz. Vo Hand zelle im Tab Spiil gaht wie immer.",
+  "⚠ The OpenVolley laptop isn't on this network. Connect it to the board's Wi-Fi, or type its address in Settings. Scoring by hand on the Game tab works as normal.": "⚠ De OpenVolley-Laptop isch nöd i däm Netz. Verbind en mit em Wi-Fi vo de Tafle oder gib sini Adrässe i de Iistellige ii. Vo Hand zelle im Tab Spiil gaht wie immer.",
+  "⚠ Can't reach the scoresheet server — the board may have no internet connection. Scoring by hand on the Game tab still works.": "⚠ De eScoresheet-Server isch nöd erreichbar — vilicht hät d Tafle kei Internet. Vo Hand zelle im Tab Spiil gaht immer no.",
+  "⚠ The scoresheet server answered with an error. Try Refresh in a minute — scoring by hand still works.": "⚠ De eScoresheet-Server hät mit emne Fähler antwortet. Tipp i ere Minute uf Aktualisiere — vo Hand zelle gaht immer no.",
+  "No scorer laptop answered.": "Kei Schreiber-Laptop hät antwortet.",
+  "Looking for the scorer laptop on the board's Wi-Fi…": "Schreiber-Laptop im Wi-Fi vo de Tafle wird gsuecht…",
+  "No answer.": "Kei Antwort.",
+  "Game info": "Spiilinfo",
+  "KSCW roster": "KSCW-Kader",
+  "No roster yet.": "No kei Kader.",
+  "No players on the sheet yet.": "No kei Spieler ufem Blatt.",
+  "Captain": "Captain",
+  "Couldn't load the game.": "Spiil hät nöd chönne glade werde.",
+  "Couldn't load the game from the board.": "Spiil hät nöd chönne vo de Tafle glade werde.",
+  "Clear history": "Verlauf lösche",
+  "No matches recorded yet.": "No kei Spiil erfasst.",
+  "Downloaded CSV": "CSV abeglade",
+  "Downloaded JSON": "JSON abeglade",
+  "Clear all recorded matches? This can't be undone.": "Alli erfasste Spiil lösche? Das chasch nöd rückgängig mache.",
+  "Clear all": "Alles lösche",
+  "History cleared": "Verlauf glöscht",
+  "Language": "Sprach",
+  "Scorer laptop": "Schreiber-Laptop",
+  "Scorer laptop address": "Adrässe vom Schreiber-Laptop",
+  "Find it automatically": "Automatisch sueche",
+  "Check": "Prüefe",
+  "The laptop scoring the match in OpenVolley, by its address on the board's Wi-Fi:": "De Laptop, wo s Spiil i OpenVolley zellt, mit sinere Adrässe im Wi-Fi vo de Tafle:",
+  ", or": ", oder",
+  "when its relay is not on port 8080. Leave it empty and the board looks for the laptop on its own Wi-Fi and cable whenever the match list is refreshed. Check saves the address and asks the laptop for its matches.": "wänn sis Relay nöd uf Port 8080 lauft. Lah s Fäld läär, dänn suecht d Tafle de Laptop bi jedem Aktualisiere vo de Spiilliste i ihrem Wi-Fi und am Kabel. Prüefe speicheret d Adrässe und fragt de Laptop nach sine Spiil.",
+  "Board screen": "Bildschirm vo de Tafle",
+  "What the board's touchscreen opens": "Was de Touchscreen vo de Tafle ufmacht",
+  "Ask at start: Point Hub or OpenVolley": "Bim Start froge: Point Hub oder OpenVolley",
+  "Nothing (screen off)": "Nüt (Bildschirm us)",
+  "With OpenVolley on the screen the score is kept there, and the LED panel follows the live match by itself. Other tablets on the cable can open the referee and bench screens at http://192.168.5.1:5173. Saving restarts the screen, so change it between matches.": "Mit OpenVolley ufem Bildschirm wird det zellt, und d Aazeig folgt em Live-Spiil vo sälber. Anderi Tablets am Kabel chönd d Schiri- und Bank-Aasicht under http://192.168.5.1:5173 ufmache. Speichere startet de Bildschirm neu, also zwüsche de Spiil ändere.",
+  "Board feedback": "Rückmäldig vo de Tafle",
+  "Blink the point on the board": "Punkt uf de Tafle la blinke",
+  "Blink substitutions": "Wächsel la blinke",
+  "Blink length": "Blinkduur",
+  "Countdowns": "Countdowns",
+  "Timing, allowances, blink and match format are set per sport.": "Ziite, Limite, Blinke und Spiilformat gälted pro Sportart.",
+  "Show on timeout": "Bim Timeout zeige",
+  "Timeout length": "Timeout-Duur",
+  "Technical time-out": "Technischs Timeout",
+  "Show on set interval": "I de Satzpause zeige",
+  "Set interval": "Satzpause",
+  "Horn when a countdown ends": "Horn am Ändi vomene Countdown",
+  "Display": "Aazeig",
+  "Panel brightness": "Helligkeit vo de Aazeig",
+  "How bright the LED panel drives.": "So hell lüüchtet d LED-Aazeig.",
+  "0 turns the panel off": "0 schaltet d Aazeig us",
+  "to save power — the controller stays reachable, so set any value above 0 to switch it back on. 5–100 is on; the panel blinks for about a second while it restarts at the new level.": "und spart Strom — d Stüürig bliibt erreichbar, stell also en Wert über 0 ii, zum si wieder iischalte. 5–100 heisst aa; d Aazeig blinkt öppe e Sekunde, während si mit de neue Helligkeit neu startet.",
+  "Finished sets on the interval screen": "Fertigi Sätz i de Satzpause",
+  "During the set interval the panel shows each finished set (25-21, 23-25…) under the clock, left team first. Only for matches scored on this board — a linked match sends no set scores.": "I de Satzpause zeigt d Aazeig jede fertige Satz (25-21, 23-25…) under de Uhr, linggs Team zersch. Nur für Spiil, wo uf dere Tafle zellt werded — es verbundes Spiil schickt kei Satzresultat.",
+  "Theme": "Farbschema",
+  "Light": "Hell",
+  "Dark": "Dunkel",
+  "E-ink": "E-Ink",
+  "Light is the standard look. Dark is easier on the eyes in a dim hall. E-ink is black on white at full contrast, for reading in bright sun. Only this phone or tablet changes — the board and every other screen keep their own.": "Hell isch d Standardaasicht. Dunkel schoont d Auge inere dunkle Halle. E-Ink isch schwarz uf wiiss mit vollem Kontrast, guet z läse bi heller Sunne. Es änderet nur das Handy oder Tablet — d Tafle und alli andere Bildschirm bhalted ires.",
+  "Match format": "Spiilformat",
+  "Best of": "Spiil über",
+  "3 sets": "3 Sätz",
+  "5 sets": "5 Sätz",
+  "Total timeouts / set": "Timeouts pro Satz",
+  "Total subs / set": "Wächsel pro Satz",
+  "Name size — left": "Namensgrössi — links",
+  "Name size — right": "Namensgrössi — rächts",
+  "Best-of decides how many sets win the match. Timeouts go red at the total; subs go amber one short and red at the total. The name sizes are scoreboard ceilings — a long name still shrinks to clear the set counter, so these mainly decide how big a SHORT name gets. One per side, and each name row on the Game tab has its own −/+ that applies straight away. Left and right are where the teams stand now, and a size stays with its team when they change ends.": "«Spiil über» bestimmt, wie vill Sätz s Spiil gwünned. Timeouts werded bim Maximum rot; Wächsel werded eis vorher orange und bim Maximum rot. D Namensgrössene sind Obergränze — en lange Name wird trotzdem chliner, dass de Satzzähler frei bliibt, si bestimmed also vor allem, wie gross en CHURZE Name wird. Eini pro Siite, und jedi Namezeile im Tab Spiil hät ires eigete −/+, wo sofort gilt. Links und rächts isch, wo d Teams jetzt stönd, und e Grössi bliibt bim Team, wänn s d Siite wächslet.",
+  "Crest screen": "Wappe-Bildschirm",
+  "Show full club names": "Ganzi Vereinsnäme zeige",
+  "Largest name size": "Gröschti Namensgrössi",
+  "The pre-match screen beside the crest. Long names are shrunk automatically to fit the panel, so this size is the ceiling — what a short name like KSCW gets. Turn the switch off to show short codes instead.": "De Bildschirm vor em Spiil näbem Wappe. Langi Näme werded automatisch chliner gmacht, dass si uf d Aazeig passed; die Grössi isch also d Obergränze — so gross wird en churze Name wie KSCW. Schalt de Schalter us, zum statt dem Churzcodes zeige.",
+  "Show the connect QR codes when nobody is on the controller": "QR-Codes zum Verbinde zeige, wänn niemer a de Stüürig isch",
+  "\"Join WiFi\" and \"Open UI\" beside the crest, for the next person to get connected. The Wi-Fi one hands the board's Wi-Fi password to anyone in the hall. Off: the crest and the clock instead. The codes still show while the board starts up.": "«Join WiFi» und «Open UI» näbem Wappe, dass sich di nächscht Person cha verbinde. De Wi-Fi-Code git allne i de Halle s Wi-Fi-Passwort vo de Tafle. Us: statt dem Wappe und Uhr. Wänn d Tafle startet, chömed d Codes trotzdem.",
+  "Board identity": "Tafle",
+  "Crest / branding": "Wappe / Branding",
+  "KSC Wiedikon": "KSC Wiedikon",
+  "Plain (no logo)": "Schlicht (ohni Logo)",
+  "Scorer sits behind the board": "Schreiber sitzt hinder de Tafle",
+  "Connect to live scoring": "Mit Live-Scoring verbinde",
+  "Off": "Us",
+  "Branding sets the idle / crest screen — KSC Wiedikon shows the club crest, Plain shows the team names only. Live scoring publishes the running score to the public /live page. With the scorer behind the board, the Game tab's team cards are swapped to match what the scorer sees — the team on your left is the one on the panel's right. The preview under them always shows the panel as the court sees it.": "S Branding legt de Wappe-Bildschirm fescht — KSC Wiedikon zeigt s Vereinswappe, Schlicht nur d Teamnäme. Live-Scoring veröffentlicht de laufend Spiilstand uf de öffentliche Siite /live. Sitzt de Schreiber hinder de Tafle, werded d Teamkarte im Tab Spiil tuuscht, dass si zu sinere Sicht passed — s Team links vo dir isch uf de Aazeig rächts. D Vorschau drunder zeigt d Aazeig immer so, wie me si vom Fäld us gseht.",
+  "Schedule": "Spiilplan",
+  "Suggest tonight's home game (60 min before)": "Heimspiil vo hüt Abig vorschlaa (60 Min. vorher)",
+  "An hour before a home game on the club's schedule, the console asks whether to set it up:": "E Stund vor emne Heimspiil im Spiilplan vom Verein fragt d Konsole, öb s söll iigrichtet werde:",
+  "puts both names up at 0–0 while the board keeps showing the clock, the same as tapping the game on the Link tab. With two or more home games that day it lists them and you pick yours. Nothing goes on the board without a tap, a match being scored is never offered over, and": "setzt beidi Näme uf 0–0, und d Tafle zeigt wiiter d Uhr, genau wie wänn du s Spiil im Tab Verbinde aatippsch. Bi zwei oder meh Heimspiil a dem Tag lischtet si si uf und du wählsch dis. Nüt chunnt ohni Tippe uf d Tafle, es laufends Spiil wird nie ersetzt, und",
+  "stays not now for the evening. Needs the board's clock, so it waits until the board has been online once.": "gilt für de ganz Abig. Bruucht d Uhr vo de Tafle und wartet drum, bis d Tafle eimal online gsi isch.",
+  "Club": "Verein",
+  "Club name": "Vereinsname",
+  "For the club logo / idle screen — available once the board accepts an image upload. Countdowns now use fixed labels (TO ·, INTERVAL, WARM UP).": "Fürs Vereinslogo / Ruebild — verfüegbar, sobald d Tafle es Bild aanimmt. Countdowns bruuched jetzt feschti Täxt (TO ·, INTERVAL, WARM UP).",
+  "Access": "Zuegriff",
+  "unchanged": "unveränderet",
+  "Set a digits-only PIN so only your scorer can change the score — anyone who scans the board can still watch, not touch. Leave blank to keep the current PIN.": "Setz e PIN nur us Ziffere, dass nur din Schreiber de Spiilstand cha ändere — wer d Tafle scannt, cha zueluege, aber nüt ändere. Läär laa bhaltet di aktuell PIN.",
+  "Remove the PIN — anyone can score": "PIN entferne — alli chönd zelle",
+  "Remove the scorer PIN? Anyone who opens the controller will be able to score.": "Schreiber-PIN entferne? Dänn cha jede zelle, wo d Stüürig ufmacht.",
+  "Remove PIN": "PIN entferne",
+  "The board kept the PIN — update the appliance and try again.": "D Tafle hät d PIN bhalte — aktualisier d Tafle und probier s nomal.",
+  "PIN removed — scoring is open": "PIN entfernt — Zelle isch offe",
+  "Everything the board does — board writes, relay traffic, every scoring action, settings changes and errors — is recorded and live-viewable. Open this first when something looks wrong; it is also what to send with a bug report.": "Alles, was d Tafle macht — Schriibvorgäng, Relay-Verchehr, jedi Zellaktion, gänderti Iistellige und Fähler — wird erfasst und isch live aazluege. Mach das zersch uf, wänn öppis nöd stimmt; es ghört au zu jeder Fählermäldig.",
+  "Open the log viewer": "Log-Aazeig ufmache",
+  "Open the virtual board": "Virtuelli Tafle ufmache",
+  "Tablet app": "Tablet-App",
+  "no backups yet": "no kei Backups",
+  "1 backup on this tablet": "1 Backup uf däm Tablet",
+  ". The app keeps a copy of every set and match on the tablet, so a board failure loses nothing.": ". D App bhaltet vo jedem Satz und Spiil e Kopie ufem Tablet, en Usfall vo de Tafle choscht also nüt.",
+  "Export backups to the tablet": "Backups ufs Tablet exportiere",
+  "Nothing to export yet — or an export is already open": "No nüt zum Exportiere — oder en Export isch scho offe",
+  "The backups could not be written — try again": "D Backups händ nöd chönne gschriibe werde — probier s nomal",
+  "Get the tablet app": "Tablet-App hole",
+  "Power": "Strom",
+  "Halt the scoreboard cleanly before switching the power off — protects the memory card. Restart brings it straight back (about 45 seconds) — try it first when the board looks stuck.": "Fahr d Aazeigetafle suuber abe, bevor du de Strom usschaltisch — das schoont d Speicherkarte. Neu starte bringt si grad zrugg (öppe 45 Sekunde) — probier das zersch, wänn d Tafle hanget.",
+  "Restart board": "Tafle neu starte",
+  "Saved on the board — these survive a restart.": "Uf de Tafle gspeicheret — bliibt au nach emne Neustart.",
+  "Saved.": "Gspeicheret.",
+  "Saved": "Gspeicheret",
+  "Saved ✓": "Gspeicheret ✓",
+  "Save changes": "Änderige speichere",
+  "Not saved": "Nöd gspeicheret",
+  "Not saved.": "Nöd gspeicheret.",
+  "Couldn't save the settings": "Iistellige händ nöd chönne gspeicheret werde",
+  "The board didn't answer in time — try again.": "D Tafle hät nöd rächtziitig antwortet — probier s nomal.",
+  "The hall's free Wi-Fi lets the board onto the internet only after a login\n            with a code by SMS, and the login lasts about a day. Live scoring, the club schedule and\n            the board's clock need it; the scoreboard itself does not. Type your own mobile number —\n            it is used for this login only and is not saved on the board.": "S Gratis-Wi-Fi vo de Halle laat d Tafle erscht nach ere Aamäldig mit SMS-Code is Internet, und d Aamäldig hebt öppe en Tag. Live-Scoring, de Spiilplan vom Verein und d Uhr vo de Tafle bruuched das; d Aazeigetafle sälber nöd. Gib dini eigeti Handynummere ii — si wird nur für die Aamäldig bruucht und nöd uf de Tafle gspeicheret.",
+  "The laptop scoring the match in OpenVolley, by its address on the board's\n            Wi-Fi:": "De Laptop, wo s Spiil i OpenVolley zellt, mit sinere Adrässe im Wi-Fi vo de Tafle:",
+  "when its relay is not on\n            port 8080. Leave it empty and the board looks for the laptop on its own Wi-Fi and cable\n            whenever the match list is refreshed. Check saves the address and asks the laptop for\n            its matches.": "wänn sis Relay nöd uf Port 8080 lauft. Lah s Fäld läär, dänn suecht d Tafle de Laptop bi jedem Aktualisiere vo de Spiilliste i ihrem Wi-Fi und am Kabel. Prüefe speicheret d Adrässe und fragt de Laptop nach sine Spiil.",
+  "With OpenVolley on the screen the score is kept there, and the LED panel follows\n            the live match by itself. Other tablets on the cable can open the referee and bench screens\n            at http://192.168.5.1:5173. Saving restarts the screen, so change it between matches.": "Mit OpenVolley ufem Bildschirm wird det zellt, und d Aazeig folgt em Live-Spiil vo sälber. Anderi Tablets am Kabel chönd d Schiri- und Bank-Aasicht under http://192.168.5.1:5173 ufmache. Speichere startet de Bildschirm neu, also zwüsche de Spiil ändere.",
+  "to save power —\n            the controller stays reachable, so set any value above 0 to switch it back on. 5–100 is on; the panel\n            blinks for about a second while it restarts at the new level.": "und spart Strom — d Stüürig bliibt erreichbar, stell also en Wert über 0 ii, zum si wieder iischalte. 5–100 heisst aa; d Aazeig blinkt öppe e Sekunde, während si mit de neue Helligkeit neu startet.",
+  "During the set interval the panel shows each finished set (25-21, 23-25…) under the\n            clock, left team first. Only for matches scored on this board — a linked match sends no set scores.": "I de Satzpause zeigt d Aazeig jede fertige Satz (25-21, 23-25…) under de Uhr, linggs Team zersch. Nur für Spiil, wo uf dere Tafle zellt werded — es verbundes Spiil schickt kei Satzresultat.",
+  "Light is the standard look. Dark is easier on the eyes in a dim hall. E-ink is\n            black on white at full contrast, for reading in bright sun. Only this phone or tablet\n            changes — the board and every other screen keep their own.": "Hell isch d Standardaasicht. Dunkel schoont d Auge inere dunkle Halle. E-Ink isch schwarz uf wiiss mit vollem Kontrast, guet z läse bi heller Sunne. Es änderet nur das Handy oder Tablet — d Tafle und alli andere Bildschirm bhalted ires.",
+  "Best-of decides how many sets win the match. Timeouts go red at the\n            total; subs go amber one short and red at the total. The name sizes are scoreboard\n            ceilings — a long name still shrinks to clear the set counter, so these mainly decide\n            how big a SHORT name gets. One per side, and each name row on the Game tab has its own\n            −/+ that applies straight away. Left and right are where the teams stand now, and a\n            size stays with its team when they change ends.": "«Spiil über» bestimmt, wie vill Sätz s Spiil gwünned. Timeouts werded bim Maximum rot; Wächsel werded eis vorher orange und bim Maximum rot. D Namensgrössene sind Obergränze — en lange Name wird trotzdem chliner, dass de Satzzähler frei bliibt, si bestimmed also vor allem, wie gross en CHURZE Name wird. Eini pro Siite, und jedi Namezeile im Tab Spiil hät ires eigete −/+, wo sofort gilt. Links und rächts isch, wo d Teams jetzt stönd, und e Grössi bliibt bim Team, wänn s d Siite wächslet.",
+  "The pre-match screen beside the crest. Long names are shrunk\n            automatically to fit the panel, so this size is the ceiling — what a short\n            name like KSCW gets. Turn the switch off to show short codes instead.": "De Bildschirm vor em Spiil näbem Wappe. Langi Näme werded automatisch chliner gmacht, dass si uf d Aazeig passed; die Grössi isch also d Obergränze — so gross wird en churze Name wie KSCW. Schalt de Schalter us, zum statt dem Churzcodes zeige.",
+  "\"Join WiFi\" and \"Open UI\" beside the crest, for the next person to get\n            connected. The Wi-Fi one hands the board's Wi-Fi password to anyone in the hall. Off:\n            the crest and the clock instead. The codes still show while the board starts up.": "«Join WiFi» und «Open UI» näbem Wappe, dass sich di nächscht Person cha verbinde. De Wi-Fi-Code git allne i de Halle s Wi-Fi-Passwort vo de Tafle. Us: statt dem Wappe und Uhr. Wänn d Tafle startet, chömed d Codes trotzdem.",
+  "Branding sets the idle / crest screen — KSC Wiedikon shows the club crest,\n            Plain shows the team names only. Live scoring publishes the running score to the\n            public /live page. With the scorer behind the board, the Game tab's team cards are\n            swapped to match what the scorer sees — the team on your left is the one on the panel's\n            right. The preview under them always shows the panel as the court sees it.": "S Branding legt de Wappe-Bildschirm fescht — KSC Wiedikon zeigt s Vereinswappe, Schlicht nur d Teamnäme. Live-Scoring veröffentlicht de laufend Spiilstand uf de öffentliche Siite /live. Sitzt de Schreiber hinder de Tafle, werded d Teamkarte im Tab Spiil tuuscht, dass si zu sinere Sicht passed — s Team links vo dir isch uf de Aazeig rächts. D Vorschau drunder zeigt d Aazeig immer so, wie me si vom Fäld us gseht.",
+  "An hour before a home game on the club's schedule, the console asks\n            whether to set it up:": "E Stund vor emne Heimspiil im Spiilplan vom Verein fragt d Konsole, öb s söll iigrichtet werde:",
+  "puts both names up at 0–0 while the board keeps\n            showing the clock, the same as tapping the game on the Link tab. With two or more home\n            games that day it lists them and you pick yours. Nothing goes on the board without a\n            tap, a match being scored is never offered over, and": "setzt beidi Näme uf 0–0, und d Tafle zeigt wiiter d Uhr, genau wie wänn du s Spiil im Tab Verbinde aatippsch. Bi zwei oder meh Heimspiil a dem Tag lischtet si si uf und du wählsch dis. Nüt chunnt ohni Tippe uf d Tafle, es laufends Spiil wird nie ersetzt, und",
+  "stays not now for\n            the evening. Needs the board's clock, so it waits until the board has been online once.": "gilt für de ganz Abig. Bruucht d Uhr vo de Tafle und wartet drum, bis d Tafle eimal online gsi isch.",
+  "For the club logo / idle screen — available once the board accepts an\n            image upload. Countdowns now use fixed labels (TO ·, INTERVAL, WARM UP).": "Fürs Vereinslogo / Ruebild — verfüegbar, sobald d Tafle es Bild aanimmt. Countdowns bruuched jetzt feschti Täxt (TO ·, INTERVAL, WARM UP).",
+  "Everything the board does — board writes, relay traffic, every scoring\n            action, settings changes and errors — is recorded and live-viewable. Open this first\n            when something looks wrong; it is also what to send with a bug report.": "Alles, was d Tafle macht — Schriibvorgäng, Relay-Verchehr, jedi Zellaktion, gänderti Iistellige und Fähler — wird erfasst und isch live aazluege. Mach das zersch uf, wänn öppis nöd stimmt; es ghört au zu jeder Fählermäldig."
+ },
+ "patterns": [
+  [
+   "^Link: Live$",
+   "Verbindig: Live"
+  ],
+  [
+   "^Link: Waiting for the scoresheet$",
+   "Verbindig: warte ufs eScoresheet"
+  ],
+  [
+   "^Link: Link lost$",
+   "Verbindig verlore"
+  ],
+  [
+   "^Link: Match ended$",
+   "Verbindig: Spiil fertig"
+  ],
+  [
+   "^LedBox connected \\((.+)\\)$",
+   "LedBox verbunde ($1)"
+  ],
+  [
+   "^Set (I|II|III|IV|V|VI|VII)$",
+   "Satz $1"
+  ],
+  [
+   "^Scores are still being recorded\\. Retrying (.+)… check the board is on and the cable is in\\.$",
+   "D Pünkt werded wiiter erfasst. Neue Versuech mit $1 … lueg, öb d Tafle aa isch und s Kabel steckt."
+  ],
+  [
+   "^Frozen at (\\d\\d:\\d\\d:\\d\\d)\\. Retrying on its own — check the tablet is on the board's Wi-Fi\\.$",
+   "Stand vo $1. Neue Versuech lauft vo sälber — lueg, öb s Tablet im Wi-Fi vo de Tafle isch."
+  ],
+  [
+   "^Hall Wi-Fi (.+) needs a login$",
+   "Halle-Wi-Fi $1 bruucht e Aamäldig"
+  ],
+  [
+   "^Hall Wi-Fi (.+) — its login page is not answering$",
+   "Halle-Wi-Fi $1 — d Aamäldesiite antwortet nöd"
+  ],
+  [
+   "^Wi-Fi until tomorrow (\\d\\d:\\d\\d)$",
+   "Wi-Fi bis morn $1"
+  ],
+  [
+   "^Wi-Fi until (.+)$",
+   "Wi-Fi bis $1"
+  ],
+  [
+   "^tomorrow (\\d\\d:\\d\\d)$",
+   "morn $1"
+  ],
+  [
+   "^Sun (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "So $1"
+  ],
+  [
+   "^Mon (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Mo $1"
+  ],
+  [
+   "^Tue (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Di $1"
+  ],
+  [
+   "^Wed (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Mi $1"
+  ],
+  [
+   "^Thu (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Do $1"
+  ],
+  [
+   "^Fri (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Fr $1"
+  ],
+  [
+   "^Sat (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Sa $1"
+  ],
+  [
+   "^The hall Wi-Fi login runs out at tomorrow (\\d\\d:\\d\\d) — tap to log in again$",
+   "D Aamäldig im Halle-Wi-Fi lauft morn am $1 ab — zum neu Aamälde tippe"
+  ],
+  [
+   "^The hall Wi-Fi login runs out at (.+) — tap to log in again$",
+   "D Aamäldig im Halle-Wi-Fi lauft am $1 ab — zum neu Aamälde tippe"
+  ],
+  [
+   "^Online — logged in until tomorrow (\\d\\d:\\d\\d)$",
+   "Online — aagmäldet bis morn $1"
+  ],
+  [
+   "^Online — logged in until (.+)$",
+   "Online — aagmäldet bis $1"
+  ],
+  [
+   "^Online until tomorrow (\\d\\d:\\d\\d)$",
+   "Online bis morn $1"
+  ],
+  [
+   "^Online until (.+)$",
+   "Online bis $1"
+  ],
+  [
+   "^The login runs out at tomorrow (\\d\\d:\\d\\d)\\. Live scoring stops then until someone logs in again here — it takes a minute and a phone\\.$",
+   "D Aamäldig lauft morn am $1 ab. Dänn stoppt s Live-Scoring, bis sich da öpper neu aamäldet — das bruucht e Minute und es Handy."
+  ],
+  [
+   "^The login runs out at (.+)\\. Live scoring stops then until someone logs in again here — it takes a minute and a phone\\.$",
+   "D Aamäldig lauft am $1 ab. Dänn stoppt s Live-Scoring, bis sich da öpper neu aamäldet — das bruucht e Minute und es Handy."
+  ],
+  [
+   "^Start official warm-up \\((.+)\\)$",
+   "Offiziells Iiwärme ($1)"
+  ],
+  [
+   "^(.+) — set it up\\? The board keeps the clock until the warm-up\\.$",
+   "$1 — iirichte? D Tafle zeigt bis zum Iiwärme d Uhr."
+  ],
+  [
+   "^(\\d+) home games today — pick yours\\.$",
+   "Hüt $1 Heimspiil — wähl dis."
+  ],
+  [
+   "^Couldn't do that: (.+)$",
+   "Das isch nöd gange: $1"
+  ],
+  [
+   "^Couldn't start the match: (.+)$",
+   "Spiil hät nöd chönne gstartet werde: $1"
+  ],
+  [
+   "^Font size (\\d+)$",
+   "Schriftgrössi $1"
+  ],
+  [
+   "^Board preview: (.+), (.+)$",
+   "Vorschau vo de Tafle: $1, $2"
+  ],
+  [
+   "^(.+) score$",
+   "$1 Pünkt"
+  ],
+  [
+   "^(.+) timeouts$",
+   "$1 Timeouts"
+  ],
+  [
+   "^(.+) subs$",
+   "$1 Wächsel"
+  ],
+  [
+   "^(.+) fouls$",
+   "$1 Fouls"
+  ],
+  [
+   "^(.+) SCORE$",
+   "$1 PÜNKT"
+  ],
+  [
+   "^(.+) SETS$",
+   "$1 SÄTZ"
+  ],
+  [
+   "^(.+) TIMEOUTS$",
+   "$1 TIMEOUTS"
+  ],
+  [
+   "^(.+) SUBS$",
+   "$1 WÄCHSEL"
+  ],
+  [
+   "^(.+) FOULS$",
+   "$1 FOULS"
+  ],
+  [
+   "^(.+) COLOUR$",
+   "$1 FARB"
+  ],
+  [
+   "^(.+) colour$",
+   "$1 Farb"
+  ],
+  [
+   "^decrease (.+)$",
+   "$1 verringere"
+  ],
+  [
+   "^increase (.+)$",
+   "$1 erhöhe"
+  ],
+  [
+   "^(.+) and (.+) look alike on the board\\. Both colours are too dark for the LEDs, so the board shows them light grey\\.$",
+   "$1 und $2 gsehnd uf de Tafle glich us. Beidi Farbe sind z dunkel für d LEDs, drum zeigt d Tafle si hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike on the board\\. (.+)'s colour is too dark for the LEDs, so the board shows it light grey\\.$",
+   "$1 und $2 gsehnd uf de Tafle glich us. D Farb vo $3 isch z dunkel für d LEDs, drum zeigt d Tafle si hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike to red-green colour-blind spectators\\. Both colours are too dark for the LEDs, so the board shows them light grey\\.$",
+   "$1 und $2 gsehnd für rot-grüen-blindi Zueschauer glich us. Beidi Farbe sind z dunkel für d LEDs, drum zeigt d Tafle si hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike to red-green colour-blind spectators\\. (.+)'s colour is too dark for the LEDs, so the board shows it light grey\\.$",
+   "$1 und $2 gsehnd für rot-grüen-blindi Zueschauer glich us. D Farb vo $3 isch z dunkel für d LEDs, drum zeigt d Tafle si hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike on the board\\.$",
+   "$1 und $2 gsehnd uf de Tafle glich us."
+  ],
+  [
+   "^(.+) and (.+) look alike to red-green colour-blind spectators\\.$",
+   "$1 und $2 gsehnd für rot-grüen-blindi Zueschauer glich us."
+  ],
+  [
+   "^(.+)'s colour is too dark for the LEDs, so the board shows it light grey\\.$",
+   "D Farb vo $1 isch z dunkel für d LEDs, drum zeigt d Tafle si hellgrau."
+  ],
+  [
+   "^for (.+)$",
+   "für $1"
+  ],
+  [
+   "^Use (#[0-9A-Fa-f]+) for the left team \\(the board and this console\\)$",
+   "$1 fürs linggs Team bruuche (Tafle und die Konsole)"
+  ],
+  [
+   "^Use (#[0-9A-Fa-f]+) for the right team \\(the board and this console\\)$",
+   "$1 fürs rächts Team bruuche (Tafle und die Konsole)"
+  ],
+  [
+   "^Use (#[0-9A-Fa-f]+) for (.+) \\(the board and this console\\)$",
+   "$1 für $2 bruuche (Tafle und die Konsole)"
+  ],
+  [
+   "^TO (.+)$",
+   "TIMEOUT $1"
+  ],
+  [
+   "^Not sent — (.+)$",
+   "Nöd gschickt — $1"
+  ],
+  [
+   "^(Q\\d|OT\\d+) starting$",
+   "$1 fangt aa"
+  ],
+  [
+   "^🏆 (.+) wins the match$",
+   "🏆 $1 gwünnt s Spiil"
+  ],
+  [
+   "^(.+) wins$",
+   "$1 gwünnt"
+  ],
+  [
+   "^Couldn't announce it: (.+)$",
+   "Hät nöd chönne aagseit werde: $1"
+  ],
+  [
+   "^(.+) vs (.+) · (\\d+) entries · started (.+)$",
+   "$1 vs $2 · $3 Iiträg · gstartet $4"
+  ],
+  [
+   "^Match log, (\\d+) entries\\. Last: (.+)$",
+   "Spiilprotokoll, $1 Iiträg. Zletscht: $2"
+  ],
+  [
+   "^Timeout taken back · (.+)$",
+   "Timeout zruggnoh · $1"
+  ],
+  [
+   "^Substitution taken back · (.+)$",
+   "Uswächslig zruggnoh · $1"
+  ],
+  [
+   "^Team foul taken back · (.+)$",
+   "Teamfoul zruggnoh · $1"
+  ],
+  [
+   "^Substitution · (.+)$",
+   "Uswächslig · $1"
+  ],
+  [
+   "^Team foul · (.+)$",
+   "Teamfoul · $1"
+  ],
+  [
+   "^Point refused · (.+) — the set was already over$",
+   "Punkt abglehnt · $1 — de Satz isch scho fertig gsi"
+  ],
+  [
+   "^Point removed · (.+)$",
+   "Punkt entfernt · $1"
+  ],
+  [
+   "^Point · (.+)$",
+   "Punkt · $1"
+  ],
+  [
+   "^Set taken back · (.+)$",
+   "Satz zruggnoh · $1"
+  ],
+  [
+   "^Set · (.+)$",
+   "Satz · $1"
+  ],
+  [
+   "^Serve · (.+)$",
+   "Ufschlag · $1"
+  ],
+  [
+   "^(.+) sets set to (\\d+)$",
+   "$1 Sätz uf $2 gsetzt"
+  ],
+  [
+   "^(.+) set to (\\d+)$",
+   "$1 uf $2 gsetzt"
+  ],
+  [
+   "^End of set (\\d+) \\((\\d+–\\d+)\\)$",
+   "Satzendi $1 ($2)"
+  ],
+  [
+   "^End of set (\\d+)$",
+   "Satzendi $1"
+  ],
+  [
+   "^End of (Q\\d|OT\\d+) \\((\\d+–\\d+)\\)$",
+   "Ändi $1 ($2)"
+  ],
+  [
+   "^End of (Q\\d|OT\\d+)$",
+   "Ändi $1"
+  ],
+  [
+   "^Undo: Score edit (.+)$",
+   "Rückgängig: Pünkt bearbeitet $1"
+  ],
+  [
+   "^Undone: Score edit (.+)$",
+   "Rückgängig: Pünkt bearbeitet $1"
+  ],
+  [
+   "^Undo: Point removed (.+)$",
+   "Rückgängig: Punkt entfernt $1"
+  ],
+  [
+   "^Undone: Point removed (.+)$",
+   "Rückgängig: Punkt entfernt $1"
+  ],
+  [
+   "^Undo: Team edit (.+)$",
+   "Rückgängig: Team bearbeitet $1"
+  ],
+  [
+   "^Undone: Team edit (.+)$",
+   "Rückgängig: Team bearbeitet $1"
+  ],
+  [
+   "^Undo: Timeout (.+)$",
+   "Rückgängig: Timeout $1"
+  ],
+  [
+   "^Undone: Timeout (.+)$",
+   "Rückgängig: Timeout $1"
+  ],
+  [
+   "^Undo: Point (.+)$",
+   "Rückgängig: Punkt $1"
+  ],
+  [
+   "^Undone: Point (.+)$",
+   "Rückgängig: Punkt $1"
+  ],
+  [
+   "^Undo: Sets (.+)$",
+   "Rückgängig: Sätz $1"
+  ],
+  [
+   "^Undone: Sets (.+)$",
+   "Rückgängig: Sätz $1"
+  ],
+  [
+   "^Undo: Sub (.+)$",
+   "Rückgängig: Wächsel $1"
+  ],
+  [
+   "^Undone: Sub (.+)$",
+   "Rückgängig: Wächsel $1"
+  ],
+  [
+   "^Undo: Serve (.+)$",
+   "Rückgängig: Ufschlag $1"
+  ],
+  [
+   "^Undone: Serve (.+)$",
+   "Rückgängig: Ufschlag $1"
+  ],
+  [
+   "^Undo: Foul (.+)$",
+   "Rückgängig: Foul $1"
+  ],
+  [
+   "^Undone: Foul (.+)$",
+   "Rückgängig: Foul $1"
+  ],
+  [
+   "^Undo: Period (.+)$",
+   "Rückgängig: Periode $1"
+  ],
+  [
+   "^Undone: Period (.+)$",
+   "Rückgängig: Periode $1"
+  ],
+  [
+   "^Undo: (.+)$",
+   "Rückgängig: $1"
+  ],
+  [
+   "^Undone: (.+)$",
+   "Rückgängig: $1"
+  ],
+  [
+   "^Score edit (.+)$",
+   "Pünkt bearbeitet $1"
+  ],
+  [
+   "^Point removed (.+)$",
+   "Punkt entfernt $1"
+  ],
+  [
+   "^Team edit (.+)$",
+   "Team bearbeitet $1"
+  ],
+  [
+   "^Timeout (.+)$",
+   "Timeout $1"
+  ],
+  [
+   "^Point (.+)$",
+   "Punkt $1"
+  ],
+  [
+   "^Sets (.+)$",
+   "Sätz $1"
+  ],
+  [
+   "^Sub (.+)$",
+   "Wächsel $1"
+  ],
+  [
+   "^Serve (.+)$",
+   "Ufschlag $1"
+  ],
+  [
+   "^Foul (.+)$",
+   "Foul $1"
+  ],
+  [
+   "^Period (.+)$",
+   "Periode $1"
+  ],
+  [
+   "^(.+) — first server$",
+   "$1 — erschte Ufschläger"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) min behind$",
+   "Uhr vo de Tafle korrigiert — si isch $1 Min. hinedrii gsi"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) min ahead$",
+   "Uhr vo de Tafle korrigiert — si isch $1 Min. vorus gsi"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) h behind$",
+   "Uhr vo de Tafle korrigiert — si isch $1 Std. hinedrii gsi"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) h ahead$",
+   "Uhr vo de Tafle korrigiert — si isch $1 Std. vorus gsi"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) days behind$",
+   "Uhr vo de Tafle korrigiert — si isch $1 Täg hinedrii gsi"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) days ahead$",
+   "Uhr vo de Tafle korrigiert — si isch $1 Täg vorus gsi"
+  ],
+  [
+   "^Switching to (.+)… the board restarts \\(about 8 seconds\\)\\.$",
+   "Wächsel zu $1 … d Tafle startet neu (öppe 8 Sekunde)."
+  ],
+  [
+   "^Couldn't switch: (.+)$",
+   "Wächsel nöd möglich: $1"
+  ],
+  [
+   "^An unfinished match from Sun (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom So $1 gspeicheret."
+  ],
+  [
+   "^An unfinished match from Mon (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom Mo $1 gspeicheret."
+  ],
+  [
+   "^An unfinished match from Tue (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom Di $1 gspeicheret."
+  ],
+  [
+   "^An unfinished match from Wed (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom Mi $1 gspeicheret."
+  ],
+  [
+   "^An unfinished match from Thu (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom Do $1 gspeicheret."
+  ],
+  [
+   "^An unfinished match from Fri (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom Fr $1 gspeicheret."
+  ],
+  [
+   "^An unfinished match from Sat (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom Sa $1 gspeicheret."
+  ],
+  [
+   "^An unfinished match from (.+) is saved on this board\\.$",
+   "Uf dere Tafle isch es unfertigs Spiil vom $1 gspeicheret."
+  ],
+  [
+   "^Start a new game\\? The saved match \\((.+?)  ?·  ?sets (\\d+–\\d+)(.*)\\) will be deleted\\.$",
+   "Neus Spiil starte? S gspeicheret Spiil ($1 · Sätz $2$3) wird glöscht."
+  ],
+  [
+   "^Start a new game\\? The saved match \\((.+)\\) will be deleted\\.$",
+   "Neus Spiil starte? S gspeicheret Spiil ($1) wird glöscht."
+  ],
+  [
+   "^Delete the saved game\\? (.+?)  ?·  ?sets (\\d+–\\d+)(.*)$",
+   "Gspeicherets Spiil lösche? $1 · Sätz $2$3"
+  ],
+  [
+   "^Delete the saved game\\? (.+)$",
+   "Gspeicherets Spiil lösche? $1"
+  ],
+  [
+   "^(.+?)  ?·  ?sets (\\d+–\\d+)(.*)$",
+   "$1 · Sätz $2$3"
+  ],
+  [
+   "^Couldn't start that game: (.+)$",
+   "Spiil hät nöd chönne gstartet werde: $1"
+  ],
+  [
+   "^(.+) vs (.+) — ready; the board shows the names and the time$",
+   "$1 vs $2 — parat; d Tafle zeigt d Näme und d Ziit"
+  ],
+  [
+   "^(.+) vs (.+) — ready$",
+   "$1 vs $2 — parat"
+  ],
+  [
+   "^Start (.+) vs (.+)\\? The current score is cleared\\.$",
+   "$1 vs $2 starte? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Sun (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite (So $3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Mon (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite (Mo $3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Tue (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite (Di $3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Wed (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite (Mi $3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Thu (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite (Do $3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Fri (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite (Fr $3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Sat (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite (Sa $3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\((.+)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereite ($3)? De aktuell Spiilstand wird glöscht."
+  ],
+  [
+   "^Couldn't put the result on the board: (.+)$",
+   "Resultat hät nöd chönne uf d Tafle cho: $1"
+  ],
+  [
+   "^Full screen was refused: (.+)$",
+   "Vollbild isch abglehnt worde: $1"
+  ],
+  [
+   "^Show whole season \\((\\d+) more days\\)$",
+   "Ganzi Saison zeige (no $1 Täg)"
+  ],
+  [
+   "^offline — last update (.+)$",
+   "offline — letschts Update $1"
+  ],
+  [
+   "^Season schedule · updated (.+)$",
+   "Spiilplan vo de Saison · aktualisiert $1"
+  ],
+  [
+   "^(.+)\\. You can still type the names on the Game tab\\.$",
+   "$1. Du chasch d Näme immer no im Tab Spiil iigäh."
+  ],
+  [
+   "^No home games today\\. The next is Sun (\\d\\d\\.\\d\\d\\.)$",
+   "Hüt kei Heimspiil. S nächscht isch am So $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Sun (\\d\\d\\.\\d\\d\\.)$",
+   "Kei Heimspiil i de nächschte $1 Täg. S nächscht isch am So $2"
+  ],
+  [
+   "^No home games today\\. The next is Mon (\\d\\d\\.\\d\\d\\.)$",
+   "Hüt kei Heimspiil. S nächscht isch am Mo $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Mon (\\d\\d\\.\\d\\d\\.)$",
+   "Kei Heimspiil i de nächschte $1 Täg. S nächscht isch am Mo $2"
+  ],
+  [
+   "^No home games today\\. The next is Tue (\\d\\d\\.\\d\\d\\.)$",
+   "Hüt kei Heimspiil. S nächscht isch am Di $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Tue (\\d\\d\\.\\d\\d\\.)$",
+   "Kei Heimspiil i de nächschte $1 Täg. S nächscht isch am Di $2"
+  ],
+  [
+   "^No home games today\\. The next is Wed (\\d\\d\\.\\d\\d\\.)$",
+   "Hüt kei Heimspiil. S nächscht isch am Mi $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Wed (\\d\\d\\.\\d\\d\\.)$",
+   "Kei Heimspiil i de nächschte $1 Täg. S nächscht isch am Mi $2"
+  ],
+  [
+   "^No home games today\\. The next is Thu (\\d\\d\\.\\d\\d\\.)$",
+   "Hüt kei Heimspiil. S nächscht isch am Do $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Thu (\\d\\d\\.\\d\\d\\.)$",
+   "Kei Heimspiil i de nächschte $1 Täg. S nächscht isch am Do $2"
+  ],
+  [
+   "^No home games today\\. The next is Fri (\\d\\d\\.\\d\\d\\.)$",
+   "Hüt kei Heimspiil. S nächscht isch am Fr $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Fri (\\d\\d\\.\\d\\d\\.)$",
+   "Kei Heimspiil i de nächschte $1 Täg. S nächscht isch am Fr $2"
+  ],
+  [
+   "^No home games today\\. The next is Sat (\\d\\d\\.\\d\\d\\.)$",
+   "Hüt kei Heimspiil. S nächscht isch am Sa $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Sat (\\d\\d\\.\\d\\d\\.)$",
+   "Kei Heimspiil i de nächschte $1 Täg. S nächscht isch am Sa $2"
+  ],
+  [
+   "^1 game · (\\d+) off$",
+   "1 Spiil · $1 abgseit"
+  ],
+  [
+   "^(\\d+) games · (\\d+) off$",
+   "$1 Spiil · $2 abgseit"
+  ],
+  [
+   "^(\\d+) games$",
+   "$1 Spiil"
+  ],
+  [
+   "^(.+) vs (.+) at (\\d\\d:\\d\\d) — postponed$",
+   "$1 vs $2 am $3 — verschobe"
+  ],
+  [
+   "^(.+) vs (.+) at (\\d\\d:\\d\\d) — cancelled$",
+   "$1 vs $2 am $3 — abgseit"
+  ],
+  [
+   "^(.+) vs (.+) — postponed$",
+   "$1 vs $2 — verschobe"
+  ],
+  [
+   "^(.+) vs (.+) — cancelled$",
+   "$1 vs $2 — abgseit"
+  ],
+  [
+   "^Start (.+) vs (.+) at (\\d\\d:\\d\\d)$",
+   "$1 vs $2 am $3 starte"
+  ],
+  [
+   "^Start (.+) vs (.+)$",
+   "$1 vs $2 starte"
+  ],
+  [
+   "^Linked to (.+) on (.+) \\(found on the network\\)$",
+   "Verbunde mit $1 uf $2 (im Netz gfunde)"
+  ],
+  [
+   "^Linked to (.+) on (.+)$",
+   "Verbunde mit $1 uf $2"
+  ],
+  [
+   "^Linked to (.+)$",
+   "Verbunde mit $1"
+  ],
+  [
+   "^The OpenVolley laptop isn't on this network \\(searched (.+)\\)\\. Connect it to the board's Wi-Fi, or type its address in Settings\\. Scoring by hand on the Game tab works as normal\\.$",
+   "De OpenVolley-Laptop isch nöd i däm Netz (gsuecht: $1). Verbind en mit em Wi-Fi vo de Tafle oder gib sini Adrässe i de Iistellige ii. Vo Hand zelle im Tab Spiil gaht wie immer."
+  ],
+  [
+   "^Something at (.+) answered, but not as an OpenVolley scorer laptop\\. Check the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "Under $1 hät öppis antwortet, aber kei OpenVolley-Schreiber-Laptop. Lueg d Adrässe under Iistellige ▸ Schreiber-Laptop aa. Vo Hand zelle gaht immer no."
+  ],
+  [
+   "^The OpenVolley laptop isn't answering at (.+)\\. Check it is on the board's Wi-Fi with OpenVolley open, and the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "De OpenVolley-Laptop antwortet nöd under $1. Lueg, öb er im Wi-Fi vo de Tafle isch und OpenVolley offe hät, und lueg d Adrässe under Iistellige ▸ Schreiber-Laptop aa. Vo Hand zelle gaht immer no."
+  ],
+  [
+   "^Couldn't load the match list \\((.+)\\)\\. Scoring by hand still works\\.$",
+   "Spiilliste hät nöd chönne glade werde ($1). Vo Hand zelle gaht immer no."
+  ],
+  [
+   "^⚠ The OpenVolley laptop isn't on this network \\(searched (.+)\\)\\. Connect it to the board's Wi-Fi, or type its address in Settings\\. Scoring by hand on the Game tab works as normal\\.$",
+   "⚠ De OpenVolley-Laptop isch nöd i däm Netz (gsuecht: $1). Verbind en mit em Wi-Fi vo de Tafle oder gib sini Adrässe i de Iistellige ii. Vo Hand zelle im Tab Spiil gaht wie immer."
+  ],
+  [
+   "^⚠ Something at (.+) answered, but not as an OpenVolley scorer laptop\\. Check the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "⚠ Under $1 hät öppis antwortet, aber kei OpenVolley-Schreiber-Laptop. Lueg d Adrässe under Iistellige ▸ Schreiber-Laptop aa. Vo Hand zelle gaht immer no."
+  ],
+  [
+   "^⚠ The OpenVolley laptop isn't answering at (.+)\\. Check it is on the board's Wi-Fi with OpenVolley open, and the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "⚠ De OpenVolley-Laptop antwortet nöd under $1. Lueg, öb er im Wi-Fi vo de Tafle isch und OpenVolley offe hät, und lueg d Adrässe under Iistellige ▸ Schreiber-Laptop aa. Vo Hand zelle gaht immer no."
+  ],
+  [
+   "^⚠ Couldn't load the match list \\((.+)\\)\\. Scoring by hand still works\\.$",
+   "⚠ Spiilliste hät nöd chönne glade werde ($1). Vo Hand zelle gaht immer no."
+  ],
+  [
+   "^The saved address (.+) didn't answer\\. Listing from (.+), found on the network — no match listed yet\\. Check it is the scorer's laptop before you link\\.$",
+   "D gspeicheret Adrässe $1 hät nöd antwortet. Lischte vo $2, im Netz gfunde — no kei Spiil ufglischtet. Lueg vor em Verbinde, öb s de Schreiber-Laptop isch."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(found on the network\\) — no match listed yet\\.$",
+   "Schreiber-Laptop under $1 (im Netz gfunde) — no kei Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(from the board's setup\\) — no match listed yet\\.$",
+   "Schreiber-Laptop under $1 (us de Iirichtig vo de Tafle) — no kei Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(on the board itself\\) — no match listed yet\\.$",
+   "Schreiber-Laptop under $1 (uf de Tafle sälber) — no kei Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) — no match listed yet\\.$",
+   "Schreiber-Laptop under $1 — no kei Spiil ufglischtet."
+  ],
+  [
+   "^The saved address (.+) didn't answer\\. Listing from (.+), found on the network — 1 match listed\\. Check it is the scorer's laptop before you link\\.$",
+   "D gspeicheret Adrässe $1 hät nöd antwortet. Lischte vo $2, im Netz gfunde — 1 Spiil ufglischtet. Lueg vor em Verbinde, öb s de Schreiber-Laptop isch."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(found on the network\\) — 1 match listed\\.$",
+   "Schreiber-Laptop under $1 (im Netz gfunde) — 1 Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(from the board's setup\\) — 1 match listed\\.$",
+   "Schreiber-Laptop under $1 (us de Iirichtig vo de Tafle) — 1 Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(on the board itself\\) — 1 match listed\\.$",
+   "Schreiber-Laptop under $1 (uf de Tafle sälber) — 1 Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) — 1 match listed\\.$",
+   "Schreiber-Laptop under $1 — 1 Spiil ufglischtet."
+  ],
+  [
+   "^The saved address (.+) didn't answer\\. Listing from (.+), found on the network — (\\d+) matches listed\\. Check it is the scorer's laptop before you link\\.$",
+   "D gspeicheret Adrässe $1 hät nöd antwortet. Lischte vo $2, im Netz gfunde — $3 Spiil ufglischtet. Lueg vor em Verbinde, öb s de Schreiber-Laptop isch."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(found on the network\\) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop under $1 (im Netz gfunde) — $2 Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(from the board's setup\\) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop under $1 (us de Iirichtig vo de Tafle) — $2 Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(on the board itself\\) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop under $1 (uf de Tafle sälber) — $2 Spiil ufglischtet."
+  ],
+  [
+   "^Scorer laptop at (.+?) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop under $1 — $2 Spiil ufglischtet."
+  ],
+  [
+   "^Asking (.+)…$",
+   "Bi $1 nahfroge…"
+  ],
+  [
+   "^Couldn't ask the board: (.+)$",
+   "Tafle hät nöd chönne gfragt werde: $1"
+  ],
+  [
+   "^KSCW roster · (\\d+)$",
+   "KSCW-Kader · $1"
+  ],
+  [
+   "^(\\d+) events$",
+   "$1 Iiträg"
+  ],
+  [
+   "^Timing, allowances, blink and match format apply to (.+)\\. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports\\.$",
+   "Ziite, Limite, Blinke und Spiilformat gälted für $1. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatischi Spiilvorbereitig gälted für alli Sportarte."
+  ],
+  [
+   "^(\\d+) backups on this tablet$",
+   "$1 Backups uf däm Tablet"
+  ],
+  [
+   "^Backups saved \\((\\d+) files\\) — Downloads on the tablet$",
+   "Backups gspeicheret ($1 Dateie) — Downloads ufem Tablet"
+  ],
+  [
+   "^Not saved — (.+)$",
+   "Nöd gspeicheret — $1"
+  ],
+  [
+   "^Not saved: (.+)$",
+   "Nöd gspeicheret: $1"
+  ]
+ ]
+}

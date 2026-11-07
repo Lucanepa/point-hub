@@ -23,6 +23,7 @@ import { BOARD_ID_RE } from './boardIdentity.js'
 const setlog = log.child('settings')
 
 const SPORTS = ['volleyball', 'beach', 'basketball', 'simple']
+const LANGUAGES = ['en', 'de', 'de-CH']
 const BRANDINGS = ['kscw', 'plain']
 const LIVE_SYSTEMS = ['off', 'kscw']
 const ORIENTATIONS = ['behind', 'front']
@@ -53,6 +54,8 @@ export const GLOBAL_DEFAULTS = {
   sport: 'volleyball',
   // Idle-screen crest identity: 'kscw' (KSC Wiedikon) | 'plain' (no logo).
   branding: 'kscw',
+  // The console's and the tablet app's language, for everyone at this board. web/i18n/ has the words.
+  language: 'en',
   // Live-scoring publish target: 'off' | 'kscw' (Directus → wiedisync /live; see livePush).
   liveScoring: 'off',
   // Where the scorer sits: 'behind' the panel (the usual table, facing the court with the board at
@@ -178,6 +181,7 @@ function sanitizeInto(out, keys, patch = {}) {
     // Shown to people and maybe on the panel one day: printable, short — the clubName discipline.
     if (k === 'boardLabel') { out[k] = String(patch[k] ?? '').replace(/[^\x20-\x7E]/g, '').trim().slice(0, 24); continue }
     if (k === 'branding') { out[k] = BRANDINGS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
+    if (k === 'language') { out[k] = LANGUAGES.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'liveScoring') { out[k] = LIVE_SYSTEMS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'screenApp') { out[k] = SCREEN_APPS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'orientation') { out[k] = ORIENTATIONS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }

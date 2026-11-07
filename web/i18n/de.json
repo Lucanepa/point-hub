@@ -1,0 +1,1522 @@
+{
+ "exact": {
+  "Point Hub": "Point Hub",
+  "Point Hub — KSCW Scoreboard": "Point Hub — KSCW Anzeigetafel",
+  "LedBox connection": "LedBox-Verbindung",
+  "LedBox not connected": "LedBox nicht verbunden",
+  "Board …": "Tafel …",
+  "Board ✓": "Tafel ✓",
+  "Board ✗": "Tafel ✗",
+  "Keep the screen awake": "Bildschirm wach halten",
+  "Keep screen awake": "Bildschirm wach halten",
+  "Keep awake": "Wach halten",
+  "Full screen": "Vollbild",
+  "Exit full screen": "Vollbild beenden",
+  "Back to the start screen: Point Hub or OpenVolley eScoresheet": "Zurück zum Startbildschirm: Point Hub oder OpenVolley eScoresheet",
+  "Switch app": "App wechseln",
+  "Change sport": "Sportart wechseln",
+  "Game": "Spiel",
+  "Link": "Verbinden",
+  "Linked": "Verbunden",
+  "History": "Verlauf",
+  "Diagnostics": "Diagnose",
+  "Settings": "Einstellungen",
+  "Scorer lock": "Schreiber-Sperre",
+  "Scoring locked — tap to enter PIN": "Zählen gesperrt — tippen für PIN",
+  "Scoring unlocked — tap to lock this device": "Zählen frei — tippen, um dieses Gerät zu sperren",
+  "Manual": "Manuell",
+  "Live": "Live",
+  "Live (LAN)": "Live (LAN)",
+  "Cloud": "Cloud",
+  "Idle": "Ruhebild",
+  "Waiting for the scoresheet": "Warte auf das eScoresheet",
+  "Link lost": "Verbindung verloren",
+  "Match ended": "Spiel beendet",
+  "Show the match result": "Spielresultat anzeigen",
+  "Final": "Ende",
+  "FINAL": "ENDE",
+  "Board not connected": "Tafel nicht verbunden",
+  "Scores are still being recorded — the panel is not updating.": "Die Punkte werden weiter erfasst — die Anzeige wird nicht aktualisiert.",
+  "Hide this notice": "Hinweis ausblenden",
+  "Not connected — taps are not reaching the board": "Nicht verbunden — das Tippen kommt nicht bei der Tafel an",
+  "The controller has not answered yet. Retrying on its own — check the tablet is on the board's Wi-Fi.": "Die Steuerung hat noch nicht geantwortet. Neuer Versuch läuft von selbst — prüfe, ob das Tablet im Wi-Fi der Tafel ist.",
+  "Not connected to the scoreboard controller": "Nicht mit der Steuerung der Anzeigetafel verbunden",
+  "Connection back — check the board score, then carry on": "Verbindung wieder da — prüfe den Stand auf der Tafel und mach dann weiter",
+  "The scoreboard has not been found yet.": "Die Anzeigetafel wurde noch nicht gefunden.",
+  "Hall Wi-Fi": "Hallen-Wi-Fi",
+  "Hall Wi-Fi needs a login": "Hallen-Wi-Fi braucht eine Anmeldung",
+  "Hall Wi-Fi needs a login — live scoring is paused": "Hallen-Wi-Fi braucht eine Anmeldung — Live-Scoring ist pausiert",
+  "Hall Wi-Fi needs a login — the board has no internet": "Hallen-Wi-Fi braucht eine Anmeldung — die Tafel hat kein Internet",
+  "— live scoring is paused": "— Live-Scoring ist pausiert",
+  "— the board has no internet": "— die Tafel hat kein Internet",
+  "Hall Wi-Fi — its login page is not answering": "Hallen-Wi-Fi — die Anmeldeseite antwortet nicht",
+  "Log in": "Anmelden",
+  "Wi-Fi Log in": "Wi-Fi anmelden",
+  "Wi-Fi until": "Wi-Fi bis",
+  "The hall Wi-Fi has logged the board out — tap to log in": "Das Hallen-Wi-Fi hat die Tafel abgemeldet — zum Anmelden tippen",
+  "The hall Wi-Fi login runs out soon — tap to log in again": "Die Anmeldung im Hallen-Wi-Fi läuft bald ab — zum neu Anmelden tippen",
+  "Hall internet": "Internet der Halle",
+  "Checking the internet…": "Internet wird geprüft…",
+  "Your mobile number — the code comes by SMS": "Deine Handynummer — der Code kommt per SMS",
+  "Send code": "Code senden",
+  "Code from the SMS": "Code aus dem SMS",
+  "Use a different number": "Andere Nummer verwenden",
+  "Log in by SMS": "Per SMS anmelden",
+  "Open the login page": "Anmeldeseite öffnen",
+  "Check again": "Nochmals prüfen",
+  "The hall's free Wi-Fi lets the board onto the internet only after a login with a code by SMS, and the login lasts about a day. Live scoring, the club schedule and the board's clock need it; the scoreboard itself does not. Type your own mobile number — it is used for this login only and is not saved on the board.": "Das Gratis-Wi-Fi der Halle lässt die Tafel erst nach einer Anmeldung mit SMS-Code ins Internet, und die Anmeldung hält etwa einen Tag. Live-Scoring, der Spielplan des Vereins und die Uhr der Tafel brauchen das; die Anzeigetafel selbst nicht. Gib deine eigene Handynummer ein — sie wird nur für diese Anmeldung verwendet und nicht auf der Tafel gespeichert.",
+  "Not available on this board": "Auf dieser Tafel nicht verfügbar",
+  "Update the appliance to log in to the hall Wi-Fi from here.": "Aktualisiere die Tafel, dann kannst du sie von hier aus im Hallen-Wi-Fi anmelden.",
+  "Online — the board has internet": "Online — die Tafel hat Internet",
+  "The login runs out at any moment. Live scoring stops then until someone logs in again here — it takes a minute and a phone.": "Die Anmeldung läuft gleich ab. Dann stoppt das Live-Scoring, bis sich hier jemand neu anmeldet — das braucht eine Minute und ein Handy.",
+  "The board has no internet until it is logged in.": "Die Tafel hat kein Internet, bis sie angemeldet ist.",
+  "Live scoring is paused until the board is logged in.": "Live-Scoring ist pausiert, bis die Tafel angemeldet ist.",
+  "The board is on the hall Wi-Fi but cannot reach the internet. Try the SMS login, or open the hall's own login page — the board walks it for you.": "Die Tafel ist im Hallen-Wi-Fi, kommt aber nicht ins Internet. Versuche die SMS-Anmeldung oder öffne die Anmeldeseite der Halle — die Tafel geht sie für dich durch.",
+  "No internet uplink": "Kein Internet",
+  "The board is not on any Wi-Fi with internet. The scoreboard works without it; live scoring, the schedule and the clock wait.": "Die Tafel ist in keinem Wi-Fi mit Internet. Die Anzeigetafel läuft auch so; Live-Scoring, Spielplan und Uhr warten.",
+  "That login timed out — send a new code.": "Diese Anmeldung ist abgelaufen — sende einen neuen Code.",
+  "The hall Wi-Fi's login page didn't answer in time — try again.": "Die Anmeldeseite des Hallen-Wi-Fi hat nicht rechtzeitig geantwortet — versuche es nochmals.",
+  "Unlock scoring first (the padlock at the top), then try again.": "Entsperre zuerst das Zählen (Schloss oben) und versuche es dann nochmals.",
+  "Couldn't reach the board — try again.": "Tafel nicht erreichbar — versuche es nochmals.",
+  "Type the mobile number the code should go to.": "Gib die Handynummer ein, an die der Code gehen soll.",
+  "That doesn't look like a mobile number — e.g. 079 123 45 67.": "Das sieht nicht nach einer Handynummer aus — z. B. 079 123 45 67.",
+  "Sending…": "Wird gesendet…",
+  "The hall Wi-Fi didn't send a code — try again.": "Das Hallen-Wi-Fi hat keinen Code gesendet — versuche es nochmals.",
+  "Code sent by SMS": "Code per SMS gesendet",
+  "Type the code from the SMS — the digits only.": "Gib den Code aus dem SMS ein — nur die Ziffern.",
+  "Logging in…": "Wird angemeldet…",
+  "That code was not accepted — check the SMS and try again.": "Dieser Code wurde nicht akzeptiert — prüfe das SMS und versuche es nochmals.",
+  "Online": "Online",
+  "Checking…": "Wird geprüft…",
+  "Opening…": "Wird geöffnet…",
+  "The board could not open the login page — try again.": "Die Tafel konnte die Anmeldeseite nicht öffnen — versuche es nochmals.",
+  "This board cannot open the login page yet — it needs an update.": "Diese Tafel kann die Anmeldeseite noch nicht öffnen — sie braucht ein Update.",
+  "Ready:": "Bereit:",
+  "— board shows the team names": "— Tafel zeigt die Teamnamen",
+  "— board shows the clock": "— Tafel zeigt die Uhr",
+  "— warm-up running; the match starts when it ends": "— Einwärmen läuft; das Spiel beginnt danach",
+  "Start official warm-up (10 min)": "Offizielles Einwärmen (10 min)",
+  "Start match now": "Spiel jetzt starten",
+  "Not now": "Jetzt nicht",
+  "Set up": "Einrichten",
+  "Tonight's game:": "Spiel von heute Abend:",
+  "Which game is on this board?": "Welches Spiel läuft auf dieser Tafel?",
+  "Not now — tonight's games stay on the Link tab.": "Jetzt nicht — die Spiele von heute bleiben im Tab Verbinden.",
+  "Scoring is locked — enter the scorer PIN first.": "Zählen ist gesperrt — gib zuerst die Schreiber-PIN ein.",
+  "Match on — the scoreboard is on the board": "Spiel läuft — der Spielstand ist auf der Tafel",
+  "Scoring is locked — enter the scorer PIN, then try again.": "Zählen ist gesperrt — gib die Schreiber-PIN ein und versuche es nochmals.",
+  "TEAM L": "TEAM L",
+  "TEAM R": "TEAM R",
+  "LEFT": "LINKS",
+  "RIGHT": "RECHTS",
+  "Left": "Links",
+  "Right": "Rechts",
+  "Left team name": "Name linkes Team",
+  "Right team name": "Name rechtes Team",
+  "Left team colour": "Farbe linkes Team",
+  "Right team colour": "Farbe rechtes Team",
+  "left team colour": "Farbe linkes Team",
+  "right team colour": "Farbe rechtes Team",
+  "Change this team's colour": "Teamfarbe ändern",
+  "Use colour": "Farbe verwenden",
+  "Size of this name on the LED panel — a long name still shrinks to fit": "Grösse dieses Namens auf der Anzeige — ein langer Name wird trotzdem kleiner, bis er passt",
+  "Smaller name for this team on the panel": "Kleinerer Name für dieses Team auf der Anzeige",
+  "Bigger name for this team on the panel": "Grösserer Name für dieses Team auf der Anzeige",
+  "Font size": "Schriftgrösse",
+  "Font\nsize": "Schrift-\ngrösse",
+  "Tap to set the score manually": "Tippen: Punkte von Hand setzen",
+  "Set the score manually": "Punkte von Hand setzen",
+  "Set timeouts manually": "Timeouts von Hand setzen",
+  "Set sets manually": "Sätze von Hand setzen",
+  "Set subs manually": "Wechsel von Hand setzen",
+  "Set fouls manually": "Fouls von Hand setzen",
+  "T/O": "T/O",
+  "Sets": "Sätze",
+  "SETS": "SÄTZE",
+  "Subs": "Wechsel",
+  "SUBS": "WECHSEL",
+  "Fouls": "Fouls",
+  "FOULS": "FOULS",
+  "Period": "Periode",
+  "PERIOD": "PERIODE",
+  "Serve": "Aufschlag",
+  "SERVE": "AUFSCHLAG",
+  "POSS.": "BALL",
+  "Serve left": "Aufschlag links",
+  "Serve right": "Aufschlag rechts",
+  "PLAYER": "SPIELER",
+  "Player 1": "Spieler 1",
+  "Player 2": "Spieler 2",
+  "Teams change ends": "Teams wechseln die Seiten",
+  "Switch sides": "Seiten wechseln",
+  "Switch sides?": "Seiten wechseln?",
+  "Serving player — tap to switch": "Aufschläger — zum Wechseln tippen",
+  "Switch the serving player": "Aufschläger wechseln",
+  "Set the beach serve order": "Beach-Aufschlagfolge festlegen",
+  "Serve order": "Aufschlagfolge",
+  "Previous period": "Vorherige Periode",
+  "Next period": "Nächste Periode",
+  "Seen from the court": "Vom Feld aus gesehen",
+  "SEEN FROM THE COURT": "VOM FELD AUS GESEHEN",
+  "(mirrored — you sit behind the board)": "(gespiegelt — du sitzt hinter der Tafel)",
+  "  (mirrored — you sit behind the board)": "  (gespiegelt — du sitzt hinter der Tafel)",
+  "Board preview": "Vorschau der Tafel",
+  "Undo": "Rückgängig",
+  "Nothing to undo yet": "Noch nichts rückgängig zu machen",
+  "Nothing to undo": "Nichts rückgängig zu machen",
+  "Remove last set": "Letzten Satz entfernen",
+  "Remove the last set result?": "Letztes Satzresultat entfernen?",
+  "Remove set": "Satz entfernen",
+  "Match log — every point, timeout and sub with its time": "Spielprotokoll — jeder Punkt, jedes Timeout und jeder Wechsel mit Zeit",
+  "Show the team names and the time on the board": "Teamnamen und Zeit auf der Tafel zeigen",
+  "Time on the board: the clock, or the countdown to the game": "Zeit auf der Tafel: Uhr oder Countdown zum Spiel",
+  "Start a game from the schedule to count down to it": "Starte ein Spiel aus dem Spielplan, um darauf herunterzuzählen",
+  "Countdown to the game on the board": "Countdown zum Spiel auf der Tafel",
+  "Clock on the board": "Uhr auf der Tafel",
+  "Couldn't switch the time": "Zeit konnte nicht umgeschaltet werden",
+  "Game details and the KSCW roster": "Spieldetails und KSCW-Kader",
+  "Match info": "Spielinfo",
+  "Pre-match warm-up countdown": "Countdown fürs Einwärmen vor dem Spiel",
+  "Warm-up": "Einwärmen",
+  "End the quarter / period": "Viertel / Periode beenden",
+  "End period": "Periode beenden",
+  "End this period?": "Diese Periode beenden?",
+  "Throw this match away and start again from 0–0": "Dieses Spiel verwerfen und ab 0–0 neu beginnen",
+  "Reset match": "Spiel zurücksetzen",
+  "Idle screen on the board": "Ruhebild auf der Tafel",
+  "Reset to 0–0? Both scores are cleared.": "Auf 0–0 zurücksetzen? Beide Stände werden gelöscht.",
+  "Reset to 0–0? The score, period, timeouts and fouls for this game are cleared. An unfinished match will not appear in History.": "Auf 0–0 zurücksetzen? Spielstand, Periode, Timeouts und Fouls dieses Spiels werden gelöscht. Ein unfertiges Spiel erscheint nicht im Verlauf.",
+  "Reset to 0–0? Scores, sets and timeouts for this match are cleared. An unfinished match will not appear in History.": "Auf 0–0 zurücksetzen? Punkte, Sätze und Timeouts dieses Spiels werden gelöscht. Ein unfertiges Spiel erscheint nicht im Verlauf.",
+  "Reset to 0–0? Scores, sets, timeouts and subs for this match are cleared. An unfinished match will not appear in History.": "Auf 0–0 zurücksetzen? Punkte, Sätze, Timeouts und Wechsel dieses Spiels werden gelöscht. Ein unfertiges Spiel erscheint nicht im Verlauf.",
+  "Reset to 0–0? The score, period, timeouts and fouls for this game are cleared.": "Auf 0–0 zurücksetzen? Spielstand, Periode, Timeouts und Fouls dieses Spiels werden gelöscht.",
+  "Reset to 0–0? Scores, sets and timeouts for this match are cleared.": "Auf 0–0 zurücksetzen? Punkte, Sätze und Timeouts dieses Spiels werden gelöscht.",
+  "Reset to 0–0? Scores, sets, timeouts and subs for this match are cleared.": "Auf 0–0 zurücksetzen? Punkte, Sätze, Timeouts und Wechsel dieses Spiels werden gelöscht.",
+  "left plus point": "Links: Punkt dazu",
+  "left minus point": "Links: Punkt weg",
+  "Left plus point": "Links: Punkt dazu",
+  "Left minus point": "Links: Punkt weg",
+  "left timeout plus": "Links: Timeout dazu",
+  "left timeout minus": "Links: Timeout weg",
+  "left set plus": "Links: Satz dazu",
+  "left set minus": "Links: Satz weg",
+  "left sub plus": "Links: Wechsel dazu",
+  "left sub minus": "Links: Wechsel weg",
+  "left timeouts plus": "Links: Timeout dazu",
+  "left timeouts minus": "Links: Timeout weg",
+  "left sets plus": "Links: Satz dazu",
+  "left sets minus": "Links: Satz weg",
+  "left subs plus": "Links: Wechsel dazu",
+  "left subs minus": "Links: Wechsel weg",
+  "left fouls plus": "Links: Foul dazu",
+  "left fouls minus": "Links: Foul weg",
+  "Left add 1 point": "Links: 1 Punkt dazu",
+  "Left plus 1": "Links plus 1",
+  "Left minus 1": "Links minus 1",
+  "Left add 2 points": "Links: 2 Punkte dazu",
+  "Left plus 2": "Links plus 2",
+  "Left minus 2": "Links minus 2",
+  "Left add 3 points": "Links: 3 Punkte dazu",
+  "Left plus 3": "Links plus 3",
+  "Left minus 3": "Links minus 3",
+  "Left correct minus one": "Links: Korrektur minus eins",
+  "Left score": "Links Punkte",
+  "LEFT SCORE": "LINKS PUNKTE",
+  "Left sets": "Links Sätze",
+  "LEFT SETS": "LINKS SÄTZE",
+  "Left timeouts": "Links Timeouts",
+  "LEFT TIMEOUTS": "LINKS TIMEOUTS",
+  "Left subs": "Links Wechsel",
+  "LEFT SUBS": "LINKS WECHSEL",
+  "Left fouls": "Links Fouls",
+  "LEFT FOULS": "LINKS FOULS",
+  "Left colour": "Farbe links",
+  "LEFT COLOUR": "FARBE LINKS",
+  "TO LEFT": "TIMEOUT LINKS",
+  "Timeout · LEFT": "Timeout · LINKS",
+  "Timeout taken back · LEFT": "Timeout zurückgenommen · LINKS",
+  "Substitution · LEFT": "Auswechslung · LINKS",
+  "Substitution taken back · LEFT": "Auswechslung zurückgenommen · LINKS",
+  "Team foul · LEFT": "Teamfoul · LINKS",
+  "Team foul taken back · LEFT": "Teamfoul zurückgenommen · LINKS",
+  "right plus point": "Rechts: Punkt dazu",
+  "right minus point": "Rechts: Punkt weg",
+  "Right plus point": "Rechts: Punkt dazu",
+  "Right minus point": "Rechts: Punkt weg",
+  "right timeout plus": "Rechts: Timeout dazu",
+  "right timeout minus": "Rechts: Timeout weg",
+  "right set plus": "Rechts: Satz dazu",
+  "right set minus": "Rechts: Satz weg",
+  "right sub plus": "Rechts: Wechsel dazu",
+  "right sub minus": "Rechts: Wechsel weg",
+  "right timeouts plus": "Rechts: Timeout dazu",
+  "right timeouts minus": "Rechts: Timeout weg",
+  "right sets plus": "Rechts: Satz dazu",
+  "right sets minus": "Rechts: Satz weg",
+  "right subs plus": "Rechts: Wechsel dazu",
+  "right subs minus": "Rechts: Wechsel weg",
+  "right fouls plus": "Rechts: Foul dazu",
+  "right fouls minus": "Rechts: Foul weg",
+  "Right add 1 point": "Rechts: 1 Punkt dazu",
+  "Right plus 1": "Rechts plus 1",
+  "Right minus 1": "Rechts minus 1",
+  "Right add 2 points": "Rechts: 2 Punkte dazu",
+  "Right plus 2": "Rechts plus 2",
+  "Right minus 2": "Rechts minus 2",
+  "Right add 3 points": "Rechts: 3 Punkte dazu",
+  "Right plus 3": "Rechts plus 3",
+  "Right minus 3": "Rechts minus 3",
+  "Right correct minus one": "Rechts: Korrektur minus eins",
+  "Right score": "Rechts Punkte",
+  "RIGHT SCORE": "RECHTS PUNKTE",
+  "Right sets": "Rechts Sätze",
+  "RIGHT SETS": "RECHTS SÄTZE",
+  "Right timeouts": "Rechts Timeouts",
+  "RIGHT TIMEOUTS": "RECHTS TIMEOUTS",
+  "Right subs": "Rechts Wechsel",
+  "RIGHT SUBS": "RECHTS WECHSEL",
+  "Right fouls": "Rechts Fouls",
+  "RIGHT FOULS": "RECHTS FOULS",
+  "Right colour": "Farbe rechts",
+  "RIGHT COLOUR": "FARBE RECHTS",
+  "TO RIGHT": "TIMEOUT RECHTS",
+  "Timeout · RIGHT": "Timeout · RECHTS",
+  "Timeout taken back · RIGHT": "Timeout zurückgenommen · RECHTS",
+  "Substitution · RIGHT": "Auswechslung · RECHTS",
+  "Substitution taken back · RIGHT": "Auswechslung zurückgenommen · RECHTS",
+  "Team foul · RIGHT": "Teamfoul · RECHTS",
+  "Team foul taken back · RIGHT": "Teamfoul zurückgenommen · RECHTS",
+  "The left team and the right team look alike on the board.": "Das linke und das rechte Team sehen auf der Tafel gleich aus.",
+  "The left team and the right team look alike to red-green colour-blind spectators.": "Das linke und das rechte Team sehen für rot-grün-blinde Zuschauer gleich aus.",
+  "Both colours are too dark for the LEDs, so the board shows them light grey.": "Beide Farben sind zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau.",
+  "The left team's colour is too dark for the LEDs, so the board shows it light grey.": "Die Farbe des linken Teams ist zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau.",
+  "The right team's colour is too dark for the LEDs, so the board shows it light grey.": "Die Farbe des rechten Teams ist zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau.",
+  "Try": "Versuche",
+  "for the left team": "für das linke Team",
+  "for the right team": "für das rechte Team",
+  "SET ENDED": "SATZENDE",
+  "MATCH ENDED": "SPIELENDE",
+  "Close set →": "Satz abschliessen →",
+  "Close match →": "Spiel abschliessen →",
+  "Close the set and start the interval": "Satz abschliessen und Satzpause starten",
+  "Close the match and show the result": "Spiel abschliessen und Resultat zeigen",
+  "Start next set →": "Nächsten Satz starten →",
+  "INTERVAL": "SATZPAUSE",
+  "WARM UP": "EINWÄRMEN",
+  "TIME OUT": "TIMEOUT",
+  "OFFICIAL WARM-UP": "OFFIZIELLES EINWÄRMEN",
+  "Start the official warm-up?": "Offizielles Einwärmen starten?",
+  "Start the official warm-up": "Offizielles Einwärmen starten",
+  "End warm-up": "Einwärmen beenden",
+  "End warm-up · start match": "Einwärmen beenden · Spiel starten",
+  "Technical Time-Out": "Technisches Timeout",
+  "TECHNICAL TIME-OUT": "TECHNISCHES TIMEOUT",
+  "End time-out →": "Timeout beenden →",
+  "Skip": "Überspringen",
+  "Dismiss": "Schliessen",
+  "Set is over — tap Close set": "Satz ist fertig — tippe auf Satz abschliessen",
+  "This period is over — tap End period": "Diese Periode ist fertig — tippe auf Periode beenden",
+  "The match is over — start a new game from the game menu": "Das Spiel ist fertig — starte ein neues Spiel im Spielmenü",
+  "Still sending the last action — that one didn't go through.": "Die letzte Aktion wird noch gesendet — diese kam nicht durch.",
+  "Not sent — board unreachable": "Nicht gesendet — Tafel nicht erreichbar",
+  "Not sent — board unreachable. Check the score on the board before tapping again.": "Nicht gesendet — Tafel nicht erreichbar. Prüfe den Stand auf der Tafel, bevor du nochmals tippst.",
+  "Bonus — the opponent shoots free throws": "Bonus — der Gegner wirft Freiwürfe",
+  "Game over": "Spiel vorbei",
+  "Sides switched — the board has no announcement screen.": "Seiten gewechselt — die Tafel hat keinen Ansagebildschirm.",
+  "Something else was entered since — use Undo beside the set results.": "Inzwischen wurde etwas anderes erfasst — nimm Rückgängig neben den Satzresultaten.",
+  "Last action undone": "Letzte Aktion rückgängig gemacht",
+  "the last action": "die letzte Aktion",
+  "Match log": "Spielprotokoll",
+  "Time": "Zeit",
+  "TIME": "ZEIT",
+  "What": "Was",
+  "WHAT": "WAS",
+  "Loading…": "Wird geladen…",
+  "Nothing logged yet.": "Noch nichts protokolliert.",
+  "Ends changed": "Seiten gewechselt",
+  "Court switch due": "Seitenwechsel fällig",
+  "Set removed": "Satz entfernt",
+  "Match over": "Spiel vorbei",
+  "Undo: Serve order": "Rückgängig: Aufschlagfolge",
+  "Undone: Serve order": "Rückgängig: Aufschlagfolge",
+  "Server": "Aufschläger",
+  "Undo: Server": "Rückgängig: Aufschläger",
+  "Undone: Server": "Rückgängig: Aufschläger",
+  "Undo: Switch sides": "Rückgängig: Seiten wechseln",
+  "Undone: Switch sides": "Rückgängig: Seiten wechseln",
+  "Next set": "Nächster Satz",
+  "Undo: Next set": "Rückgängig: Nächster Satz",
+  "Undone: Next set": "Rückgängig: Nächster Satz",
+  "Undo: Remove set": "Rückgängig: Satz entfernen",
+  "Undone: Remove set": "Rückgängig: Satz entfernen",
+  "Reset": "Zurücksetzen",
+  "Undo: Reset": "Rückgängig: Zurücksetzen",
+  "Undone: Reset": "Rückgängig: Zurücksetzen",
+  "Board edit": "Tafel bearbeitet",
+  "Undo: Board edit": "Rückgängig: Tafel bearbeitet",
+  "Undone: Board edit": "Rückgängig: Tafel bearbeitet",
+  "Undo: End period": "Rückgängig: Periode beenden",
+  "Undone: End period": "Rückgängig: Periode beenden",
+  "Remove period": "Periode entfernen",
+  "Undo: Remove period": "Rückgängig: Periode entfernen",
+  "Undone: Remove period": "Rückgängig: Periode entfernen",
+  "Undo: the last action": "Rückgängig: die letzte Aktion",
+  "Edit": "Bearbeiten",
+  "Cancel": "Abbrechen",
+  "Set": "Setzen",
+  "Enter a number": "Gib eine Zahl ein",
+  "Confirm": "Bestätigen",
+  "Beach serve order": "Beach-Aufschlagfolge",
+  "Who serves first, and each pair's first server. The board tracks it automatically after that — override any time.": "Wer zuerst aufschlägt und der erste Aufschläger jedes Paars. Danach führt die Tafel das selbst nach — du kannst jederzeit eingreifen.",
+  "Serves first": "Schlägt zuerst auf",
+  "Team L — first server": "Team L — erster Aufschläger",
+  "Team R — first server": "Team R — erster Aufschläger",
+  "Set order": "Reihenfolge setzen",
+  "Enter scorer PIN": "Schreiber-PIN eingeben",
+  "ENTER SCORER PIN": "SCHREIBER-PIN EINGEBEN",
+  "Unlock": "Entsperren",
+  "Scoreboard locked": "Anzeigetafel gesperrt",
+  "Enter the scorer PIN to open the controller.": "Gib die Schreiber-PIN ein, um die Steuerung zu öffnen.",
+  "Scorer PIN": "Schreiber-PIN",
+  "Set a scorer PIN": "Schreiber-PIN festlegen",
+  "This board has no scorer PIN yet, and it needs one before anyone can score. Choose 1–8 digits. Anyone can still watch; only people with the PIN can change the score.": "Diese Tafel hat noch keine Schreiber-PIN und braucht eine, bevor jemand zählen kann. Wähle 1–8 Ziffern. Zuschauen können alle; nur wer die PIN hat, kann den Spielstand ändern.",
+  "New scorer PIN": "Neue Schreiber-PIN",
+  "New PIN": "Neue PIN",
+  "The same PIN again": "Dieselbe PIN nochmals",
+  "Again": "Nochmals",
+  "Set PIN": "PIN setzen",
+  "Write it down for the coaches. This tablet remembers it; every other tablet asks for it once. A tablet on the cable never needs it.": "Schreib sie für die Coaches auf. Dieses Tablet merkt sie sich; jedes andere Tablet fragt einmal danach. Ein Tablet am Kabel braucht sie nie.",
+  "The PIN must be 1–8 digits.": "Die PIN muss 1–8 Ziffern haben.",
+  "PIN must be 1–8 digits": "PIN muss 1–8 Ziffern haben",
+  "The two don't match — type the PIN again.": "Die beiden stimmen nicht überein — gib die PIN nochmals ein.",
+  "Scorer PIN set. Write it down for the coaches — every other tablet asks for it once.": "Schreiber-PIN gesetzt. Schreib sie für die Coaches auf — jedes andere Tablet fragt einmal danach.",
+  "A PIN was set from another device just now — ask for it.": "Gerade wurde auf einem anderen Gerät eine PIN gesetzt — frag danach.",
+  "Wrong PIN": "Falsche PIN",
+  "Wrong PIN — try again.": "Falsche PIN — versuche es nochmals.",
+  "Unlocked — you can score": "Entsperrt — du kannst zählen",
+  "Lock scoring on this device? You'll need the PIN to score again.": "Zählen auf diesem Gerät sperren? Zum Weiterzählen brauchst du dann die PIN.",
+  "Lock scoring": "Zählen sperren",
+  "Locked — the PIN is needed to score": "Gesperrt — zum Zählen braucht es die PIN",
+  "No scorer PIN yet. This tablet is on the cable and needs none — but Wi-Fi tablets can't score until one is set (Settings ▸ Access).": "Noch keine Schreiber-PIN. Dieses Tablet ist am Kabel und braucht keine — aber Wi-Fi-Tablets können erst zählen, wenn eine gesetzt ist (Einstellungen ▸ Zugriff).",
+  "No scorer PIN yet. This tablet is on the cable, so it never needs one — but tablets on the board's Wi-Fi can't score until you set one here.": "Noch keine Schreiber-PIN. Dieses Tablet ist am Kabel und braucht nie eine — aber Tablets im Wi-Fi der Tafel können erst zählen, wenn du hier eine setzt.",
+  "This tablet is on the cable, so it never needs the PIN. Tablets on the board's Wi-Fi do.": "Dieses Tablet ist am Kabel und braucht die PIN nie. Tablets im Wi-Fi der Tafel schon.",
+  "This board must have a scorer PIN: type a new one to change it. It can't be removed.": "Diese Tafel braucht eine Schreiber-PIN: Gib zum Ändern eine neue ein. Entfernen geht nicht.",
+  "Shutting down…": "Wird heruntergefahren…",
+  "The panel will go dark in a few seconds.": "Die Anzeige wird in ein paar Sekunden dunkel.",
+  "Now press the power button to switch it off": "Drücke jetzt den Power-Knopf zum Ausschalten",
+  "Back to the scoreboard": "Zurück zur Anzeigetafel",
+  "Restarting…": "Wird neu gestartet…",
+  "The panel goes dark, then comes back in about 45 seconds. This page reconnects by itself.": "Die Anzeige wird dunkel und kommt nach etwa 45 Sekunden zurück. Diese Seite verbindet sich von selbst neu.",
+  "Shut down the scoreboard?": "Anzeigetafel herunterfahren?",
+  "Shut down": "Herunterfahren",
+  "Shutdown failed": "Herunterfahren fehlgeschlagen",
+  "Restart the scoreboard? It is back in about 45 seconds; the game is kept.": "Anzeigetafel neu starten? Sie ist nach etwa 45 Sekunden zurück; das Spiel bleibt erhalten.",
+  "Restart": "Neu starten",
+  "Restart failed": "Neustart fehlgeschlagen",
+  "Go back to the start screen? The score stays saved.": "Zurück zum Startbildschirm? Der Spielstand bleibt gespeichert.",
+  "That did not work. Tap again.": "Das hat nicht geklappt. Tippe nochmals.",
+  "Choose the sport": "Sportart wählen",
+  "Switching restarts the board with the new rules and layout — about 8 seconds.": "Beim Wechsel startet die Tafel mit den neuen Regeln und dem neuen Layout neu — etwa 8 Sekunden.",
+  "Game menu": "Spielmenü",
+  "Open the game menu for the current sport": "Spielmenü der aktuellen Sportart öffnen",
+  "Open diagnostics and the live log": "Diagnose und Live-Log öffnen",
+  "Keep current sport": "Aktuelle Sportart behalten",
+  "Get the Point Hub app": "Point Hub App holen",
+  "Get the Point Hub app for this tablet": "Point Hub App für dieses Tablet holen",
+  "current": "aktuell",
+  "CURRENT": "AKTUELL",
+  "Volleyball": "Volleyball",
+  "Switching to Volleyball… the board restarts (about 8 seconds).": "Wechsel zu Volleyball … die Tafel startet neu (etwa 8 Sekunden).",
+  "Volleyball ready": "Volleyball bereit",
+  "Timing, allowances, blink and match format apply to Volleyball. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Zeiten, Limiten, Blinken und Spielformat gelten für Volleyball. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatische Spielvorbereitung gelten für alle Sportarten.",
+  "Beach volleyball": "Beachvolleyball",
+  "Switching to Beach volleyball… the board restarts (about 8 seconds).": "Wechsel zu Beachvolleyball … die Tafel startet neu (etwa 8 Sekunden).",
+  "Beach volleyball ready": "Beachvolleyball bereit",
+  "Timing, allowances, blink and match format apply to Beach volleyball. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Zeiten, Limiten, Blinken und Spielformat gelten für Beachvolleyball. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatische Spielvorbereitung gelten für alle Sportarten.",
+  "Basketball": "Basketball",
+  "Switching to Basketball… the board restarts (about 8 seconds).": "Wechsel zu Basketball … die Tafel startet neu (etwa 8 Sekunden).",
+  "Basketball ready": "Basketball bereit",
+  "Timing, allowances, blink and match format apply to Basketball. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Zeiten, Limiten, Blinken und Spielformat gelten für Basketball. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatische Spielvorbereitung gelten für alle Sportarten.",
+  "Simple scoreboard": "Einfache Anzeigetafel",
+  "Switching to Simple scoreboard… the board restarts (about 8 seconds).": "Wechsel zu Einfache Anzeigetafel … die Tafel startet neu (etwa 8 Sekunden).",
+  "Simple scoreboard ready": "Einfache Anzeigetafel bereit",
+  "Timing, allowances, blink and match format apply to Simple scoreboard. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports.": "Zeiten, Limiten, Blinken und Spielformat gelten für Einfache Anzeigetafel. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatische Spielvorbereitung gelten für alle Sportarten.",
+  "The board is taking a while to restart — it'll switch on its own once it's back.": "Die Tafel braucht etwas länger für den Neustart — sie wechselt von selbst, sobald sie zurück ist.",
+  "Scoring is locked — enter the scorer PIN, then choose again.": "Zählen ist gesperrt — gib die Schreiber-PIN ein und wähle nochmals.",
+  "Start or continue a game": "Spiel starten oder fortsetzen",
+  "What would you like to do?": "Was möchtest du tun?",
+  "Today's home games": "Heimspiele heute",
+  "TODAY'S HOME GAMES": "HEIMSPIELE HEUTE",
+  "No home game today": "Heute kein Heimspiel",
+  "NO HOME GAME TODAY": "HEUTE KEIN HEIMSPIEL",
+  "Today's games could not be loaded": "Spiele von heute konnten nicht geladen werden",
+  "TODAY'S GAMES COULD NOT BE LOADED": "SPIELE VON HEUTE KONNTEN NICHT GELADEN WERDEN",
+  "Another game from the schedule": "Anderes Spiel aus dem Spielplan",
+  "Opens the season's home games": "Öffnet die Heimspiele der Saison",
+  "Link a scoresheet": "eScoresheet verbinden",
+  "The board follows a match scored in OpenVolley": "Die Tafel folgt einem Spiel, das in OpenVolley gezählt wird",
+  "Type the names, score from 0–0": "Namen eingeben, ab 0–0 zählen",
+  "Back": "Zurück",
+  "‹ Back": "‹ Zurück",
+  "Continue game": "Spiel fortsetzen",
+  "New game": "Neues Spiel",
+  "How do you want to score it?": "Wie möchtest du zählen?",
+  "From the schedule, linked to a scoresheet, or manual": "Aus dem Spielplan, mit eScoresheet oder manuell",
+  "Delete saved game": "Gespeichertes Spiel löschen",
+  "Forget the match in progress": "Laufendes Spiel vergessen",
+  "Nothing saved for this sport yet.": "Für diese Sportart ist noch nichts gespeichert.",
+  "There's a match in progress on this board.": "Auf dieser Tafel läuft ein Spiel.",
+  "That saved game is gone — it was cleared from somewhere else. Start a new one.": "Dieses gespeicherte Spiel ist weg — es wurde anderswo gelöscht. Starte ein neues.",
+  "Start new game": "Neues Spiel starten",
+  "Delete": "Löschen",
+  "Saved game deleted": "Gespeichertes Spiel gelöscht",
+  "Scoring is locked — enter the scorer PIN, then tap the game again.": "Zählen ist gesperrt — gib die Schreiber-PIN ein und tippe das Spiel nochmals an.",
+  "Prepare game": "Spiel vorbereiten",
+  "Start game": "Spiel starten",
+  "Couldn't start a new game — try the game menu.": "Neues Spiel konnte nicht gestartet werden — versuche es im Spielmenü.",
+  "Match result": "Spielresultat",
+  "Match drawn": "Unentschieden",
+  "Start the next match from 0–0": "Nächstes Spiel ab 0–0 starten",
+  "Close": "Schliessen",
+  "No completed periods recorded": "Keine abgeschlossenen Perioden erfasst",
+  "No completed sets recorded": "Keine abgeschlossenen Sätze erfasst",
+  "Shown here only — the board has no result screen.": "Nur hier angezeigt — die Tafel hat keinen Resultatbildschirm.",
+  "Update ready — it installs itself between matches.": "Update bereit — es installiert sich zwischen den Spielen selbst.",
+  "Reload now": "Jetzt neu laden",
+  "Secure address available — it switches between matches.": "Sichere Adresse verfügbar — sie wechselt zwischen den Spielen.",
+  "Switch": "Wechseln",
+  "Opens full screen, in landscape, and keeps the screen awake for the match.": "Öffnet im Vollbild und Querformat und hält den Bildschirm während des Spiels wach.",
+  "Tap to start": "Zum Starten tippen",
+  "Continue without full screen": "Ohne Vollbild weiter",
+  "Continue without": "Ohne weiter",
+  "Tap once so the screen stays awake for the match.": "Einmal tippen, damit der Bildschirm während des Spiels wach bleibt.",
+  "Tip: turn the phone sideways for bigger buttons.": "Tipp: Drehe das Handy quer für grössere Knöpfe.",
+  "Hide this tip": "Tipp ausblenden",
+  "Full screen isn't supported by this browser": "Dieser Browser kann kein Vollbild",
+  "Full screen is blocked inside this frame — open the page in its own tab": "Vollbild ist in diesem Rahmen blockiert — öffne die Seite in einem eigenen Tab",
+  "Screen will stay awake": "Bildschirm bleibt wach",
+  "Couldn't hold the screen on — set the tablet's display timeout to Never": "Bildschirm bleibt nicht an — stelle die Bildschirmzeit des Tablets auf «Nie»",
+  "Today at the hall": "Heute in der Halle",
+  "↻ Refresh": "↻ Aktualisieren",
+  "Loading today's games…": "Spiele von heute werden geladen…",
+  "Upcoming home games": "Nächste Heimspiele",
+  "Show whole season": "Ganze Saison zeigen",
+  "Show whole season (1 more day)": "Ganze Saison zeigen (1 weiterer Tag)",
+  "Live matches on this network": "Live-Spiele in diesem Netz",
+  "↻ Refresh matches": "↻ Spiele aktualisieren",
+  "Tap “Refresh matches” to find a match an OpenVolley laptop is scoring on this network.": "Tippe auf «Spiele aktualisieren», um ein Spiel zu finden, das ein OpenVolley-Laptop in diesem Netz zählt.",
+  "No schedule yet — the board downloads it as soon as it has internet": "Noch kein Spielplan — die Tafel lädt ihn, sobald sie Internet hat",
+  "offline — showing the schedule saved on the board": "offline — Spielplan von der Tafel",
+  "Season schedule": "Spielplan der Saison",
+  "Couldn't load today's games from the board.": "Spiele von heute konnten nicht von der Tafel geladen werden.",
+  "Couldn't load today's games.": "Spiele von heute konnten nicht geladen werden.",
+  "Couldn't load today's games from the board. You can still type the names on the Game tab.": "Spiele von heute konnten nicht von der Tafel geladen werden. Du kannst die Namen weiterhin im Tab Spiel eingeben.",
+  "Couldn't load today's games. You can still type the names on the Game tab.": "Spiele von heute konnten nicht geladen werden. Du kannst die Namen weiterhin im Tab Spiel eingeben.",
+  "No home games today.": "Heute keine Heimspiele.",
+  "1 game": "1 Spiel",
+  "Prepare": "Vorbereiten",
+  "Start": "Starten",
+  "Postponed": "Verschoben",
+  "Cancelled": "Abgesagt",
+  "No match on the scorer laptop yet. Open the match there, then tap Refresh.": "Noch kein Spiel auf dem Schreiber-Laptop. Öffne das Spiel dort und tippe dann auf Aktualisieren.",
+  "Live match linking isn't set up on this board — type the scorer laptop's address in Settings. Scoring by hand on the Game tab works as normal.": "Verbinden mit Live-Spielen ist auf dieser Tafel nicht eingerichtet — gib die Adresse des Schreiber-Laptops in den Einstellungen ein. Von Hand zählen im Tab Spiel geht wie gewohnt.",
+  "The OpenVolley laptop isn't on this network. Scoring by hand on the Game tab works as normal.": "Der OpenVolley-Laptop ist nicht in diesem Netz. Von Hand zählen im Tab Spiel geht wie gewohnt.",
+  "The OpenVolley laptop isn't on this network. Connect it to the board's Wi-Fi, or type its address in Settings. Scoring by hand on the Game tab works as normal.": "Der OpenVolley-Laptop ist nicht in diesem Netz. Verbinde ihn mit dem Wi-Fi der Tafel oder gib seine Adresse in den Einstellungen ein. Von Hand zählen im Tab Spiel geht wie gewohnt.",
+  "Can't reach the scoresheet server — the board may have no internet connection. Scoring by hand on the Game tab still works.": "Der eScoresheet-Server ist nicht erreichbar — vielleicht hat die Tafel kein Internet. Von Hand zählen im Tab Spiel geht weiterhin.",
+  "The scoresheet server answered with an error. Try Refresh in a minute — scoring by hand still works.": "Der eScoresheet-Server hat mit einem Fehler geantwortet. Tippe in einer Minute auf Aktualisieren — von Hand zählen geht weiterhin.",
+  "⚠ Live match linking isn't set up on this board — type the scorer laptop's address in Settings. Scoring by hand on the Game tab works as normal.": "⚠ Verbinden mit Live-Spielen ist auf dieser Tafel nicht eingerichtet — gib die Adresse des Schreiber-Laptops in den Einstellungen ein. Von Hand zählen im Tab Spiel geht wie gewohnt.",
+  "⚠ The OpenVolley laptop isn't on this network. Scoring by hand on the Game tab works as normal.": "⚠ Der OpenVolley-Laptop ist nicht in diesem Netz. Von Hand zählen im Tab Spiel geht wie gewohnt.",
+  "⚠ The OpenVolley laptop isn't on this network. Connect it to the board's Wi-Fi, or type its address in Settings. Scoring by hand on the Game tab works as normal.": "⚠ Der OpenVolley-Laptop ist nicht in diesem Netz. Verbinde ihn mit dem Wi-Fi der Tafel oder gib seine Adresse in den Einstellungen ein. Von Hand zählen im Tab Spiel geht wie gewohnt.",
+  "⚠ Can't reach the scoresheet server — the board may have no internet connection. Scoring by hand on the Game tab still works.": "⚠ Der eScoresheet-Server ist nicht erreichbar — vielleicht hat die Tafel kein Internet. Von Hand zählen im Tab Spiel geht weiterhin.",
+  "⚠ The scoresheet server answered with an error. Try Refresh in a minute — scoring by hand still works.": "⚠ Der eScoresheet-Server hat mit einem Fehler geantwortet. Tippe in einer Minute auf Aktualisieren — von Hand zählen geht weiterhin.",
+  "No scorer laptop answered.": "Kein Schreiber-Laptop hat geantwortet.",
+  "Looking for the scorer laptop on the board's Wi-Fi…": "Schreiber-Laptop im Wi-Fi der Tafel wird gesucht…",
+  "No answer.": "Keine Antwort.",
+  "Game info": "Spielinfo",
+  "KSCW roster": "KSCW-Kader",
+  "No roster yet.": "Noch kein Kader.",
+  "No players on the sheet yet.": "Noch keine Spieler auf dem Blatt.",
+  "Captain": "Captain",
+  "Couldn't load the game.": "Spiel konnte nicht geladen werden.",
+  "Couldn't load the game from the board.": "Spiel konnte nicht von der Tafel geladen werden.",
+  "Clear history": "Verlauf löschen",
+  "No matches recorded yet.": "Noch keine Spiele erfasst.",
+  "Downloaded CSV": "CSV heruntergeladen",
+  "Downloaded JSON": "JSON heruntergeladen",
+  "Clear all recorded matches? This can't be undone.": "Alle erfassten Spiele löschen? Das lässt sich nicht rückgängig machen.",
+  "Clear all": "Alles löschen",
+  "History cleared": "Verlauf gelöscht",
+  "Language": "Sprache",
+  "Scorer laptop": "Schreiber-Laptop",
+  "Scorer laptop address": "Adresse des Schreiber-Laptops",
+  "Find it automatically": "Automatisch suchen",
+  "Check": "Prüfen",
+  "The laptop scoring the match in OpenVolley, by its address on the board's Wi-Fi:": "Der Laptop, der das Spiel in OpenVolley zählt, mit seiner Adresse im Wi-Fi der Tafel:",
+  ", or": ", oder",
+  "when its relay is not on port 8080. Leave it empty and the board looks for the laptop on its own Wi-Fi and cable whenever the match list is refreshed. Check saves the address and asks the laptop for its matches.": "wenn sein Relay nicht auf Port 8080 läuft. Lass das Feld leer, dann sucht die Tafel den Laptop bei jedem Aktualisieren der Spielliste in ihrem Wi-Fi und am Kabel. Prüfen speichert die Adresse und fragt den Laptop nach seinen Spielen.",
+  "Board screen": "Bildschirm der Tafel",
+  "What the board's touchscreen opens": "Was der Touchscreen der Tafel öffnet",
+  "Ask at start: Point Hub or OpenVolley": "Beim Start fragen: Point Hub oder OpenVolley",
+  "Nothing (screen off)": "Nichts (Bildschirm aus)",
+  "With OpenVolley on the screen the score is kept there, and the LED panel follows the live match by itself. Other tablets on the cable can open the referee and bench screens at http://192.168.5.1:5173. Saving restarts the screen, so change it between matches.": "Mit OpenVolley auf dem Bildschirm wird dort gezählt, und die Anzeige folgt dem Live-Spiel von selbst. Andere Tablets am Kabel können die Schiedsrichter- und Bank-Ansicht unter http://192.168.5.1:5173 öffnen. Speichern startet den Bildschirm neu, also zwischen den Spielen ändern.",
+  "Board feedback": "Rückmeldung der Tafel",
+  "Blink the point on the board": "Punkt auf der Tafel blinken lassen",
+  "Blink substitutions": "Wechsel blinken lassen",
+  "Blink length": "Blinkdauer",
+  "Countdowns": "Countdowns",
+  "Timing, allowances, blink and match format are set per sport.": "Zeiten, Limiten, Blinken und Spielformat gelten pro Sportart.",
+  "Show on timeout": "Beim Timeout zeigen",
+  "Timeout length": "Timeout-Dauer",
+  "Technical time-out": "Technisches Timeout",
+  "Show on set interval": "In der Satzpause zeigen",
+  "Set interval": "Satzpause",
+  "Horn when a countdown ends": "Horn am Ende eines Countdowns",
+  "Display": "Anzeige",
+  "Panel brightness": "Helligkeit der Anzeige",
+  "How bright the LED panel drives.": "So hell leuchtet die LED-Anzeige.",
+  "0 turns the panel off": "0 schaltet die Anzeige aus",
+  "to save power — the controller stays reachable, so set any value above 0 to switch it back on. 5–100 is on; the panel blinks for about a second while it restarts at the new level.": "und spart Strom — die Steuerung bleibt erreichbar, stelle also einen Wert über 0 ein, um sie wieder einzuschalten. 5–100 heisst an; die Anzeige blinkt etwa eine Sekunde, während sie mit der neuen Helligkeit neu startet.",
+  "Finished sets on the interval screen": "Beendete Sätze in der Satzpause",
+  "During the set interval the panel shows each finished set (25-21, 23-25…) under the clock, left team first. Only for matches scored on this board — a linked match sends no set scores.": "In der Satzpause zeigt die Anzeige jeden beendeten Satz (25-21, 23-25…) unter der Uhr, linkes Team zuerst. Nur für Spiele, die auf dieser Tafel gezählt werden — ein verbundenes Spiel sendet keine Satzresultate.",
+  "Theme": "Farbschema",
+  "Light": "Hell",
+  "Dark": "Dunkel",
+  "E-ink": "E-Ink",
+  "Light is the standard look. Dark is easier on the eyes in a dim hall. E-ink is black on white at full contrast, for reading in bright sun. Only this phone or tablet changes — the board and every other screen keep their own.": "Hell ist die Standardansicht. Dunkel schont die Augen in einer dunklen Halle. E-Ink ist schwarz auf weiss mit vollem Kontrast, gut lesbar bei hellem Sonnenlicht. Es ändert nur dieses Handy oder Tablet — die Tafel und alle anderen Bildschirme behalten ihres.",
+  "Match format": "Spielformat",
+  "Best of": "Spiel über",
+  "3 sets": "3 Sätze",
+  "5 sets": "5 Sätze",
+  "Total timeouts / set": "Timeouts pro Satz",
+  "Total subs / set": "Wechsel pro Satz",
+  "Name size — left": "Namensgrösse — links",
+  "Name size — right": "Namensgrösse — rechts",
+  "Best-of decides how many sets win the match. Timeouts go red at the total; subs go amber one short and red at the total. The name sizes are scoreboard ceilings — a long name still shrinks to clear the set counter, so these mainly decide how big a SHORT name gets. One per side, and each name row on the Game tab has its own −/+ that applies straight away. Left and right are where the teams stand now, and a size stays with its team when they change ends.": "«Spiel über» bestimmt, wie viele Sätze das Spiel gewinnen. Timeouts werden beim Maximum rot; Wechsel werden eins davor orange und beim Maximum rot. Die Namensgrössen sind Obergrenzen — ein langer Name wird trotzdem kleiner, damit der Satzzähler frei bleibt, sie bestimmen also vor allem, wie gross ein KURZER Name wird. Eine pro Seite, und jede Namenszeile im Tab Spiel hat ihr eigenes −/+, das sofort gilt. Links und rechts ist, wo die Teams jetzt stehen, und eine Grösse bleibt beim Team, wenn es die Seite wechselt.",
+  "Crest screen": "Wappen-Bildschirm",
+  "Show full club names": "Volle Vereinsnamen zeigen",
+  "Largest name size": "Grösste Namensgrösse",
+  "The pre-match screen beside the crest. Long names are shrunk automatically to fit the panel, so this size is the ceiling — what a short name like KSCW gets. Turn the switch off to show short codes instead.": "Der Bildschirm vor dem Spiel neben dem Wappen. Lange Namen werden automatisch verkleinert, damit sie auf die Anzeige passen; diese Grösse ist also die Obergrenze — so gross wird ein kurzer Name wie KSCW. Schalte den Schalter aus, um stattdessen Kurzcodes zu zeigen.",
+  "Show the connect QR codes when nobody is on the controller": "QR-Codes zum Verbinden zeigen, wenn niemand an der Steuerung ist",
+  "\"Join WiFi\" and \"Open UI\" beside the crest, for the next person to get connected. The Wi-Fi one hands the board's Wi-Fi password to anyone in the hall. Off: the crest and the clock instead. The codes still show while the board starts up.": "«Join WiFi» und «Open UI» neben dem Wappen, damit sich die nächste Person verbinden kann. Der Wi-Fi-Code gibt allen in der Halle das Wi-Fi-Passwort der Tafel. Aus: stattdessen Wappen und Uhr. Beim Start der Tafel erscheinen die Codes trotzdem.",
+  "Board identity": "Tafel",
+  "Crest / branding": "Wappen / Branding",
+  "KSC Wiedikon": "KSC Wiedikon",
+  "Plain (no logo)": "Schlicht (ohne Logo)",
+  "Scorer sits behind the board": "Schreiber sitzt hinter der Tafel",
+  "Connect to live scoring": "Mit Live-Scoring verbinden",
+  "Off": "Aus",
+  "Branding sets the idle / crest screen — KSC Wiedikon shows the club crest, Plain shows the team names only. Live scoring publishes the running score to the public /live page. With the scorer behind the board, the Game tab's team cards are swapped to match what the scorer sees — the team on your left is the one on the panel's right. The preview under them always shows the panel as the court sees it.": "Das Branding legt den Wappen-Bildschirm fest — KSC Wiedikon zeigt das Vereinswappen, Schlicht nur die Teamnamen. Live-Scoring veröffentlicht den laufenden Spielstand auf der öffentlichen Seite /live. Sitzt der Schreiber hinter der Tafel, werden die Teamkarten im Tab Spiel getauscht, damit sie zu seiner Sicht passen — das Team links von dir ist auf der Anzeige rechts. Die Vorschau darunter zeigt die Anzeige immer so, wie man sie vom Feld aus sieht.",
+  "Schedule": "Spielplan",
+  "Suggest tonight's home game (60 min before)": "Heimspiel von heute Abend vorschlagen (60 Min. vorher)",
+  "An hour before a home game on the club's schedule, the console asks whether to set it up:": "Eine Stunde vor einem Heimspiel im Spielplan des Vereins fragt die Konsole, ob es eingerichtet werden soll:",
+  "puts both names up at 0–0 while the board keeps showing the clock, the same as tapping the game on the Link tab. With two or more home games that day it lists them and you pick yours. Nothing goes on the board without a tap, a match being scored is never offered over, and": "setzt beide Namen bei 0–0, und die Tafel zeigt weiter die Uhr, genau wie wenn du das Spiel im Tab Verbinden antippst. Bei zwei oder mehr Heimspielen an dem Tag listet sie sie auf und du wählst deines. Nichts kommt ohne Tippen auf die Tafel, ein laufendes Spiel wird nie ersetzt, und",
+  "stays not now for the evening. Needs the board's clock, so it waits until the board has been online once.": "gilt für den ganzen Abend. Braucht die Uhr der Tafel und wartet darum, bis die Tafel einmal online war.",
+  "Club": "Verein",
+  "Club name": "Vereinsname",
+  "For the club logo / idle screen — available once the board accepts an image upload. Countdowns now use fixed labels (TO ·, INTERVAL, WARM UP).": "Für das Vereinslogo / Ruhebild — verfügbar, sobald die Tafel ein Bild annimmt. Countdowns verwenden jetzt feste Texte (TO ·, INTERVAL, WARM UP).",
+  "Access": "Zugriff",
+  "unchanged": "unverändert",
+  "Set a digits-only PIN so only your scorer can change the score — anyone who scans the board can still watch, not touch. Leave blank to keep the current PIN.": "Setze eine PIN nur aus Ziffern, damit nur dein Schreiber den Spielstand ändern kann — wer die Tafel scannt, kann zuschauen, aber nichts ändern. Leer lassen behält die aktuelle PIN.",
+  "Remove the PIN — anyone can score": "PIN entfernen — alle können zählen",
+  "Remove the scorer PIN? Anyone who opens the controller will be able to score.": "Schreiber-PIN entfernen? Dann kann jeder zählen, der die Steuerung öffnet.",
+  "Remove PIN": "PIN entfernen",
+  "The board kept the PIN — update the appliance and try again.": "Die Tafel hat die PIN behalten — aktualisiere die Tafel und versuche es nochmals.",
+  "PIN removed — scoring is open": "PIN entfernt — Zählen ist offen",
+  "Everything the board does — board writes, relay traffic, every scoring action, settings changes and errors — is recorded and live-viewable. Open this first when something looks wrong; it is also what to send with a bug report.": "Alles, was die Tafel tut — Schreibvorgänge, Relay-Verkehr, jede Zählaktion, geänderte Einstellungen und Fehler — wird erfasst und ist live einsehbar. Öffne das zuerst, wenn etwas nicht stimmt; es gehört auch zu jeder Fehlermeldung.",
+  "Open the log viewer": "Log-Anzeige öffnen",
+  "Open the virtual board": "Virtuelle Tafel öffnen",
+  "Tablet app": "Tablet-App",
+  "no backups yet": "noch keine Backups",
+  "1 backup on this tablet": "1 Backup auf diesem Tablet",
+  ". The app keeps a copy of every set and match on the tablet, so a board failure loses nothing.": ". Die App behält von jedem Satz und Spiel eine Kopie auf dem Tablet, ein Ausfall der Tafel kostet also nichts.",
+  "Export backups to the tablet": "Backups aufs Tablet exportieren",
+  "Nothing to export yet — or an export is already open": "Noch nichts zu exportieren — oder ein Export ist schon offen",
+  "The backups could not be written — try again": "Die Backups konnten nicht geschrieben werden — versuche es nochmals",
+  "Get the tablet app": "Tablet-App holen",
+  "Power": "Strom",
+  "Halt the scoreboard cleanly before switching the power off — protects the memory card. Restart brings it straight back (about 45 seconds) — try it first when the board looks stuck.": "Fahre die Anzeigetafel sauber herunter, bevor du den Strom ausschaltest — das schont die Speicherkarte. Neu starten bringt sie gleich zurück (etwa 45 Sekunden) — versuche das zuerst, wenn die Tafel hängt.",
+  "Restart board": "Tafel neu starten",
+  "Saved on the board — these survive a restart.": "Auf der Tafel gespeichert — bleibt nach einem Neustart erhalten.",
+  "Saved.": "Gespeichert.",
+  "Saved": "Gespeichert",
+  "Saved ✓": "Gespeichert ✓",
+  "Save changes": "Änderungen speichern",
+  "Not saved": "Nicht gespeichert",
+  "Not saved.": "Nicht gespeichert.",
+  "Couldn't save the settings": "Einstellungen konnten nicht gespeichert werden",
+  "The board didn't answer in time — try again.": "Die Tafel hat nicht rechtzeitig geantwortet — versuche es nochmals.",
+  "The hall's free Wi-Fi lets the board onto the internet only after a login\n            with a code by SMS, and the login lasts about a day. Live scoring, the club schedule and\n            the board's clock need it; the scoreboard itself does not. Type your own mobile number —\n            it is used for this login only and is not saved on the board.": "Das Gratis-Wi-Fi der Halle lässt die Tafel erst nach einer Anmeldung mit SMS-Code ins Internet, und die Anmeldung hält etwa einen Tag. Live-Scoring, der Spielplan des Vereins und die Uhr der Tafel brauchen das; die Anzeigetafel selbst nicht. Gib deine eigene Handynummer ein — sie wird nur für diese Anmeldung verwendet und nicht auf der Tafel gespeichert.",
+  "The laptop scoring the match in OpenVolley, by its address on the board's\n            Wi-Fi:": "Der Laptop, der das Spiel in OpenVolley zählt, mit seiner Adresse im Wi-Fi der Tafel:",
+  "when its relay is not on\n            port 8080. Leave it empty and the board looks for the laptop on its own Wi-Fi and cable\n            whenever the match list is refreshed. Check saves the address and asks the laptop for\n            its matches.": "wenn sein Relay nicht auf Port 8080 läuft. Lass das Feld leer, dann sucht die Tafel den Laptop bei jedem Aktualisieren der Spielliste in ihrem Wi-Fi und am Kabel. Prüfen speichert die Adresse und fragt den Laptop nach seinen Spielen.",
+  "With OpenVolley on the screen the score is kept there, and the LED panel follows\n            the live match by itself. Other tablets on the cable can open the referee and bench screens\n            at http://192.168.5.1:5173. Saving restarts the screen, so change it between matches.": "Mit OpenVolley auf dem Bildschirm wird dort gezählt, und die Anzeige folgt dem Live-Spiel von selbst. Andere Tablets am Kabel können die Schiedsrichter- und Bank-Ansicht unter http://192.168.5.1:5173 öffnen. Speichern startet den Bildschirm neu, also zwischen den Spielen ändern.",
+  "to save power —\n            the controller stays reachable, so set any value above 0 to switch it back on. 5–100 is on; the panel\n            blinks for about a second while it restarts at the new level.": "und spart Strom — die Steuerung bleibt erreichbar, stelle also einen Wert über 0 ein, um sie wieder einzuschalten. 5–100 heisst an; die Anzeige blinkt etwa eine Sekunde, während sie mit der neuen Helligkeit neu startet.",
+  "During the set interval the panel shows each finished set (25-21, 23-25…) under the\n            clock, left team first. Only for matches scored on this board — a linked match sends no set scores.": "In der Satzpause zeigt die Anzeige jeden beendeten Satz (25-21, 23-25…) unter der Uhr, linkes Team zuerst. Nur für Spiele, die auf dieser Tafel gezählt werden — ein verbundenes Spiel sendet keine Satzresultate.",
+  "Light is the standard look. Dark is easier on the eyes in a dim hall. E-ink is\n            black on white at full contrast, for reading in bright sun. Only this phone or tablet\n            changes — the board and every other screen keep their own.": "Hell ist die Standardansicht. Dunkel schont die Augen in einer dunklen Halle. E-Ink ist schwarz auf weiss mit vollem Kontrast, gut lesbar bei hellem Sonnenlicht. Es ändert nur dieses Handy oder Tablet — die Tafel und alle anderen Bildschirme behalten ihres.",
+  "Best-of decides how many sets win the match. Timeouts go red at the\n            total; subs go amber one short and red at the total. The name sizes are scoreboard\n            ceilings — a long name still shrinks to clear the set counter, so these mainly decide\n            how big a SHORT name gets. One per side, and each name row on the Game tab has its own\n            −/+ that applies straight away. Left and right are where the teams stand now, and a\n            size stays with its team when they change ends.": "«Spiel über» bestimmt, wie viele Sätze das Spiel gewinnen. Timeouts werden beim Maximum rot; Wechsel werden eins davor orange und beim Maximum rot. Die Namensgrössen sind Obergrenzen — ein langer Name wird trotzdem kleiner, damit der Satzzähler frei bleibt, sie bestimmen also vor allem, wie gross ein KURZER Name wird. Eine pro Seite, und jede Namenszeile im Tab Spiel hat ihr eigenes −/+, das sofort gilt. Links und rechts ist, wo die Teams jetzt stehen, und eine Grösse bleibt beim Team, wenn es die Seite wechselt.",
+  "The pre-match screen beside the crest. Long names are shrunk\n            automatically to fit the panel, so this size is the ceiling — what a short\n            name like KSCW gets. Turn the switch off to show short codes instead.": "Der Bildschirm vor dem Spiel neben dem Wappen. Lange Namen werden automatisch verkleinert, damit sie auf die Anzeige passen; diese Grösse ist also die Obergrenze — so gross wird ein kurzer Name wie KSCW. Schalte den Schalter aus, um stattdessen Kurzcodes zu zeigen.",
+  "\"Join WiFi\" and \"Open UI\" beside the crest, for the next person to get\n            connected. The Wi-Fi one hands the board's Wi-Fi password to anyone in the hall. Off:\n            the crest and the clock instead. The codes still show while the board starts up.": "«Join WiFi» und «Open UI» neben dem Wappen, damit sich die nächste Person verbinden kann. Der Wi-Fi-Code gibt allen in der Halle das Wi-Fi-Passwort der Tafel. Aus: stattdessen Wappen und Uhr. Beim Start der Tafel erscheinen die Codes trotzdem.",
+  "Branding sets the idle / crest screen — KSC Wiedikon shows the club crest,\n            Plain shows the team names only. Live scoring publishes the running score to the\n            public /live page. With the scorer behind the board, the Game tab's team cards are\n            swapped to match what the scorer sees — the team on your left is the one on the panel's\n            right. The preview under them always shows the panel as the court sees it.": "Das Branding legt den Wappen-Bildschirm fest — KSC Wiedikon zeigt das Vereinswappen, Schlicht nur die Teamnamen. Live-Scoring veröffentlicht den laufenden Spielstand auf der öffentlichen Seite /live. Sitzt der Schreiber hinter der Tafel, werden die Teamkarten im Tab Spiel getauscht, damit sie zu seiner Sicht passen — das Team links von dir ist auf der Anzeige rechts. Die Vorschau darunter zeigt die Anzeige immer so, wie man sie vom Feld aus sieht.",
+  "An hour before a home game on the club's schedule, the console asks\n            whether to set it up:": "Eine Stunde vor einem Heimspiel im Spielplan des Vereins fragt die Konsole, ob es eingerichtet werden soll:",
+  "puts both names up at 0–0 while the board keeps\n            showing the clock, the same as tapping the game on the Link tab. With two or more home\n            games that day it lists them and you pick yours. Nothing goes on the board without a\n            tap, a match being scored is never offered over, and": "setzt beide Namen bei 0–0, und die Tafel zeigt weiter die Uhr, genau wie wenn du das Spiel im Tab Verbinden antippst. Bei zwei oder mehr Heimspielen an dem Tag listet sie sie auf und du wählst deines. Nichts kommt ohne Tippen auf die Tafel, ein laufendes Spiel wird nie ersetzt, und",
+  "stays not now for\n            the evening. Needs the board's clock, so it waits until the board has been online once.": "gilt für den ganzen Abend. Braucht die Uhr der Tafel und wartet darum, bis die Tafel einmal online war.",
+  "For the club logo / idle screen — available once the board accepts an\n            image upload. Countdowns now use fixed labels (TO ·, INTERVAL, WARM UP).": "Für das Vereinslogo / Ruhebild — verfügbar, sobald die Tafel ein Bild annimmt. Countdowns verwenden jetzt feste Texte (TO ·, INTERVAL, WARM UP).",
+  "Everything the board does — board writes, relay traffic, every scoring\n            action, settings changes and errors — is recorded and live-viewable. Open this first\n            when something looks wrong; it is also what to send with a bug report.": "Alles, was die Tafel tut — Schreibvorgänge, Relay-Verkehr, jede Zählaktion, geänderte Einstellungen und Fehler — wird erfasst und ist live einsehbar. Öffne das zuerst, wenn etwas nicht stimmt; es gehört auch zu jeder Fehlermeldung."
+ },
+ "patterns": [
+  [
+   "^Link: Live$",
+   "Verbindung: Live"
+  ],
+  [
+   "^Link: Waiting for the scoresheet$",
+   "Verbindung: warte auf das eScoresheet"
+  ],
+  [
+   "^Link: Link lost$",
+   "Verbindung verloren"
+  ],
+  [
+   "^Link: Match ended$",
+   "Verbindung: Spiel beendet"
+  ],
+  [
+   "^LedBox connected \\((.+)\\)$",
+   "LedBox verbunden ($1)"
+  ],
+  [
+   "^Set (I|II|III|IV|V|VI|VII)$",
+   "Satz $1"
+  ],
+  [
+   "^Scores are still being recorded\\. Retrying (.+)… check the board is on and the cable is in\\.$",
+   "Die Punkte werden weiter erfasst. Neuer Versuch mit $1 … prüfe, ob die Tafel an ist und das Kabel steckt."
+  ],
+  [
+   "^Frozen at (\\d\\d:\\d\\d:\\d\\d)\\. Retrying on its own — check the tablet is on the board's Wi-Fi\\.$",
+   "Stand von $1. Neuer Versuch läuft von selbst — prüfe, ob das Tablet im Wi-Fi der Tafel ist."
+  ],
+  [
+   "^Hall Wi-Fi (.+) needs a login$",
+   "Hallen-Wi-Fi $1 braucht eine Anmeldung"
+  ],
+  [
+   "^Hall Wi-Fi (.+) — its login page is not answering$",
+   "Hallen-Wi-Fi $1 — die Anmeldeseite antwortet nicht"
+  ],
+  [
+   "^Wi-Fi until tomorrow (\\d\\d:\\d\\d)$",
+   "Wi-Fi bis morgen $1"
+  ],
+  [
+   "^Wi-Fi until (.+)$",
+   "Wi-Fi bis $1"
+  ],
+  [
+   "^tomorrow (\\d\\d:\\d\\d)$",
+   "morgen $1"
+  ],
+  [
+   "^Sun (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "So $1"
+  ],
+  [
+   "^Mon (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Mo $1"
+  ],
+  [
+   "^Tue (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Di $1"
+  ],
+  [
+   "^Wed (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Mi $1"
+  ],
+  [
+   "^Thu (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Do $1"
+  ],
+  [
+   "^Fri (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Fr $1"
+  ],
+  [
+   "^Sat (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)$",
+   "Sa $1"
+  ],
+  [
+   "^The hall Wi-Fi login runs out at tomorrow (\\d\\d:\\d\\d) — tap to log in again$",
+   "Die Anmeldung im Hallen-Wi-Fi läuft morgen um $1 ab — zum neu Anmelden tippen"
+  ],
+  [
+   "^The hall Wi-Fi login runs out at (.+) — tap to log in again$",
+   "Die Anmeldung im Hallen-Wi-Fi läuft um $1 ab — zum neu Anmelden tippen"
+  ],
+  [
+   "^Online — logged in until tomorrow (\\d\\d:\\d\\d)$",
+   "Online — angemeldet bis morgen $1"
+  ],
+  [
+   "^Online — logged in until (.+)$",
+   "Online — angemeldet bis $1"
+  ],
+  [
+   "^Online until tomorrow (\\d\\d:\\d\\d)$",
+   "Online bis morgen $1"
+  ],
+  [
+   "^Online until (.+)$",
+   "Online bis $1"
+  ],
+  [
+   "^The login runs out at tomorrow (\\d\\d:\\d\\d)\\. Live scoring stops then until someone logs in again here — it takes a minute and a phone\\.$",
+   "Die Anmeldung läuft morgen um $1 ab. Dann stoppt das Live-Scoring, bis sich hier jemand neu anmeldet — das braucht eine Minute und ein Handy."
+  ],
+  [
+   "^The login runs out at (.+)\\. Live scoring stops then until someone logs in again here — it takes a minute and a phone\\.$",
+   "Die Anmeldung läuft um $1 ab. Dann stoppt das Live-Scoring, bis sich hier jemand neu anmeldet — das braucht eine Minute und ein Handy."
+  ],
+  [
+   "^Start official warm-up \\((.+)\\)$",
+   "Offizielles Einwärmen ($1)"
+  ],
+  [
+   "^(.+) — set it up\\? The board keeps the clock until the warm-up\\.$",
+   "$1 — einrichten? Die Tafel zeigt bis zum Einwärmen die Uhr."
+  ],
+  [
+   "^(\\d+) home games today — pick yours\\.$",
+   "Heute $1 Heimspiele — wähle deines."
+  ],
+  [
+   "^Couldn't do that: (.+)$",
+   "Das ging nicht: $1"
+  ],
+  [
+   "^Couldn't start the match: (.+)$",
+   "Spiel konnte nicht gestartet werden: $1"
+  ],
+  [
+   "^Font size (\\d+)$",
+   "Schriftgrösse $1"
+  ],
+  [
+   "^Board preview: (.+), (.+)$",
+   "Vorschau der Tafel: $1, $2"
+  ],
+  [
+   "^(.+) score$",
+   "$1 Punkte"
+  ],
+  [
+   "^(.+) timeouts$",
+   "$1 Timeouts"
+  ],
+  [
+   "^(.+) subs$",
+   "$1 Wechsel"
+  ],
+  [
+   "^(.+) fouls$",
+   "$1 Fouls"
+  ],
+  [
+   "^(.+) SCORE$",
+   "$1 PUNKTE"
+  ],
+  [
+   "^(.+) SETS$",
+   "$1 SÄTZE"
+  ],
+  [
+   "^(.+) TIMEOUTS$",
+   "$1 TIMEOUTS"
+  ],
+  [
+   "^(.+) SUBS$",
+   "$1 WECHSEL"
+  ],
+  [
+   "^(.+) FOULS$",
+   "$1 FOULS"
+  ],
+  [
+   "^(.+) COLOUR$",
+   "$1 FARBE"
+  ],
+  [
+   "^(.+) colour$",
+   "$1 Farbe"
+  ],
+  [
+   "^decrease (.+)$",
+   "$1 verringern"
+  ],
+  [
+   "^increase (.+)$",
+   "$1 erhöhen"
+  ],
+  [
+   "^(.+) and (.+) look alike on the board\\. Both colours are too dark for the LEDs, so the board shows them light grey\\.$",
+   "$1 und $2 sehen auf der Tafel gleich aus. Beide Farben sind zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike on the board\\. (.+)'s colour is too dark for the LEDs, so the board shows it light grey\\.$",
+   "$1 und $2 sehen auf der Tafel gleich aus. Die Farbe von $3 ist zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike to red-green colour-blind spectators\\. Both colours are too dark for the LEDs, so the board shows them light grey\\.$",
+   "$1 und $2 sehen für rot-grün-blinde Zuschauer gleich aus. Beide Farben sind zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike to red-green colour-blind spectators\\. (.+)'s colour is too dark for the LEDs, so the board shows it light grey\\.$",
+   "$1 und $2 sehen für rot-grün-blinde Zuschauer gleich aus. Die Farbe von $3 ist zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau."
+  ],
+  [
+   "^(.+) and (.+) look alike on the board\\.$",
+   "$1 und $2 sehen auf der Tafel gleich aus."
+  ],
+  [
+   "^(.+) and (.+) look alike to red-green colour-blind spectators\\.$",
+   "$1 und $2 sehen für rot-grün-blinde Zuschauer gleich aus."
+  ],
+  [
+   "^(.+)'s colour is too dark for the LEDs, so the board shows it light grey\\.$",
+   "Die Farbe von $1 ist zu dunkel für die LEDs, darum zeigt die Tafel sie hellgrau."
+  ],
+  [
+   "^for (.+)$",
+   "für $1"
+  ],
+  [
+   "^Use (#[0-9A-Fa-f]+) for the left team \\(the board and this console\\)$",
+   "$1 für das linke Team verwenden (Tafel und diese Konsole)"
+  ],
+  [
+   "^Use (#[0-9A-Fa-f]+) for the right team \\(the board and this console\\)$",
+   "$1 für das rechte Team verwenden (Tafel und diese Konsole)"
+  ],
+  [
+   "^Use (#[0-9A-Fa-f]+) for (.+) \\(the board and this console\\)$",
+   "$1 für $2 verwenden (Tafel und diese Konsole)"
+  ],
+  [
+   "^TO (.+)$",
+   "TIMEOUT $1"
+  ],
+  [
+   "^Not sent — (.+)$",
+   "Nicht gesendet — $1"
+  ],
+  [
+   "^(Q\\d|OT\\d+) starting$",
+   "$1 beginnt"
+  ],
+  [
+   "^🏆 (.+) wins the match$",
+   "🏆 $1 gewinnt das Spiel"
+  ],
+  [
+   "^(.+) wins$",
+   "$1 gewinnt"
+  ],
+  [
+   "^Couldn't announce it: (.+)$",
+   "Konnte nicht angesagt werden: $1"
+  ],
+  [
+   "^(.+) vs (.+) · (\\d+) entries · started (.+)$",
+   "$1 vs $2 · $3 Einträge · gestartet $4"
+  ],
+  [
+   "^Match log, (\\d+) entries\\. Last: (.+)$",
+   "Spielprotokoll, $1 Einträge. Zuletzt: $2"
+  ],
+  [
+   "^Timeout taken back · (.+)$",
+   "Timeout zurückgenommen · $1"
+  ],
+  [
+   "^Substitution taken back · (.+)$",
+   "Auswechslung zurückgenommen · $1"
+  ],
+  [
+   "^Team foul taken back · (.+)$",
+   "Teamfoul zurückgenommen · $1"
+  ],
+  [
+   "^Substitution · (.+)$",
+   "Auswechslung · $1"
+  ],
+  [
+   "^Team foul · (.+)$",
+   "Teamfoul · $1"
+  ],
+  [
+   "^Point refused · (.+) — the set was already over$",
+   "Punkt abgelehnt · $1 — der Satz war schon fertig"
+  ],
+  [
+   "^Point removed · (.+)$",
+   "Punkt entfernt · $1"
+  ],
+  [
+   "^Point · (.+)$",
+   "Punkt · $1"
+  ],
+  [
+   "^Set taken back · (.+)$",
+   "Satz zurückgenommen · $1"
+  ],
+  [
+   "^Set · (.+)$",
+   "Satz · $1"
+  ],
+  [
+   "^Serve · (.+)$",
+   "Aufschlag · $1"
+  ],
+  [
+   "^(.+) sets set to (\\d+)$",
+   "$1 Sätze auf $2 gesetzt"
+  ],
+  [
+   "^(.+) set to (\\d+)$",
+   "$1 auf $2 gesetzt"
+  ],
+  [
+   "^End of set (\\d+) \\((\\d+–\\d+)\\)$",
+   "Satzende $1 ($2)"
+  ],
+  [
+   "^End of set (\\d+)$",
+   "Satzende $1"
+  ],
+  [
+   "^End of (Q\\d|OT\\d+) \\((\\d+–\\d+)\\)$",
+   "Ende $1 ($2)"
+  ],
+  [
+   "^End of (Q\\d|OT\\d+)$",
+   "Ende $1"
+  ],
+  [
+   "^Undo: Score edit (.+)$",
+   "Rückgängig: Punkte bearbeitet $1"
+  ],
+  [
+   "^Undone: Score edit (.+)$",
+   "Rückgängig: Punkte bearbeitet $1"
+  ],
+  [
+   "^Undo: Point removed (.+)$",
+   "Rückgängig: Punkt entfernt $1"
+  ],
+  [
+   "^Undone: Point removed (.+)$",
+   "Rückgängig: Punkt entfernt $1"
+  ],
+  [
+   "^Undo: Team edit (.+)$",
+   "Rückgängig: Team bearbeitet $1"
+  ],
+  [
+   "^Undone: Team edit (.+)$",
+   "Rückgängig: Team bearbeitet $1"
+  ],
+  [
+   "^Undo: Timeout (.+)$",
+   "Rückgängig: Timeout $1"
+  ],
+  [
+   "^Undone: Timeout (.+)$",
+   "Rückgängig: Timeout $1"
+  ],
+  [
+   "^Undo: Point (.+)$",
+   "Rückgängig: Punkt $1"
+  ],
+  [
+   "^Undone: Point (.+)$",
+   "Rückgängig: Punkt $1"
+  ],
+  [
+   "^Undo: Sets (.+)$",
+   "Rückgängig: Sätze $1"
+  ],
+  [
+   "^Undone: Sets (.+)$",
+   "Rückgängig: Sätze $1"
+  ],
+  [
+   "^Undo: Sub (.+)$",
+   "Rückgängig: Wechsel $1"
+  ],
+  [
+   "^Undone: Sub (.+)$",
+   "Rückgängig: Wechsel $1"
+  ],
+  [
+   "^Undo: Serve (.+)$",
+   "Rückgängig: Aufschlag $1"
+  ],
+  [
+   "^Undone: Serve (.+)$",
+   "Rückgängig: Aufschlag $1"
+  ],
+  [
+   "^Undo: Foul (.+)$",
+   "Rückgängig: Foul $1"
+  ],
+  [
+   "^Undone: Foul (.+)$",
+   "Rückgängig: Foul $1"
+  ],
+  [
+   "^Undo: Period (.+)$",
+   "Rückgängig: Periode $1"
+  ],
+  [
+   "^Undone: Period (.+)$",
+   "Rückgängig: Periode $1"
+  ],
+  [
+   "^Undo: (.+)$",
+   "Rückgängig: $1"
+  ],
+  [
+   "^Undone: (.+)$",
+   "Rückgängig: $1"
+  ],
+  [
+   "^Score edit (.+)$",
+   "Punkte bearbeitet $1"
+  ],
+  [
+   "^Point removed (.+)$",
+   "Punkt entfernt $1"
+  ],
+  [
+   "^Team edit (.+)$",
+   "Team bearbeitet $1"
+  ],
+  [
+   "^Timeout (.+)$",
+   "Timeout $1"
+  ],
+  [
+   "^Point (.+)$",
+   "Punkt $1"
+  ],
+  [
+   "^Sets (.+)$",
+   "Sätze $1"
+  ],
+  [
+   "^Sub (.+)$",
+   "Wechsel $1"
+  ],
+  [
+   "^Serve (.+)$",
+   "Aufschlag $1"
+  ],
+  [
+   "^Foul (.+)$",
+   "Foul $1"
+  ],
+  [
+   "^Period (.+)$",
+   "Periode $1"
+  ],
+  [
+   "^(.+) — first server$",
+   "$1 — erster Aufschläger"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) min behind$",
+   "Uhr der Tafel korrigiert — sie ging $1 Min. nach"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) min ahead$",
+   "Uhr der Tafel korrigiert — sie ging $1 Min. vor"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) h behind$",
+   "Uhr der Tafel korrigiert — sie ging $1 Std. nach"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) h ahead$",
+   "Uhr der Tafel korrigiert — sie ging $1 Std. vor"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) days behind$",
+   "Uhr der Tafel korrigiert — sie ging $1 Tage nach"
+  ],
+  [
+   "^Board clock corrected — it was (\\d+) days ahead$",
+   "Uhr der Tafel korrigiert — sie ging $1 Tage vor"
+  ],
+  [
+   "^Switching to (.+)… the board restarts \\(about 8 seconds\\)\\.$",
+   "Wechsel zu $1 … die Tafel startet neu (etwa 8 Sekunden)."
+  ],
+  [
+   "^Couldn't switch: (.+)$",
+   "Wechsel nicht möglich: $1"
+  ],
+  [
+   "^An unfinished match from Sun (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom So $1 gespeichert."
+  ],
+  [
+   "^An unfinished match from Mon (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom Mo $1 gespeichert."
+  ],
+  [
+   "^An unfinished match from Tue (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom Di $1 gespeichert."
+  ],
+  [
+   "^An unfinished match from Wed (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom Mi $1 gespeichert."
+  ],
+  [
+   "^An unfinished match from Thu (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom Do $1 gespeichert."
+  ],
+  [
+   "^An unfinished match from Fri (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom Fr $1 gespeichert."
+  ],
+  [
+   "^An unfinished match from Sat (\\d\\d\\.\\d\\d\\.) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom Sa $1 gespeichert."
+  ],
+  [
+   "^An unfinished match from (.+) is saved on this board\\.$",
+   "Auf dieser Tafel ist ein unfertiges Spiel vom $1 gespeichert."
+  ],
+  [
+   "^Start a new game\\? The saved match \\((.+?)  ?·  ?sets (\\d+–\\d+)(.*)\\) will be deleted\\.$",
+   "Neues Spiel starten? Das gespeicherte Spiel ($1 · Sätze $2$3) wird gelöscht."
+  ],
+  [
+   "^Start a new game\\? The saved match \\((.+)\\) will be deleted\\.$",
+   "Neues Spiel starten? Das gespeicherte Spiel ($1) wird gelöscht."
+  ],
+  [
+   "^Delete the saved game\\? (.+?)  ?·  ?sets (\\d+–\\d+)(.*)$",
+   "Gespeichertes Spiel löschen? $1 · Sätze $2$3"
+  ],
+  [
+   "^Delete the saved game\\? (.+)$",
+   "Gespeichertes Spiel löschen? $1"
+  ],
+  [
+   "^(.+?)  ?·  ?sets (\\d+–\\d+)(.*)$",
+   "$1 · Sätze $2$3"
+  ],
+  [
+   "^Couldn't start that game: (.+)$",
+   "Spiel konnte nicht gestartet werden: $1"
+  ],
+  [
+   "^(.+) vs (.+) — ready; the board shows the names and the time$",
+   "$1 vs $2 — bereit; die Tafel zeigt die Namen und die Zeit"
+  ],
+  [
+   "^(.+) vs (.+) — ready$",
+   "$1 vs $2 — bereit"
+  ],
+  [
+   "^Start (.+) vs (.+)\\? The current score is cleared\\.$",
+   "$1 vs $2 starten? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Sun (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten (So $3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Mon (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten (Mo $3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Tue (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten (Di $3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Wed (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten (Mi $3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Thu (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten (Do $3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Fri (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten (Fr $3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\(Sat (\\d\\d\\.\\d\\d\\.(?: \\d\\d:\\d\\d)?)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten (Sa $3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Prepare (.+) vs (.+) \\((.+)\\)\\? The current score is cleared\\.$",
+   "$1 vs $2 vorbereiten ($3)? Der aktuelle Spielstand wird gelöscht."
+  ],
+  [
+   "^Couldn't put the result on the board: (.+)$",
+   "Resultat konnte nicht auf die Tafel gebracht werden: $1"
+  ],
+  [
+   "^Full screen was refused: (.+)$",
+   "Vollbild wurde abgelehnt: $1"
+  ],
+  [
+   "^Show whole season \\((\\d+) more days\\)$",
+   "Ganze Saison zeigen ($1 weitere Tage)"
+  ],
+  [
+   "^offline — last update (.+)$",
+   "offline — letztes Update $1"
+  ],
+  [
+   "^Season schedule · updated (.+)$",
+   "Spielplan der Saison · aktualisiert $1"
+  ],
+  [
+   "^(.+)\\. You can still type the names on the Game tab\\.$",
+   "$1. Du kannst die Namen weiterhin im Tab Spiel eingeben."
+  ],
+  [
+   "^No home games today\\. The next is Sun (\\d\\d\\.\\d\\d\\.)$",
+   "Heute keine Heimspiele. Das nächste ist am So $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Sun (\\d\\d\\.\\d\\d\\.)$",
+   "Keine Heimspiele in den nächsten $1 Tagen. Das nächste ist am So $2"
+  ],
+  [
+   "^No home games today\\. The next is Mon (\\d\\d\\.\\d\\d\\.)$",
+   "Heute keine Heimspiele. Das nächste ist am Mo $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Mon (\\d\\d\\.\\d\\d\\.)$",
+   "Keine Heimspiele in den nächsten $1 Tagen. Das nächste ist am Mo $2"
+  ],
+  [
+   "^No home games today\\. The next is Tue (\\d\\d\\.\\d\\d\\.)$",
+   "Heute keine Heimspiele. Das nächste ist am Di $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Tue (\\d\\d\\.\\d\\d\\.)$",
+   "Keine Heimspiele in den nächsten $1 Tagen. Das nächste ist am Di $2"
+  ],
+  [
+   "^No home games today\\. The next is Wed (\\d\\d\\.\\d\\d\\.)$",
+   "Heute keine Heimspiele. Das nächste ist am Mi $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Wed (\\d\\d\\.\\d\\d\\.)$",
+   "Keine Heimspiele in den nächsten $1 Tagen. Das nächste ist am Mi $2"
+  ],
+  [
+   "^No home games today\\. The next is Thu (\\d\\d\\.\\d\\d\\.)$",
+   "Heute keine Heimspiele. Das nächste ist am Do $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Thu (\\d\\d\\.\\d\\d\\.)$",
+   "Keine Heimspiele in den nächsten $1 Tagen. Das nächste ist am Do $2"
+  ],
+  [
+   "^No home games today\\. The next is Fri (\\d\\d\\.\\d\\d\\.)$",
+   "Heute keine Heimspiele. Das nächste ist am Fr $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Fri (\\d\\d\\.\\d\\d\\.)$",
+   "Keine Heimspiele in den nächsten $1 Tagen. Das nächste ist am Fr $2"
+  ],
+  [
+   "^No home games today\\. The next is Sat (\\d\\d\\.\\d\\d\\.)$",
+   "Heute keine Heimspiele. Das nächste ist am Sa $1"
+  ],
+  [
+   "^No home games in the next (\\d+) days\\. The next is Sat (\\d\\d\\.\\d\\d\\.)$",
+   "Keine Heimspiele in den nächsten $1 Tagen. Das nächste ist am Sa $2"
+  ],
+  [
+   "^1 game · (\\d+) off$",
+   "1 Spiel · $1 abgesagt"
+  ],
+  [
+   "^(\\d+) games · (\\d+) off$",
+   "$1 Spiele · $2 abgesagt"
+  ],
+  [
+   "^(\\d+) games$",
+   "$1 Spiele"
+  ],
+  [
+   "^(.+) vs (.+) at (\\d\\d:\\d\\d) — postponed$",
+   "$1 vs $2 um $3 — verschoben"
+  ],
+  [
+   "^(.+) vs (.+) at (\\d\\d:\\d\\d) — cancelled$",
+   "$1 vs $2 um $3 — abgesagt"
+  ],
+  [
+   "^(.+) vs (.+) — postponed$",
+   "$1 vs $2 — verschoben"
+  ],
+  [
+   "^(.+) vs (.+) — cancelled$",
+   "$1 vs $2 — abgesagt"
+  ],
+  [
+   "^Start (.+) vs (.+) at (\\d\\d:\\d\\d)$",
+   "$1 vs $2 um $3 starten"
+  ],
+  [
+   "^Start (.+) vs (.+)$",
+   "$1 vs $2 starten"
+  ],
+  [
+   "^Linked to (.+) on (.+) \\(found on the network\\)$",
+   "Verbunden mit $1 auf $2 (im Netz gefunden)"
+  ],
+  [
+   "^Linked to (.+) on (.+)$",
+   "Verbunden mit $1 auf $2"
+  ],
+  [
+   "^Linked to (.+)$",
+   "Verbunden mit $1"
+  ],
+  [
+   "^The OpenVolley laptop isn't on this network \\(searched (.+)\\)\\. Connect it to the board's Wi-Fi, or type its address in Settings\\. Scoring by hand on the Game tab works as normal\\.$",
+   "Der OpenVolley-Laptop ist nicht in diesem Netz (gesucht: $1). Verbinde ihn mit dem Wi-Fi der Tafel oder gib seine Adresse in den Einstellungen ein. Von Hand zählen im Tab Spiel geht wie gewohnt."
+  ],
+  [
+   "^Something at (.+) answered, but not as an OpenVolley scorer laptop\\. Check the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "Unter $1 hat etwas geantwortet, aber kein OpenVolley-Schreiber-Laptop. Prüfe die Adresse unter Einstellungen ▸ Schreiber-Laptop. Von Hand zählen geht weiterhin."
+  ],
+  [
+   "^The OpenVolley laptop isn't answering at (.+)\\. Check it is on the board's Wi-Fi with OpenVolley open, and the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "Der OpenVolley-Laptop antwortet nicht unter $1. Prüfe, ob er im Wi-Fi der Tafel ist und OpenVolley offen hat, und die Adresse unter Einstellungen ▸ Schreiber-Laptop. Von Hand zählen geht weiterhin."
+  ],
+  [
+   "^Couldn't load the match list \\((.+)\\)\\. Scoring by hand still works\\.$",
+   "Spielliste konnte nicht geladen werden ($1). Von Hand zählen geht weiterhin."
+  ],
+  [
+   "^⚠ The OpenVolley laptop isn't on this network \\(searched (.+)\\)\\. Connect it to the board's Wi-Fi, or type its address in Settings\\. Scoring by hand on the Game tab works as normal\\.$",
+   "⚠ Der OpenVolley-Laptop ist nicht in diesem Netz (gesucht: $1). Verbinde ihn mit dem Wi-Fi der Tafel oder gib seine Adresse in den Einstellungen ein. Von Hand zählen im Tab Spiel geht wie gewohnt."
+  ],
+  [
+   "^⚠ Something at (.+) answered, but not as an OpenVolley scorer laptop\\. Check the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "⚠ Unter $1 hat etwas geantwortet, aber kein OpenVolley-Schreiber-Laptop. Prüfe die Adresse unter Einstellungen ▸ Schreiber-Laptop. Von Hand zählen geht weiterhin."
+  ],
+  [
+   "^⚠ The OpenVolley laptop isn't answering at (.+)\\. Check it is on the board's Wi-Fi with OpenVolley open, and the address in Settings ▸ Scorer laptop\\. Scoring by hand still works\\.$",
+   "⚠ Der OpenVolley-Laptop antwortet nicht unter $1. Prüfe, ob er im Wi-Fi der Tafel ist und OpenVolley offen hat, und die Adresse unter Einstellungen ▸ Schreiber-Laptop. Von Hand zählen geht weiterhin."
+  ],
+  [
+   "^⚠ Couldn't load the match list \\((.+)\\)\\. Scoring by hand still works\\.$",
+   "⚠ Spielliste konnte nicht geladen werden ($1). Von Hand zählen geht weiterhin."
+  ],
+  [
+   "^The saved address (.+) didn't answer\\. Listing from (.+), found on the network — no match listed yet\\. Check it is the scorer's laptop before you link\\.$",
+   "Die gespeicherte Adresse $1 hat nicht geantwortet. Liste von $2, im Netz gefunden — noch kein Spiel aufgelistet. Prüfe vor dem Verbinden, ob es der Schreiber-Laptop ist."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(found on the network\\) — no match listed yet\\.$",
+   "Schreiber-Laptop unter $1 (im Netz gefunden) — noch kein Spiel aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(from the board's setup\\) — no match listed yet\\.$",
+   "Schreiber-Laptop unter $1 (aus der Einrichtung der Tafel) — noch kein Spiel aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(on the board itself\\) — no match listed yet\\.$",
+   "Schreiber-Laptop unter $1 (auf der Tafel selbst) — noch kein Spiel aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) — no match listed yet\\.$",
+   "Schreiber-Laptop unter $1 — noch kein Spiel aufgelistet."
+  ],
+  [
+   "^The saved address (.+) didn't answer\\. Listing from (.+), found on the network — 1 match listed\\. Check it is the scorer's laptop before you link\\.$",
+   "Die gespeicherte Adresse $1 hat nicht geantwortet. Liste von $2, im Netz gefunden — 1 Spiel aufgelistet. Prüfe vor dem Verbinden, ob es der Schreiber-Laptop ist."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(found on the network\\) — 1 match listed\\.$",
+   "Schreiber-Laptop unter $1 (im Netz gefunden) — 1 Spiel aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(from the board's setup\\) — 1 match listed\\.$",
+   "Schreiber-Laptop unter $1 (aus der Einrichtung der Tafel) — 1 Spiel aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(on the board itself\\) — 1 match listed\\.$",
+   "Schreiber-Laptop unter $1 (auf der Tafel selbst) — 1 Spiel aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) — 1 match listed\\.$",
+   "Schreiber-Laptop unter $1 — 1 Spiel aufgelistet."
+  ],
+  [
+   "^The saved address (.+) didn't answer\\. Listing from (.+), found on the network — (\\d+) matches listed\\. Check it is the scorer's laptop before you link\\.$",
+   "Die gespeicherte Adresse $1 hat nicht geantwortet. Liste von $2, im Netz gefunden — $3 Spiele aufgelistet. Prüfe vor dem Verbinden, ob es der Schreiber-Laptop ist."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(found on the network\\) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop unter $1 (im Netz gefunden) — $2 Spiele aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(from the board's setup\\) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop unter $1 (aus der Einrichtung der Tafel) — $2 Spiele aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) \\(on the board itself\\) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop unter $1 (auf der Tafel selbst) — $2 Spiele aufgelistet."
+  ],
+  [
+   "^Scorer laptop at (.+?) — (\\d+) matches listed\\.$",
+   "Schreiber-Laptop unter $1 — $2 Spiele aufgelistet."
+  ],
+  [
+   "^Asking (.+)…$",
+   "Frage bei $1 nach…"
+  ],
+  [
+   "^Couldn't ask the board: (.+)$",
+   "Tafel konnte nicht gefragt werden: $1"
+  ],
+  [
+   "^KSCW roster · (\\d+)$",
+   "KSCW-Kader · $1"
+  ],
+  [
+   "^(\\d+) events$",
+   "$1 Ereignisse"
+  ],
+  [
+   "^Timing, allowances, blink and match format apply to (.+)\\. Brightness, club name, PIN, branding, live-scoring and automatic game preparation are shared across all sports\\.$",
+   "Zeiten, Limiten, Blinken und Spielformat gelten für $1. Helligkeit, Vereinsname, PIN, Branding, Live-Scoring und automatische Spielvorbereitung gelten für alle Sportarten."
+  ],
+  [
+   "^(\\d+) backups on this tablet$",
+   "$1 Backups auf diesem Tablet"
+  ],
+  [
+   "^Backups saved \\((\\d+) files\\) — Downloads on the tablet$",
+   "Backups gespeichert ($1 Dateien) — Downloads auf dem Tablet"
+  ],
+  [
+   "^Not saved — (.+)$",
+   "Nicht gespeichert — $1"
+  ],
+  [
+   "^Not saved: (.+)$",
+   "Nicht gespeichert: $1"
+  ]
+ ]
+}

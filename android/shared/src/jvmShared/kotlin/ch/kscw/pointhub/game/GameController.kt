@@ -333,6 +333,7 @@ class GameController(private val host: GameHost) {
         if (st.ledboxConnected) offlineDismissed = false
         if (st.uplinkStatus != "portal") uplinkBannerDismissed = false
         lastState = st.state ?: lastState
+        syncLanguage(st.language)
         renderPrematch(st)
         maybePromptServeOrder(st.state)
         syncSetEndPrompt(st.state)
@@ -340,6 +341,24 @@ class GameController(private val host: GameHost) {
         syncNameSizes(st)
         pinRequired = st.pinRequired
         if (liveLog != null && st.log?.n != logShownN) refreshLiveLog()
+    }
+
+    private var languageWanted = "en"
+
+    /** The board says which language; web/i18n/ on the board has the words, the console's too. */
+    private fun syncLanguage(language: String?) {
+        val next = if (language == "de" || language == "de-CH") language else "en"
+        if (next == languageWanted) return
+        languageWanted = next
+        if (next == "en") { I18n.clear(); return }
+        scope.launch {
+            try {
+                val words = get("/i18n/$next.json")
+                if (languageWanted == next) I18n.load(words)
+            } catch (_: Exception) {
+                if (languageWanted == next) languageWanted = "en" // the next status tries again
+            }
+        }
     }
 
     private fun applySportUi() {

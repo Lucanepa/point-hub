@@ -1556,6 +1556,8 @@
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Board identity</legend>
+          <label class="row"><span>Language</span>
+            <select data-set="language"><option value="en">English</option><option value="de">Deutsch</option><option value="de-CH">Schwiizerdütsch</option></select></label>
           <label class="row"><span>Crest / branding</span>
             <select data-set="branding"><option value="kscw">KSC Wiedikon</option><option value="plain">Plain (no logo)</option></select></label>
           <label class="row"><span>Scorer sits behind the board</span>
@@ -1987,6 +1989,7 @@
   </div>
 </div>
 
+<script src="/i18n.js"></script>
 <script>
 (() => {
   "use strict";
@@ -2374,7 +2377,7 @@
   // The same card at the end of a match. A card and not a dialog, so a wrong match point can still
   // be taken back with Undo. Nothing goes on the panel until it is tapped.
   function showMatchEndPrompt(state, sig) {
-    const up = $("#cd").hidden ? "" : $("#cdLabel").textContent;
+    const up = $("#cd").hidden ? "" : ($("#cdLabel").dataset?.en || $("#cdLabel").textContent);
     if (up && up !== "SET ENDED" && up !== "MATCH ENDED") return;   // a clock is running: next poll
     if (up !== "MATCH ENDED") clearCountdown();
     const sd = sides(state);
@@ -2403,7 +2406,7 @@
     const closed = setIsClosed(state) && !matchOver(state);
     const up = !$("#cd").hidden;
     if (!closed) {
-      if (up && $("#cdLabel").textContent === "SET ENDED") clearCountdown();
+      if (up && ($("#cdLabel").dataset?.en || $("#cdLabel").textContent) === "SET ENDED") clearCountdown();
       return;
     }
     if (up || linkedMatchId || board.mode !== "match") return;
@@ -2662,6 +2665,7 @@
     linkedMatchId = st.matchId != null ? String(st.matchId) : null;
     $("#matchTag").textContent = "";
     lastState = st.state || lastState;
+    if (window.PointHubI18n) PointHubI18n.set(st.language);
     renderPrematch(st);
     renderSuggest(st);
     renderUplinkBrief(st.uplink);
@@ -3746,7 +3750,7 @@
         // offer the interval again.
         if (running === "INTERVAL") { clearCountdown(); stopServerCountdown(false); }
         if ($("#cd").hidden) showSetEndPrompt(s);
-      } else if (cdShown && $("#cdLabel").textContent === "SET ENDED") {
+      } else if (cdShown && ($("#cdLabel").dataset?.en || $("#cdLabel").textContent) === "SET ENDED") {
         // The set-winning point taken back: the set is open again, so "Close set" is wrong.
         clearCountdown();
       }
@@ -4874,7 +4878,7 @@
     if (EMBED) return;
     const key = (st && st.prematchGameId) ?? "";
     const wanted = on && !warmupRunning() && warmupDue(st.kickoffAt, Date.now()) && warmupLater !== String(key);
-    const up = $("#cd").hidden ? "" : $("#cdLabel").textContent;
+    const up = $("#cd").hidden ? "" : ($("#cdLabel").dataset?.en || $("#cdLabel").textContent);
     if (!wanted) { if (up === "OFFICIAL WARM-UP") clearCountdown(); return; }
     if (up && up !== "OFFICIAL WARM-UP") return;
     $("#cdLabel").textContent = "OFFICIAL WARM-UP";
@@ -5127,7 +5131,7 @@
       endClosedSig = null;
       try { localStorage.removeItem("endAskedSig"); } catch {}
       // The match point taken back, or a new match: the card is about a match that is not over.
-      if (!$("#cd").hidden && $("#cdLabel").textContent === "MATCH ENDED") clearCountdown();
+      if (!$("#cd").hidden && ($("#cdLabel").dataset?.en || $("#cdLabel").textContent) === "MATCH ENDED") clearCountdown();
       return;
     }
     lastFinal = state;

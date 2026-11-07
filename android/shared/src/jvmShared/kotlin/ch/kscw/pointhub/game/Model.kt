@@ -231,6 +231,7 @@ class BoardStatus(val json: JSONObject = JSONObject()) {
     val sport get() = json.str("sport")
     val prematch get() = json.opt("prematch") == true
     val orientation get() = json.str("orientation")
+    val language get() = json.str("language")
     val pinRequired get() = json.bool("pinRequired")
     val build get() = json.str("build")
     val gameId get() = json.str("gameId")
