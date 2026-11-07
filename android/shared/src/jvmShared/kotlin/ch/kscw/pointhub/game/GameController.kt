@@ -19,7 +19,7 @@ import org.json.JSONObject
 /** What the LED panel is showing, so the mirror can follow it (`board.mode` in the console). */
 enum class BoardMode { MATCH, IDLE, CLOCK, COUNTDOWN }
 
-enum class CdKind { TIMEOUT, INTERVAL, WARMUP, TTO, SET_ENDED }
+enum class CdKind { TIMEOUT, INTERVAL, WARMUP, TTO, SET_ENDED, MATCH_ENDED }
 
 /**
  * A countdown card. [label] is what the tablet shows ("TO KSCW"); [boardLabel] is what the board was
@@ -29,7 +29,7 @@ data class Countdown(
     val kind: CdKind,
     val label: String,
     val boardLabel: String,
-    /** 0 for the "SET ENDED" card, which has no clock. */
+    /** 0 for the SET ENDED and MATCH ENDED cards, which have no clock. */
     val endAt: Long,
     val major: Boolean,
     /** The button's words; null = a plain ✕ (skip). */
@@ -39,8 +39,10 @@ data class Countdown(
     /** PANEL side of the team that called it (timeouts), for the mirror's label. */
     val side: String?,
     val blink: Boolean,
-    /** The SET ENDED card shows the final score instead of a clock. */
+    /** The SET ENDED and MATCH ENDED cards show the final score instead of a clock. */
     val score: String = "",
+    /** The button closes the set or the match: the one thing left to do, so it flashes. */
+    val invite: Boolean = false,
 )
 
 data class ToastMsg(
@@ -63,6 +65,10 @@ data class GamePickerUi(
     val busy: Boolean = false,
     val status: String? = null,
     val bad: Boolean = false,
+    /** New game was tapped: how to score it, with today's home games on top. */
+    val newPage: Boolean = false,
+    val today: List<ScheduledGame> = emptyList(),
+    val todayHead: String = "Today's home games",
 )
 data class MatchEndUi(val state: LiveState, val status: String? = null, val bad: Boolean = false)
 data class LiveLogUi(val match: CurrentMatch? = null, val loaded: Boolean = false)
@@ -327,7 +333,9 @@ class GameController(private val host: GameHost) {
         lastState = st.state ?: lastState
         renderPrematch(st)
         maybePromptServeOrder(st.state)
+        syncSetEndPrompt(st.state)
         maybeAskEndMatch(st.state)
+        syncNameSizes(st)
         pinRequired = st.pinRequired
         if (liveLog != null && st.log?.n != logShownN) refreshLiveLog()
     }
@@ -438,7 +446,7 @@ class GameController(private val host: GameHost) {
                 if (Rules.matchOver(sport, s, settings.bestOf)) {
                     toast("The match is over — start a new game from the game menu"); return
                 }
-                toast(if (sport == Sport.BASKETBALL) "This period is over — tap End period" else "Set is over — tap Start interval")
+                toast(if (sport == Sport.BASKETBALL) "This period is over — tap End period" else "Set is over — tap Close set")
                 if (sport != Sport.BASKETBALL && countdown == null) showSetEndPrompt(s)
             }
             "set-end" -> {
@@ -567,20 +575,32 @@ class GameController(private val host: GameHost) {
         } catch (e: Exception) { toast(errText(e)) }
     }
 
-    /** "Show clock": the crest and the time, and it stays the clock. The score is kept. */
-    suspend fun showClock(onErr: ((String) -> Unit)? = null): Boolean = try {
-        post("/api/idle", JSONObject().put("on", true).put("screen", "clock"))
-        clearCountdown()
-        boardMode = BoardMode.CLOCK
-        scope.launch { refreshStatus() }
-        true
-    } catch (e: Exception) {
-        val m = if (pinWords(e)) "Scoring is locked — enter the scorer PIN, then try again." else "Couldn't show the clock: " + errText(e)
-        if (onErr != null) onErr(m) else toast(m)
-        false
+    /** H / T-: the board's time line on the names screen, the clock or the countdown to the game. */
+    fun toggleTimeMode() = scope.launch {
+        val next = if (status.timeMode == "countdown") "clock" else "countdown"
+        try {
+            post("/api/idle", JSONObject().put("timeMode", next))
+            renderStatus(JSONObject().put("timeMode", next))
+            toast(if (next == "countdown") "Countdown to the game on the board" else "Clock on the board")
+        } catch (e: Exception) {
+            toast(if (pinWords(e)) "Scoring is locked — enter the scorer PIN, then try again." else "Couldn't switch the time")
+        }
     }
 
-    fun clockButton() = scope.launch { if (showClock()) toast("Clock on the board") }
+    /** The time line of the names screen on the mirror: as the board paints it. */
+    fun mirrorTimeText(nowMs: Long): String {
+        fun z(n: Long) = n.toString().padStart(2, '0')
+        val kick = status.kickoffAt
+        if (status.timeMode == "countdown" && kick != null) {
+            val left = maxOf(0L, (kick - nowMs + 999) / 1000)
+            return "T - " + z(left / 60) + ":" + z(left % 60)
+        }
+        val t = java.time.Instant.ofEpochMilli(nowMs).atZone(java.time.ZoneId.systemDefault())
+        return z(t.hour.toLong()) + ":" + z(t.minute.toLong()) + ":" + z(t.second.toLong())
+    }
+
+    /** The game details and the roster: a page of the console's, over its Link tab. */
+    fun openMatchInfo() { onShowTab?.invoke("link", "matchinfo") }
 
     /**
      * Opening the Game tab means "a match is being run now": take the panel off the crest. Through
@@ -626,7 +646,7 @@ class GameController(private val host: GameHost) {
         val running = if (boardMode == BoardMode.COUNTDOWN && cd != null) cd.boardLabel else ""
         if (sport != Sport.BASKETBALL) {
             if (Rules.setIsClosed(s)) {
-                // "Start interval" taken back: the finished set is on the board again.
+                // "Close set" taken back: the finished set is on the board again.
                 if (running == "INTERVAL") { clearCountdown(); scope.launch { stopServerCountdown(false) } }
                 if (countdown == null) showSetEndPrompt(s)
             } else if (cd?.kind == CdKind.SET_ENDED) {
@@ -707,14 +727,14 @@ class GameController(private val host: GameHost) {
     }
 
     /**
-     * A set ended: the board holds the final score and this card waits for "Start interval". Only
+     * A set ended: the board holds the final score and this card waits for "Close set". Only
      * then does the interval clock (and the board's countdown screen) begin.
      */
     private fun showSetEndPrompt(s: LiveState) {
         clearCountdown()
         val sd = s.sides()
         val score = "${sd.team(panelSide("left")).points}–${sd.team(panelSide("right")).points}"
-        countdown = Countdown(CdKind.SET_ENDED, "SET ENDED", "SET ENDED", 0L, true, "Start interval →", "full", null, false, score)
+        countdown = Countdown(CdKind.SET_ENDED, "SET ENDED", "SET ENDED", 0L, true, "Close set →", "full", null, false, score, invite = true)
         cdButton = {
             if (!settings.countdownOnSetInterval) {
                 clearCountdown()
@@ -724,6 +744,44 @@ class GameController(private val host: GameHost) {
                     action = "Start next set →", content = "sets", swapFirst = true)
             }
         }
+    }
+
+    /**
+     * The same card at the end of a match. A card and not a dialog, so a wrong match point can still
+     * be taken back with Undo. Nothing goes on the panel until it is tapped.
+     */
+    private fun showMatchEndPrompt(s: LiveState, sig: String) {
+        val up = countdown
+        if (up != null && up.kind != CdKind.SET_ENDED && up.kind != CdKind.MATCH_ENDED) return // a clock is running: next poll
+        if (up?.kind != CdKind.MATCH_ENDED) clearCountdown()
+        val sd = s.sides()
+        val l = sd.team(panelSide("left"))
+        val r = sd.team(panelSide("right"))
+        val score = if (sport == Sport.BASKETBALL) "${l.points}–${r.points}" else "${l.sets}–${r.sets}"
+        countdown = Countdown(CdKind.MATCH_ENDED, "MATCH ENDED", "MATCH ENDED", 0L, true, "Close match →", "full", null, false, score, invite = true)
+        cdButton = {
+            clearCountdown()
+            host.endAskedSig = sig
+            showMatchEnd(s)
+        }
+    }
+
+    /**
+     * A reloaded app or a second tablet missed the set-end event. The state says the set is closed,
+     * so the card comes up anyway. A linked match is closed on the scoresheet.
+     */
+    private fun syncSetEndPrompt(s: LiveState?) {
+        if (s == null || sport == Sport.BASKETBALL) return
+        val closed = Rules.setIsClosed(s) && !Rules.matchOver(sport, s, settings.bestOf)
+        val up = countdown
+        if (!closed) {
+            if (up?.kind == CdKind.SET_ENDED) clearCountdown()
+            return
+        }
+        if (up != null || boardMode != BoardMode.MATCH) return
+        if (status.mode != null && status.mode != "manual" && status.mode != "idle") return
+        if (sportPicker != null || gamePicker != null) return
+        showSetEndPrompt(s)
     }
 
     /**
@@ -751,7 +809,7 @@ class GameController(private val host: GameHost) {
         prematchOn = on
         if (!on) {
             // Started elsewhere (another tablet, the warm-up running out): the scoreboard is up.
-            if (was && boardMode == BoardMode.CLOCK) boardMode = BoardMode.MATCH
+            if (was && (boardMode == BoardMode.CLOCK || boardMode == BoardMode.IDLE)) boardMode = BoardMode.MATCH
             return
         }
         val names = st.ledboxIdle && st.ledboxClockHeld == false
@@ -793,29 +851,24 @@ class GameController(private val host: GameHost) {
 
     // ------------------------------------------------------------------------------ end of match
 
-    private var endAsking = false
     /** The finished state, so the Final chip can reopen the result. */
     var lastFinal by mutableStateOf<LiveState?>(null); private set
 
-    /** Asked exactly once per finished match; declining is an answer too. */
+    /** Offered until it is closed; a closed match is not offered again. */
     private fun maybeAskEndMatch(s: LiveState?) {
-        if (s == null || endAsking) return
+        if (s == null) return
         if (!Rules.matchOver(sport, s, settings.bestOf)) {
             lastFinal = null
             host.endAskedSig = null
+            // The match point taken back, or a new match: the card is about a match that is not over.
+            if (countdown?.kind == CdKind.MATCH_ENDED) clearCountdown()
             return
         }
         lastFinal = s
         val sig = Rules.matchSig(s)
         if (host.endAskedSig == sig) return
         if (sportPicker != null || gamePicker != null) return
-        endAsking = true
-        host.endAskedSig = sig
-        scope.launch {
-            try {
-                if (askConfirm("Match finished — show the result?", yes = "Show result", no = "Not now")) showMatchEnd(s)
-            } finally { endAsking = false }
-        }
+        showMatchEndPrompt(s, sig)
     }
 
     fun showMatchEnd(s: LiveState? = lastFinal) {
@@ -844,12 +897,8 @@ class GameController(private val host: GameHost) {
         clearCountdown()
         matchEnd = null
         goToGame()
-        if (sport == Sport.BEACH) { beachSeenPoints = false; beachAskedSets = -1; openServeOrder() }
-    }
-
-    fun matchEndClock() = scope.launch {
-        if (!showClock { m -> matchEnd = matchEnd?.copy(status = m, bad = true) }) return@launch
-        matchEnd = null
+        openGamePicker()
+        showNewGamePage()
     }
 
     // ------------------------------------------------------------------------------ beach serve order
@@ -922,6 +971,14 @@ class GameController(private val host: GameHost) {
     }
 
     private val fontBusy = mutableMapOf("left" to false, "right" to false)
+
+    /** A court switch moved the sizes to the other half: the next tap has to start from these. */
+    private fun syncNameSizes(st: BoardStatus) {
+        val (l, r) = st.fontMax ?: return
+        if (fontBusy.values.any { it } || settings.fontMax("left") == null) return
+        if (settings.fontMax("left") == l && settings.fontMax("right") == r) return
+        settings = settings.with(BoardSettings.fontKey("left"), l).with(BoardSettings.fontKey("right"), r)
+    }
 
     /**
      * −/+ on the name size of one PANEL half, applied at once: the control you reach for BECAUSE
@@ -1005,12 +1062,6 @@ class GameController(private val host: GameHost) {
         return try { api.get("/api/status") } catch (_: Exception) { null }
     }
 
-    fun sportPickerClock() = scope.launch {
-        sportPicker = sportPicker?.copy(busy = true)
-        val ok = showClock { m -> sportPicker = SportPickerUi(false, m, true) }
-        if (ok) { closeSportPicker(); toast("Clock on the board") } else sportPicker = sportPicker?.copy(busy = false)
-    }
-
     fun sportPickerGameMenu() { closeSportPicker(); scope.launch { openGamePicker() } }
 
     fun sportPickerDiag() { closeSportPicker(); onShowTab?.invoke("diag", null) }
@@ -1054,7 +1105,61 @@ class GameController(private val host: GameHost) {
         closeGamePicker(); goToGame()
     }
 
-    fun gameNew() = scope.launch {
+    /** New game: how to score it, with today's home games on top. */
+    fun showNewGamePage() = scope.launch {
+        gamePicker = gamePicker?.copy(newPage = true, today = emptyList(), todayHead = "Today's home games", status = null)
+        val here = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Zurich")).toString()
+        val r = try { get("/api/schedule?today=$here") } catch (_: Exception) { null }
+        if (gamePicker?.newPage != true) return@launch
+        val arr = r?.optJSONArray("games")
+        val games = if (arr == null) emptyList() else (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.map { ScheduledGame.parse(it) }
+        gamePicker = gamePicker?.copy(
+            today = games,
+            todayHead = when {
+                games.isNotEmpty() -> "Today's home games"
+                r?.opt("ok") == true -> "No home game today"
+                else -> "Today's games could not be loaded"
+            },
+        )
+    }
+
+    fun newGameBack() { gamePicker = gamePicker?.copy(newPage = false, status = null) }
+
+    /** A game from the schedule: the names go in now, and the board shows them with the time. */
+    fun gameScheduled(game: ScheduledGame) = scope.launch {
+        val saved = gamePicker?.saved
+        val live = state?.hasScore() == true
+        if (saved != null && !live && !askConfirm("Start a new game? The saved match (${Rules.describeSaved(saved)}) will be deleted.", yes = "Start new game", danger = true)) return@launch
+        val home = game.homeLabel
+        val away = game.awayLabel
+        if (live && !askConfirm("Start $home vs $away? The current score is cleared.", yes = "Start game", danger = true)) return@launch
+        gamePicker = gamePicker?.copy(busy = true, status = null)
+        try {
+            val body = JSONObject().put("choice", "new").put("prematch", true).put("teams", JSONObject()
+                .put("left", JSONObject().put("name", game.home.ifEmpty { home }).put("short", home))
+                .put("right", JSONObject().put("name", game.away.ifEmpty { away }).put("short", away)))
+            if (game.id != null) body.put("gameId", game.id)
+            val r = post("/api/game", body)
+            clearCountdown()
+            val pre = r.opt("prematch") == true
+            boardMode = if (pre) BoardMode.IDLE else BoardMode.MATCH
+            renderStatus(r)
+            closeGamePicker()
+            onShowTab?.invoke(if (sport == Sport.BEACH) "serve-order" else "game", null)
+            toast("$home vs $away — ready" + if (pre) "; the board shows the names and the time" else "")
+        } catch (e: Exception) {
+            gamePicker = gamePicker?.copy(busy = false, bad = true,
+                status = if (pinWords(e)) "Scoring is locked — enter the scorer PIN, then tap the game again." else "Couldn't start that game: " + errText(e))
+        }
+    }
+
+    /** Another game, or a scoresheet to follow: both are on the console's Link tab. */
+    fun gameFromLinkTab() {
+        closeGamePicker()
+        onShowTab?.invoke("link", null)
+    }
+
+    fun gameManual() = scope.launch {
         val saved = gamePicker?.saved
         if (saved != null && !askConfirm("Start a new game? The saved match (${Rules.describeSaved(saved)}) will be deleted.", yes = "Start new game", danger = true)) return@launch
         if (gameChoice("new") == null) return@launch
@@ -1072,13 +1177,6 @@ class GameController(private val host: GameHost) {
         if (cleared) { clearCountdown(); boardMode = BoardMode.CLOCK }
         refreshStatus()
         toast("Saved game deleted")
-    }
-
-    fun gameClock() = scope.launch {
-        gamePicker = gamePicker?.copy(busy = true, status = null)
-        val ok = showClock { m -> gamePicker = gamePicker?.copy(status = m, bad = true) }
-        gamePicker = gamePicker?.copy(busy = false)
-        if (ok) closeGamePicker()
     }
 
     /** `goToTab("manual")`: the Game tab, which also takes the panel off the crest (enterGameTab). */

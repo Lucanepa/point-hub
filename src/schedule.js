@@ -90,7 +90,7 @@ function ownShort(rest) {
   return clampShort(room > 0 ? `KSCW ${mid.slice(0, room)} ${number}` : `KSCW ${number}`)
 }
 
-const clampShort = (s) => s.toLocaleUpperCase('de-CH').slice(0, SHORT_MAX).trim()
+const clampShort = (s) => s.toLocaleUpperCase('de-CH').slice(0, SHORT_MAX).replace(/[\s-]+$/, '')
 
 // 'YYYY-MM-DD' for today in the hall's time zone. The board's own TZ may be UTC, and at 00:30 in
 // Zurich UTC still says yesterday.

@@ -4249,10 +4249,15 @@
     return EMBED && !$("#matchInfo").hidden && pinNow() !== sheetPin;
   }
   $("#sheetRefreshBtn").addEventListener("click", () => refreshSheet(true));
+  // The app's Match info button opens this page over the Link tab, and Close goes back to its Game tab.
+  let matchInfoFromApp = false;
   function openMatchInfo() { $("#matchInfo").hidden = false; refreshSheet(false); }
   $("#matchInfoBtn").addEventListener("click", openMatchInfo);
   $("#matchInfoLinkBtn").addEventListener("click", openMatchInfo);
-  $("#miClose").addEventListener("click", () => { $("#matchInfo").hidden = true; });
+  $("#miClose").addEventListener("click", () => {
+    $("#matchInfo").hidden = true;
+    if (matchInfoFromApp) { matchInfoFromApp = false; appCall("showTab", "game"); }
+  });
 
   function markLinked() {
     $$("#matches li").forEach((li) => {
@@ -4843,7 +4848,9 @@
       if (list.length && box.dataset.sig !== sig) { box.dataset.sig = sig; fillSuggest(box, list); }
       if (!list.length) box.dataset.sig = "";
     }
-    if (EMBED && list.length && sig !== suggestSig) appCall("showTab", "link");
+    // Not at the end of a match: the app's Game tab is asking to close it, and that comes first. The
+    // question waits on the Link tab, and New game after the result lists the same games.
+    if (EMBED && list.length && sig !== suggestSig && !matchOver(st.state)) appCall("showTab", "link");
     suggestSig = sig;
   }
 
@@ -7099,6 +7106,7 @@
         // Settings ▸ Hall internet, as the console's own uplink chip and banner do (goToUplink) —
         // minus its goToTab, which would only tell the app about the move it just made.
         if (anchor === "uplink" && name === "settings") flashUplink();
+        if (anchor === "matchinfo" && name === "link") { matchInfoFromApp = true; openMatchInfo(); }
       },
       // The app's own Game tab went in front. This page stays loaded underneath (it keeps polling
       // for the backups and its own update), but what only a VISIBLE tab needs stops: Diagnostics'

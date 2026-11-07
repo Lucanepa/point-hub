@@ -176,6 +176,8 @@ screen ever misbehaves at a match).
 - **Tabs:** the app shows a console tab by calling `window.pointhubEmbed.show(name)`. The console
   moves itself to another tab by calling `PointHubApp.showTab(name)`. The app then highlights that
   tab and calls `show(name)` back. For the Game tab, that is `showTab("game")`.
+  `show("link", "matchinfo")` opens Match info over the Link tab; its Back then calls
+  `showTab("game")`. `show("settings", "uplink")` opens Settings at Hall internet.
 - **Scorer PIN:** the app keeps it. The console reads `PointHubApp.scorerPin()` for every write it
   makes, and reports a PIN it learned or forgot with `setScorerPin(pin)`. A 403 on a console write
   calls `pinRejected()`, and the app opens its PIN pad.

@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -121,7 +123,6 @@ private fun SportPickerDialog(g: GameController, ui: ch.kscw.pointhub.game.Sport
             }
             StatusLine(ui.status, ui.bad)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-                PhTextButton("Show clock", { g.sportPickerClock() }, icon = PhIcons.clock, enabled = !ui.busy)
                 PhTextButton("Game menu", { g.sportPickerGameMenu() }, icon = PhIcons.list, enabled = !ui.busy)
                 PhTextButton("Diagnostics", { g.sportPickerDiag() }, icon = PhIcons.activity)
             }
@@ -152,12 +153,12 @@ private fun GamePickerDialog(g: GameController, ui: ch.kscw.pointhub.game.GamePi
     val has = ui.saved != null
     PhDialog(onDismiss = { g.closeGamePicker() }) {
         DialogBox(560.dp, padding = 24.dp) {
+            if (ui.newPage) { NewGamePage(g, ui); return@DialogBox }
             DialogTitle(g.sportLabel(g.curSport))
             DialogSub(if (!ui.loaded) "What would you like to do?" else if (has) "There's a match in progress on this board." else "Nothing saved for this sport yet.")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (has) GameOption("Continue game", Rules.describeSaved(ui.saved!!), primary = true, enabled = !ui.busy) { g.gameContinue() }
-                GameOption("New game", "Start from 0–0", primary = !has, enabled = !ui.busy) { g.gameNew() }
-                GameOption("Show clock", "Leave the board on the crest and clock", enabled = !ui.busy) { g.gameClock() }
+                GameOption("New game", "From the schedule, linked to a scoresheet, or manual", primary = !has, enabled = !ui.busy) { g.showNewGamePage() }
                 if (has) GameOption("Delete saved game", "Forget the match in progress", danger = true, enabled = !ui.busy) { g.gameDelete() }
             }
             StatusLine(ui.status, ui.bad)
@@ -165,6 +166,29 @@ private fun GamePickerDialog(g: GameController, ui: ch.kscw.pointhub.game.GamePi
             CancelLink("Not now") { g.closeGamePicker() }
         }
     }
+}
+
+@Composable
+private fun NewGamePage(g: GameController, ui: ch.kscw.pointhub.game.GamePickerUi) {
+    val c = Ph.colors
+    DialogTitle("New game")
+    DialogSub("How do you want to score it?")
+    Column(
+        Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(ui.todayHead.uppercase(), color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.7.sp)
+        ui.today.forEachIndexed { i, game ->
+            val label = listOf(game.time, game.homeLabel + " vs " + game.awayLabel).filter { it.isNotEmpty() }.joinToString("  ")
+            val hint = listOf(game.league, game.hall).filter { it.isNotEmpty() }.joinToString(" · ")
+            GameOption(label, hint, primary = i == 0, enabled = !ui.busy) { g.gameScheduled(game) }
+        }
+        GameOption("Another game from the schedule", "Opens the season's home games", enabled = !ui.busy) { g.gameFromLinkTab() }
+        GameOption("Link a scoresheet", "The board follows a match scored in OpenVolley", enabled = !ui.busy) { g.gameFromLinkTab() }
+        GameOption("Manual", "Type the names, score from 0–0", enabled = !ui.busy) { g.gameManual() }
+    }
+    StatusLine(ui.status, ui.bad)
+    CancelLink("Back") { g.newGameBack() }
 }
 
 // ------------------------------------------------------------------------------ the result
@@ -214,7 +238,6 @@ private fun MatchEndDialog(g: GameController, ui: ch.kscw.pointhub.game.MatchEnd
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 GameOption("New game", "Start the next match from 0–0", primary = true) { g.matchEndNew() }
-                GameOption("Show clock", "Leave the board on the crest and clock") { g.matchEndClock() }
             }
             StatusLine(ui.status, ui.bad)
             CancelLink("Close") { g.closeMatchEnd() }

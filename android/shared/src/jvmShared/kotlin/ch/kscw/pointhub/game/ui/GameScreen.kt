@@ -127,6 +127,7 @@ fun GameScreen(g: GameController, onUplink: () -> Unit) {
                             mode = g.boardMode,
                             countdown = g.countdown,
                             nowMs = g.nowMs,
+                            timeText = g.mirrorTimeText(g.nowMs),
                             totalTimeouts = g.settings.totalTimeouts ?: Rules.defaultTimeouts(g.sport),
                             totalSubs = g.settings.totalSubs,
                             plainBranding = g.settings.branding == "plain",
@@ -227,13 +228,16 @@ private fun PrematchBanner(g: GameController) {
             )
             Text(sub, color = c.gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
-        if (!warm) PhTextButton("Start warm-up", { g.startWarmup() }, icon = PhIcons.timer, fontSize = 15, minHeight = 52.dp)
+        if (!warm) PhTextButton("Start official warm-up (${warmupWords(g.settings.warmupSeconds)})", { g.startWarmup() }, icon = PhIcons.timer, fontSize = 15, minHeight = 52.dp)
         PhTextButton(
             "Start match now", { g.startMatchNow() }, enabled = !g.startingMatch,
             bg = c.blue, border = c.blue, fg = c.onAccent, fontSize = 15, minHeight = 52.dp,
         )
     }
 }
+
+private fun warmupWords(seconds: Int): String =
+    if (seconds % 60 != 0) Rules.fmtCountdown(seconds.toDouble()) else "${seconds / 60} min"
 
 // ------------------------------------------------------------------------------ team card
 
@@ -376,8 +380,9 @@ private fun FontBox(g: GameController, screen: String, ink: CardInk) {
         val down = n == null || n > BoardSettings.FONT_MIN
         val up = n == null || n < BoardSettings.FONT_MAX
         SmallGlyph("−", ink.ink, down, "Smaller name for this team on the panel") { g.nudgeFont(screen, -1) }
-        Text(n?.toString() ?: "–", color = ink.ink.mix(0.75f), fontSize = 13.sp, style = MonoStyle,
-            modifier = Modifier.width(22.dp).scale(bump.value), textAlign = TextAlign.Center)
+        // The words, not the number: beside a score, a bare 18 reads as points. The mirror shows the effect.
+        Text("Font\nsize", color = ink.ink.mix(0.75f), fontSize = 10.sp, lineHeight = 11.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(30.dp).scale(bump.value), textAlign = TextAlign.Center)
         SmallGlyph("+", ink.ink, up, "Bigger name for this team on the panel") { g.nudgeFont(screen, 1) }
     }
 }
@@ -556,13 +561,14 @@ private fun CenterColumn(g: GameController) {
     val ui = g.ui
     val beach = g.sport == Sport.BEACH
     val bball = g.sport == Sport.BASKETBALL
-    if (!ui.showServe && !beach && !bball) return
     Column(
         Modifier.border(Ph.hairline, c.line, PhShape).background(c.card, PhShape).padding(horizontal = 10.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (ui.showServe) ServeToggle(g)
+        PhTextButton("Switch sides", { g.swap() }, icon = PhIcons.arrowLeftRight, fg = c.blue,
+            enabled = g.busyKey != "swap", notSent = g.notSent["swap"] == true)
         if (beach) {
             val sides = g.state?.sides()
             val n = sides?.servePlayer ?: 0
@@ -626,12 +632,12 @@ private fun ServeToggle(g: GameController) {
             PhButton(
                 { g.serve(screen) }, Modifier.size(Ph.tap),
                 enabled = g.busyKey != key,
-                bg = if (on) fill else Color.Transparent,
-                border = if (on && c.dark) c.fg else Color.Transparent,
-                fg = if (on) arrowInk else c.muted,
+                bg = if (on) fill else c.card,
+                border = if (on && !c.dark) Color.Transparent else if (on) c.fg else c.line,
+                fg = if (on) arrowInk else c.fg,
                 contentPadding = PaddingValues(0.dp), notSent = g.notSent[key] == true,
                 label = "Serve $screen",
-            ) { col -> Icon(if (screen == "left") PhIcons.chevronLeft else PhIcons.chevronRight, null, Modifier.size(20.dp), tint = col) }
+            ) { col -> Icon(if (screen == "left") PhIcons.arrowLeft else PhIcons.arrowRight, null, Modifier.size(20.dp), tint = col) }
         }
     }
 }
@@ -722,11 +728,13 @@ private fun Actions(g: GameController, modifier: Modifier) {
     val c = Ph.colors
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         PhTextButton("VS", { g.idle() }, icon = PhIcons.volleyball)
-        PhTextButton("Show clock", { g.clockButton() }, icon = PhIcons.clock)
+        val known = g.status.kickoffAt != null
+        val onCountdown = known && g.status.timeMode == "countdown"
+        PhTextButton(if (onCountdown) "T- / H" else "H / T-", { g.toggleTimeMode() }, enabled = known,
+            fg = if (onCountdown) c.blue else c.fg, border = if (onCountdown) c.blue else c.line)
+        PhTextButton("Match info", { g.openMatchInfo() }, icon = PhIcons.clipboardList)
         PhTextButton("Warm-up", { g.startWarmup() }, icon = PhIcons.timer)
         if (g.sport == Sport.BASKETBALL) PhTextButton("End period", { g.endPeriod() }, icon = PhIcons.flag)
-        PhTextButton("Switch sides", { g.swap() }, icon = PhIcons.arrowLeftRight, fg = c.blue,
-            enabled = g.busyKey != "swap", notSent = g.notSent["swap"] == true)
         Spacer(Modifier.weight(1f))
         Box(Modifier.width(Ph.hairline).height(32.dp).background(c.lineSoft))
         Spacer(Modifier.width(2.dp))
@@ -755,7 +763,16 @@ private fun CountdownCard(g: GameController, modifier: Modifier) {
             Text(time, color = c.warn, fontSize = 66.sp, style = MonoStyle, modifier = Modifier.alpha(if (blinkOff) 0.15f else 1f))
             Text(cd.label.uppercase(), color = if (cd.blink) c.blue else c.fg, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp,
                 modifier = Modifier.alpha(if (blinkOff) 0.15f else 1f))
-            PhTextButton(cd.action ?: "✕", { g.tapCountdownButton() }, fg = c.blue, fontSize = 16)
+            if (cd.invite) {
+                // The flash: filled for half of every second.
+                val phase = (g.nowMs % 1000) / 1000f
+                val on = phase in 0.25f..0.75f
+                PhTextButton(cd.action ?: "✕", { g.tapCountdownButton() },
+                    fg = if (on) c.onAccent else c.blue, bg = if (on) c.blue else c.card, border = c.blue,
+                    borderWidth = 3.dp, fontSize = 16)
+            } else {
+                PhTextButton(cd.action ?: "✕", { g.tapCountdownButton() }, fg = c.blue, fontSize = 16)
+            }
         }
     } else {
         Row(

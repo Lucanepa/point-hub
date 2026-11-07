@@ -132,6 +132,8 @@ fun BoardMirror(
     mode: BoardMode,
     countdown: Countdown?,
     nowMs: Long,
+    /** The time line of the names screen: the clock, or T - mm:ss to the game. */
+    timeText: String = "",
     totalTimeouts: Int,
     totalSubs: Int,
     plainBranding: Boolean,
@@ -177,7 +179,7 @@ fun BoardMirror(
         val s = size.width / BW
         val ink = { col: Color -> if (eink) Color.Black else col }
         when (mode) {
-            BoardMode.IDLE, BoardMode.CLOCK -> drawIdle(measurer, s, sides, mode, nowMs, plainBranding, crest, ink)
+            BoardMode.IDLE, BoardMode.CLOCK -> drawIdle(measurer, s, sides, mode, nowMs, timeText, plainBranding, crest, ink)
             BoardMode.COUNTDOWN -> if (countdown != null) {
                 if (!cdBlinkOn) drawCountdown(measurer, s, sides, countdown, nowMs, ink)
             } else drawMatch(measurer, s, sides, sport, totalTimeouts, totalSubs, nameSize, blink1.value, blink2.value, eink, ink)
@@ -325,7 +327,7 @@ private fun DrawScope.drawMatch(
 
 /** The names + VS screen (idle) or the clock: the crest, then the names or the time and date. */
 private fun DrawScope.drawIdle(
-    m: TextMeasurer, s: Float, sd: Sides?, mode: BoardMode, nowMs: Long, plain: Boolean, crest: ImageBitmap, ink: (Color) -> Color,
+    m: TextMeasurer, s: Float, sd: Sides?, mode: BoardMode, nowMs: Long, timeText: String, plain: Boolean, crest: ImageBitmap, ink: (Color) -> Color,
 ) {
     val h = size.height
     val w = size.width
@@ -352,7 +354,8 @@ private fun DrawScope.drawIdle(
         val c2 = sd?.right?.let { teamColor(it) } ?: Led.idleGuest
         blocks = listOf(
             m.measure(n1, style(0.23f * h, ink(c1), bold = true, spacing = (-0.02).em)) to 0.031f * h,
-            m.measure(n2, style(0.23f * h, ink(c2), bold = true, spacing = (-0.02).em)) to 0f,
+            m.measure(n2, style(0.23f * h, ink(c2), bold = true, spacing = (-0.02).em)) to 0.01f * h,
+            m.measure(timeText, style(0.27f * h, ink(Color.White), bold = true, spacing = 0.em)) to 0f,
         )
     }
     val maxBlockW = (w - 2 * padX - crestW - (if (plain) 0f else gap)).coerceAtLeast(0f)
@@ -371,7 +374,7 @@ private fun DrawScope.drawIdle(
     var y = (h - totalH) / 2
     blocks.forEachIndexed { i, (layout, after) ->
         val lw = layout.size.width.toFloat()
-        val left = if (mode == BoardMode.CLOCK) x + (blockW - lw) / 2 else x
+        val left = if (mode == BoardMode.CLOCK || i == 2) x + (blockW - lw) / 2 else x
         clipRect(x, 0f, x + blockW, h) { drawText(layout, topLeft = Offset(left, y)) }
         y += layout.size.height
         if (mode == BoardMode.IDLE && i == 0) {

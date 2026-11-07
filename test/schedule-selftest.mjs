@@ -75,6 +75,7 @@ for (const [full, want] of [
   ['KSC Wiedikon H1', 'KSCW H1'],
   ['KSC Wiedikon D3', 'KSCW D3'],
   ['KSC Wiedikon HU23', 'KSCW HU23'],
+  ['KSC Wiedikon DU23-1', 'KSCW DU23'],
   ['VBC Züri Unterland H2', 'ZÜRI H2'],
   ['Volley Näfels D1', 'NÄFEL D1'],
   ['BC Bären Kleinbasel 2', 'BÄREN 2'],

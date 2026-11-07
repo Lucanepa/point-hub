@@ -152,6 +152,31 @@ data class LogEntry(
 data class LiveLog(val n: Int, val last: LogEntry, val teamA: String?, val teamB: String?)
 
 /** A game saved on the board for the active sport (GET /api/game → saved). */
+/** A home game from the board's schedule (GET /api/schedule → games). */
+data class ScheduledGame(
+    val id: String?,
+    val home: String,
+    val away: String,
+    val homeShort: String,
+    val awayShort: String,
+    val time: String,
+    val league: String,
+    val hall: String,
+) {
+    private fun short(s: String, name: String) = s.ifEmpty { name }.trim().uppercase().take(12)
+    val homeLabel get() = short(homeShort, home)
+    val awayLabel get() = short(awayShort, away)
+
+    companion object {
+        fun parse(o: JSONObject) = ScheduledGame(
+            id = if (o.has("id") && !o.isNull("id")) o.opt("id").toString() else null,
+            home = o.optString("home"), away = o.optString("away"),
+            homeShort = o.optString("homeShort"), awayShort = o.optString("awayShort"),
+            time = o.optString("time"), league = o.optString("league"), hall = o.optString("hall"),
+        )
+    }
+}
+
 data class SavedGame(
     val teamA: String,
     val teamB: String,
@@ -191,6 +216,18 @@ class BoardStatus(val json: JSONObject = JSONObject()) {
 
     val mode get() = json.str("mode")
     val matchId get() = json.str("matchId")
+    /** connecting | live | lost | ended for a linked match. */
+    val link get() = json.str("link")
+    /** What the board's time line shows on the names screen: clock | countdown. */
+    val timeMode get() = json.str("timeMode")
+    /** When the game on the board starts (epoch ms), or null when the board does not know. */
+    val kickoffAt: Long? get() = if (json.has("kickoffAt") && !json.isNull("kickoffAt")) json.optLong("kickoffAt") else null
+    /** The name sizes per PANEL half. A court switch moves them, so a client has to notice. */
+    val fontMax: Pair<Int, Int>? get() = json.optJSONObject("board")?.optJSONObject("fontMax")?.let { m ->
+        val l = m.optInt("left", 0)
+        val r = m.optInt("right", 0)
+        if (l > 0 && r > 0) l to r else null
+    }
     val sport get() = json.str("sport")
     val prematch get() = json.opt("prematch") == true
     val orientation get() = json.str("orientation")
