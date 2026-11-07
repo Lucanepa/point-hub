@@ -179,7 +179,7 @@ private fun NewGamePage(g: GameController, ui: ch.kscw.pointhub.game.GamePickerU
     ) {
         Text(ui.todayHead.uppercase(), color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.7.sp)
         ui.today.forEachIndexed { i, game ->
-            val label = listOf(game.time, game.homeLabel + " vs " + game.awayLabel).filter { it.isNotEmpty() }.joinToString("  ")
+            val label = listOf(game.time, game.homeFull + " vs " + game.awayFull).filter { it.isNotEmpty() }.joinToString("  ")
             val hint = listOf(game.league, game.hall).filter { it.isNotEmpty() }.joinToString(" · ")
             GameOption(label, hint, primary = i == 0, enabled = !ui.busy) { g.gameScheduled(game) }
         }

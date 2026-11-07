@@ -668,6 +668,17 @@ class GameController(private val host: GameHost) {
 
     fun tapCountdownButton() = cdButton()
 
+    /**
+     * Nothing is going on at the table, so the app may restart for an update: no card or clock up,
+     * and no match under way. A finished match counts as over once its card is closed.
+     */
+    val quietForUpdate: Boolean
+        get() {
+            if (countdown != null || matchEnd != null) return false
+            val s = state ?: return true
+            return !s.hasScore() || Rules.matchOver(sport, s, settings.bestOf)
+        }
+
     private suspend fun stopServerCountdown(expired: Boolean) {
         try { post("/api/countdown/stop", JSONObject().put("expired", expired)) } catch (_: Exception) {}
     }

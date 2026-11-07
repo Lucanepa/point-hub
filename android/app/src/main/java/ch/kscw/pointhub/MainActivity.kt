@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
@@ -48,6 +49,7 @@ import ch.kscw.pointhub.web.OriginPolicy
 import ch.kscw.pointhub.web.PointHubBridge
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
@@ -71,6 +73,8 @@ import kotlin.concurrent.thread
 class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     companion object {
         private const val TAG = "MainActivity"
+        private const val AUTO_UPDATE_TICK_MS = 60_000L
+        private const val AUTO_UPDATE_QUIET_MS = 60_000L
         private const val RETRY_MS = 3_000L
         private const val UPDATE_TICK_MS = 60_000L
         const val RESULT_EXIT_APP = 100
@@ -119,6 +123,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     private var loadedOrigin: String? = null
     private var forceReload = false
     private var resumed = false
+    private var lastTouchAt = 0L
+    private var autoUpdateTried = -1
     private var wasLost = false
     private var announcedUpdateCode = -1
     private var adminOpen = false
@@ -196,6 +202,12 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         scope.launch { app.boardNetwork.state.collect { onNetState(it) } }
         scope.launch { app.boardNetwork.progress.collect { if (it.isNotEmpty() && offlineWanted) offlineStatus.text = it } }
         scope.launch { app.updates.state.collect { onUpdateState(it) } }
+        scope.launch {
+            while (true) {
+                delay(AUTO_UPDATE_TICK_MS)
+                autoUpdateTick()
+            }
+        }
         app.boardNetwork.start()
     }
 
@@ -434,6 +446,25 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         }
     }
 
+    /**
+     * A new version on the board installs by itself, when nobody is using the tablet and no match is
+     * under way. The admin PIN guards the button a person taps; this checks the same checksum, version
+     * and signing key. Tried once per version, and a failure stays on the banner with its Retry.
+     */
+    private fun autoUpdateTick() {
+        maybeCheckUpdate()
+        val s = app.updates.state.value as? UpdateState.Available ?: return
+        if (!resumed || !nativeActive || autoUpdateTried == s.version.versionCode) return
+        if (SystemClock.uptimeMillis() - lastTouchAt < AUTO_UPDATE_QUIET_MS) return
+        if (!app.game.quietForUpdate) return
+        // Without the permission the install would open Android's Settings: that takes a person, so
+        // it stays on the banner.
+        if (!packageManager.canRequestPackageInstalls() && !Kiosk.isDeviceOwner(app)) return
+        autoUpdateTried = s.version.versionCode
+        Log.i(TAG, "installing update ${s.version.versionName} by itself")
+        app.updates.installAvailable(this)
+    }
+
     private fun maybeCheckUpdate() {
         if (resumed && app.boardNetwork.state.value is NetState.Found && app.updates.isCheckDue()) app.updates.check()
     }
@@ -485,6 +516,7 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     // ---------------------------------------------------------------- Admin gesture
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) lastTouchAt = SystemClock.uptimeMillis()
         if (ev.actionMasked == MotionEvent.ACTION_DOWN &&
             corner.onDown(ev.x, ev.y, ev.eventTime, Ui.dp(this, 80f))
         ) {

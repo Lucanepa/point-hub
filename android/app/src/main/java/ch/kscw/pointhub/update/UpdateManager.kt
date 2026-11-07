@@ -45,7 +45,7 @@ sealed class UpdateState {
 class UpdateManager(private val app: PointHubApp) {
     companion object {
         private const val TAG = "UpdateManager"
-        const val CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000
+        const val CHECK_INTERVAL_MS = 10L * 60 * 1000
         private const val MAX_APK_BYTES = 150L * 1024 * 1024
         private const val MAX_DOWNLOAD_MS = 5L * 60 * 1000
     }
@@ -61,7 +61,7 @@ class UpdateManager(private val app: PointHubApp) {
     val installedVersionCode: Long
         get() = PackageInfoCompat.getLongVersionCode(app.packageManager.getPackageInfo(app.packageName, 0))
 
-    /** Due on the first resume after process start, then every 6 h. */
+    /** Due on the first resume after process start, then every 10 minutes: one small read from the board. */
     fun isCheckDue(now: Long = System.currentTimeMillis()): Boolean =
         !checkedThisProcess || now - app.prefs.lastUpdateCheck >= CHECK_INTERVAL_MS
 

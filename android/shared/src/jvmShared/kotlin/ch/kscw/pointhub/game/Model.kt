@@ -166,6 +166,9 @@ data class ScheduledGame(
     private fun short(s: String, name: String) = s.ifEmpty { name }.trim().uppercase().take(12)
     val homeLabel get() = short(homeShort, home)
     val awayLabel get() = short(awayShort, away)
+    /** The lists say who is playing in full. The short name is what goes on the panel. */
+    val homeFull get() = home.ifEmpty { homeLabel }
+    val awayFull get() = away.ifEmpty { awayLabel }
 
     companion object {
         fun parse(o: JSONObject) = ScheduledGame(
