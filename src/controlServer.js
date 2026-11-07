@@ -159,7 +159,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   // number someone has to remember to bump. Computed once: a deploy restarts the bridge.
   const consoleBuild = (() => {
     const h = createHash('sha1')
-    for (const f of ['index.html', 'logs.html']) {
+    for (const f of ['index.html', 'logs.html', 'i18n.js', 'i18n/de.json', 'i18n/de-CH.json']) {
       try { h.update(fs.readFileSync(path.join(webDir, f))) } catch {}
     }
     return h.digest('hex').slice(0, 12)
@@ -2023,6 +2023,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       // Where the scorer sits (settings.js). The console mirrors its team cards by it; nothing on
       // the server side changes with it.
       orientation: settings ? settings.values.orientation : 'behind',
+      language: settings ? settings.values.language : 'en',
       // Whether THIS requester needs the PIN to write, and why not when it doesn't (see pinView).
       ...pinView(req),
       build: consoleBuild,

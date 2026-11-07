@@ -333,6 +333,7 @@ class GameController(private val host: GameHost) {
         if (st.ledboxConnected) offlineDismissed = false
         if (st.uplinkStatus != "portal") uplinkBannerDismissed = false
         lastState = st.state ?: lastState
+        syncLanguage(st.language)
         renderPrematch(st)
         maybePromptServeOrder(st.state)
         syncSetEndPrompt(st.state)
@@ -340,6 +341,24 @@ class GameController(private val host: GameHost) {
         syncNameSizes(st)
         pinRequired = st.pinRequired
         if (liveLog != null && st.log?.n != logShownN) refreshLiveLog()
+    }
+
+    private var languageWanted = "en"
+
+    /** The board says which language; web/i18n/ on the board has the words, the console's too. */
+    private fun syncLanguage(language: String?) {
+        val next = if (language == "de" || language == "de-CH") language else "en"
+        if (next == languageWanted) return
+        languageWanted = next
+        if (next == "en") { I18n.clear(); return }
+        scope.launch {
+            try {
+                val words = get("/i18n/$next.json")
+                if (languageWanted == next) I18n.load(words)
+            } catch (_: Exception) {
+                if (languageWanted == next) languageWanted = "en" // the next status tries again
+            }
+        }
     }
 
     private fun applySportUi() {
@@ -668,6 +687,17 @@ class GameController(private val host: GameHost) {
 
     fun tapCountdownButton() = cdButton()
 
+    /**
+     * Nothing is going on at the table, so the app may restart for an update: no card or clock up,
+     * and no match under way. A finished match counts as over once its card is closed.
+     */
+    val quietForUpdate: Boolean
+        get() {
+            if (countdown != null || matchEnd != null) return false
+            val s = state ?: return true
+            return !s.hasScore() || Rules.matchOver(sport, s, settings.bestOf)
+        }
+
     private suspend fun stopServerCountdown(expired: Boolean) {
         try { post("/api/countdown/stop", JSONObject().put("expired", expired)) } catch (_: Exception) {}
     }
@@ -765,6 +795,7 @@ class GameController(private val host: GameHost) {
             clearCountdown()
             host.endAskedSig = sig
             showMatchEnd(s)
+            askNextGameSoon()
         }
     }
 
@@ -911,7 +942,27 @@ class GameController(private val host: GameHost) {
         scope.launch { pushResultToBoard(s) }
     }
 
-    fun closeMatchEnd() { matchEnd = null }
+    fun closeMatchEnd() {
+        nextGameJob?.cancel()
+        matchEnd = null
+    }
+
+    private var nextGameJob: Job? = null
+
+    /**
+     * After Close match: a few seconds on the result, then how to score the next game. Only the
+     * question: the result stays on the panel, and nothing is cleared until a game is chosen.
+     */
+    private fun askNextGameSoon() {
+        nextGameJob?.cancel()
+        nextGameJob = scope.launch {
+            delay(8_000)
+            if (matchEnd == null) return@launch
+            matchEnd = null
+            openGamePicker()
+            showNewGamePage()
+        }
+    }
 
     private suspend fun pushResultToBoard(s: LiveState) {
         val lines = Rules.resultLines(sport, s) ?: return
