@@ -765,6 +765,7 @@ class GameController(private val host: GameHost) {
             clearCountdown()
             host.endAskedSig = sig
             showMatchEnd(s)
+            askNextGameSoon()
         }
     }
 
@@ -911,7 +912,27 @@ class GameController(private val host: GameHost) {
         scope.launch { pushResultToBoard(s) }
     }
 
-    fun closeMatchEnd() { matchEnd = null }
+    fun closeMatchEnd() {
+        nextGameJob?.cancel()
+        matchEnd = null
+    }
+
+    private var nextGameJob: Job? = null
+
+    /**
+     * After Close match: a few seconds on the result, then how to score the next game. Only the
+     * question: the result stays on the panel, and nothing is cleared until a game is chosen.
+     */
+    private fun askNextGameSoon() {
+        nextGameJob?.cancel()
+        nextGameJob = scope.launch {
+            delay(8_000)
+            if (matchEnd == null) return@launch
+            matchEnd = null
+            openGamePicker()
+            showNewGamePage()
+        }
+    }
 
     private suspend fun pushResultToBoard(s: LiveState) {
         val lines = Rules.resultLines(sport, s) ?: return

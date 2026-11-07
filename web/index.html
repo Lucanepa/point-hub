@@ -2392,6 +2392,7 @@
       endClosedSig = sig;
       try { localStorage.setItem("endAskedSig", sig); } catch {}
       showMatchEnd(state);
+      askNextGameSoon();
     };
   }
 
@@ -5263,7 +5264,20 @@
     el.hidden = !msg;
     el.classList.toggle("err", !!bad);
   }
-  const closeMatchEnd = () => { $("#matchEnd").hidden = true; };
+  const closeMatchEnd = () => { clearTimeout(nextGameTimer); $("#matchEnd").hidden = true; };
+  // After Close match: a few seconds on the result, then how to score the next game. Only the question:
+  // the result stays on the panel, and nothing is cleared until a game is chosen.
+  const NEXT_GAME_QUESTION_MS = 8000;
+  let nextGameTimer = null;
+  function askNextGameSoon() {
+    clearTimeout(nextGameTimer);
+    nextGameTimer = setTimeout(async () => {
+      if ($("#matchEnd").hidden) return;
+      closeMatchEnd();
+      await openGamePicker();
+      showNewGamePage();
+    }, NEXT_GAME_QUESTION_MS);
+  }
   $("#meClose").addEventListener("click", closeMatchEnd);
   $("#setNo").addEventListener("click", () => { if (lastFinal) showMatchEnd(lastFinal); });
   $("#matchEnd").addEventListener("click", (e) => { if (e.target.id === "matchEnd") closeMatchEnd(); });
