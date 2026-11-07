@@ -7,6 +7,8 @@
 //   [3] a name size stays with its team across a court switch, for a linked match too, and a −/+
 //       afterwards changes the team it was tapped on.
 //   [4] a name with a team number stays at eight characters.
+//   [5] in the tablet app, the end of a match stays on the Game tab, where it is closed, and Match
+//       info opens over the Link tab and comes back.
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -111,6 +113,28 @@ try {
   clearInterval(watch)
   await app.close()
   await mock.close?.()
+}
+
+console.log('\n[5] the tablet app')
+{
+  const html = fs.readFileSync(new URL('../web/index.html', import.meta.url), 'utf8')
+  const start = html.indexOf('function renderSuggest(st) {')
+  let depth = 0, end = start
+  for (let i = html.indexOf('{', start); i < html.length; i++) {
+    if (html[i] === '{') depth++
+    if (html[i] === '}' && --depth === 0) { end = i + 1; break }
+  }
+  const run = (over) => {
+    const calls = []
+    const f = new Function('$', 'EMBED', 'appCall', 'matchOver', 'fillSuggest', 'let suggestSig = "";' + html.slice(start, end) + '\nreturn renderSuggest;')(
+      () => null, true, (...a) => calls.push(a.join(':')), () => over, () => {})
+    f({ suggestion: [{ id: 1 }], state: {} })
+    return calls
+  }
+  ok(run(false).join() === 'showTab:link', 'a suggested game still opens the Link tab during the day')
+  ok(run(true).length === 0, 'but not at the end of a match: Close match is on the Game tab')
+  ok(/anchor === "matchinfo" && name === "link"\) \{ matchInfoFromApp = true; openMatchInfo\(\); \}/.test(html), "the app's Match info opens the page")
+  ok(/if \(matchInfoFromApp\) \{ matchInfoFromApp = false; appCall\("showTab", "game"\); \}/.test(html), 'and Back returns to the Game tab')
 }
 
 console.log(`\n${fail ? '❌' : '✅'} hall-feedback: ${pass} passed, ${fail} failed`)

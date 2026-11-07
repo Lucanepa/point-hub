@@ -116,8 +116,9 @@ fun PhTextButton(
     fontSize: Int = 13,
     minHeight: Dp = Ph.tap,
     notSent: Boolean = false,
+    borderWidth: Dp = Ph.hairline,
 ) {
-    PhButton(onClick, modifier, enabled, bg = bg, border = border, fg = fg, minHeight = minHeight, notSent = notSent) { color ->
+    PhButton(onClick, modifier, enabled, bg = bg, border = border, fg = fg, borderWidth = borderWidth, minHeight = minHeight, notSent = notSent) { color ->
         if (icon != null) Icon(icon, null, Modifier.size(17.dp), tint = color)
         Text(text, color = color, fontSize = fontSize.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
     }

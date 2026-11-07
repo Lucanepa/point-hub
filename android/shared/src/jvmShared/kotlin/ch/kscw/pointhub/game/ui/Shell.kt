@@ -80,7 +80,7 @@ fun ShellHeader(g: GameController, tab: Tab, onTab: (Tab) -> Unit, onUplink: () 
             }
             SportBadge(g)
             TabButton("Game", tab == Tab.GAME) { onTab(Tab.GAME) }
-            TabButton("Link", tab == Tab.LINK) { onTab(Tab.LINK) }
+            TabButton("Link", tab == Tab.LINK, tone = if (linked(g)) linkTone(g.status.link) else LinkTone.NONE) { onTab(Tab.LINK) }
             TabButton("History", tab == Tab.HISTORY) { onTab(Tab.HISTORY) }
             TabIcon(PhIcons.activity, "Diagnostics", tab == Tab.DIAG) { onTab(Tab.DIAG) }
             if (g.pinRequired) {
@@ -158,10 +158,39 @@ private fun ModeTag(g: GameController) {
     val mode = g.status.mode ?: return
     if (mode == "manual" || mode == "idle") return
     val name = when (mode) { "lan" -> "Live (LAN)"; "cloud" -> "Cloud"; else -> mode.replaceFirstChar { it.uppercase() } }
-    val match = g.status.matchId?.let { " · match $it" } ?: ""
+    val link = g.status.link
+    val words = when (link) {
+        "live" -> "Live"
+        "connecting" -> "Waiting for the scoresheet"
+        "lost" -> "Link lost"
+        "ended" -> "Match ended"
+        else -> name
+    }
+    val tone = linkTone(link)
+    val (bg, line, fg) = when {
+        c.eink || tone == LinkTone.NONE -> Triple(Color.Transparent, c.blue, c.blue)
+        tone == LinkTone.OK -> Triple(c.ok, c.ok, c.onAccent)
+        else -> Triple(LinkWarnBg, LinkWarnLine, LinkWarnInk)
+    }
     Box(
-        Modifier.border(Ph.hairline, c.blue, RoundedCornerShapeOf4).padding(horizontal = 9.dp, vertical = 3.dp),
-    ) { Text(name + match, color = c.blue, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        Modifier.background(bg, RoundedCornerShapeOf4).border(Ph.hairline, line, RoundedCornerShapeOf4).padding(horizontal = 9.dp, vertical = 3.dp),
+    ) { Text(words, color = fg, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+}
+
+private enum class LinkTone { NONE, OK, WARN }
+private val LinkWarnBg = Color(0xFFFACC15)
+private val LinkWarnLine = Color(0xFFCA8A04)
+private val LinkWarnInk = Color(0xFF1C1917)
+
+private fun linkTone(link: String?) = when (link) {
+    "live" -> LinkTone.OK
+    "connecting", "lost" -> LinkTone.WARN
+    else -> LinkTone.NONE
+}
+
+private fun linked(g: GameController): Boolean {
+    val m = g.status.mode
+    return m != null && m != "manual" && m != "idle"
 }
 
 private val RoundedCornerShapeOf4 = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
@@ -221,12 +250,14 @@ private fun SportBadge(g: GameController) {
 }
 
 @Composable
-private fun TabButton(text: String, active: Boolean, onClick: () -> Unit) {
+private fun TabButton(text: String, active: Boolean, tone: LinkTone = LinkTone.NONE, onClick: () -> Unit) {
     val c = Ph.colors
+    val coloured = !c.eink && tone != LinkTone.NONE
     PhButton(
         onClick,
-        border = if (active) c.fg else c.line,
-        fg = if (active) c.blue else c.muted,
+        bg = if (!coloured) c.card else if (tone == LinkTone.OK) c.ok else LinkWarnBg,
+        border = if (coloured) (if (tone == LinkTone.OK) c.ok else LinkWarnLine) else if (active) c.fg else c.line,
+        fg = if (coloured) (if (tone == LinkTone.OK) c.onAccent else LinkWarnInk) else if (active) c.blue else c.muted,
         borderWidth = if (active && c.eink) 3.dp else Ph.hairline,
         contentPadding = PaddingValues(horizontal = 15.dp),
     ) { col -> Text(text, color = col, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1) }

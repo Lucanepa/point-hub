@@ -721,7 +721,7 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     private fun showConsoleTab(t: Tab, anchor: String?) {
         val wv = webView ?: return
         if (!allowlist.isAllowed(committed.get())) return
-        val a = if (anchor == "uplink") ",'uplink'" else ""
+        val a = if (anchor == "uplink" || anchor == "matchinfo") ",'$anchor'" else ""
         wv.evaluateJavascript("window.pointhubEmbed&&window.pointhubEmbed.show('${t.key}'$a)", null)
     }
 

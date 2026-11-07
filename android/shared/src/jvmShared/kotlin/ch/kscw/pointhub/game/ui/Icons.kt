@@ -67,6 +67,9 @@ object PhIcons {
     val timer by lazy { icon("timer", line(10f, 2f, 14f, 2f), line(12f, 14f, 15f, 11f), circle(12f, 14f, 8f)) }
     val clock by lazy { icon("clock", circle(12f, 12f, 10f), "M12 6L12 12L16 14") }
     val flag by lazy { icon("flag", "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z", line(4f, 22f, 4f, 15f)) }
+    val arrowLeft by lazy { icon("arrow-left", "m12 19-7-7 7-7", "M19 12H5") }
+    val arrowRight by lazy { icon("arrow-right", "M5 12h14", "m12 5 7 7-7 7") }
+    val clipboardList by lazy { icon("clipboard-list", rect(8f, 2f, 8f, 4f, 1f), "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2", "M12 11h4", "M12 16h4", "M8 11h.01", "M8 16h.01") }
     val arrowLeftRight by lazy { icon("arrow-left-right", "M8 3 4 7l4 4", "M4 7h16", "m16 21 4-4-4-4", "M20 17H4") }
     val undo by lazy { icon("undo-2", "M9 14 4 9l5-5", "M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11") }
     val list by lazy { icon("list", "M3 12h.01", "M3 18h.01", "M3 6h.01", "M8 12h13", "M8 18h13", "M8 6h13") }

@@ -151,7 +151,7 @@ class DesktopApp(val prefs: DesktopPrefs) : ConsoleHost {
     }
 
     private fun showConsoleTab(t: Tab, anchor: String?) {
-        val a = if (anchor == "uplink") ",'uplink'" else ""
+        val a = if (anchor == "uplink" || anchor == "matchinfo") ",'$anchor'" else ""
         console.js("window.pointhubEmbed&&window.pointhubEmbed.show('${t.key}'$a)")
     }
 
