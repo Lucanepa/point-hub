@@ -101,7 +101,8 @@ const failover = new LedboxClient({
 failover.on('error', () => {}) // the dead address is expected to fail
 const landed = await new Promise((resolve) => {
   failover.once('ready', () => resolve(failover.host))
-  setTimeout(() => resolve(null), 4000)
+  // Generous: a resolver can take 5 s to say the dead name does not exist.
+  setTimeout(() => resolve(null), 15000)
   failover.connect()
 })
 assert(landed === '127.0.0.1', `settled on the reachable address (got: ${landed})`)

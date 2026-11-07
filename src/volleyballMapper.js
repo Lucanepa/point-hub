@@ -354,6 +354,23 @@ const MATCH_NAME_WIDTH = 86
 // size would clip whichever one the layout was not tuned for.
 const RESULT_WIDTH = 188   // 192 less a 2px margin each side
 
+// The winner line at the end of a match says the team's full name when the panel has the room:
+// KSC WIEDIKON D3 WINS rather than KSCW D3 WINS. Here, and not in the consoles, so every tablet and
+// browser gets it. 12 px is the smallest that still reads as a headline; below it the short name
+// stays, at its bigger size. A line this does not recognise is left as it came.
+const RESULT_NAME_MIN = 12
+export function resultWinnerLine(winner, state) {
+  const m = /^(.*) WINS$/.exec(String(winner))
+  if (!m || !state) return winner
+  const up = (s) => String(s || '').trim().toUpperCase()
+  for (const [short, name] of [[state.team_a_short, state.team_a_name], [state.team_b_short, state.team_b_name]]) {
+    if (up(short) !== m[1] || !up(name) || up(name) === m[1]) continue
+    const full = `${up(name)} WINS`
+    return fitFontSize(full, RESULT_WIDTH, { max: 17, min: 8 }) >= RESULT_NAME_MIN ? full : winner
+  }
+  return winner
+}
+
 export function toResultSections({ winner = '', score = '', history = '', color = CLUB_GOLD } = {}) {
   return [
     attr('winner', 'text', winner),

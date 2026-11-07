@@ -258,7 +258,7 @@ async function runAgainst(name) {
     console.log('\n[7] the scorer ends the match -> the result screen')
     push({ current_set: 4, sets_won_a: 3, sets_won_b: 1, points_a: 25, points_b: 21, side_a: 'right', match_status: 'ended', last_event_type: 'match_end' }); await sleep(500)
     console.log(`   panel: ${t('winner')} | ${t('sets')} | ${mock.currentLayout}`)
-    ok(mock.currentLayout === 'kscw_result' && /KSC WINS/.test(t('winner') || ''), 'result screen with the winner')
+    ok(mock.currentLayout === 'kscw_result' && /KSC( WIEDIKON)? WINS/.test(t('winner') || ''), 'result screen with the winner')
 
     console.log('\n[8] the scorer undoes the end -> the live score again')
     push({ current_set: 4, sets_won_a: 2, sets_won_b: 1, points_a: 24, points_b: 21, side_a: 'right', match_status: 'in_progress' }); await sleep(500)

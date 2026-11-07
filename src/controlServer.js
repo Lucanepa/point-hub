@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { LanSource, resultFromLiveState } from './lanSource.js'
 import { parseRelayAddress, relayWsUrl, relayHttpCandidates, relayHostLabel, discoverRelays } from './relayAddress.js'
-import { toLeftRight, teamsCrossed } from './volleyballMapper.js'
+import { toLeftRight, teamsCrossed, resultWinnerLine } from './volleyballMapper.js'
 import { hexToRgb } from './ledboxProtocol.js'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -718,7 +718,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       linked = null
       await stopCountdown({ expired: false, repaint: false })
       const lines = resultFromLiveState(state)
-      const clean = lines && { winner: resultLine(lines.winner, 24), score: resultLine(lines.score, 24), history: resultLine(lines.history, 60) }
+      const clean = lines && { winner: resultLine(resultWinnerLine(resultLine(lines.winner, 24), state), 60), score: resultLine(lines.score, 24), history: resultLine(lines.history, 60) }
       let shown = false
       try { shown = !!(clean && ledbox && typeof ledbox.showResult === 'function' && await ledbox.showResult(clean)) } catch { shown = false }
       if (!shown) { try { await holdClock() } catch { /* the log has it */ } }
@@ -1596,13 +1596,14 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       // upper-cased for the board. Anything outside both sets is still dropped.
       const line = resultLine
       const color = HEX_COLOR.test(String(body.color || '')) ? hexToRgb(body.color) : undefined
+      const winner = line(resultWinnerLine(line(body.winner, 24), sourceManager.getState()), 60)
       const ok = ledbox && typeof ledbox.showResult === 'function'
         ? await ledbox.showResult({
-          winner: line(body.winner, 24), score: line(body.score, 24), history: line(body.history, 60), color,
+          winner, score: line(body.score, 24), history: line(body.history, 60), color,
         })
         : false
       if (!ok) return sendJson(res, 200, { ok: false, error: 'the board has no result screen', ...status(req) })
-      clog.info(`result screen shown: ${line(body.winner, 24)} ${line(body.score, 24)}`)
+      clog.info(`result screen shown: ${winner} ${line(body.score, 24)}`)
       return sendJson(res, 200, { ok: true, ...status(req) })
     }
     // GET /api/history — completed matches (newest first) for the History tab + export
