@@ -35,6 +35,10 @@ function count(t) {
 // the typed string and painting a different one is precisely how a name ends up clipped.
 const upper = (s) => String(s).toUpperCase()
 
+// Are the teams on the opposite halves to where they started? A linked match says so with side_a;
+// the board's own sources keep side_a at 'left' and flip ends_swapped instead.
+export const teamsCrossed = (state) => !!state && (state.side_a === 'right') !== !!state.ends_swapped
+
 // Resolve the A/B model to physical left/right using side_a, exactly like getLeftRight.
 export function toLeftRight(state) {
   const isALeft = (state.side_a || 'left') === 'left'

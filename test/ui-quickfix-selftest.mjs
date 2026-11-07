@@ -228,7 +228,7 @@ console.log('\n[10] a point refused because the set is over says so (set-closed)
     lift(index, 'handleEvent') + '\nreturn handleEvent;')(
     (m) => toasts.push(m), () => over, SPORT, (s) => (s === '#cd' ? cd : null), () => { prompted++ })
   mk('volleyball', false)('set-closed', { points_a: 25, points_b: 10 })
-  ok(toasts.pop() === 'Set is over — tap Start interval', 'the toast names the way on')
+  ok(toasts.pop() === 'Set is over — tap Close set', 'the toast names the way on')
   ok(prompted === 1, 'and the SET ENDED card comes back if it had been dismissed')
   cd.hidden = false
   mk('beach', false)('set-closed', {})

@@ -76,14 +76,15 @@ for (const [full, want] of [
   ['KSC Wiedikon D3', 'KSCW D3'],
   ['KSC Wiedikon HU23', 'KSCW HU23'],
   ['VBC Züri Unterland H2', 'ZÜRI H2'],
-  ['Volley Näfels D1', 'NÄFELS D1'],
+  ['Volley Näfels D1', 'NÄFEL D1'],
   ['BC Bären Kleinbasel 2', 'BÄREN 2'],
-  ['STV St. Gallen H1', 'GALLEN H1'],
+  ['STV St. Gallen H1', 'GALLE H1'],
   ['VC Kanti Schaffhausen', 'KANTI'],
   ['Volley Amriswil', 'AMRISWIL'],
-  ['Volleyballclub Andwil-Arnegg D2', 'ANDWIL D2'],
+  ['Volleyballclub Andwil-Arnegg D2', 'ANDWI D2'],
   ['Basketball-Club Zürich Wildcats', 'ZÜRICH'],
   ['Volley 2', 'VOLLEY 2'],
+  ['VBC Einsiedeln H2', 'EINSI H2'],
   ['', ''],
 ]) {
   const got = shortName(full)

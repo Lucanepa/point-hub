@@ -335,6 +335,9 @@
   #cd.major{top:50%;transform:translate(-50%,-50%);flex-direction:column;gap:10px;padding:26px 42px}
   #cd.major .cd-time{font-size:66px} #cd.major .cd-label{font-size:16px}
   #cd.major .cd-stop{height:44px;font-size:16px;padding:0 20px;color:var(--blue)}
+  /* Closes the set or the match: the one thing left to do, so it flashes until it is tapped. */
+  #cd .cd-stop.invite{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue);animation:closeinvite 1s ease-in-out infinite}
+  @keyframes closeinvite{50%{background:var(--blue);color:var(--card)}}
   /* COURT SWITCH: flash the banner (and the board mirror below) for the ~3 s change of ends. */
   #cd.blink .cd-label,#cd.blink .cd-time{animation:cdblink .7s steps(1,end) infinite}
   #cd.blink .cd-label{color:var(--blue)}
@@ -1528,8 +1531,8 @@
             total; subs go amber one short and red at the total. The name sizes are scoreboard
             ceilings — a long name still shrinks to clear the set counter, so these mainly decide
             how big a SHORT name gets. One per side, and each name row on the Game tab has its own
-            −/+ that applies straight away. Left and right are panel halves, so they stay put when
-            you swap ends.</p>
+            −/+ that applies straight away. Left and right are where the teams stand now, and a
+            size stays with its team when they change ends.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Crest screen</legend>
@@ -2284,6 +2287,7 @@
     $("#cd").hidden = true;
     $("#cd").classList.remove("major");
     $("#cd").classList.remove("blink");
+    $("#cdStop").classList.remove("invite");
     if (board.mode === "countdown") { board.mode = "match"; paintBoardMode(); }
   }
   // expired=true when the clock ran out (fires the board horn); false on a manual skip.
@@ -2333,7 +2337,7 @@
   }
 
   // When a set ends we DON'T jump straight into the interval — the board holds the final
-  // score, and this prompt waits for the operator to press "Start interval". Only then does
+  // score, and this prompt waits for the operator to press "Close set". Only then does
   // the interval countdown (and the board's countdown screen) begin.
   function showSetEndPrompt(state) {
     if (EMBED) return;   // the app's Game tab says SET ENDED (see startCountdown)
@@ -2341,8 +2345,9 @@
     const sd = sides(state);
     $("#cdLabel").textContent = "SET ENDED";
     $("#cdTime").textContent = sd ? (sd[panelSide("left")].points + "–" + sd[panelSide("right")].points) : "";
-    $("#cdStop").textContent = "Start interval →";
-    $("#cdStop").title = "Start the set interval";
+    $("#cdStop").textContent = "Close set →";
+    $("#cdStop").title = "Close the set and start the interval";
+    $("#cdStop").classList.add("invite");
     $("#cd").classList.add("major");
     $("#cd").hidden = false;
     // The board stays on the match layout showing the final score — no publishCountdown here.
@@ -2357,6 +2362,45 @@
       startCountdown(SETTINGS.setIntervalSeconds || 180, "INTERVAL", null,
         { major: true, action: "Start next set →", content: "sets", swapFirst: true });
     };
+  }
+
+  // The same card at the end of a match. A card and not a dialog, so a wrong match point can still
+  // be taken back with Undo. Nothing goes on the panel until it is tapped.
+  function showMatchEndPrompt(state, sig) {
+    const up = $("#cd").hidden ? "" : $("#cdLabel").textContent;
+    if (up && up !== "SET ENDED" && up !== "MATCH ENDED") return;   // a clock is running: next poll
+    if (up !== "MATCH ENDED") clearCountdown();
+    const sd = sides(state);
+    $("#cdLabel").textContent = "MATCH ENDED";
+    $("#cdTime").textContent = SPORT === "basketball"
+      ? (sd ? sd[panelSide("left")].points + "–" + sd[panelSide("right")].points : "")
+      : (sd ? sd[panelSide("left")].sets + "–" + sd[panelSide("right")].sets : "");
+    $("#cdStop").textContent = "Close match →";
+    $("#cdStop").title = "Close the match and show the result";
+    $("#cdStop").classList.add("invite");
+    $("#cd").classList.add("major");
+    $("#cd").hidden = false;
+    cdButton = () => {
+      clearCountdown();
+      endClosedSig = sig;
+      try { localStorage.setItem("endAskedSig", sig); } catch {}
+      showMatchEnd(state);
+    };
+  }
+
+  // A console that was reloaded, or a second tablet, missed the set-end event. The state says the
+  // set is closed, so the card comes up anyway. A linked match is closed on the scoresheet.
+  function syncSetEndPrompt(state) {
+    if (EMBED || !state || SPORT === "basketball") return;
+    const closed = setIsClosed(state) && !matchOver(state);
+    const up = !$("#cd").hidden;
+    if (!closed) {
+      if (up && $("#cdLabel").textContent === "SET ENDED") clearCountdown();
+      return;
+    }
+    if (up || linkedMatchId || board.mode !== "match") return;
+    if (isShown($("#sportPicker")) || isShown($("#gamePicker"))) return;
+    showSetEndPrompt(state);
   }
 
   let cdButton = () => finishCountdown(false);
@@ -2618,7 +2662,9 @@
     renderSetStrip(st.state);
     markLinked();
     maybePromptServeOrder(st.state);
+    syncSetEndPrompt(st.state);
     maybeAskEndMatch(st.state);
+    syncNameSizes(st);
     pinRequired = !!st.pinRequired;
     updateLock();
     syncPinSetup(st);
@@ -3622,13 +3668,13 @@
       // point, or a second tablet a beat behind. Nothing changed; say why, and put the way forward
       // back on screen if it was dismissed (or this tablet never saw the set end).
       if (matchOver(s)) { toast("The match is over — start a new game from the game menu"); return; }
-      toast(SPORT === "basketball" ? "This period is over — tap End period" : "Set is over — tap Start interval");
+      toast(SPORT === "basketball" ? "This period is over — tap End period" : "Set is over — tap Close set");
       if (SPORT !== "basketball" && $("#cd").hidden) showSetEndPrompt(s);
       return;
     }
     if (event === "set-end") {
       // Flash the set-winning side, then WAIT: the board holds the final score and the operator
-      // presses "Start interval" to begin the countdown. This keeps the winning point visible
+      // presses "Close set" to begin the countdown. This keeps the winning point visible
       // instead of the interval screen swallowing it the instant the set closes.
       flashSide(sideOf(s, num(s.points_a) > num(s.points_b)));
       showSetEndPrompt(s);
@@ -3687,13 +3733,13 @@
     const running = board.mode === "countdown" && board.cd ? board.cd.label : "";
     if (SPORT !== "basketball") {
       if (setIsClosed(s)) {
-        // "Start interval" (next-set) taken back: the finished set is on the board again, so the
+        // "Close set" (next-set) taken back: the finished set is on the board again, so the
         // interval clock is about a set that has not started. Stop it — on the panel too — and
         // offer the interval again.
         if (running === "INTERVAL") { clearCountdown(); stopServerCountdown(false); }
         if ($("#cd").hidden) showSetEndPrompt(s);
       } else if (cdShown && $("#cdLabel").textContent === "SET ENDED") {
-        // The set-winning point taken back: the set is open again, so "Start interval" is wrong.
+        // The set-winning point taken back: the set is open again, so "Close set" is wrong.
         clearCountdown();
       }
     }
@@ -5021,41 +5067,34 @@
     (s.set_results || []).map((r) => num(r.a) + ":" + num(r.b)).join(","),
   ].join("|");
   const SAFE_HEX = /^#[0-9a-fA-F]{6}$/;   // same shape the server enforces; never trust it blindly
-  let endAsking = false;
+  let endClosedSig = null;                // closed on this page, for a browser with no localStorage
   let lastFinal = null;                   // the finished state, so the Final chip can reopen this
 
-  async function maybeAskEndMatch(state) {
+  function maybeAskEndMatch(state) {
     // Embed mode: the result is the app's Game tab's to offer. renderStatus still runs on every
     // poll here (backups, the match sheet, the self-update), so this is where it stops.
     if (EMBED) return;
-    if (!state || endAsking) return;
+    if (!state) return;
     if (!matchOver(state)) {
-      // A match is running again, so forget that we asked about the last one. This is what makes
-      // the guard safe: the signature only has to survive a reload of the SAME finished match, not
-      // stay unique against every match ever played on this tablet.
+      // A match is running again, so forget that it was closed. This is what makes the guard safe:
+      // the signature only has to survive a reload of the SAME finished match, not stay unique
+      // against every match ever played on this tablet.
       lastFinal = null;
+      endClosedSig = null;
       try { localStorage.removeItem("endAskedSig"); } catch {}
+      // The match point taken back, or a new match: the card is about a match that is not over.
+      if (!$("#cd").hidden && $("#cdLabel").textContent === "MATCH ENDED") clearCountdown();
       return;
     }
     lastFinal = state;
     const sig = matchSig(state);
     let seen = null;
-    try { seen = localStorage.getItem("endAskedSig"); } catch { /* private mode: ask once per load */ }
-    if (seen === sig) return;
+    try { seen = localStorage.getItem("endAskedSig"); } catch { /* private mode: endClosedSig */ }
+    if (seen === sig || endClosedSig === sig) return;
     // Not on top of the sport or game picker: a device opening on a finished match got this over
-    // the picker at load. Returning before the signature is stored means the next poll after the
-    // picker closes asks instead.
+    // the picker at load. The next poll after the picker closes shows it.
     if (isShown($("#sportPicker")) || isShown($("#gamePicker"))) return;
-    endAsking = true;
-    // Marked BEFORE the await, not after: the confirm is open for as long as it takes someone to
-    // read it, and several polls land in that window. Declining is also an answer — it must not
-    // be re-asked on the next tick.
-    try { localStorage.setItem("endAskedSig", sig); } catch {}
-    try {
-      // Worded as what it is: the match is ALREADY over, and a bare "End match?" with a generic
-      // Confirm read like a destructive action.
-      if (await askConfirm("Match finished — show the result?", { yes: "Show result", no: "Not now" })) showMatchEnd(state);
-    } finally { endAsking = false; }
+    showMatchEndPrompt(state, sig);
   }
 
   // What decides the match, for the console summary and the panel alike. Basketball has no sets —
@@ -6180,9 +6219,8 @@
   // match, find a fieldset and press Save would defeat the point. The Settings inputs stay the
   // single source of truth for the bounds (min/max are written once, in the markup).
   //
-  // left/right are PANEL HALVES, not teams. toLeftRight() has already resolved side_a by the time
-  // the mapper sizes anything, so "left" is the left half whichever team is standing there — and
-  // swapping ends moves the names, not the ceilings.
+  // left/right are PANEL HALVES here, whichever team is standing there. The board stores the sizes
+  // per team and hands them over per half, so a court switch moves a name and its size together.
   const FONT_FALLBACK = { min: 10, max: 30, value: 18 };
   const fontKey = (side) => (side === "right" ? "matchFontMaxRight" : "matchFontMaxLeft");
   const fontInput = (side) => $(`[data-set="${fontKey(side)}"]`);
@@ -6211,6 +6249,18 @@
     });
   }
   const fontBusy = { left: false, right: false };
+  // A court switch moved the sizes to the other half: the next tap has to start from these.
+  function syncNameSizes(st) {
+    const m = st.board && st.board.fontMax;
+    if (!m || SETTINGS.matchFontMaxLeft === undefined || fontBusy.left || fontBusy.right) return;
+    if (SETTINGS.matchFontMaxLeft === m.left && SETTINGS.matchFontMaxRight === m.right) return;
+    SETTINGS = { ...SETTINGS, matchFontMaxLeft: m.left, matchFontMaxRight: m.right };
+    for (const side of ["left", "right"]) {
+      const el = fontInput(side);
+      if (el) { el.value = String(m[side]); syncStepper(el.closest(".stepper")); }
+    }
+    renderFontBox();
+  }
   async function nudgeFont(side, dir) {
     if (fontBusy[side]) return;                 // a double-tap must not queue two saves
     const key = fontKey(side);

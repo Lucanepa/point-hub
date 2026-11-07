@@ -48,6 +48,9 @@ const CLUB_PREFIX = /^(vbc|vc|bc|bbc|tv|stv|sc|ksc|club|volley[\p{L}-]*|basket[\
 // A team designation at the end of a name: H1, D3, U17, HU23, 2, …
 const TEAM_NO = /^[A-Za-z]{0,3}\d{1,2}$/
 const SHORT_MAX = 10
+// A name with a team number stays at eight characters, which is what still fits the panel at the
+// default size: 'EINSIED H2' dropped to 15 px there, 'EINSI H2' stays at 18.
+const SHORT_NUMBERED_MAX = 8
 
 // A short code for the scoreboard. Deliberately a guess the operator can overwrite — the console
 // offers these as editable fields — so it only has to be a good first draft, never right.
@@ -65,7 +68,7 @@ export function shortName(full) {
   // The first word that is a word: 'STV St. Gallen H1' is GALLEN, not ST. Everything a prefix
   // ('Volley 2')? Keep the name rather than print just a number.
   let word = rest.find((w) => w.replace(/-/g, '').length >= 3) || rest[0] || clean(words[0] || '')
-  const room = number ? SHORT_MAX - number.length - 1 : SHORT_MAX
+  const room = number ? SHORT_NUMBERED_MAX - number.length - 1 : SHORT_MAX
   // A double-barrelled place that does not fit keeps its first half: ANDWIL, not ANDWIL-ARN.
   if (word.length > room && word.includes('-')) word = word.split('-')[0]
   return clampShort(number ? `${word.slice(0, Math.max(3, room))} ${number}` : word)
