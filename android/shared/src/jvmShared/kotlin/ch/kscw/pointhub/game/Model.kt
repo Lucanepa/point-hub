@@ -234,6 +234,7 @@ class BoardStatus(val json: JSONObject = JSONObject()) {
     val pinRequired get() = json.bool("pinRequired")
     val build get() = json.str("build")
     val gameId get() = json.str("gameId")
+    val prematchGameId get() = json.str("prematchGameId")
     val state: LiveState? get() = json.optJSONObject("state")?.let { LiveState(it) }
     val canUndo get() = json.opt("canUndo") == true
     val undoLabel get() = json.str("undoLabel") ?: ""

@@ -228,19 +228,7 @@ private fun PrematchBanner(g: GameController) {
             )
             Text(sub, color = c.gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
-        if (!warm) {
-            // 14 minutes before the game the official warm-up is due, so the button asks until it is tapped.
-            val due = Rules.warmupDue(g.status.kickoffAt, g.nowMs)
-            val on = due && flashOn(g.nowMs)
-            PhTextButton(
-                if (due) "Start the official warm-up?" else "Start official warm-up (${warmupWords(g.settings.warmupSeconds)})",
-                { g.startWarmup() }, icon = PhIcons.timer, fontSize = 15, minHeight = 52.dp,
-                fg = if (on) c.onAccent else if (due) c.blue else c.fg,
-                bg = if (on) c.blue else c.card,
-                border = if (due) c.blue else c.line,
-                borderWidth = if (due) 3.dp else Ph.hairline,
-            )
-        }
+        if (!warm) PhTextButton("Start official warm-up (${warmupWords(g.settings.warmupSeconds)})", { g.startWarmup() }, icon = PhIcons.timer, fontSize = 15, minHeight = 52.dp)
         PhTextButton(
             "Start match now", { g.startMatchNow() }, enabled = !g.startingMatch,
             bg = c.blue, border = c.blue, fg = c.onAccent, fontSize = 15, minHeight = 52.dp,
@@ -786,6 +774,7 @@ private fun CountdownCard(g: GameController, modifier: Modifier) {
             } else {
                 PhTextButton(cd.action ?: "✕", { g.tapCountdownButton() }, fg = c.blue, fontSize = 16)
             }
+            if (cd.canWait) PhTextButton("Not now", { g.warmupNotNow() }, fg = c.muted, border = Color.Transparent, bg = Color.Transparent, fontSize = 14)
         }
     } else {
         Row(

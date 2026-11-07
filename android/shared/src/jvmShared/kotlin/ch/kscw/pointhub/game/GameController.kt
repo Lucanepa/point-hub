@@ -19,7 +19,7 @@ import org.json.JSONObject
 /** What the LED panel is showing, so the mirror can follow it (`board.mode` in the console). */
 enum class BoardMode { MATCH, IDLE, CLOCK, COUNTDOWN }
 
-enum class CdKind { TIMEOUT, INTERVAL, WARMUP, TTO, SET_ENDED, MATCH_ENDED }
+enum class CdKind { TIMEOUT, INTERVAL, WARMUP, TTO, SET_ENDED, MATCH_ENDED, WARMUP_DUE }
 
 /**
  * A countdown card. [label] is what the tablet shows ("TO KSCW"); [boardLabel] is what the board was
@@ -43,6 +43,8 @@ data class Countdown(
     val score: String = "",
     /** The button closes the set or the match: the one thing left to do, so it flashes. */
     val invite: Boolean = false,
+    /** The card only asks, so it has a Not now under its button. */
+    val canWait: Boolean = false,
 )
 
 data class ToastMsg(
@@ -803,10 +805,42 @@ class GameController(private val host: GameHost) {
 
     val warmupRunning get() = boardMode == BoardMode.COUNTDOWN && countdown?.boardLabel == "WARM UP"
 
+    /** Asked once per game: Not now leaves the banner's own button as the way to start it. */
+    private var warmupLater: String? = null
+
+    /**
+     * From 14 minutes before the game the official warm-up is due: the card in the middle of the
+     * court asks, and its button flashes until it is tapped. A clock already running comes first.
+     */
+    private fun syncWarmupPrompt(st: BoardStatus, on: Boolean) {
+        val key = st.prematchGameId ?: ""
+        val kick = st.kickoffAt
+        val wanted = on && !warmupRunning && kick != null && Rules.warmupDue(kick, now()) && warmupLater != key
+        val up = countdown
+        if (!wanted) {
+            if (up?.kind == CdKind.WARMUP_DUE) clearCountdown()
+            return
+        }
+        if (up != null && up.kind != CdKind.WARMUP_DUE) return
+        val left = maxOf(0L, (kick!! - now() + 59_999) / 60_000)
+        countdown = Countdown(CdKind.WARMUP_DUE, "OFFICIAL WARM-UP", "OFFICIAL WARM-UP", 0L, true, "Start the official warm-up?",
+            "none", null, false, "T - $left", invite = true, canWait = true)
+        cdButton = {
+            clearCountdown()
+            startWarmup()
+        }
+    }
+
+    fun warmupNotNow() {
+        warmupLater = status.prematchGameId ?: ""
+        clearCountdown()
+    }
+
     private fun renderPrematch(st: BoardStatus) {
         val on = st.prematch
         val was = prematchOn
         prematchOn = on
+        syncWarmupPrompt(st, on)
         if (!on) {
             // Started elsewhere (another tablet, the warm-up running out): the scoreboard is up.
             if (was && (boardMode == BoardMode.CLOCK || boardMode == BoardMode.IDLE)) boardMode = BoardMode.MATCH

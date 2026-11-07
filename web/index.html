@@ -279,7 +279,6 @@
   /* One row whatever the screen: the buttons stack on a phone rather than breaking the words. */
   .prematch .pmbtns{flex-wrap:wrap}
   .prematch .pmbtns #pmWarmup{flex:1 0 auto;white-space:nowrap}
-  #pmWarmup.invite{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue);animation:closeinvite 1s ease-in-out infinite}
   /* Hall Wi-Fi needs a login (see #uplinkBanner). Red-edged rather than gold: gold is "the board is
      waiting on you to start", this is "something the public sees has stopped". One row, so on a
      phone held sideways it costs the score one line and no more. */
@@ -341,6 +340,8 @@
   #cd.major .cd-stop{height:44px;font-size:16px;padding:0 20px;color:var(--blue)}
   /* Closes the set or the match: the one thing left to do, so it flashes until it is tapped. */
   #cd .cd-stop.invite{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue);animation:closeinvite 1s ease-in-out infinite}
+  /* The way out of a card that is only asking, under its button. */
+  #cdLater{min-height:var(--tap);padding:0 12px;background:none;border:0;color:var(--muted);font-size:14px;font-weight:700;cursor:pointer}
   @keyframes closeinvite{50%{background:var(--blue);color:var(--card)}}
   /* COURT SWITCH: flash the banner (and the board mirror below) for the ~3 s change of ends. */
   #cd.blink .cd-label,#cd.blink .cd-time{animation:cdblink .7s steps(1,end) infinite}
@@ -1741,6 +1742,7 @@
       <span class="cd-time" id="cdTime">0:00</span>
       <span class="cd-label" id="cdLabel"></span>
       <button class="cd-stop" id="cdStop" title="Skip">✕</button>
+      <button type="button" id="cdLater" hidden>Not now</button>
     </div>
   </main>
 
@@ -2292,6 +2294,7 @@
     $("#cd").classList.remove("major");
     $("#cd").classList.remove("blink");
     $("#cdStop").classList.remove("invite");
+    $("#cdLater").hidden = true;
     if (board.mode === "countdown") { board.mode = "match"; paintBoardMode(); }
   }
   // expired=true when the clock ran out (fires the board horn); false on a manual skip.
@@ -4862,10 +4865,37 @@
   const warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";
   const WARMUP_DUE_MS = 14 * 60 * 1000;
   const warmupDue = (kickoffAt, now) => kickoffAt != null && kickoffAt - now <= WARMUP_DUE_MS;
+  // Asked once per game: Not now leaves the banner's own button as the way to start it.
+  let warmupLater = null;
+  // From 14 minutes before the game the official warm-up is due: the card in the middle of the court
+  // asks, and its button flashes until it is tapped. A clock already running comes first.
+  function syncWarmupPrompt(st, on) {
+    if (EMBED) return;
+    const key = (st && st.prematchGameId) ?? "";
+    const wanted = on && !warmupRunning() && warmupDue(st.kickoffAt, Date.now()) && warmupLater !== String(key);
+    const up = $("#cd").hidden ? "" : $("#cdLabel").textContent;
+    if (!wanted) { if (up === "OFFICIAL WARM-UP") clearCountdown(); return; }
+    if (up && up !== "OFFICIAL WARM-UP") return;
+    $("#cdLabel").textContent = "OFFICIAL WARM-UP";
+    $("#cdTime").textContent = "T - " + Math.max(0, Math.ceil((st.kickoffAt - Date.now()) / 60000));
+    if (up) return;
+    $("#cdStop").textContent = "Start the official warm-up?";
+    $("#cdStop").title = "Start the official warm-up";
+    $("#cdStop").classList.add("invite");
+    $("#cdLater").hidden = false;
+    $("#cd").classList.add("major");
+    $("#cd").hidden = false;
+    cdButton = () => { clearCountdown(); startWarmup(); };
+    cdLaterKey = String(key);
+  }
+  let cdLaterKey = "";
+  $("#cdLater").addEventListener("click", () => { warmupLater = cdLaterKey; clearCountdown(); });
+
   function renderPrematch(st) {
     const on = !!(st && st.prematch === true);
     const was = prematchOn;
     prematchOn = on;
+    syncWarmupPrompt(st, on);
     const box = $("#prematch");
     if (box) box.hidden = !on;
     document.body.classList.toggle("is-prematch", on);
@@ -4884,12 +4914,9 @@
     $("#pmSub").textContent = warm ? "— warm-up running; the match starts when it ends"
       : names ? "— board shows the team names" : "— board shows the clock";
     const wb = $("#pmWarmup"); if (wb) wb.hidden = warm;
-    // 14 minutes before the game the official warm-up is due, so the button asks until it is tapped.
-    const due = warmupDue(st.kickoffAt, Date.now());
-    if (wb) wb.classList.toggle("invite", due);
     // What the button will run: Settings' warm-up, 10 minutes unless someone changed it.
     const wt = $("#pmWarmupText"), secs = Number(SETTINGS.warmupSeconds) || 600;
-    if (wt) wt.textContent = due ? "Start the official warm-up?" : "Start official warm-up (" + (secs % 60 ? fmt(secs) : secs / 60 + " min") + ")";
+    if (wt) wt.textContent = "Start official warm-up (" + (secs % 60 ? fmt(secs) : secs / 60 + " min") + ")";
   }
   // The Game tab's Warm-up and the banner's "Start warm-up" are the same clock. In a pre-match its
   // end is the start of the match — the server paints the 0–0 scoreboard when it stops — so the

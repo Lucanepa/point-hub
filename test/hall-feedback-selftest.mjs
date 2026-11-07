@@ -9,6 +9,7 @@
 //   [4] a name with a team number stays at eight characters.
 //   [5] in the tablet app, the end of a match stays on the Game tab, where it is closed, and Match
 //       info opens over the Link tab and comes back.
+//   [6] from 14 minutes before the game, a flashing card in the middle asks for the official warm-up.
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -135,6 +136,47 @@ console.log('\n[5] the tablet app')
   ok(run(true).length === 0, 'but not at the end of a match: Close match is on the Game tab')
   ok(/anchor === "matchinfo" && name === "link"\) \{ matchInfoFromApp = true; openMatchInfo\(\); \}/.test(html), "the app's Match info opens the page")
   ok(/if \(matchInfoFromApp\) \{ matchInfoFromApp = false; appCall\("showTab", "game"\); \}/.test(html), 'and Back returns to the Game tab')
+}
+
+console.log('\n[6] the official warm-up')
+{
+  const html = fs.readFileSync(new URL('../web/index.html', import.meta.url), 'utf8')
+  const start = html.indexOf('const WARMUP_DUE_MS')
+  const end = html.indexOf('  function renderPrematch(st) {')
+  const classes = () => ({ on: new Set(), add(c) { this.on.add(c) }, remove(c) { this.on.delete(c) } })
+  const el = () => ({ hidden: true, textContent: '', title: '', classList: classes(), addEventListener(t, f) { this.click = f } })
+  const nodes = { '#cd': el(), '#cdLabel': el(), '#cdTime': el(), '#cdStop': el(), '#cdLater': el() }
+  let started = 0, running = false
+  const clearCountdown = () => { nodes['#cd'].hidden = true; nodes['#cdLater'].hidden = true; nodes['#cdStop'].classList.remove('invite') }
+  const f = new Function('$', 'EMBED', 'clearCountdown', 'warmupRunning', 'setButton', 'startWarmup',
+    'let cdButton;' + html.slice(start, end).replace('cdButton = () => { clearCountdown(); startWarmup(); };', 'setButton(() => { clearCountdown(); startWarmup(); });') + '\nreturn syncWarmupPrompt;')
+  let tap = null
+  const sync = f((q) => nodes[q], false, clearCountdown, () => running, (b) => { tap = b }, () => { started++; running = true })
+  const at = (min) => ({ prematchGameId: 7, kickoffAt: Date.now() + min * 60000 })
+  sync(at(15), true)
+  ok(nodes['#cd'].hidden, 'T-15: no card yet')
+  sync(at(14), true)
+  ok(!nodes['#cd'].hidden && nodes['#cdLabel'].textContent === 'OFFICIAL WARM-UP' && nodes['#cdTime'].textContent === 'T - 14', 'T-14: the card is up')
+  ok(nodes['#cdStop'].textContent === 'Start the official warm-up?' && nodes['#cdStop'].classList.on.has('invite'), 'and its button asks and flashes')
+  sync(at(13), true)
+  ok(nodes['#cdTime'].textContent === 'T - 13', 'it counts down')
+  sync(at(13), false)
+  ok(nodes['#cd'].hidden, 'the match started: the card goes')
+  sync(at(13), true)
+  nodes['#cdLater'].click()
+  ok(nodes['#cd'].hidden, 'Not now closes it')
+  sync(at(12), true)
+  ok(nodes['#cd'].hidden, 'and it stays closed for this game')
+  sync({ ...at(12), prematchGameId: 8 }, true)
+  ok(!nodes['#cd'].hidden, 'the next game asks again')
+  tap()
+  ok(started === 1 && nodes['#cd'].hidden, 'the tap starts the warm-up')
+  sync({ ...at(12), prematchGameId: 8 }, true)
+  ok(nodes['#cd'].hidden, 'and the card does not come back over it')
+  running = false
+  nodes['#cdLabel'].textContent = 'TO HOME'; nodes['#cd'].hidden = false
+  sync({ ...at(12), prematchGameId: 9 }, true)
+  ok(nodes['#cdLabel'].textContent === 'TO HOME', 'a clock already running comes first')
 }
 
 console.log(`\n${fail ? '❌' : '✅'} hall-feedback: ${pass} passed, ${fail} failed`)
