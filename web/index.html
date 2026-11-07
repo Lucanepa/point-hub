@@ -271,7 +271,7 @@
   /* Tonight's game, suggested (autoPrepare.js): the same strip as the pre-match, buttons may wrap
      (one per game when there are several). */
   .suggest .pmbtns{flex-wrap:wrap}
-  .suggest .pmbtns button{white-space:normal;text-align:left}
+  .suggest .pmbtns button{white-space:normal;text-align:left;flex:1 1 200px}
   .prematch .pmbtns button{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:52px;padding:0 10px;
     font-size:15px;font-weight:800;line-height:1.15;text-align:center;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--fg);cursor:pointer}
   .prematch .pmbtns button.primary{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
@@ -3932,6 +3932,8 @@
   // Short names come from the server already shortened ("KSCW H1"), but it is a courtesy, not a
   // promise: fall back to the full name, and cap it at what the board's name field takes.
   const schedShort = (short, name) => String(short || name || "").trim().toUpperCase().slice(0, 12);
+  // The lists say who is playing in full. The short name is what goes on the panel.
+  const schedFull = (name, short) => String(name || short || "").trim();
   // Cancelled / postponed games stay in the list, flagged, so the scorer sees WHY a game is missing.
   function schedOff(g) {
     if (!g) return "";
@@ -3962,7 +3964,7 @@
     const info = document.createElement("span"); info.className = "sinfo";
     const teams = document.createElement("span"); teams.className = "steams";
     const vs = document.createElement("span"); vs.className = "vs"; vs.textContent = "vs";
-    teams.append(document.createTextNode(home), vs, document.createTextNode(away));
+    teams.append(document.createTextNode(schedFull(g.home, home)), vs, document.createTextNode(schedFull(g.away, away)));
     const meta = document.createElement("span"); meta.className = "smeta";
     meta.textContent = [g.league, g.hall].filter(Boolean).join(" · ");
     info.append(teams, meta);
@@ -4823,7 +4825,7 @@
     const text = document.createElement("div"); text.className = "pmtext";
     const title = document.createElement("span"); title.className = "pmready";
     const sub = document.createElement("span"); sub.className = "pmsub";
-    const label = (g) => schedShort(g.homeShort, g.home) + " vs " + schedShort(g.awayShort, g.away);
+    const label = (g) => schedFull(g.home, g.homeShort) + " vs " + schedFull(g.away, g.awayShort);
     const when = (g) => [String(g.time || "").slice(0, 5), g.hall].filter(Boolean).join(" · ");
     if (list.length === 1) {
       title.append("Tonight's game: ");
@@ -5686,7 +5688,7 @@
       const b = document.createElement("button");
       b.className = "gpopt" + (i === 0 ? " primary" : "");
       const label = document.createElement("span"); label.className = "gplabel";
-      label.textContent = [g.time, schedShort(g.homeShort, g.home) + " vs " + schedShort(g.awayShort, g.away)].filter(Boolean).join("  ");
+      label.textContent = [g.time, schedFull(g.home, g.homeShort) + " vs " + schedFull(g.away, g.awayShort)].filter(Boolean).join("  ");
       const hint = document.createElement("span"); hint.className = "gphint";
       hint.textContent = [g.league, g.hall].filter(Boolean).join(" · ");
       b.append(label, hint);
