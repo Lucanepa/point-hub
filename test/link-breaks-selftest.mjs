@@ -350,7 +350,7 @@ try {
     push({ set_interval_active: true, last_event_type: 'set_end', current_set: 4, points_a: 0, sets_won_a: 2 }); await sleep(250)
     ok((await cd())?.link === 'interval', 'set 3 over at 2-1: INTERVAL')
     push({ last_event_type: 'match_end', match_status: 'ended', sets_won_a: 3 }); await sleep(400)
-    ok(mock.currentLayout === 'kscw_result' && /KSC WINS/.test(t('winner') || ''), `the scorer ended the match: the result (${mock.currentLayout}, ${t('winner')})`)
+    ok(mock.currentLayout === 'kscw_result' && /KSC WIEDIKON WINS/.test(t('winner') || ''), `the scorer ended the match: the result (${mock.currentLayout}, ${t('winner')})`)
     ok((await cd()) === null && horns.n === 2, `the interval is gone, without the horn (${horns.n})`)
     await sleep(1300)
     ok(mock.currentLayout === 'kscw_result', `and its ticker does not bring the break screen back (${mock.currentLayout})`)

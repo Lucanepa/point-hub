@@ -121,7 +121,7 @@ try {
   {
     live({ points_a: 25, points_b: 20, sets_won_a: 3, sets_won_b: 1, match_status: 'ended' }); await sleep(400)
     ok(mock.currentLayout === 'kscw_result', `result layout up (${mock.currentLayout})`)
-    ok(/KSC WINS/.test(t('winner') || ''), `winner line: ${t('winner')}`)
+    ok(t('winner') === 'KSC WIEDIKON WINS', `winner line, the full name that fits: ${t('winner')}`)
     ok(/3 - 1/.test(t('sets') || ''), `sets line: ${t('sets')}`)
     const st = await get('/api/status')
     ok(st.mode === 'lan', 'still linked (an undo of the end must still reach the board)')

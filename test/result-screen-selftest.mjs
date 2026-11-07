@@ -16,7 +16,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { toResultSections } from '../src/volleyballMapper.js'
+import { toResultSections, resultWinnerLine } from '../src/volleyballMapper.js'
 import { startAppliance } from '../src/appliance.js'
 import { MockLedbox } from '../src/mockLedbox.js'
 
@@ -102,6 +102,17 @@ console.log('\n[2] end to end: the finished match lands on the panel, winner fir
     eq(mock.text('sets'), '3 - 1', "set score is the WINNER's first — not 1 - 3")
     eq(mock.text('history'), '23-25  25-19  25-21  25-22', 'every set, winner-first in each')
     eq(mock.color('winner'), '255,200,50', 'winner line in club gold, not the winning team colour')
+
+    console.log('\n[2b] the full team name, when it fits')
+    {
+      const st = (name) => ({ team_a_short: 'KSCW D3', team_a_name: 'KSC Wiedikon D3', team_b_short: 'WETZI D4', team_b_name: name })
+      eq(resultWinnerLine('KSCW D3 WINS', st('VBC Wetzikon D4')), 'KSC WIEDIKON D3 WINS', 'the full name of the winner')
+      eq(resultWinnerLine('WETZI D4 WINS', st('VBC Wetzikon D4')), 'VBC WETZIKON D4 WINS', 'for either team')
+      eq(resultWinnerLine('WETZI D4 WINS', st('Volleyballclub Andwil-Arnegg D2')), 'WETZI D4 WINS', 'too long: the short name stays')
+      eq(resultWinnerLine('WETZI D4 WINS', st('')), 'WETZI D4 WINS', 'no full name: the short name stays')
+      eq(resultWinnerLine('SOMEONE WINS', st('VBC Wetzikon D4')), 'SOMEONE WINS', 'a line it does not recognise is left alone')
+      eq(resultWinnerLine('KSCW D3 WINS', null), 'KSCW D3 WINS', 'no state: left alone')
+    }
 
     console.log('\n[3] it survives the appliance still running')
     // A point arriving from anywhere (a poll, another tablet, a source) must not drop the
