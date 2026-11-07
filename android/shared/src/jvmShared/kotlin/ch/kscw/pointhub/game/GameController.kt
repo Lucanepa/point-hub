@@ -343,7 +343,7 @@ class GameController(private val host: GameHost) {
         if (liveLog != null && st.log?.n != logShownN) refreshLiveLog()
     }
 
-    private var languageWanted = "en"
+    private var languageWanted by mutableStateOf("en")
 
     /** The board says which language; web/i18n/ on the board has the words, the console's too. */
     private fun syncLanguage(language: String?) {
@@ -360,6 +360,19 @@ class GameController(private val host: GameHost) {
             }
         }
     }
+
+    /** The language button at the top: English, Deutsch, Schwiizerdütsch, for everyone at this board. */
+    fun cycleLanguage() = scope.launch {
+        val next = when (languageWanted) { "en" -> "de"; "de" -> "de-CH"; else -> "en" }
+        try {
+            settings = BoardSettings(post("/api/settings", JSONObject().put("language", next)))
+            renderStatus(JSONObject().put("language", next))
+        } catch (e: Exception) {
+            toast(if (pinWords(e)) "Scoring is locked — enter the scorer PIN, then try again." else errText(e))
+        }
+    }
+
+    val languageLabel get() = when (languageWanted) { "de" -> "DE"; "de-CH" -> "CH"; else -> "EN" }
 
     private fun applySportUi() {
         // A countdown or SET ENDED card belongs to the match of the sport being left.

@@ -77,6 +77,7 @@ fun ShellHeader(g: GameController, tab: Tab, onTab: (Tab) -> Unit, onUplink: () 
                 ModeTag(g)
                 UplinkChip(g, tab, onUplink)
             }
+            TabButton(g.languageLabel, false) { g.cycleLanguage() }
             SportBadge(g)
             TabButton("Game", tab == Tab.GAME) { onTab(Tab.GAME) }
             TabButton("Link", tab == Tab.LINK, tone = if (linked(g)) linkTone(g.status.link) else LinkTone.NONE) { onTab(Tab.LINK) }
