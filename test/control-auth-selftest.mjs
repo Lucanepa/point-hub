@@ -52,6 +52,8 @@ const ROUTES = {
   // During the PIN setup it is let through (the tablet app offers it at start-up; see /api/clock).
   '/api/clock': { guard: 'pin', body: { epochMs: Date.now() }, setup: 'open' },
   '/api/game': { guard: 'pin', body: { choice: 'clock' } },
+  // Says which game the match on the board is; changes the names and a game's row.
+  '/api/game/link': { guard: 'pin', body: { gameId: null } },
   // Takes the hall from the pre-match clock to the scoreboard.
   '/api/prematch': { guard: 'pin', body: { action: 'start' } },
   // "Not now" on tonight's suggested game: files it as dismissed for the evening.

@@ -29,7 +29,7 @@ import { AutoPrepare, inWindow } from './autoPrepare.js'
 import { zurichDate } from './schedule.js'
 import { Uplink, ERR as UPLINK_ERR } from './hallLogin.js'
 import { PortalProxy } from './portalProxy.js'
-import { fixtureOf } from './liveFixture.js'
+import { fixtureOf, homeSide } from './liveFixture.js'
 import { isOver } from './livePush.js'
 import { applyBrightness, liveDriver, PANEL_PATHS } from './panelBrightness.js'
 import { toRow } from './livePush.js'
@@ -1490,6 +1490,47 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
       return sendJson(res, 200, { sport: activeSport(), saved: resume.summary(activeSport()) })
     }
     // POST /api/game { choice: 'new' | 'continue' | 'delete' | 'clock', teams? }
+    // POST /api/game/link { gameId } — this match IS that game, without touching the score: after a
+    // reset, or when a game was set up by hand and only now turns out to be on the schedule. The full
+    // names go in, so /live, the game row and the result prefill all find it. gameId null takes the
+    // link off. Refused, not guessed, when the board's names fit neither way round: that would write
+    // the score the wrong way round into a game's row.
+    if (pathname === '/api/game/link' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req)
+      if (sourceManager.status.mode !== 'manual') return sendJson(res, 200, { ok: false, reason: 'following', ...status(req) })
+      const state = manualSource.getState()
+      const save = (gameId) => { try { resume.save(activeSport(), manualSource.getState(), nowStamp(), { prematch, gameId }) } catch (e) { log.error('resume', `save failed: ${e && e.message}`, e) } }
+      if (body.gameId == null) {
+        history.linkGame(null)
+        prematchGameId = null
+        clog.info('game link taken off the match on the board')
+        manualSource.emit('state', manualSource.getState())
+        save(null)
+        return sendJson(res, 200, { ok: true, gameId: null, ...status(req) })
+      }
+      const g = typeof schedule.game === 'function' ? schedule.game(Number(body.gameId)) : null
+      if (!g) return sendJson(res, 200, { ok: false, reason: 'unknown', ...status(req) })
+      const nothingPlayed = !count(state.points_a) && !count(state.points_b) && !count(state.sets_won_a) && !count(state.sets_won_b)
+      const side = homeSide(state, fixtureOf(g, { homeStartsLeft: false })) || (nothingPlayed ? 'a' : null)
+      if (!side) return sendJson(res, 200, { ok: false, reason: 'names', ...status(req) })
+      history.linkGame(g.id)
+      if (prematch) prematchGameId = g.id
+      autoPrepare.markPrepared(g.id)
+      const [left, right] = side === 'a' ? [[g.home, g.homeShort], [g.away, g.awayShort]] : [[g.away, g.awayShort], [g.home, g.homeShort]]
+      for (const [sideName, cur, shortNow, [name, short]] of [['left', state.team_a_name, state.team_a_short, left], ['right', state.team_b_name, state.team_b_short, right]]) {
+        const action = { type: 'team', side: sideName }
+        if (String(cur || '').toUpperCase() !== String(name || '').toUpperCase()) action.name = name
+        // The short code is what the panel shows: left alone mid-match, the schedule's on a fresh board.
+        if (nothingPlayed && short && String(shortNow || '').toUpperCase() !== String(short).toUpperCase()) action.short = short
+        if (action.name != null || action.short != null) manualSource.apply(action)
+      }
+      clog.info(`match on the board linked to game ${g.id}: ${g.home} v ${g.away}`, { gameId: g.id, side })
+      manualSource.emit('state', manualSource.getState())
+      save(g.id)
+      gameSheet.refresh().catch(() => {})
+      return sendJson(res, 200, { ok: true, gameId: g.id, ...status(req) })
+    }
     if (pathname === '/api/game' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)

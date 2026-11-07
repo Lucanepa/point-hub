@@ -67,6 +67,8 @@ data class GamePickerUi(
     val busy: Boolean = false,
     val status: String? = null,
     val bad: Boolean = false,
+    /** Options > Link to a game, or the question after Reset: which game is this match. */
+    val linking: Boolean = false,
     /** New game was tapped: how to score it, with today's home games on top. */
     val newPage: Boolean = false,
     val today: List<ScheduledGame> = emptyList(),
@@ -596,6 +598,39 @@ class GameController(private val host: GameHost) {
             clearCountdown()
             boardMode = BoardMode.MATCH
             sendAction(JSONObject().put("type", "reset"))
+            // A fresh 0-0: which game is it? Picking one is what the schedule start would have done.
+            openLinkPicker()
+        }
+    }
+
+    /** Which game on today's schedule this match is. The score stays as it is. */
+    fun openLinkPicker() = scope.launch {
+        gamePicker = GamePickerUi(linking = true, loaded = true)
+        val (games, head) = loadToday()
+        if (gamePicker?.linking != true) return@launch
+        gamePicker = gamePicker?.copy(today = games, todayHead = head)
+    }
+
+    /** null = no game: takes the link off. */
+    fun linkGame(game: ScheduledGame?) = scope.launch {
+        gamePicker = gamePicker?.copy(busy = true, status = null)
+        try {
+            val r = post("/api/game/link", JSONObject().put("gameId", game?.id ?: JSONObject.NULL))
+            renderStatus(r)
+            if (r.opt("ok") == false) {
+                val why = when (r.optString("reason")) {
+                    "names" -> "The names on the board don't fit this game. Rename one team to match it, then link again."
+                    "following" -> "The board is following a linked scoresheet."
+                    else -> "That game is not on the schedule."
+                }
+                gamePicker = gamePicker?.copy(busy = false, bad = true, status = why)
+                return@launch
+            }
+            closeGamePicker()
+            toast(if (game != null) game.homeFull + " vs " + game.awayFull + " — linked" else "No game linked")
+        } catch (e: Exception) {
+            gamePicker = gamePicker?.copy(busy = false, bad = true,
+                status = if (pinWords(e)) "Scoring is locked — enter the scorer PIN, then try again." else "Couldn't link that game: " + errText(e))
         }
     }
 
@@ -1206,19 +1241,21 @@ class GameController(private val host: GameHost) {
     /** New game: how to score it, with today's home games on top. */
     fun showNewGamePage() = scope.launch {
         gamePicker = gamePicker?.copy(newPage = true, today = emptyList(), todayHead = "Today's home games", status = null)
+        val (games, head) = loadToday()
+        if (gamePicker?.newPage != true) return@launch
+        gamePicker = gamePicker?.copy(today = games, todayHead = head)
+    }
+
+    private suspend fun loadToday(): Pair<List<ScheduledGame>, String> {
         val here = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Zurich")).toString()
         val r = try { get("/api/schedule?today=$here") } catch (_: Exception) { null }
-        if (gamePicker?.newPage != true) return@launch
         val arr = r?.optJSONArray("games")
         val games = if (arr == null) emptyList() else (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.map { ScheduledGame.parse(it) }
-        gamePicker = gamePicker?.copy(
-            today = games,
-            todayHead = when {
-                games.isNotEmpty() -> "Today's home games"
-                r?.opt("ok") == true -> "No home game today"
-                else -> "Today's games could not be loaded"
-            },
-        )
+        return games to when {
+            games.isNotEmpty() -> "Today's home games"
+            r?.opt("ok") == true -> "No home game today"
+            else -> "Today's games could not be loaded"
+        }
     }
 
     fun newGameBack() { gamePicker = gamePicker?.copy(newPage = false, status = null) }

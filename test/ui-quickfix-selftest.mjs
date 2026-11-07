@@ -133,7 +133,8 @@ console.log('\n[5] hint text is readable on the team panels')
 
 console.log('\n[6] destructive buttons ask in plain words, with a red verb')
 {
-  ok(/#resetBtn\{position:relative;margin-left:auto\}/.test(css), 'Reset sits apart from Switch sides')
+  ok(/#optionsWrap\{position:relative;margin-left:auto\}/.test(css), 'Options, and Reset inside it, sit apart from Switch sides')
+  ok(/<span id="optionsMenu" hidden>[\s\S]{0,400}id="resetBtn"/.test(index), 'Reset match is inside the Options menu')
   ok(!/\.danger:first-of-type/.test(css), 'the selector that never matched is gone')
   const reset = index.slice(index.indexOf('$("#resetBtn").addEventListener'), index.indexOf('$("#refreshBtn")'))
   ok(/askConfirm\(resetWarning\(\), \{ yes: "Reset match", danger: true \}\)/.test(reset), 'Reset asks with a "Reset match" danger verb')
