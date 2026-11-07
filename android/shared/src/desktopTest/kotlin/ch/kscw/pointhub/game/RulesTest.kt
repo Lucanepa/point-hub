@@ -174,4 +174,13 @@ class RulesTest {
         assertEquals(22, t.fontMax("right"))
         assertEquals(3, t.bestOf)
     }
+
+    @Test
+    fun warmupIsDueFourteenMinutesBeforeTheGame() {
+        val kick = 1_000_000_000L
+        assertEquals(false, Rules.warmupDue(null, kick))
+        assertEquals(false, Rules.warmupDue(kick, kick - 14 * 60_000L - 1))
+        assertEquals(true, Rules.warmupDue(kick, kick - 14 * 60_000L))
+        assertEquals(true, Rules.warmupDue(kick, kick + 60_000L))
+    }
 }
