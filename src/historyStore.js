@@ -276,6 +276,15 @@ export class HistoryStore {
     if (this.current && this._game != null && this.current.game_id == null && !this.current.events.length) this.current.game_id = this._game
   }
 
+  // "This match IS that game", said by hand: the match in progress, or the one just finished while
+  // it is still on the board. null takes the link off.
+  linkGame(gameId) {
+    const n = Number(gameId)
+    this._game = gameId != null && Number.isInteger(n) && n > 0 ? n : null
+    if (this.current) this.current.game_id = this._game
+    else if (this._lastFinished && this._lastFinished.match) { this._lastFinished.match.game_id = this._game; this._save() }
+  }
+
   // Whether an archived match can be uploaded: its result can no longer be taken back. While it is
   // the match just finished, a "−" on the match point reopens it (see _reopen); give the scorer
   // `graceMs` to notice before the log leaves the board. A new match (or a restart) settles it.

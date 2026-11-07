@@ -152,6 +152,7 @@ private fun GamePickerDialog(g: GameController, ui: ch.kscw.pointhub.game.GamePi
     val has = ui.saved != null
     PhDialog(onDismiss = { g.closeGamePicker() }) {
         DialogBox(560.dp, padding = 24.dp) {
+            if (ui.linking) { LinkGamePage(g, ui); return@DialogBox }
             if (ui.newPage) { NewGamePage(g, ui); return@DialogBox }
             DialogTitle(g.sportLabel(g.curSport))
             DialogSub(if (!ui.loaded) "What would you like to do?" else if (has) "There's a match in progress on this board." else "Nothing saved for this sport yet.")
@@ -165,6 +166,27 @@ private fun GamePickerDialog(g: GameController, ui: ch.kscw.pointhub.game.GamePi
             CancelLink("Not now") { g.closeGamePicker() }
         }
     }
+}
+
+@Composable
+private fun LinkGamePage(g: GameController, ui: ch.kscw.pointhub.game.GamePickerUi) {
+    val c = Ph.colors
+    DialogTitle("Link to a game")
+    DialogSub("Which game is this? The score stays as it is.")
+    Column(
+        Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(ui.todayHead.uppercase(), color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.7.sp)
+        ui.today.forEach { game ->
+            val label = listOf(game.time, game.homeFull + " vs " + game.awayFull).filter { it.isNotEmpty() }.joinToString("  ")
+            val hint = listOf(game.league, game.hall).filter { it.isNotEmpty() }.joinToString(" · ")
+            GameOption(label, hint, primary = game.id != null && game.id == g.status.gameId, enabled = !ui.busy) { g.linkGame(game) }
+        }
+        GameOption("No game", "Score it without linking it to the schedule", enabled = !ui.busy) { g.linkGame(null) }
+    }
+    StatusLine(ui.status, ui.bad)
+    CancelLink("Not now") { g.closeGamePicker() }
 }
 
 @Composable

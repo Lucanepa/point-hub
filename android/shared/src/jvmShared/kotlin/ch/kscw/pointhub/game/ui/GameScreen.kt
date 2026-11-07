@@ -28,6 +28,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -740,7 +742,15 @@ private fun Actions(g: GameController, modifier: Modifier) {
         Spacer(Modifier.weight(1f))
         Box(Modifier.width(Ph.hairline).height(32.dp).background(c.lineSoft))
         Spacer(Modifier.width(2.dp))
-        PhTextButton("Reset match", { g.reset() }, fg = c.bad)
+        // Options keeps the things nobody should hit by accident out of the row of everyday buttons.
+        var optionsOpen by remember { mutableStateOf(false) }
+        Box {
+            PhTextButton("Options", { optionsOpen = true })
+            DropdownMenu(optionsOpen, { optionsOpen = false }, Modifier.background(c.card)) {
+                DropdownMenuItem(text = { Text("Link to a game", color = c.fg) }, onClick = { optionsOpen = false; g.openLinkPicker() })
+                DropdownMenuItem(text = { Text("Reset match", color = c.bad) }, onClick = { optionsOpen = false; g.reset() })
+            }
+        }
     }
 }
 

@@ -324,8 +324,11 @@
      `.danger:first-of-type` never matched (first-of-type counts <button>s, and VS is first), so the
      destructive button sat flush against the everyday one it is easiest to mistake for. */
   .actions .danger{color:var(--bad)}
-  #resetBtn{position:relative;margin-left:auto}
-  #resetBtn::before{content:"";position:absolute;left:-10px;top:6px;bottom:6px;width:1.5px;background:var(--line-soft)}
+  #optionsWrap{position:relative;margin-left:auto}
+  #optionsWrap::before{content:"";position:absolute;left:-10px;top:6px;bottom:6px;width:1.5px;background:var(--line-soft)}
+  #optionsMenu{position:absolute;right:0;bottom:calc(100% + 6px);z-index:30;display:flex;flex-direction:column;gap:6px;min-width:210px;padding:8px;
+    background:var(--card);border:1.5px solid var(--line);border-radius:var(--r)}
+  #optionsMenu button{width:100%;text-align:left}
 
   /* countdown overlay */
   /* width:max-content — with left:50% the shrink-to-fit width is capped at HALF the screen, which on
@@ -1120,8 +1123,8 @@
        full-width flex item: the one way to force a line break in a flex row, and it doubles as the
        divider. Same row count as before, so the footer still fits a 390x844 screen. */
     .gfooter::after{content:"";order:1;flex:1 1 100%;height:0;border-top:1.5px solid var(--line-soft)}
-    #idleBtn,#warmupBtn,#resetBtn{order:2}
-    #resetBtn{margin-left:10px}
+    #idleBtn,#warmupBtn,#optionsWrap{order:2}
+    #optionsWrap{margin-left:10px}
     /* Grow to fill each wrapped row, so a short last row reads as intended, not as spill-over. */
     .actions button,#undoBtn{flex:1 1 auto;justify-content:center;padding:0 10px}
     /* The log line on a row of its own, above Undo and Switch sides — one row, which still fits a
@@ -1353,7 +1356,13 @@
            only ONE of them destroyed anything. Blank has since been taken off the console (VS
            still takes the score off the panel, and Undo takes back a mis-tap), so Reset is
            labelled by what it acts ON: the match, which it throws away. -->
-      <button id="resetBtn" class="danger" title="Throw this match away and start again from 0–0">Reset match</button>
+      <span id="optionsWrap">
+        <button id="optionsBtn" type="button" aria-haspopup="true" aria-expanded="false">Options</button>
+        <span id="optionsMenu" hidden>
+          <button id="linkGameBtn" type="button" title="Say which game on today's schedule this match is">Link to a game</button>
+          <button id="resetBtn" class="danger" title="Throw this match away and start again from 0–0">Reset match</button>
+        </span>
+      </span>
     </div>
   </div>
 </section>
@@ -1903,6 +1912,14 @@
       </button>
       <button class="gpopt" id="gpNewBack">
         <span class="gplabel">Back</span>
+      </button>
+    </div>
+    <div class="gplist" id="gpLinkPage" hidden>
+      <p class="gpsec" id="gpLinkHead">Today's home games</p>
+      <div class="gplist" id="gpLinkToday"></div>
+      <button class="gpopt" id="gpLinkNone">
+        <span class="gplabel">No game</span>
+        <span class="gphint">Score it without linking it to the schedule</span>
       </button>
     </div>
     <div class="gplist" id="gpMainPage">
@@ -5501,8 +5518,24 @@
     if (SPORT === "beach") return "Reset to 0–0? Scores, sets and timeouts for this match are cleared." + lost;
     return "Reset to 0–0? Scores, sets, timeouts and subs for this match are cleared." + lost;
   }
+  // Options keeps the things nobody should hit by accident out of the row of everyday buttons.
+  const closeOptions = () => { $("#optionsMenu").hidden = true; $("#optionsBtn").setAttribute("aria-expanded", "false"); };
+  $("#optionsBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = $("#optionsMenu").hidden;
+    $("#optionsMenu").hidden = !open;
+    $("#optionsBtn").setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", (e) => { if (!e.target.closest || !e.target.closest("#optionsMenu")) closeOptions(); });
+  $("#linkGameBtn").addEventListener("click", () => { closeOptions(); openLinkPicker(); });
   $("#resetBtn").addEventListener("click", async () => {
-    if (await askConfirm(resetWarning(), { yes: "Reset match", danger: true })) { clearCountdown(); board.mode = "match"; sendAction({ type: "reset" }); }
+    closeOptions();
+    if (await askConfirm(resetWarning(), { yes: "Reset match", danger: true })) {
+      clearCountdown(); board.mode = "match";
+      const r = await sendAction({ type: "reset" });
+      // A fresh 0-0: which game is it? Picking one is what the schedule start would have done.
+      if (r) openLinkPicker();
+    }
   });
   $("#refreshBtn").addEventListener("click", refreshMatches);
 
@@ -5635,7 +5668,7 @@
     if (EMBED) return;   // never in embed mode: the game menu is the app's Game tab
     closeSportPicker();
     $("#gpTitle").textContent = sportLabel(curSport());
-    $("#gpNewPage").hidden = true; $("#gpMainPage").hidden = false;
+    $("#gpNewPage").hidden = true; $("#gpLinkPage").hidden = true; $("#gpMainPage").hidden = false;
     gpStatus(""); gpBusy(false);
     $("#gamePicker").hidden = false;
     try { const r = await api("/api/game"); savedGame = (r && r.saved) || null; }
@@ -5690,9 +5723,57 @@
     }
     closeGamePicker(); goToTab("manual");
   });
+  // Link to a game: which game on today's schedule this match is. The score stays as it is.
+  async function openLinkPicker() {
+    $("#gpMainPage").hidden = true; $("#gpNewPage").hidden = true; $("#gpLinkPage").hidden = false;
+    $("#gpTitle").textContent = "Link to a game";
+    $("#gpSub").textContent = "Which game is this? The score stays as it is.";
+    gpStatus("");
+    $("#gamePicker").hidden = false;
+    const list = $("#gpLinkToday"), head = $("#gpLinkHead");
+    list.innerHTML = ""; head.textContent = "Today's home games";
+    let r = null;
+    try {
+      const here = (schedLocal(new Date()) || {}).day || "";
+      r = await api("/api/schedule" + (here ? "?today=" + here : ""));
+    } catch { /* below */ }
+    if ($("#gpLinkPage").hidden) return;
+    const games = r && Array.isArray(r.games) ? r.games : [];
+    if (!games.length) { head.textContent = r && r.ok ? "No home game today" : "Today's games could not be loaded"; return; }
+    const linked = LAST_STATUS && LAST_STATUS.gameId != null ? String(LAST_STATUS.gameId) : null;
+    games.forEach((g) => {
+      const b = document.createElement("button");
+      b.className = "gpopt" + (linked != null && String(g.id) === linked ? " primary" : "");
+      const label = document.createElement("span"); label.className = "gplabel";
+      label.textContent = [g.time, schedFull(g.home, g.homeShort) + " vs " + schedFull(g.away, g.awayShort)].filter(Boolean).join("  ");
+      const hint = document.createElement("span"); hint.className = "gphint";
+      hint.textContent = [g.league, g.hall].filter(Boolean).join(" · ");
+      b.append(label, hint);
+      b.addEventListener("click", () => linkGame(g));
+      list.appendChild(b);
+    });
+  }
+  async function linkGame(g) {
+    gpBusy(true);
+    try {
+      const r = await postJSON("/api/game/link", { gameId: g ? g.id : null });
+      if (r) renderStatus(r);
+      if (!r || r.ok === false) {
+        gpStatus(r && r.reason === "names" ? "The names on the board don't fit this game. Rename one team to match it, then link again."
+          : r && r.reason === "following" ? "The board is following a linked scoresheet."
+          : "That game is not on the schedule.", true);
+        return;
+      }
+      closeGamePicker();
+      toast(g ? schedFull(g.home, g.homeShort) + " vs " + schedFull(g.away, g.awayShort) + " — linked" : "No game linked");
+    } catch (e) {
+      gpStatus(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then try again." : "Couldn't link that game: " + ((e && e.message) || "the board did not answer"), true);
+    } finally { gpBusy(false); }
+  }
+  $("#gpLinkNone").addEventListener("click", () => linkGame(null));
   // New game asks how: a game from today's schedule, another one, a linked scoresheet, or by hand.
   async function showNewGamePage() {
-    $("#gpMainPage").hidden = true; $("#gpNewPage").hidden = false;
+    $("#gpMainPage").hidden = true; $("#gpLinkPage").hidden = true; $("#gpNewPage").hidden = false;
     $("#gpTitle").textContent = "New game";
     $("#gpSub").textContent = "How do you want to score it?";
     const list = $("#gpToday"), head = $("#gpTodayHead");

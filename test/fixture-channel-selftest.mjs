@@ -582,6 +582,45 @@ console.log('\n[10] end to end on a booted appliance')
     r = await act({ type: 'reset', keep: { team_a_name: 'INJECTED' } })
     ok(r.status === 200 && !String(r.body.state.team_a_name).includes('INJECTED'), 'a client cannot hand in its own teams')
 
+    // Options > Link to a game: a match typed by hand, mid-play, turns out to be this game. The names
+    // the crew typed fit one side (the D1 case, 07.11), and home is on the RIGHT by now.
+    r = await post('/api/game', { choice: 'new', teams: { left: { name: '', short: 'OTHERS' }, right: { name: '', short: GAME.homeShort } } })
+    await act({ type: 'point', side: 'left', delta: 3 }); await act({ type: 'point', side: 'right', delta: 2 }); await wait()
+    ok(last('kscw')?.team_a_name === '' , 'typed short codes only: no full names on the board row')
+    const scoredBefore = to('game-9').filter((w) => w.body?.status === 'live').length
+    r = await post('/api/game/link', { gameId: 9 }); await wait()
+    ok(r.status === 200 && r.body.ok === true && r.body.gameId === 9, `linked mid-play (${r.body?.gameId})`)
+    ok(r.body.state.points_a === 3 && r.body.state.points_b === 2, 'the score is untouched')
+    ok(same(r.body.state.team_a_name, AWAY) && same(r.body.state.team_b_name, HOME), 'the full names go in, on the sides the board found')
+    ok(r.body.state.team_a_short === 'OTHERS', 'the short code on the panel stays mid-match')
+    ok(same(last('game-9')?.team_a_name, HOME) && last('game-9')?.points_a === 2 && last('game-9')?.points_b === 3, 'the game row has it, home on A')
+    ok(same(last('kscw')?.team_a_name, AWAY), 'and the board row has the full names')
+    ok(to('game-9').filter((w) => w.body?.status === 'live').length === scoredBefore + 1, 'one write to the game row')
+    r = await post('/api/game/link', { gameId: null }); await wait()
+    ok(r.body.ok === true && r.body.gameId == null && last('game-9')?.status === 'idle', 'No game: the link comes off and the row is cleared')
+    r = await post('/api/game/link', { gameId: 123456 })
+    ok(r.body.ok === false && r.body.reason === 'unknown', 'a game not on the schedule is refused')
+    r = await post('/api/game', { choice: 'new', teams: { left: { name: 'Heim', short: 'HEIM' }, right: { name: 'Gast', short: 'GAST' } } })
+    await act({ type: 'point', side: 'left', delta: 1 })
+    r = await post('/api/game/link', { gameId: 9 })
+    ok(r.body.ok === false && r.body.reason === 'names', 'names that fit neither way, with a score on: refused, not guessed')
+    // After a reset, at 0-0: nothing to get wrong, and the board gets the schedule's names and codes.
+    r = await act({ type: 'reset' }); await wait()
+    r = await post('/api/game/link', { gameId: 9 }); await wait()
+    ok(r.body.ok === true && same(r.body.state.team_a_name, HOME) && r.body.state.team_a_short === GAME.homeShort, 'after a reset the game goes on, home on the left')
+    await act({ type: 'point', side: 'left', delta: 1 }); await wait()
+    ok(last('game-9')?.status === 'live' && last('game-9')?.points_a === 1, 'and the next point reaches its row')
+    // The result still on the board: linking it afterwards gives the game its final row.
+    await post('/api/game', { choice: 'new', teams: { left: { name: '', short: GAME.homeShort }, right: { name: '', short: 'OTHERS' } } })
+    for (let set = 0; set < 3; set++) {
+      const st = (await (await fetch(base + '/api/status')).json()).state
+      await act({ type: 'point', side: st.ends_swapped ? 'right' : 'left', delta: 25 })
+      if (set < 2) await act({ type: 'next-set' })
+    }
+    await wait()
+    r = await post('/api/game/link', { gameId: 9 }); await wait()
+    ok(r.body.ok === true && last('game-9')?.status === 'final' && last('game-9')?.sets_won_a === 3, 'a finished match linked afterwards writes the final row')
+
     // A hand-typed game resets to a clean board, as before.
     r = await post('/api/game', { choice: 'new', teams: { left: { name: 'A Team', short: 'A' }, right: { name: 'B Team', short: 'B' } } })
     await act({ type: 'point', side: 'left', delta: 1 })
