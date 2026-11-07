@@ -384,7 +384,7 @@ private fun FontBox(g: GameController, screen: String, ink: CardInk) {
         SmallGlyph("−", ink.ink, down, "Smaller name for this team on the panel") { g.nudgeFont(screen, -1) }
         // The words, not the number: beside a score, a bare 18 reads as points. The mirror shows the effect.
         Text("Font\nsize", color = ink.ink.mix(0.75f), fontSize = 10.sp, lineHeight = 11.sp, fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(30.dp).scale(bump.value), textAlign = TextAlign.Center)
+            softWrap = false, modifier = Modifier.widthIn(min = 30.dp).scale(bump.value), textAlign = TextAlign.Center)
         SmallGlyph("+", ink.ink, up, "Bigger name for this team on the panel") { g.nudgeFont(screen, 1) }
     }
 }
