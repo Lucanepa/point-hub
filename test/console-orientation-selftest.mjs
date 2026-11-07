@@ -111,25 +111,19 @@ console.log('\n[4] pre-match')
   const classes = () => ({ on: new Set(), toggle(c, v) { v ? this.on.add(c) : this.on.delete(c) } })
   const node = (id) => (nodes[id] ||= { hidden: false, textContent: '', classList: classes() })
   const document = { body: { classList: classes() } }
-  const make = new Function('$', 'document', 'board',
-    'let prematchOn = false;\nconst SETTINGS = {};\nconst fmt = (s) => String(s);\n' + /const WARMUP_DUE_MS = .*\n.*const warmupDue = .*\n/.exec(js)[0] + '\nconst warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";\n' +
+  const calls = []
+  const make = new Function('$', 'document', 'board', 'calls',
+    'let prematchOn = false;\nconst SETTINGS = {};\nconst fmt = (s) => String(s);\nconst syncWarmupPrompt = (st, on) => calls.push(on);\nconst warmupRunning = () => board.mode === "countdown" && !!board.cd && board.cd.label === "WARM UP";\n' +
     lift(js, 'renderPrematch') + '\nreturn { renderPrematch, get on() { return prematchOn } };')
   const board = { mode: 'match', cd: null }
-  const pm = make((sel) => node(sel), document, board)
+  const pm = make((sel) => node(sel), document, board, calls)
   const st = { prematch: true, ledbox: { idle: true, clockHeld: true }, state: { team_a_short: 'KSCW H1', team_b_short: 'kscw h3' } }
   pm.renderPrematch(st)
   ok(nodes['#prematch'].hidden === false && document.body.classList.on.has('is-prematch'), 'status.prematch shows the banner')
   ok(nodes['#pmTeams'].textContent === 'KSCW H1 vs KSCW H3', 'home first, as on the schedule, upper-cased')
   ok(board.mode === 'clock' && nodes['#pmSub'].textContent === '— board shows the clock', 'mirror on the clock')
-  const text = () => nodes['#pmWarmupText'].textContent
-  const flashing = () => nodes['#pmWarmup'].classList.on.has('invite')
-  ok(text() === 'Start official warm-up (10 min)' && !flashing(), 'no game time: the plain warm-up button')
-  pm.renderPrematch({ ...st, kickoffAt: Date.now() + 15 * 60000 })
-  ok(text() === 'Start official warm-up (10 min)' && !flashing(), 'T-15: still the plain button')
-  pm.renderPrematch({ ...st, kickoffAt: Date.now() + 14 * 60000 - 1000 })
-  ok(text() === 'Start the official warm-up?' && flashing(), 'T-14: it asks, and it flashes')
-  pm.renderPrematch({ ...st, kickoffAt: Date.now() - 60000 })
-  ok(text() === 'Start the official warm-up?' && flashing(), 'and keeps asking until it is tapped')
+  ok(nodes['#pmWarmupText'].textContent === 'Start official warm-up (10 min)', 'the banner keeps its plain warm-up button')
+  ok(calls.join() === 'true', 'and the card in the middle of the court is asked about on every status')
   board.mode = 'countdown'; board.cd = { label: 'WARM UP' }
   pm.renderPrematch(st)
   ok(board.mode === 'countdown' && nodes['#pmWarmup'].hidden === true && /warm-up running/.test(nodes['#pmSub'].textContent), 'a running warm-up keeps the mirror on the countdown and hides Start warm-up')
