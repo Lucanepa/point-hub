@@ -1195,6 +1195,7 @@
     <button class="iconbtn hdricon js-awake" title="Keep the screen awake" aria-label="Keep screen awake"><svg class="licon l-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></button>
     <button class="iconbtn hdricon js-fs" title="Full screen" aria-label="Full screen"><svg class="licon l-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg></button>
     <button id="switchAppBtn" class="sportbadge" type="button" hidden title="Back to the start screen: Point Hub or OpenVolley eScoresheet">Switch app</button>
+    <button id="langBtn" class="sportbadge" type="button" title="Language" aria-label="Language">EN</button>
     <button id="sportBadge" class="sportbadge" title="Change sport" aria-label="Change sport"><span class="sbico" aria-hidden="true"></span><span class="sbtxt"></span></button>
     <nav class="nav">
       <button id="tabManualBtn" class="active" data-tab="manual">Game</button>
@@ -2414,6 +2415,25 @@
     showSetEndPrompt(state);
   }
 
+  // The language button at the top: English, Deutsch, Schwiizerdütsch, for everyone at this board.
+  const LANG_LABEL = { en: "EN", de: "DE", "de-CH": "CH" };
+  let langShown = "en";
+  function renderLangBtn(language) {
+    if (!LANG_LABEL[language]) return;
+    langShown = language;
+    $("#langBtn").textContent = LANG_LABEL[language];
+    const sel = $('[data-set="language"]');
+    if (sel && !sel.closest("fieldset").querySelector(".setsavebtn.dirty")) sel.value = language;
+  }
+  $("#langBtn").addEventListener("click", async () => {
+    const next = { en: "de", de: "de-CH", "de-CH": "en" }[langShown];
+    try {
+      SETTINGS = await postJSON("/api/settings", { language: next });
+      if (window.PointHubI18n) PointHubI18n.set(next);
+      renderLangBtn(next);
+    } catch (e) { toast(/pin/i.test((e && e.message) || "") ? "Scoring is locked — enter the scorer PIN, then try again." : "Couldn't do that: " + ((e && e.message) || e)); }
+  });
+
   let cdButton = () => finishCountdown(false);
   $("#cdStop").addEventListener("click", () => cdButton());
 
@@ -2666,6 +2686,7 @@
     $("#matchTag").textContent = "";
     lastState = st.state || lastState;
     if (window.PointHubI18n) PointHubI18n.set(st.language);
+    renderLangBtn(st.language);
     renderPrematch(st);
     renderSuggest(st);
     renderUplinkBrief(st.uplink);
