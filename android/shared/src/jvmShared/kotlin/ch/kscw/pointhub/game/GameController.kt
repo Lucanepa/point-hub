@@ -372,7 +372,7 @@ class GameController(private val host: GameHost) {
         }
     }
 
-    val languageLabel get() = when (languageWanted) { "de" -> "DE"; "de-CH" -> "CH"; else -> "EN" }
+    val languageLabel get() = when (languageWanted) { "de" -> "DE"; "de-CH" -> "CH-DE"; else -> "EN" }
 
     private fun applySportUi() {
         // A countdown or SET ENDED card belongs to the match of the sport being left.
