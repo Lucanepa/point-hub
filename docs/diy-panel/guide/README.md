@@ -1,7 +1,7 @@
 # Point Hub board build manual (generator)
 
 The illustrated, IKEA-style build manual for the Point Hub board: a 3D view of the finished board
-(design D: front frame tilting 0–20° on a piano hinge, the scorer's 10.1″ screen in a flap at the back,
+(design D: front frame tilting 0–20° on a piano hinge, the scorer's 16″ screen in a flap at the back,
 recessed handles, pull-out rear foot), the parts and tools, and the build steps. Every drawing is generated to scale from the real
 dimensions in millimetres, so a change of size is a change of numbers, not a redraw.
 

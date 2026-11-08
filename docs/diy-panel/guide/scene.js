@@ -103,10 +103,11 @@ function labelTex(text, w, h, color, font, track = 0) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
-// The scorer's 10.1" control screen (1280 x 800), drawn at half size.
+// The scorer's 16" control screen (1920 x 1200), drawn at half size: the 640 x 400 layout, scaled 1.5.
 function drawControl() {
-  const c = document.createElement('canvas'); c.width = 640; c.height = 400;
+  const c = document.createElement('canvas'); c.width = 960; c.height = 600;
   const x = c.getContext('2d');
+  x.scale(1.5, 1.5);
   x.fillStyle = '#0d1014'; x.fillRect(0, 0, 640, 400);
   x.fillStyle = '#171b21'; x.fillRect(0, 0, 640, 46);
   x.font = '600 20px "Instrument Sans", Arial, sans-serif'; x.fillStyle = '#c9ced6'; x.fillText('Set 3 · 18 : 16', 18, 30);
@@ -135,7 +136,14 @@ const K_LEN = 0.14;                          // bottom cap K, as on the cut list
 const PIVOT = { y: -0.356, z: -0.016 };       // stay pivot on A, in A's own frame (10 mm up, 10 mm behind)
 const PIN = { y: 0.018, z: D / 2 - 0.060 };   // M6 pin through each end wall, 60 mm behind the front
 const STAY_X = W / 2 - 0.020, STAY_LEN = 0.200;
-const POCKET = { w: 0.28, h: 0.205, cy: H / 2, depth: 0.025 };
+// flap opening 400 x 290 in B, top edge 40 mm below the top of the box; pocket 30 mm deep behind B
+const POCKET = { w: 0.40, h: 0.29, cy: H - 0.04 - 0.145, depth: 0.03 };
+// flap F 375 x 268 (12 mm), 11 mm clear of the opening top and bottom; the 16" screen 359 x 238 x 12
+// hangs upside down on it, 8 mm from the sides and the bottom, 22 mm free at the top for the plugs;
+// the 3 mm front frame's window is 351 x 230, 12 from the sides, 11 from the bottom, 27 from the top
+const FLAP = { w: 0.375, h: 0.268, t: 0.012, gap: 0.011, strip: 0.008, frame: 0.003 };
+const SCR = { w: 0.359, h: 0.238, t: 0.0115, top: 0.022, pic: [0.345, 0.216] };
+const WIN = { w: 0.351, h: 0.23, top: 0.027 };
 const HANDLE_X = 0.28, HANDLE_Z = D / 2 - 0.160;
 const RAIL_X = 0.311, RAIL_H = 0.015, LIP = 0.006, PAD = 0.003, LIFT = RAIL_H + LIP + PAD;
 
@@ -210,7 +218,7 @@ async function main() {
     const e = add(g, mGloss, s < 0 ? -W / 2 + T : W / 2 - T, T, CZ);
     e.rotation.y = s * Math.PI / 2;
   }
-  // back panel B: 1020 x 380, centred flap opening 280 x 205
+  // back panel B: 1020 x 380, centred flap opening 400 x 290
   const back = add(panelGeo(-W / 2, 0, W / 2, H, [[-POCKET.w / 2, POCKET.cy - POCKET.h / 2, POCKET.w / 2, POCKET.cy + POCKET.h / 2]], T), mBody, 0, 0, -D / 2);
   // dark inside, seen through the gaps the tilting front opens
   const inner = add(new THREE.BoxGeometry(W - 2 * T - 0.002, H - 2 * T - 0.002, CD - 0.002), mInside, 0, H / 2, CZ - 0.001);
@@ -279,17 +287,37 @@ async function main() {
     return P.z - reach > D / 2;
   }
 
-  // ---- the scorer's flap: a 10.1" touch screen in a 25 mm pocket in the back, hinged at its top ----
+  // ---- the scorer's flap: a 16" touch screen in a 30 mm pocket in the back, hinged at its top ----
   const PZ = -D / 2;
   const recess = add(new THREE.PlaneGeometry(POCKET.w, POCKET.h), mDark, 0, POCKET.cy, PZ + T + POCKET.depth); recess.rotation.y = Math.PI; recess.castShadow = false;
   for (const [w, h, x, y] of [[POCKET.w + 0.012, T, 0, POCKET.cy + POCKET.h / 2 + T / 2], [POCKET.w + 0.012, T, 0, POCKET.cy - POCKET.h / 2 - T / 2], [T, POCKET.h, -POCKET.w / 2 - T / 2, POCKET.cy], [T, POCKET.h, POCKET.w / 2 + T / 2, POCKET.cy]])
     add(new THREE.BoxGeometry(w, h, POCKET.depth), mBody, x, y, PZ + T + POCKET.depth / 2);
-  const flapPivot = new THREE.Group(); flapPivot.position.set(0, POCKET.cy + 0.0925, PZ + 0.016); board.add(flapPivot);
-  add(new THREE.BoxGeometry(0.26, 0.18, 0.012), mBody, 0, -0.09, 0, flapPivot);
-  add(new THREE.PlaneGeometry(0.236, 0.146), mBezel, 0, -0.092, -0.0062, flapPivot).rotation.y = Math.PI;
-  const ctrl = add(new THREE.PlaneGeometry(0.217, 0.136), new THREE.MeshBasicMaterial({ toneMapped: false }), 0, -0.092, -0.0065, flapPivot);
+  // cable slot, about 50 x 15, in the side wall at the port corner (chosen at the dry fit; drawn on the
+  // port plate's side), 15 mm below the pocket's top wall
+  const slot = add(new THREE.PlaneGeometry(0.015, 0.05), mDark, POCKET.w / 2 - 0.0005, POCKET.cy + POCKET.h / 2 - 0.015 - 0.025, PZ + T + 0.0075);
+  slot.rotation.y = -Math.PI / 2; slot.castShadow = false;
+  // The pivot is the flap's top edge at the back panel's surface: closed, the front frame is flush with
+  // B and the glass sits 3.5 mm below it. Flap-local y runs down from the top edge, z into the box.
+  const flapTop = POCKET.cy + POCKET.h / 2 - FLAP.gap;
+  const flapPivot = new THREE.Group(); flapPivot.position.set(0, flapTop, PZ); board.add(flapPivot);
+  const zF = FLAP.frame + 0.012;                                   // F's front face: behind the frame and the 12 mm strips
+  add(new THREE.BoxGeometry(FLAP.w, FLAP.h, FLAP.t), mBody, 0, -FLAP.h / 2, zF + FLAP.t / 2, flapPivot);
+  // spacer strips (two 6 mm layers), with a gap at the port corner where the cables leave
+  const sw = FLAP.strip, sx = FLAP.w / 2 - sw / 2, gapLen = 0.06;
+  for (const [w, h, x, y] of [[FLAP.w, sw, 0, -sw / 2], [FLAP.w - 2 * sw, sw, 0, -FLAP.h + sw / 2], [sw, FLAP.h - sw, -sx, -sw - (FLAP.h - sw) / 2], [sw, FLAP.h - gapLen, sx, -gapLen - (FLAP.h - gapLen) / 2]])
+    add(new THREE.BoxGeometry(w, h, 0.012), mBody, x, y, FLAP.frame + 0.006, flapPivot);
+  // the screen, glass towards the scorer; a thicker strip at its (upper) port edge
+  const scrY = -SCR.top - SCR.h / 2;
+  add(new THREE.BoxGeometry(SCR.w, SCR.h, SCR.t), mBezel, 0, scrY, zF - SCR.t / 2, flapPivot);
+  add(new THREE.BoxGeometry(0.16, 0.012, 0.009), mHw, sx - sw - 0.09, -SCR.top / 2 - sw / 2, zF - 0.0045, flapPivot);  // plugs in the band above it
+  const winY = -WIN.top - WIN.h / 2;
+  const ctrl = add(new THREE.PlaneGeometry(SCR.pic[0], SCR.pic[1]), new THREE.MeshBasicMaterial({ toneMapped: false }), 0, winY, zF - SCR.t - 0.0003, flapPivot);
   ctrl.rotation.y = Math.PI; ctrl.castShadow = false;
-  for (const hx of [-0.1, 0.1]) add(new THREE.BoxGeometry(0.03, 0.01, 0.004), mHw, hx, 0.002, 0.008, flapPivot);
+  // 3 mm front frame screwed onto the strips: its window hides the plugs and holds the screen's edges
+  const wx = WIN.w / 2;
+  add(panelGeo(-FLAP.w / 2, -FLAP.h, FLAP.w / 2, 0, [[-wx, winY - WIN.h / 2, wx, winY + WIN.h / 2]], FLAP.frame, 0.0005), mBody, 0, 0, 0, flapPivot);
+  // three torque hinges along the top edge
+  for (const hx of [-0.14, 0, 0.14]) add(new THREE.BoxGeometry(0.038, 0.008, 0.006), mHw, hx, 0.004, 0.006, flapPivot);
   function setFlap(open) { flapPivot.rotation.x = open ? 45 * d2r : 0; }   // 45 deg from flat when open
 
   // back panel: the port plate low on the left (seen from behind), horn hole, vents, six T20 screws

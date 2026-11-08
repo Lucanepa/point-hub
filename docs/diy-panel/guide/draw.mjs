@@ -128,7 +128,10 @@ export const G = {
   pivot: [16, 18],                                          // stay pivot on A at 0°: 10 mm behind A, 10 mm above its bottom
   pin: [60, 18],                                            // M6 pin through the end wall
   stay: { len: 200, lead: 12, hole: 9 },                    // 25 × 4 strip; pivot 12 mm from the front end; notches 9 mm up
-  pocket: { w: 280, h: 205, cz: 190, depth: 25 },
+  pocket: { w: 400, h: 290, cz: 195, depth: 30 },          // flap opening, top edge 40 mm below the top
+  // flap F (12 mm), 11 mm clear top and bottom; the 16" screen on it, upside down, 8 mm from the sides
+  // and the bottom, 22 mm free at the top for the plugs; 12 mm spacer strips; 3 mm front frame
+  flap: { w: 375, h: 268, t: 12, gap: 11, strip: 12, frame: 3, scr: [359, 238, 11.5], scrTop: 22, win: [351, 230], winSide: 12, winBot: 11, winTop: 27 },
   handle: { x: [230, 790], y: 160, rim: [155, 83.3], cut: [129, 52], holes: [141, 62] },
   foot: { w: 600, d: 150, in: 70, travel: 120, railX: [189, 811] },
 };
@@ -216,8 +219,8 @@ export function step1() {
     let g = rect(x, y, w * s, h * s, o.blank ? 'o p1' : 'o p0');
     if (o.trim) g += o.trim;
     const cx = x + w * s / 2, cy = y + h * s / 2, big = h * s > 44 && w * s > 80;
-    g += wbadge(cx, cy - (big ? 7 : 0), L);
-    if (big) g += txt(cx, cy + 16, `${w} × ${h}`, 'tm');
+    g += wbadge(cx, cy - (big && !o.nosize ? 7 : 0), L);
+    if (big) { if (!o.nosize) g += txt(cx, cy + 16, `${w} × ${h}`, 'tm'); }
     else if (!o.nolabel) g += txt(x + w * s + 4, cy + 3, `${w} × ${h}`, 'tm', 'start');
     return g;
   };
@@ -230,13 +233,14 @@ export function step1() {
   // column 2: the small parts and the oversize blanks
   const x2 = 286;
   b += part('D', x2, 16, 214, 368, { nolabel: 1 }) + part('D', x2 + 58, 16, 214, 368, { nolabel: 1 }) + txt(x2 + 55, 16 + 368 * s + 11, '214 × 368 ×2', 'tm');
-  b += part('P1', x2 + 122, 16, 292, 217, { nolabel: 1 }) + txt(x2 + 122 + 146 * s, 16 + 217 * s + 11, '292 × 217', 'tm');
-  b += part('F', x2 + 122, 92, 260, 180, { nolabel: 1 }) + part('F', x2 + 190, 92, 260, 180, { nolabel: 1 }) + txt(x2 + 156 + 65 * s, 92 + 180 * s + 11, '260 × 180 ×2', 'tm');
-  b += part('Y', x2, 124, 300, 208, { blank: true, trim: ln([x2 + 140 * s, 124], [x2 + 140 * s, 124 + 208 * s], 'o dash') + ln([x2 + 284 * s, 124], [x2 + 284 * s, 124 + 208 * s], 'o dash') });
-  b += part('P2·P3', x2, 182, 292, 150, { blank: true, trim: [1, 2, 3, 4].map(i => ln([x2, 182 + i * 25 * s], [x2 + 292 * s, 182 + i * 25 * s], 'o dash thin')).join('') });
-  b += part('H', x2, 226, 370, 150, { blank: true, trim: ln([x2, 226 + 130 * s], [x2 + 370 * s, 226 + 130 * s], 'o dash') + ln([x2, 226 + 130 * s], [x2 + 370 * s, 226], 'o dash') });
-  b += part('spare', x2 + 168, 168, 400, 300, { blank: true, nolabel: 1 }) + txt(x2 + 168 + 48, 168 + 72 + 11, '400 × 300 spare', 'tm');
-  b += lines(x2, 290, ['Jumbo cuts nothing under 230 × 150, hence the', 'oversize blanks. Saw ± 0.5–1 mm. “6 mm” is', '5.6–6.3 mm: measure at pickup. Pencil the letter', 'on each part: A/B and C1/C2 look alike.'], 'ts', 'start', 14);
+  // F, P1 and the pocket-wall blank: the second order, sized for the 16" screen
+  b += part('P1', x2 + 120, 16, 412, 302, { nolabel: 1 });
+  b += part('spare', x2 + 228, 16, 400, 300, { blank: true, nolabel: 1 });
+  b += part('Y', x2, 124, 300, 208, { blank: true, nolabel: 1, trim: ln([x2 + 140 * s, 124], [x2 + 140 * s, 124 + 208 * s], 'o dash') + ln([x2 + 284 * s, 124], [x2 + 284 * s, 124 + 208 * s], 'o dash') }) + txt(x2 + 36, 124 + 208 * s + 11, '300 × 208', 'tm');
+  b += part('F', x2 + 98, 112, 375, 268, { nolabel: 1, nosize: 1 }) + part('F', x2 + 194, 112, 375, 268, { nolabel: 1, nosize: 1 }) + txt(x2 + 98 + 93, 112 + 268 * s + 11, '375 × 268 ×2', 'tm');
+  b += part('P2·P3', x2, 196, 412, 150, { blank: true, trim: [1, 2, 3, 4].map(i => ln([x2, 196 + i * 30 * s], [x2 + 412 * s, 196 + i * 30 * s], 'o dash thin')).join('') });
+  b += part('H', x2, 240, 370, 150, { blank: true, trim: ln([x2, 240 + 130 * s], [x2 + 370 * s, 240 + 130 * s], 'o dash') + ln([x2, 240 + 130 * s], [x2 + 370 * s, 240], 'o dash') });
+  b += lines(x2 + 48, 300, ['Jumbo cuts nothing under 230 × 150, hence the', 'oversize blanks. Saw ± 0.5–1 mm. “6 mm” is', '5.6–6.3 mm: measure at pickup. Pencil the letter', 'on each part: A/B and C1/C2 look alike.', 'F, P1 and P2·P3: second order, for the 16″', 'screen. The first order’s 10.1″ ones are spares.'], 'ts', 'start', 14);
   // legend
   const ly = 470;
   b += rect(16, ly - 9, 16, 10, 'o p0') + txt(38, ly, 'final size', 'ts', 'start');
@@ -274,18 +278,19 @@ export function step2() {
   // B, seen from outside
   const bx = 16, by = 242, Bz = z => by + (380 - z) * s, Bx = x => bx + x * s;
   b += rect(bx, by, 1020 * s, 380 * s, 'o p0') + wbadge(bx + 4, by - 4, 'B');
-  b += rect(Bx(510 - 140), Bz(G.pocket.cz + 102.5), 280 * s, 205 * s, 'o hatchf') + txt(Bx(510), Bz(G.pocket.cz) + 3, '280 × 205', 'tm halo');
+  const pw = G.pocket;
+  b += rect(Bx(510 - pw.w / 2), Bz(pw.cz + pw.h / 2), pw.w * s, pw.h * s, 'o nf dash') + txt(Bx(510), Bz(pw.cz) - 4, `${pw.w} × ${pw.h}`, 'tm halo') + txt(Bx(510), Bz(pw.cz) + 8, 'cut after the dry fit', 'tt halo');
   for (let i = 0; i < 8; i++) b += rect(Bx(300 + i * 55), Bz(353), 40 * s, 8 * s, 'o hatchf thin');
   for (const [x, z] of [[14, 14], [510, 14], [1006, 14], [14, 366], [510, 366], [1006, 366]]) b += circ(Bx(x), Bz(z), 1.6, 'o hatchf');
   b += circ(Bx(890), Bz(310), 16 * s, 'o hatchf') + txt(Bx(890), Bz(310) - 7, 'Ø32', 'tt');
   // port plate: one hole, first guess 120 × 40, four corner holes on the 140 × 60 plate
   b += rect(Bx(40), Bz(60), 120 * s, 40 * s, 'o hatchf') + txt(Bx(40), Bz(60) - 3, 'ports', 'tt', 'start');
   for (const [x, z] of [[35, 15], [165, 15], [35, 65], [165, 65]]) b += circ(Bx(x), Bz(z), 1.2, 'o hatchf');
-  b += circ(Bx(190), Bz(40), 8 * s + 1, 'o hatchf') + circ(Bx(215), Bz(40), 2.2, 'o hatchf') + circ(Bx(235), Bz(40), 2.2, 'o hatchf') + txt(Bx(250), Bz(40) + 3, 'button Ø16 · lights Ø8 ×2', 'tt', 'start');
-  b += txt(bx + 510 * s, by + 380 * s + 13, 'back B, seen from outside', 'tt');
+  b += circ(Bx(190), Bz(40), 8 * s + 1, 'o hatchf') + circ(Bx(215), Bz(40), 2.2, 'o hatchf') + circ(Bx(235), Bz(40), 2.2, 'o hatchf') + txt(Bx(182), by + 380 * s + 11, 'button Ø16 · lights Ø8 ×2', 'tt', 'start');
+  b += txt(bx + 510 * s, by + 380 * s + 24, 'back B, seen from outside: flap opening 40 from the top', 'tt');
   // legend
-  b += lines(316, 252, ['Windows, flap and handle cut-outs:', '  drill Ø8 in each corner, then', '  jigsaw (T101B, good face down)', 'Ø32  horn hole, hole saw', 'Ø45  stand cup, hole saw', 'Ø8 / Ø12  thread inserts (check', '  the size on the inserts you have)', 'ports  one hole, first guess 120 × 40:', '  size it once all 4 sockets are measured', 'Ø4.5  four port plate screws', 'vents  8 × 40 × 8 (mesh behind)', 'Ø4  six back screws'], 'ts', 'start', 14);
-  return svg(640, 426, b, 'Openings: front window, two end windows, handle cut-outs in the top, the flap opening, the port plate hole, horn hole, vents and screw holes in the back');
+  b += lines(316, 252, ['Windows and handle cut-outs:', '  drill Ø8 in each corner, then', '  jigsaw (T101B, good face down);', '  also the flap’s 3 mm front frame,', '  window 351 × 230', 'Ø32  horn hole, hole saw', 'Ø45  stand cup, hole saw', 'Ø8 / Ø12  thread inserts (check', '  the size on the inserts you have)', 'ports  one hole, first guess 120 × 40:', '  size it once all 4 sockets are measured', 'Ø4.5  four port plate screws', 'vents  8 × 40 × 8 (mesh behind)', 'Ø4  six back screws'], 'ts', 'start', 14);
+  return svg(640, 446, b, 'Openings: front window, two end windows, handle cut-outs in the top, the flap opening, the port plate hole, horn hole, vents and screw holes in the back');
 }
 
 // 3  Rip the oversize blanks
@@ -305,11 +310,11 @@ export function step3() {
   x = 196; y = 112;
   b += keep(x, y, 140, 208) + keep(x + 144 * s, y, 140, 208) + off(x + 284 * s, y, 16, 208);
   b += wbadge(x + 70 * s, y + 104 * s, 'Y') + wbadge(x + 214 * s, y + 104 * s, 'Y') + txt(x + 150 * s, y + 208 * s + 14, '2 × 140 × 208, glued as a pair', 'tt');
-  // P2/P3: 292 × 150 → four 25 mm strips
+  // P2/P3: 412 × 150 → four 30 mm strips (a 2 mm kerf between them)
   x = 340; y = 112;
-  for (let i = 0; i < 4; i++) b += keep(x, y + i * 27 * s, i < 2 ? 292 : 205, 25) + (i >= 2 ? off(x + 205 * s, y + i * 27 * s, 87, 25) : '');
-  b += off(x, y + 108 * s, 292, 42);
-  b += txt(x + 292 * s + 6, y + 13 * s, 'P2 292 × 25 ×2', 'tt', 'start') + txt(x + 292 * s + 6, y + 67 * s, 'P3 205 × 25 ×2', 'tt', 'start');
+  for (let i = 0; i < 4; i++) b += keep(x, y + i * 32 * s, i < 2 ? 412 : 290, 30) + (i >= 2 ? off(x + 290 * s, y + i * 32 * s, 122, 30) : '');
+  b += off(x, y + 128 * s, 412, 22);
+  b += txt(x + 412 * s + 6, y + 17 * s, 'P2 412 × 30 ×2', 'tt', 'start') + txt(x + 412 * s + 6, y + 81 * s, 'P3 290 × 30 ×2', 'tt', 'start');
   // fence tip
   y = 262;
   b += rect(16, y, 230, 30, 'o p1') + rect(16, y - 12, 230, 10, 'o p2') + rect(40, y - 24, 14, 36, 'o al', 2) + rect(200, y - 24, 14, 36, 'o al', 2);
@@ -435,41 +440,78 @@ export function step7() {
   return svg(640, 326, b, 'Turn the box over; glue the backing plate inside, fit the stand flange and the two tripod threads');
 }
 
+// The flap in a side section through the middle (u outward from B's outer face, z up), closed: the
+// front frame is flush with B, the 16" screen hangs upside down with its plugs at the top edge.
+function flapSection() {
+  const fl = G.flap, fTop = G.pocket.cz + G.pocket.h / 2 - fl.gap, fBot = fTop - fl.h;
+  const fr = fl.frame, st = fr + fl.strip, ft = st + fl.t, sT = fTop - fl.scrTop, sB = sT - fl.scr[1];
+  return {
+    piv: [0, fTop], fTop, fBot, sT,
+    outline: [[-ft, fTop], [0, fTop], [0, fBot], [-ft, fBot]],
+    parts: [
+      [[[-ft, fTop], [-st, fTop], [-st, fBot], [-ft, fBot]], 'o p0'],                                 // F, 12 mm
+      [[[-st, fTop], [-fr, fTop], [-fr, fTop - 8], [-st, fTop - 8]], 'o p2'],                         // spacer strips, 12 mm
+      [[[-st, fBot + 8], [-fr, fBot + 8], [-fr, fBot], [-st, fBot]], 'o p2'],
+      [[[-st, sT], [-3.5, sT], [-3.5, sB], [-st, sB]], 'o dark'],                                     // screen: glass 3.5 below the surface
+      [[[-st + 1, sT + 11], [-6, sT + 11], [-6, sT], [-st + 1, sT]], 'o p1'],                        // plugs at its top edge
+      [[[-fr, fTop], [0, fTop], [0, fTop - fl.winTop], [-fr, fTop - fl.winTop]], 'o p1'],             // 3 mm front frame
+      [[[-fr, fBot + fl.winBot], [0, fBot + fl.winBot], [0, fBot], [-fr, fBot]], 'o p1'],
+    ],
+  };
+}
+// open the flap by `deg` about its top edge: the bottom swings out (+u) and up
+function rotFlap(piv, [u, z], deg) {
+  const a = -deg * d2r, c = Math.cos(a), sn = Math.sin(a), du = u - piv[0], dz = z - piv[1];
+  return [piv[0] + du * c + dz * sn, piv[1] - du * sn + dz * c];
+}
+// B, the pocket walls P2 and the pocket back P1 in the same section, B drawn from z0 to z1
+function pocketSection(sec, z0, z1) {
+  const pw = G.pocket, D = pw.depth, top = pw.cz + pw.h / 2, bot = pw.cz - pw.h / 2;
+  return sec([[-6, z0], [0, z0], [0, bot], [-6, bot]], 'o p1') + sec([[-6, top], [0, top], [0, z1], [-6, z1]], 'o p1')
+    + sec([[-6 - D, top], [-6, top], [-6, top + 6], [-6 - D, top + 6]], 'o p2') + sec([[-6 - D, bot - 6], [-6, bot - 6], [-6, bot], [-6 - D, bot]], 'o p2')
+    + sec([[-12 - D, bot - 6], [-6 - D, bot - 6], [-6 - D, top + 6], [-12 - D, top + 6]], 'o p1');
+}
+
 // 8  Screen pocket and flap
 export function step8() {
   let b = '';
-  // B from inside, the pocket walls around the opening
-  const s = 0.3, bx = 16, by = 40, X = x => bx + x * s, Z = z => by + (380 - z) * s, pw = G.pocket;
+  const pw = G.pocket, fl = G.flap, top = pw.cz + pw.h / 2, bot = pw.cz - pw.h / 2;
+  // B from inside, the pocket walls around the opening (from inside, the port-plate side is on the right)
+  const s = 0.3, bx = 16, by = 40, X = x => bx + x * s, Z = z => by + (380 - z) * s, ow = pw.w + 12, oh = pw.h + 12;
   b += rect(bx, by, 1020 * s, 380 * s, 'o p0') + wbadge(bx + 4, by - 4, 'B') + txt(bx + 24, by - 1, 'inside face', 'tt', 'start');
-  b += rect(X(510 - 146), Z(pw.cz + 108.5), 292 * s, 217 * s, 'o p1') + rect(X(510 - 140), Z(pw.cz + 102.5), 280 * s, 205 * s, 'o p2');
+  b += rect(X(510 - ow / 2), Z(top + 6), ow * s, oh * s, 'o p1') + rect(X(510 - pw.w / 2), Z(top), pw.w * s, pw.h * s, 'o p2');
   b += txt(X(510), Z(pw.cz) + 4, 'P1 on top', 'tt halo');
-  b += rect(X(510 - 70), Z(pw.cz + 124), 140 * s, 14 * s, 'o p2') + txt(X(510), Z(pw.cz + 124) - 3, 'hinge block', 'tt');
-  b += txt(bx + 510 * s, by + 380 * s + 14, 'P2 top + bottom, P3 sides: 25 deep, round the opening', 'tt');
-  // section through the pocket, outside to the right
-  const k = 0.92, O = [430, 300], Q = ([u, z]) => [O[0] + u * k, O[1] - (z - 70) * k];
-  const top = pw.cz + pw.h / 2, bot = pw.cz - pw.h / 2;
-  b += poly(rp(Q, [[-6, 70], [0, 70], [0, bot], [-6, bot]]), 'o p1') + poly(rp(Q, [[-6, top], [0, top], [0, 315], [-6, 315]]), 'o p1');
-  b += poly(rp(Q, [[-31, top], [-6, top], [-6, top + 6], [-31, top + 6]]), 'o p2') + poly(rp(Q, [[-31, bot - 6], [-6, bot - 6], [-6, bot], [-31, bot]]), 'o p2');
-  b += poly(rp(Q, [[-37, bot - 6], [-31, bot - 6], [-31, top + 6], [-37, top + 6]]), 'o p1');
-  b += poly(rp(Q, [[-31, top - 20], [-17, top - 20], [-17, top], [-31, top]]), 'o p2');   // hinge block
-  // flap closed: 12 mm, screen on its outer face, glass about 8 mm in from the back face
-  const piv = [-16, top - 8], fl = [[-28, top - 8], [-16, top - 8], [-16, top - 188], [-28, top - 188]];
-  b += poly(rp(Q, fl), 'o p0') + poly(rp(Q, [[-16, top - 30], [-9, top - 30], [-9, top - 170], [-16, top - 170]]), 'o dark');
-  // flap open, 45° from flat
-  const rot = ([u, z], a) => { const c = Math.cos(a * d2r), sn = Math.sin(a * d2r), du = u - piv[0], dz = z - piv[1]; return [piv[0] + du * c + dz * sn, piv[1] - du * sn + dz * c]; };
-  const open = 45;
-  b += poly(rp(Q, fl.map(p => rot(p, -open))), 'o nf dash') + poly(rp(Q, [[-16, top - 30], [-9, top - 30], [-9, top - 170], [-16, top - 170]].map(p => rot(p, -open))), 'o nf dash');
-  const pq = Q(piv); b += circ(pq[0], pq[1], 3, 'o p0') + circ(pq[0], pq[1], 1.1, 'ah');
-  const e0 = Q([-16, top - 188]), e1 = Q(rot([-16, top - 188], -open));
-  b += carrow(e0, [e0[0] + 70, e0[1] + 10], e1, 'ar', 8);
-  b += poly(rp(Q, [[-31, bot], [-22, bot], [-22, bot + 14], [-31, bot + 14]]), 'o fuse');   // catch
-  const lq = Q([10, top + 10]); b += txt(lq[0], lq[1], 'torque hinges ×2, 1.2 N·m', 'tt', 'start');
-  const lc = Q([4, bot + 6]); b += txt(lc[0], lc[1], 'magnetic catch on a block', 'tt', 'start');
-  const lf = Q([-56, 190]); b += txt(lf[0], lf[1], 'F ×2', 'tb', 'end') + txt(lf[0], lf[1] + 12, '12 mm', 'tt', 'end');
-  const ls = Q([96, 250]); b += txt(ls[0], ls[1], 'open: 45° from flat', 'tt', 'start');
-  b += txt(Q([-20, 330])[0], Q([-20, 330])[1], 'inside ← | → scorer', 'tt');
-  b += lines(16, 200, ['1  Glue P2 and P3 round the opening, P1 on top:', '    a closed box 25 mm deep, open to the back.', '2  Glue the two flap layers F (12 mm). Trim to', '    the real screen; 10 mm clear all round.', '3  Hinge block under the top wall, two torque', '    hinges at the flap’s top edge.', '4  Catch on a block at the bottom; a steel washer', '    on the flap if there is no counter-plate.', '5  A slot through F and P1 for the display ribbon.'], 'ts', 'start', 15);
-  return svg(640, 352, b, 'The screen pocket glued inside the back panel, and a section through it: the flap on two torque hinges at the top, closed and open 45 degrees from flat');
+  b += rect(X(510 - 150), Z(top + 21.5), 300 * s, 14 * s, 'o p2') + txt(X(660) + 4, Z(top + 21.5) + 4, 'hinge block', 'tt', 'start');
+  b += rect(X(510 + pw.w / 2) - 1, Z(top - 15), 6 * s + 2, 50 * s, 'o dark') + txt(X(510 + ow / 2) + 4, Z(top - 34), 'cable slot,', 'tt halo', 'start') + txt(X(510 + ow / 2) + 4, Z(top - 34) + 10, 'port corner', 'tt halo', 'start');
+  b += txt(bx + 510 * s, by + 380 * s + 14, 'P2 top + bottom, P3 sides: 30 deep, round the opening', 'tt');
+  // the flap from outside: F, the screen (dashed, behind the frame) and the 3 mm front frame's window
+  const fx = 16, fy = 192, k2 = 0.4, FX = x => fx + x * k2, FY = y => fy + y * k2;   // y down from F's top
+  b += rect(fx, fy, fl.w * k2, fl.h * k2, 'o p1') + rect(FX(fl.winSide), FY(fl.winTop), fl.win[0] * k2, fl.win[1] * k2, 'o dark');
+  b += rect(FX((fl.w - fl.scr[0]) / 2), FY(fl.scrTop), fl.scr[0] * k2, fl.scr[1] * k2, 'o nf dash thin');
+  b += txt(FX(fl.w / 2), FY(fl.winTop + fl.win[1] / 2) + 3, `${fl.win[0]} × ${fl.win[1]}`, 'tm halo');
+  b += ln([FX(fl.w) + 4, FY(15)], [FX(fl.w - 40), FY(15)], 'o thin') + txt(FX(fl.w) + 6, FY(15) + 3, 'plugs behind the frame', 'tt', 'start');
+  b += lines(FX(fl.w) + 6, fy + 22, [`F ${fl.w} × ${fl.h}, 12 mm`, 'strips 12, a gap', 'at the port corner', 'screen upside down'], 'tt', 'start', 10);
+  b += lines(fx, fy + fl.h * k2 + 13, ['front frame 375 × 268, 3 mm: window 12 from the', 'sides, 11 from the bottom, 27 from the top'], 'tt', 'start', 10);
+  // section through the pocket and the flap, outside to the right
+  const k = 0.8, O = [470, 350], Q = ([u, z]) => [O[0] + u * k, O[1] - (z - 30) * k], sec = (pts, cls) => poly(rp(Q, pts), cls);
+  const D = pw.depth, F = flapSection(), open = p => rotFlap(F.piv, p, 45);
+  b += pocketSection(sec, 30, 365);
+  b += sec([[-6 - D, top - 18], [-28, top - 18], [-28, top], [-6 - D, top]], 'o p2');            // hinge block
+  b += sec([[-6 - D, bot], [-28, bot], [-28, bot + 14], [-6 - D, bot + 14]], 'o fuse');          // catch
+  for (const [pts, cls] of F.parts) b += sec(pts, cls);                                          // closed
+  b += sec(F.outline.map(open), 'o nf dash') + sec(F.parts[3][0].map(open), 'o nf dash');      // open, 45° from flat
+  const pq = Q(F.piv); b += circ(pq[0], pq[1], 3, 'o p0') + circ(pq[0], pq[1], 1.1, 'ah');
+  const e0 = Q([0, F.fBot]), e1 = Q(open([0, F.fBot]));
+  b += carrow(e0, [e0[0] + 60, e0[1] - 6], e1, 'ar', 8);
+  const lq = Q([8, top + 14]); b += txt(lq[0], lq[1], 'torque hinges ×3, 1.2 N·m', 'tt', 'start');
+  const lc = Q([4, 44]); b += txt(lc[0], lc[1], 'magnetic catch on a block', 'tt', 'start');
+  const lp = Q([-44, 318]); b += txt(lp[0], lp[1], 'plugs, 90° adapter', 'tt', 'end') + ln(Q([-43, 316]), Q([-13, 313]), 'o thin');
+  const lf = Q([-44, 220]); b += txt(lf[0], lf[1], 'F ×2', 'tb', 'end') + txt(lf[0], lf[1] + 12, '12 mm', 'tt', 'end');
+  b += txt(Q([-44, 142])[0], Q([-44, 142])[1], 'strips 12 · frame 3', 'tt', 'end') + txt(Q([-44, 127])[0], Q([-44, 127])[1], 'glass 3.5 below the surface', 'tt', 'end');
+  const ls = Q([80, 282]); b += txt(ls[0], ls[1], 'open: 45° from flat', 'tt', 'start');
+  b += txt(Q([-20, 378])[0], Q([-20, 378])[1], 'inside ← | → scorer', 'tt');
+  b += lines(16, 362, ['1  Cut the cable slot in one P3 first. Glue P2 and P3 round the opening, P1 on top: a box 30 mm deep.', '2  Glue the two flap layers F (12 mm), then the 12 mm spacer strips round the screen’s place.', '3  Hinge block under the top wall, three torque hinges at the flap’s top edge; a catch on a block below.'], 'ts', 'start', 15);
+  return svg(640, 412, b, 'The screen pocket glued inside the back panel with the cable slot at the port corner; the flap from outside with the 3 mm front frame; a section through it: the 16 inch screen upside down between the spacer strips, the flap on three torque hinges at the top, closed and open 45 degrees from flat');
 }
 
 // 9  Hang the front frame on the piano hinge
@@ -545,7 +587,7 @@ export function step11() {
   const ts = 0.2, tx = 400, ty = 200;
   b += rect(tx, ty, 1020 * ts, 214 * ts, 'o p0') + txt(tx + 102, ty + 214 * ts + 12, 'top, back edge up', 'tt');
   for (const x of hx.x) b += rect(tx + (x - 77.5) * ts, ty + (214 - hx.y - 41.65) * ts, 155 * ts, 83.3 * ts, 'o p2', 1);
-  b += rect(tx + (510 - 146) * ts, ty, 292 * ts, 6, 'o nf dash') + txt(tx + 102, ty - 4, 'pocket below', 'tt');
+  b += rect(tx + (510 - (G.pocket.w + 12) / 2) * ts, ty, (G.pocket.w + 12) * ts, 6, 'o nf dash') + txt(tx + 102, ty - 4, 'pocket below', 'tt');
   b += lines(30, 290, ['Near the back edge, left and right: clear of the flap pocket (under the', 'middle of the back) and the hinge batten (along the front).'], 'ts', 'start', 14);
   return svg(640, 320, b, 'Recessed K16 spring handle: rim, cut-out and six M4 screws; section through the top; where the two handles go');
 }
@@ -732,8 +774,8 @@ export function step20() {
 export function step21() {
   let b = '';
   b += fuseBox(24, 132, 12, 200);
-  ['1', '2', '3', '4', '5', '6', 'L', 'R', 'Pi', 'H', '·', '·'].forEach((l, i) => { b += txt(24 + 9 + i * 15.33 + 5, 200, l, 'tt'); });
-  b += txt(124, 216, 'H = horn (way 10) · 11, 12 spare', 'tt');
+  ['1', '2', '3', '4', '5', '6', 'L', 'R', 'Pi', 'H', 'S', '·'].forEach((l, i) => { b += txt(24 + 9 + i * 15.33 + 5, 200, l, 'tt'); });
+  b += txt(124, 216, 'H = horn (way 10) · S = screen (11) · 12 spare', 'tt');
   const mx = 300, my = 40, mw = 70, mh = 34;
   for (const [c, r, n] of [[0, 0, 1], [1, 0, 2], [2, 0, 3], [0, 1, 4], [1, 1, 5], [2, 1, 6]]) {
     const x = mx + c * (mw + 4), y = my + r * (mh + 4);
@@ -770,22 +812,27 @@ export function step22() {
 // 23  The control screen
 export function step23() {
   let b = '';
-  const k = 0.9, O = [200, 300], Q = ([u, z]) => [O[0] + u * k, O[1] - (z - 70) * k], top = 292.5, bot = 87.5;
-  b += poly(rp(Q, [[-6, 70], [0, 70], [0, bot], [-6, bot]]), 'o p1') + poly(rp(Q, [[-6, top], [0, top], [0, 320], [-6, 320]]), 'o p1');
-  b += poly(rp(Q, [[-37, bot - 6], [-31, bot - 6], [-31, top + 6], [-37, top + 6]]), 'o p1');
-  const piv = [-16, top - 8], rot = ([u, z]) => { const a = -45 * d2r, c = Math.cos(a), sn = Math.sin(a), du = u - piv[0], dz = z - piv[1]; return [piv[0] + du * c + dz * sn, piv[1] - du * sn + dz * c]; };
-  b += poly(rp(Q, [[-28, top - 8], [-16, top - 8], [-16, top - 188], [-28, top - 188]].map(rot)), 'o p0') + poly(rp(Q, [[-16, top - 30], [-9, top - 30], [-9, top - 170], [-16, top - 170]].map(rot)), 'o dark');
-  const h = Q(piv), sl = Q([-40, top - 30]), pi = [Q([-120, 90])[0], Q([-120, 90])[1]];
-  b += path(`M${R(h[0] - 8)} ${R(h[1] + 6)} C${R(h[0] - 30)} ${R(h[1] + 40)} ${R(h[0] + 10)} ${R(h[1] + 50)} ${R(sl[0])} ${R(sl[1] + 30)} S ${R(pi[0] + 40)} ${R(pi[1] - 30)} ${R(pi[0] + 10)} ${R(pi[1])}`, 'rib0') + path(`M${R(h[0] - 8)} ${R(h[1] + 6)} C${R(h[0] - 30)} ${R(h[1] + 40)} ${R(h[0] + 10)} ${R(h[1] + 50)} ${R(sl[0])} ${R(sl[1] + 30)} S ${R(pi[0] + 40)} ${R(pi[1] - 30)} ${R(pi[0] + 10)} ${R(pi[1])}`, 'rib1');
-  b += rect(pi[0] - 30, pi[1] - 4, 50, 14, 'o p1', 2) + txt(pi[0] - 5, pi[1] + 24, 'Pi 5 DSI port', 'tt');
-  b += txt(h[0] + 18, h[1] - 8, 'loop at the hinge', 'tt', 'start') + txt(Q([96, 120])[0], Q([96, 120])[1], 'scorer →', 'ts', 'start');
+  const k = 0.72, O = [262, 296], Q = ([u, z]) => [O[0] + u * k, O[1] - (z - 30) * k], sec = (pts, cls) => poly(rp(Q, pts), cls);
+  const F = flapSection(), open = p => rotFlap(F.piv, p, 45);
+  b += pocketSection(sec, 30, 365);
+  for (const [pts, cls] of F.parts) b += sec(pts.map(open), cls);
+  const h = Q(F.piv); b += circ(h[0], h[1], 3, 'o p0') + circ(h[0], h[1], 1.1, 'ah');
+  // three cables from the plugs at the screen's top edge: a loop, then the slot in the pocket's side wall
+  const pl = Q(open([-10, F.sT + 6])), sl = Q([-40, 300]);
+  [['Pi 5: micro-HDMI', 'next to its USB-C', 'cable'], ['Pi USB-A', 'touch', 'wd'], ['USB-A socket', 'way 11 · power', 'wr']].forEach(([l1, l2, cls], i) => {
+    const y = 92 + i * 50, e = [124, y + 15], o = i * 4;
+    const d = `M${R(pl[0])} ${R(pl[1] + o)} C${R(pl[0] - 20)} ${R(pl[1] + 50 + o)} ${R(sl[0] + 40)} ${R(sl[1] + 40 + o)} ${R(sl[0])} ${R(sl[1] + o)} S ${R(e[0] + 50)} ${R(e[1])} ${R(e[0])} ${R(e[1])}`;
+    b += (cls === 'cable' ? path(d, 'rib0') + path(d, 'rib1') : path(d, cls)) + chip(30, y, 94, 30, l1, l2);
+  });
+  b += txt(sl[0] + 10, 66, 'a loop, then the slot in the side wall', 'tt', 'end');
+  b += txt(Q([110, 80])[0], Q([110, 80])[1], 'scorer →', 'ts', 'start') + txt(h[0] + 10, h[1] - 8, 'ports at the top', 'tt', 'start');
   // flicker test
-  const fx = 330;
-  b += rect(fx, 60, 130, 44, 'o p2m') + rect(fx + 160, 60, 70, 44, 'o dark', 3) + txt(fx + 65, 120, '8 modules running', 'tt') + txt(fx + 195, 120, 'screen on', 'tt');
-  b += ok(fx + 10, 160, 11) + txt(fx + 28, 164, 'no flicker on the modules → keep it', 'tl', 'start');
-  b += no(fx + 10, 192, 11) + txt(fx + 28, 196, 'modules flicker → the screen stays out', 'tl', 'start');
-  b += lines(fx, 232, ['300 mm standard–mini DSI cable (SC1132).', 'The LED driver needs one Pi core; this test', 'is still to be done: check before you rely on it.'], 'ts', 'start', 14);
-  return svg(640, 310, b, 'The 10.1 inch screen on the open flap, the display ribbon with a loop at the hinge to the Pi, and the flicker test with all eight modules running');
+  const fx = 400;
+  b += rect(fx, 60, 100, 44, 'o p2m') + rect(fx + 120, 58, 76, 48, 'o dark', 3) + txt(fx + 50, 120, '8 modules running', 'tt') + txt(fx + 158, 120, 'screen on', 'tt');
+  b += ok(fx + 10, 160, 11) + txt(fx + 28, 164, 'no flicker → keep it', 'tl', 'start');
+  b += no(fx + 10, 192, 11) + txt(fx + 28, 196, 'flicker → the screen stays out', 'tl', 'start');
+  b += lines(fx, 232, ['HDMI: micro-HDMI → HDMI, 90° adapter;', 'touch, power: right-angle USB-C → A.', 'Flicker test: passed on the bench,', '8 Nov 2026. Repeat it in the box.'], 'ts', 'start', 14);
+  return svg(640, 310, b, 'The 16 inch screen upside down on the open flap; its HDMI, touch and power cables leave its top edge with a loop and go through the slot in the side wall to the Pi and to the USB-A socket on fuse way 11; the flicker test, passed on the bench');
 }
 
 // 24  Test
@@ -817,7 +864,9 @@ export function step25() {
   const by = -230;
   b += poly(fSide(P, by, 0, 6, 380, 1020), 'o p2') + poly(fTop(P, 0, by, 1020, 6, 380), 'o p1') + poly(fFront(P, 0, 0, 1020, 380, by), 'o p0');
   const F = (x, z) => P(x, by, z);
-  b += poly(fFront(P, 370, 87.5, 280, 205, by), 'o dark') + poly(fFront(P, 380, 105, 260, 180, by - 0.1), 'o p1');
+  { const pw = G.pocket, fl = G.flap, x0 = 510 - fl.w / 2, z0 = pw.cz - pw.h / 2 + fl.gap;
+    b += poly(fFront(P, 510 - pw.w / 2, pw.cz - pw.h / 2, pw.w, pw.h, by), 'o dark') + poly(fFront(P, x0, z0, fl.w, fl.h, by - 0.1), 'o p1');
+    b += poly(fFront(P, x0 + fl.winSide, z0 + fl.winBot, fl.win[0], fl.win[1], by - 0.2), 'o dark'); }
   for (let i = 0; i < 8; i++) b += poly(fFront(P, 300 + i * 55, 345, 40, 8, by), 'o dark thin');
   const hp = F(890, 310); b += circ(hp[0], hp[1], 6, 'o p2');
   b += poly(fFront(P, 30, 10, 140, 60, by), 'o p1');
@@ -846,8 +895,9 @@ function silhouette(X0, Y0, k, deg, flap, foot) {
   if (foot) b += poly(rp(S, [[70 + 120, -15], [220 + 120, -15], [220 + 120, -9], [70 + 120, -9]]), 'o p1');
   b += poly(rp(S, [[10, -21], [214, -21], [214, 0], [10, 0]]), 'o p2');
   if (flap) {
-    const piv = [220 - 16, 284.5], a = 45 * d2r, e = [piv[0] + 180 * Math.sin(a), piv[1] - 180 * Math.cos(a)];
-    b += ln(S(piv), S(e), 'o thick2') + ln(S([piv[0] + 8, piv[1] - 4]), S([e[0] + 8 * Math.cos(a), e[1] - 4]), 'o thin');
+    // the flap, open 45° about its top edge at the back face: here y runs front → back, so outward is +y
+    const F = flapSection(), q = ([u, z]) => { const r = rotFlap(F.piv, [u, z], 45); return [220 + r[0], r[1]]; };
+    b += poly(rp(S, F.outline.map(q)), 'o p1');
   }
   return b;
 }
@@ -890,8 +940,8 @@ export function step27() {
   b += rect(dx, dy, 160, 64, 'o p0') + rect(dx + 8, dy + 8, 70, 30, 'o p1 thin') + rect(dx + 100, dy + 6, 52, 40, 'o dark', 2);
   ['1', '2', '3', '4', '5', '6', 'L', 'R', 'Pi', 'H'].forEach((l, i) => { b += txt(dx + 13 + (i % 5) * 14, dy + 19 + Math.floor(i / 5) * 13, l, 'tt'); });
   b += txt(dx + 43, dy + 54, 'fuse map', 'tt') + txt(dx + 126, dy + 58, 'pocket', 'tt') + txt(dx + 80, dy + 82, 'inside of the back panel', 'ts');
-  b += ok(40, 34, 12) + txt(60, 39, 'T20 key: six screws, lift off, unplug the screen ribbon', 'tl', 'start');
-  return svg(640, 280, b, 'Open the box: undo six T20 screws, lift the back panel off and unplug the screen ribbon; the back carries the fuse map, spare fuses and a spare SD card');
+  b += ok(40, 34, 12) + txt(60, 39, 'T20 key: six screws, lift off, unplug the screen’s cables', 'tl', 'start');
+  return svg(640, 280, b, 'Open the box: undo six T20 screws, lift the back panel off and unplug the screen’s cables; the back carries the fuse map, spare fuses and a spare SD card');
 }
 
 export function poster() {
@@ -1076,12 +1126,12 @@ export function stepCoverHoles() {
   b += rect(fx, ey, 214 * s, 368 * s, 'o p0') + rect(fx + 27 * s, ey + 24 * s, 160 * s, 320 * s, 'o hatchf');
   for (const [x, y] of [[13, 12], [201, 12], [13, 356], [201, 356]]) b += dot(fx + x * s, ey + y * s);
   const lx = fx + 88;
-  b += txt(lx, ey - 8, 'flap lid: 4', 'ts', 'start');
-  b += rect(lx, ey, 300 * s, 225 * s, 'o p0') + rect(lx + 10 * s, ey + 10 * s, 280 * s, 205 * s, 'o hatchf');
-  for (const [x, y] of [[5, 5], [295, 5], [5, 220], [295, 220]]) b += dot(lx + x * s, ey + y * s);
-  b += lines(lx, ey + 62, ['Only 10 mm border:', 'smaller washers,', 'in the corners.', 'Check at dry fit.'], 'tt', 'start', 12);
-  b += txt(fx, ey + 124, '20 magnets in all', 'tlb', 'start');
-  return svg(640, 300, b, 'Section through a transport cover at one magnet: magnet sunk into the 6 mm box border, washer sunk into the 3 mm cover, thin felt between; where the 20 magnets go');
+  b += txt(lx, ey - 8, 'flap lid: 6', 'ts', 'start');
+  b += rect(lx, ey, 420 * s, 310 * s, 'o p0') + rect(lx + 10 * s, ey + 10 * s, 400 * s, 290 * s, 'o hatchf');
+  for (const [x, y] of [[5, 5], [210, 5], [415, 5], [5, 305], [210, 305], [415, 305]]) b += dot(lx + x * s, ey + y * s);
+  b += lines(lx, ey + 76, ['Only 10 mm border:', 'smaller washers', 'at all six.', 'Check at dry fit.'], 'tt', 'start', 12);
+  b += txt(fx, ey + 134, '22 magnets in all', 'tlb', 'start');
+  return svg(640, 300, b, 'Section through a transport cover at one magnet: magnet sunk into the 6 mm box border, washer sunk into the 3 mm cover, thin felt between; where the 22 magnets go');
 }
 
 // Covers on, bag
@@ -1099,7 +1149,8 @@ export function stepCovers() {
   b += ok(44, 28, 10) + txt(60, 33, 'Four covers snap on with the magnets. All lie inside the bag.', 'tl', 'start');
   // the lid, small back view
   const lx = 28, ly = 248, s = 0.14;
-  b += rect(lx, ly, 1020 * s, 380 * s, 'o p0') + rect(lx + 360 * s, ly + 77 * s, 300 * s, 225 * s, 'o gh') + txt(lx + 510 * s, ly + 196 * s, 'lid', 'tt');
+  { const pw = G.pocket, lw = pw.w + 20, lh = pw.h + 20, top = 380 - (pw.cz + lh / 2);
+    b += rect(lx, ly, 1020 * s, 380 * s, 'o p0') + rect(lx + (510 - lw / 2) * s, ly + top * s, lw * s, lh * s, 'o gh') + txt(lx + 510 * s, ly + (380 - pw.cz) * s + 3, 'lid', 'tt'); }
   b += txt(lx + 510 * s, ly + 380 * s + 13, 'back: lid over the flap', 'tt');
   // the bag
   const bx = 268, bY = 246;
@@ -1203,6 +1254,9 @@ icons.felt = I(path('M18 54 L88 54 L104 30 L34 30 Z', 'o dark') + path('M18 54 L
 icons.bag = I(rect(16, 26, 88, 40, 'o p1', 6) + path('M42 26 C44 8 76 8 78 26', 'o thick nf') + rect(40, 42, 40, 18, 'o p2', 2));
 icons.cablec = I(path('M16 58 C40 10 80 70 104 22', 'o thick nf') + rect(8, 54, 14, 8, 'o p2', 2) + rect(98, 18, 14, 8, 'o p2', 2));
 icons.cover = I(rect(14, 16, 84, 40, 'o gh') + rect(22, 24, 84, 40, 'o p0'));
+// HDMI cable with the 90° adapter at the screen end; the USB-A socket with screw terminals
+icons.hdmi = I(path('M14 58 C40 58 50 34 76 34', 'o thick nf') + rect(8, 54, 12, 8, 'o p2', 1) + rect(76, 28, 16, 12, 'o p1', 2) + rect(84, 40, 14, 18, 'o p1', 2) + rect(87, 58, 8, 6, 'o dark'));
+icons.usba = I(rect(30, 24, 48, 32, 'o p1', 3) + rect(42, 34, 24, 10, 'o dark', 1) + circ(86, 32, 4, 'o p2') + circ(86, 48, 4, 'o p2') + path('M90 32 L106 32', 'wr') + path('M90 48 L106 48', 'wb'));
 icons.ties = I(rect(30, 28, 26, 26, 'o p1', 2) + path('M20 41 C30 8 70 8 94 40', 'o nf'));
 tools.strip = TI(path('M12 20 L48 34 L84 12 M12 44 L48 34 L84 54', 'o thick nf') + circ(48, 34, 5, 'o p1'));
 tools.cutter = TI(path('M10 16 L52 34 L10 52', 'o thick nf') + path('M52 34 L88 24 L78 36 L52 34', 'o p2'));
