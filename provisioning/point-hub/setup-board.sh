@@ -19,7 +19,7 @@ echo "== packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y python3-pil i2c-tools build-essential curl rsync dnsmasq iptables \
-  labwc squeekboard chromium libglib2.0-bin dbus
+  labwc squeekboard wlr-randr chromium libglib2.0-bin dbus
 # The eScoresheet runs natively on the screen. The arm64 .deb is a workflow artifact, not on APT: put
 # it in the repo folder before this script, or install it later.
 for deb in "$REPO"/openvolley-escoresheet_*_arm64.deb; do
@@ -57,12 +57,19 @@ echo "== hardware service"
 mkdir -p /opt/pointhub
 install -m 0755 "$REPO/firmware/pointhubd/pointhubd.py" /opt/pointhub/pointhubd.py
 install -m 0755 "$HERE/pointhub-screen" /opt/pointhub/pointhub-screen
+rsync -a --delete "$HERE/squeekboard/" /opt/pointhub/squeekboard/
 install -m 0755 "$HERE/pointhub-backup-stick" /opt/pointhub/pointhub-backup-stick
 install -m 0644 "$HERE/99-pointhub-backup-stick.rules" /etc/udev/rules.d/99-pointhub-backup-stick.rules
 [ -e /etc/default/pointhubd ] || cat > /etc/default/pointhubd <<'CONF'
 # PH_I2C_BUS=0            found by itself; set it only if the probe picks the wrong bus
 # PH_BENCH_SUPPLY_W=60    a bench supply instead of a USB-PD charger
 # PH_FULL_WHITE_MA=19800  calibration (BUILD.md section 5.5); PH_IDLE_MA, PH_PI_W, PH_TABLET_W
+CONF
+
+[ -e /etc/default/pointhub-screen ] || cat > /etc/default/pointhub-screen <<'CONF'
+# The MINIX hangs upside down in the flap (ports by the hinge): the picture and the touch are turned.
+# 0 on a bench, with the screen the right way up.
+POINTHUB_SCREEN_ROTATE=180
 CONF
 
 echo "== renderer and LED driver"

@@ -42,12 +42,35 @@ pointhubd: I2C bus, power budget, thermal cut-off, horn ──power──▶ poi
 | Self-test finds a pulled fuse | pull one module's fuse, Run self-test | `settleMs` in `boardHardware.js` |
 | Text sits right on the glass | look at the score; openscore's text is about 4 px high (ROADMAP Phase 2) | Placement in `Renderer._draw_text` |
 | Budget matches reality | full white under a USB-C meter (BUILD.md section 5.5) | `PH_FULL_WHITE_MA`, `PH_IDLE_MA` |
-| Screen does not make the LEDs flicker | BUILD.md section 10.4 | The screen stays out |
+| Screen does not make the LEDs flicker | BUILD.md section 10.4 (passed on the bench 08.11, both screens) | The screen stays out |
 | Backup copy, plugged in and pulled mid-match | a FAT32 stick in each port; Diagnostics > Board health; check `OpenVolley/` on it | `journalctl -u 'pointhub-backup-stick@*'` |
 | Stick in the blue USB 3 port does not disturb hall Wi-Fi or the LEDs | stick copying, watch LINK and the panel | a shielded cable, or the USB 2 port |
 | OpenVolley runs and follows | start a match on the screen, score a point | `journalctl -u pointhub-screen`, Diagnostics |
 | On-screen keyboard appears in both apps | tap a text field | `squeekboard`, `--enable-wayland-ime` |
 | Tablet on the cable reaches the referee page | `http://192.168.5.1:5173/referee` | `ETH0_EXTRA_PORTS` |
+
+## The screen
+
+The scorer's screen is a **MINIX SF16T** (16", 1920 x 1200, touch over USB) on HDMI, chosen on the
+bench 08.11 over the Waveshare 10.1" DSI screen; `pointhub-screen` still runs either.
+
+- **HDMI port:** the one next to the Pi's USB-C power socket. On the other one it read no EDID.
+- **Upside down:** its ports are on one short end of the bottom edge, so it hangs upside down in the
+  flap, ports at the top by the hinge. `POINTHUB_SCREEN_ROTATE=180` in `/etc/default/pointhub-screen`
+  (written by `setup-board.sh`) turns the picture and the touch; set 0 on a bench.
+- **Resolution:** its own 1920 x 1200 at 60 Hz (it offers 120 Hz first), and the pages are enlarged
+  instead: `OPENVOLLEY_ZOOM` for OpenVolley, `--force-device-scale-factor` for Chromium. A compositor
+  scale of 1.5 made GTK 3 draw at 2 and labwc shrink it, soft and slower. Needs OpenVolley with
+  `OPENVOLLEY_ZOOM` (openvolley#75).
+- **OpenVolley's picture** is scrambled on both screens with WebKit's default renderer;
+  `WEBKIT_DMABUF_RENDERER_FORCE_SHM=1` makes it clean.
+- **On-screen keyboard:** `squeekboard/` holds layouts with a key that closes the keyboard (F20; the
+  pages close it on that key). Raspberry Pi's squeekboard reads only `/usr/share/misc/squeekboard/keyboards`
+  unless `SQUEEKBOARD_KEYBOARDSDIR` is set, so `pointhub-screen` copies that set and lays ours over it.
+- **The MINIX itself:** it comes back on by itself after a power cut (only its very first start needed
+  its button), runs on plain 5 V at full brightness, and shows its own logo for about 4 s at power-up
+  (no setting turns it off). Its brightness can be set from the Pi over DDC/CI (`/dev/i2c-13` with
+  `i2c-dev` loaded, VCP 0x10); it came at 50.
 
 ## Still open
 
