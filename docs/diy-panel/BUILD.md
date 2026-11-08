@@ -1,7 +1,7 @@
 # Point Hub board — DIY scoreboard build guide (KSCW)
 
 How KSC Wiedikon builds its own scoreboard from open parts: the same 192 × 64 pixels as the
-Tech4Sport LedBox C0270 at **1.67× its pitch**, a small score panel facing each bench, a 10.1″
+Tech4Sport LedBox C0270 at **1.67× its pitch**, a small score panel facing each bench, a 16″
 touchscreen for the scorer in the back, powered by **USB-C only** and driven by the same open software
 stack (bridge, console, openscore, flushBuffer2).
 
@@ -13,6 +13,11 @@ so that a club member can buy, build and run a board alone.
 > been assembled, and the LED driver for the Raspberry Pi 5 is not written yet (§10.7). Items marked
 > **Check** are not tested or not decided: do them in the order this guide gives, and do not rely on
 > a part of the design before its check has passed.
+>
+> **Scorer screen, 8 November 2026:** after bench tests the scorer screen changed from the 10.1″
+> Waveshare to a **16″ MINIX SF16T Touch** (owner decision, 8.11.2026). The flap, the pocket and the
+> lid grew with it, and their parts need a second Jumbo order (§8.2). The 10.1″ stays as the smaller
+> alternative (§2.3).
 >
 > Prices are **approximate, CHF, October 2026**, from the club's own shopping list. LED modules and
 > Raspberry Pi prices move a lot; check at purchase time. Orders from outside Switzerland add import
@@ -69,7 +74,8 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Check | What could go wrong | When | Section |
 |---|---|---|---|
 | **First light on the Pi 5 + Piomatter** | **Passed 4 Nov 2026** with one module. Still open: all eight modules, Ports 2 and 3 | before cutting | §10.2 |
-| **Screen flicker test** | the touchscreen makes the LED modules flicker → the screen stays out, the scorer uses a tablet on the DATA cable | before fitting the screen | §10.4 |
+| **Screen flicker test** | **Passed 8 Nov 2026** on the bench, with both screens. Repeat it in the finished box: if the touchscreen makes the LED modules flicker, the screen stays out and the scorer uses a tablet on the DATA cable | at bring-up | §10.4 |
+| Screen pocket and flap | the bigger pocket may hit the top blocks or the handle trays; the cable slot on the wrong side; the HDMI adapter turning the cable the wrong way | dry fit, before cutting B's opening, the pocket or F | §8.5 |
 | **Bottom cap K vs backing plates Y** | both want the front/centre of the floor | dry fit, before gluing Y | §8.6 |
 | **Soak test** (2 h at the power cap) | the box runs too hot | before the first match | §6 |
 | Cheeks H and stays vs the bench modules | the parts that close the side gaps may hit the bench modules | dry fit | §8.4 |
@@ -88,7 +94,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Bench panels | **2 × (32 × 64)**: one P5 module per end, upright, facing the benches |
 | Box | **1020 × 380 × 220 mm** (W × H × D), 6 mm poplar plywood, about **8.5 kg** |
 | Front | the **front panel tilts 0, 5, 10, 15 or 20°**: it hangs from a piano hinge along the top edge and its bottom swings out, so the screen leans back towards the first referee. No legs; the box itself never moves |
-| Scorer screen | **10.1″ touchscreen** (1280 × 800) in a flap in the back panel, hinged at its top, swings out like an awning — **Check:** only if the flicker test passes (§10.4) |
+| Scorer screen | **16″ touchscreen** (MINIX SF16T Touch, 1920 × 1200) in a flap in the back panel, hinged at its top, swings out like an awning; HDMI and USB touch to the Pi, 5 V from its own fuse way. The flicker test passed on the bench, 8 Nov 2026 (§10.4) |
 | Power | **USB-C PD charger, 18–100 W**; 65 W or more for full brightness while charging the tablet |
 | Ports | one removable **port plate**, low on the back, left of the flap seen from outside: **USB-C POWER, USB-C DATA** (to the scorer tablet: network + charging), and **BACKUP: USB-A 3.0 + USB-C** for a stick or an SD reader |
 | Wi-Fi | **out only**: the Pi's built-in radio joins the hall's Wi-Fi for internet; the board has no Wi-Fi network of its own |
@@ -96,7 +102,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | Horn | **fitted**: a 5 V piezo buzzer, about 95 dB, switched over I²C |
 | Computer | **Raspberry Pi 5** (8 GB) with the Active Cooler; fallback Pi 4 2 GB (§10.2) |
 | Use | **indoor only** — the outdoor C0270 stays the beach board |
-| Parts | about **CHF 850** with the screen and splash protection, each part where it is cheapest (October 2026), plus shipping; without the Pi 5 and without tools |
+| Parts | about **CHF 850** with the 10.1″ screen and splash protection, each part where it is cheapest (October 2026), plus shipping; without the Pi 5 and without tools. The 16″ screen, its cables and the second wood order are not in that sum yet (§2.3, §8.2) |
 
 **Why this size.** Keeping 192 × 64 pixels means every existing layout renders unchanged; only
 the pitch grows, from the C0270's ~3 mm to 5 mm. A score digit (fontsize 55, about 40 px) becomes
@@ -131,7 +137,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
-| Plywood, cut to size | **Oecoplan poplar 6 mm (A/B)**, Jumbo online cut-to-size; the 15 pieces of the cut list (§8.2) | 1 order | Jumbo (online, store pickup) | 54 |
+| Plywood, cut to size | **Oecoplan poplar 6 mm (A/B)**, Jumbo online cut-to-size; the 15 pieces of the cut list, plus a **second order** for the 16″ screen's flap and pocket (§8.2) | 2 orders | Jumbo (online, store pickup) | 54 + 14 |
 | Battens | **beech 15 × 20 mm, 1 m** (15 × 15 is not stocked in Zürich): 2 long battens, 2 foot rails, 2 tray posts of 362 mm, blocks, 1 spare | 5 | DIY store | Check |
 | Polycarbonate, smoked | 3 mm **Makrolon UV 2760 grey** (about 62 % light), cut to 990 × 350 × 1 and 172 × 332 × 2. Not acrylic: a ball can crack it | 1 set | acrylglas-shop.com (ships to DE/AT only) or kunststoff-shop.ch (51 % light, ~CHF 89) | 42 |
 | Steel flat bar | **20 × 4 mm steel**, 1 m — must be steel, the module magnets hold on it; cut 3 bars of 360 mm (§8.3), two per 1 m bar | 2 | Hornbach.de or any DIY store | 3–5 each |
@@ -157,10 +163,28 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
-| Touchscreen | **Waveshare 10.1inch DSI LCD (C)**, 1280 × 800, capacitive touch (Waveshare SKU 23450). Not the 800 × 1280 "10.1-DSI-TOUCH-A" | 1 | AliExpress Waveshare store or eckstein-shop.de | 80–85 |
-| Display cable | **Raspberry Pi display cable, standard–mini, 300 mm** (SC1132): the Pi 5 has the small 22-pin connector, the screen the standard 15-pin one; the length makes the loop at the flap hinge | 1 | DigiKey CH | 3 |
-| Torque hinges | constant-torque (friction) hinge, black, **1.2 N·m**, 38 × 40 mm, along the top edge of the flap | 2 | AliExpress Choice | 10 |
+| Touchscreen | **MINIX SF16T Touch**, 16″, 1920 × 1200 (16:10), touch over USB (HID), about 8.3 W. Measured 357 × 236 mm and 11.5 mm at the thickest point (±1.5 mm): design for **359 × 238 × 12**. Its ports are on one long edge, at one end of a thicker strip on the back: HDMI (full size), USB-C, USB-C, 3.5 mm. It hangs **upside down**, ports at the top (§8.5) | 1 | Digitec (product 42926203) | Check |
+| Video cable | **micro-HDMI → HDMI**, about 0.5–1 m (the club has the one from the bench) | 1 | any shop | — |
+| HDMI adapter | **PowerGuard HDMI 2.1 8K 90° "Right"**, low profile, at the screen: it turns the cable **along the screen's edge**. A left/right type, never an up/down one: there is only about 12 mm of depth there. **Check** "Right" against "Left" (§8.5) | 1 | Digitec (product 25478363) | 13 |
+| USB cables | **Ugreen right-angle USB-C → USB-A, 1 m, 18 W**: one for touch (to a Pi USB-A port), one for power (to the socket below) | 2 | any shop | Check |
+| Power socket | **USB-A socket with screw terminals** (5 V + GND), on fuse way 11 (§5.1) | 1 | any shop | Check |
+| Front frame | **3 mm poplar, 375 × 268**, window 351 × 230 cut at home: screwed onto the spacer strips, it holds the screen by its edges (§8.5) | 1 | Jumbo, with the lid (§8.2) | Check |
+| Torque hinges | constant-torque (friction) hinge, black, **1.2 N·m**, 38 × 40 mm, along the top edge of the flap. **Three**: the flap with the screen weighs about 1.4 kg, and two hold that with only about 30 % to spare | 3 (2 ordered, 1 to order) | AliExpress Choice | 10 for 2 |
 | Magnetic catches | **Hettich 27 × 18 mm, screw-on, 2 kg, adjustable**: for the flap and the back panel | 6 | DIY store | Check |
+
+**Why a socket on the fuse box, and not a Pi USB port:** a Pi 5 powered through its header limits its
+USB ports to about 0.6 A, and the screen needs about 1.7 A. **Why not a USB-C cable with bare wire
+ends:** the MINIX only draws power when the cable signals a source (the CC resistor inside A → C
+cables), and bare-wire USB-C leads may lack it. **With nothing to buy:** cut the A plug off the second
+Ugreen and put its red and black wires into a Wago on way 11. Check the polarity with the meter first.
+
+**Alternative: Waveshare 10.1″ DSI LCD (C)** (Waveshare SKU 23450, 1280 × 800, capacitive touch; not
+the 800 × 1280 "10.1-DSI-TOUCH-A"; AliExpress Waveshare store or eckstein-shop.de, about CHF 80–85).
+Smaller and cheaper, on a DSI ribbon: it needs the **Raspberry Pi display cable, standard–mini,
+300 mm** (SC1132, DigiKey CH, about CHF 3; the Pi 5 has the small 22-pin connector, the screen the
+standard 15-pin one). It fits the old sizes: opening 280 × 205, pocket 25 mm deep, F 260 × 180, lid
+300 × 225, two torque hinges; the first Jumbo order's F, P1 and pocket-wall blank are cut for it. It
+passed the flicker test too. Bring-up: §10.4.
 
 ### 2.4 Tilting front and anti-tip
 
@@ -259,7 +283,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Back label | about 100 × 60 mm, white vinyl, matte: "Point Hub · KSC Wiedikon", POWER, DATA, BACKUP, and **the status- and link-light legends** (§6) under the lights. Order once the port plate and light positions are fixed | 1 | wir-machen-druck.ch | 14 |
 | Charger *(if the club has none)* | single-port USB-C PD, 65 W or more (100 W with a 5 A cable), labelled "board only" | 1 | Digitec or Amazon.de | 34–37 |
 | USB-C power meter | for the first power-up and the governor calibration (the club has a FNIRSI FNB48P) | 1 | — | 12 |
-| Transport covers | **3 mm poplar**: front 1020 × 380, ends 380 × 220 × 2, lid 300 × 225; **20 × N48 magnets Ø8 × 3**, 20 × M5 body washers (smaller for the lid), dark grey felt 0.8–1 mm (§8.12) | 1 set | Jumbo | 45 |
+| Transport covers | **3 mm poplar**: front 1020 × 380, ends 380 × 220 × 2, lid **420 × 310** (the first order's 300 × 225 lid is a spare); **22 × N48 magnets Ø8 × 3** (the club has 30), 22 body washers (M5; smaller ones for the lid), dark grey felt 0.8–1 mm (§8.12) | 1 set | Jumbo | 45 |
 | Custom bag *(after the build, from the real measurements)* | padded, about **104 × 40 × 24 cm inside**, 15–20 mm padding, 600D nylon, zip on 3 sides, handles + shoulder strap, outer pocket | 1 | AliExpress, custom order | 60–100 |
 
 **Dropped from earlier versions** — do not buy: tilt legs and their hinges, bow handles, Velcro
@@ -500,7 +524,8 @@ graph LR
   Q --> BEN["ways 7–8: bench L, bench R"]
   Q --> PI["way 9: Pi, header 5 V"]
   Q --> HORN["way 10: horn 5 V"]
-  Q --> FREE["ways 11–12: free"]
+  Q --> SCR["way 11: scorer screen 5 V<br/>USB-A socket"]
+  Q --> FREE["way 12: free"]
 ```
 
 **Fuse map** (print it and stick it inside the back panel):
@@ -512,7 +537,8 @@ graph LR
 | 8 | bench R |
 | 9 | Pi (header 5 V) |
 | **10** | **horn, 5 V** (through the AOD4184 module) |
-| 11–12 | free |
+| **11** | **scorer screen, 5 V** (USB-A socket, §2.3) |
+| 12 | free |
 
 - **TVS at the socket.** The TVS goes across VBUS and GND at the receptacle side of the PD board,
   ahead of its MOSFET: hot-plug ringing happens at the connector, not behind the converter. All bulk
@@ -525,15 +551,17 @@ graph LR
   non-combustible tray.
 - **Tablet charging module** taps the fused input (behind the 5 A fuse) through its own 3 A fuse and
   feeds the hub's charging input (§7). It needs ≥ 12 V, so on a 9 V contract it simply stays off.
-- **Every module, each bench module, the Pi and the horn on their own 5 A fuse** (map above).
+- **Every module, each bench module, the Pi, the horn and the scorer screen on their own 5 A fuse**
+  (map above).
 - **Two INA226 current sensors, high side.** One in the 2.5 mm² lead between the converter and the
   fuse box (all of the 5 V side: voltage under load and total current), one behind the 5 A input fuse
   (the charger's real voltage and current). Both on I²C0, powered from 3.3 V. They only measure; if
   one dies, the board keeps running.
 - The Pi takes its 5 V on the header pins over a short pair of its own; its USB-C socket stays empty.
   Never power panels through the Pi or the bonnet: the ribbons carry logic only. **Check (Pi 5):**
-  the Pi 5 expects a 5 A supply; fed through the header it may limit its USB ports and warn at boot.
-  Nothing heavy hangs on its USB ports here, but read the boot log on the bench.
+  the Pi 5 expects a 5 A supply; fed through the header it limits its USB ports to about 0.6 A and
+  may warn at boot. That is why the scorer screen (about 1.7 A) takes its 5 V from way 11, not from a
+  Pi USB port. Read the boot log on the bench.
 - A snap-on ferrite on the input lead, and flat-cable ferrites on the ribbons at the bonnet end;
   keep ribbons short and 5 V leads away from them.
 
@@ -584,10 +612,10 @@ digits at full brightness measured about 4.6 W per module, so about 37 W on all 
 frame or a test pattern would trip the charger, reset the PD contract and reboot the box mid-match.
 So the panel is never allowed to draw what the content asks for:
 
-- **LED budget = negotiated contract − Pi (≈ 5 W; more for a busy Pi 5 with the screen) − tablet
-  allowance − margin.** The tablet allowance is about 18 W whenever the charging module runs (a 20 V
-  contract) and zero on 9 V. The budget is also capped at what the converter can deliver after the
-  Pi, and so that no module draws more than about 75 % of its 5 A fuse.
+- **LED budget = negotiated contract − Pi (≈ 5 W; more for a busy Pi 5) − scorer screen (about
+  8.3 W) − tablet allowance − margin.** The tablet allowance is about 18 W whenever the charging module
+  runs (a 20 V contract) and zero on 9 V. The budget is also capped at what the converter can deliver
+  after the Pi and the screen, and so that no module draws more than about 75 % of its 5 A fuse.
 - **The governor lives in flushBuffer2**, the last stage before the glass, so it covers every
   renderer, test pattern and bug. Per frame it estimates the current from the duty actually shown
   (the CIE-corrected brightness, not raw pixel values), picks the highest brightness at or below the
@@ -656,7 +684,7 @@ condensation can short the modules. A sachet of silica gel lives in the box.
    borrowed thermal camera is a bonus). Log the SHT40 alongside. **Not done yet for design D.**
 3. **Fuse-clear test** on every branch: short it through a 0.2 Ω load; its fuse must open.
 4. **Screen flicker test** (§10.4): all eight modules running, touchscreen on and in use, 10 minutes.
-   Any flicker → the screen stays out.
+   Any flicker → the screen stays out. Passed on the bench on 8 Nov 2026; repeat it in the finished box.
 5. **Horn test**: the four commands in §4.2; the horn must be silent from power-on until the
    "on" command.
 6. **Tilt test**: the front locks in every notch (0, 5, 10, 15, 20°), the ribbons and leads do not
@@ -673,7 +701,7 @@ fuse plan, soak readings).
 
 ### Diagnostics page and power-on self-test
 
-One page on the 10″ scorer screen and in the console (also in `/api/status`) lists every check in
+One page on the scorer screen and in the console (also in `/api/status`) lists every check in
 green / yellow / red, in words a scorer can act on ("Module 5 / fuse 5: no current — check the fuse").
 
 | Check | Source | Yellow / red |
@@ -814,18 +842,28 @@ Jumbo does not cut pieces smaller than **230 × 150 mm**, so the small parts are
 | Part | Ordered (mm) | Qty | At home afterwards |
 |---|---|---|---|
 | **A** front frame | 1004 × 366 | 1 | window **960 × 320**, centred: 22 mm left and right, 23 mm top and bottom |
-| **B** back panel | 1020 × 380 | 1 | flap opening **280 × 205**; port plate hole (§8.9), vents, horn hole, screw holes |
+| **B** back panel | 1020 × 380 | 1 | flap opening **400 × 290** (§8.5); port plate hole (§8.9), vents, horn hole, screw holes |
 | **C1** top | 1020 × 214 | 1 | two handle cut-outs **129 × 52** |
 | **C2** bottom | 1020 × 214 | 1 | stand flange Ø45, tripod inserts, vents (§8.10) |
 | **D** ends | 368 × 214 | 2 | window **160 × 320** each, for the bench modules |
-| **F** flap | 260 × 180 | 2 | glue the two together (12 mm); trim to the screen once it arrives |
-| **P1** pocket back | 292 × 217 | 1 | — |
-| **P2/P3** pocket walls | blank 292 × 150 | 1 | rip 25 mm strips: **2 × 292 × 25** (P2) and **2 × 205 × 25** (P3) |
+| **F** flap | 260 × 180 | 2 | **spare**: cut for the 10.1″ screen, too small for the 16″ (second order below) |
+| **P1** pocket back | 292 × 217 | 1 | **spare** (10.1″ size) |
+| **P2/P3** pocket walls | blank 292 × 150 | 1 | **spare** (10.1″ size); it can still give the two **P3** strips, 290 × 30 |
 | **K** bottom cap | blank 1004 × 150 | 1 | keep the 150 mm blank; final depth **about 140 mm**, set at the dry fit (§8.4) |
 | **H** cheeks | blank 370 × 150 | 1 | cut to 370 × 130, then **diagonally** into two right-angled triangles |
 | **Y** backing plates | blank 300 × 208 | 1 | cut into **2 × 208 × 140**, glue the two together (12 mm) |
 | **T** pull-out foot | 600 × 150 | 1 | slot for the stop screws (§8.8) |
-| Spare | 400 × 300 | 1 | practice cuts, remakes, packing strips, turn buttons if needed |
+| Spare | 400 × 300 | 1 | practice cuts, remakes, packing strips, turn buttons if needed; too small for the new P1 (412 × 302) |
+
+**Second order, for the 16″ screen** (Jumbo cut-to-size again, the same 230 × 150 minimum; ordered 8 November 2026, CHF 14.45):
+
+| Part | Ordered (mm) | Qty | At home afterwards |
+|---|---|---|---|
+| **F** flap, 6 mm | 375 × 268 | 2 | glue the two together (12 mm) |
+| **P1** pocket back, 6 mm | 412 × 302 | 1 | — |
+| **P2/P3** pocket walls, 6 mm | blank 412 × 150 | 1 | rip 30 mm strips: **2 × 412 × 30** (P2) and **2 × 290 × 30** (P3); four strips and the saw kerf fit in 150 |
+| Lid, 3 mm poplar | 420 × 310 | 1 | the first order's 300 × 225 lid becomes a spare |
+| Flap front frame, 3 mm poplar | 375 × 268 | 1 | window **351 × 230**: 12 mm from each side, 11 from the bottom, 27 from the top (§8.5) |
 
 Mark every part with its letter in pencil when you pick it up: A and B, and C1 and C2, look alike.
 
@@ -836,9 +874,9 @@ frame A sits in: inside width = 1020 − 2 × thickness, inside height = 380 −
 it can tilt. At 6.3 mm the height clearance shrinks to about 0.7 mm: sand A's top and bottom edges
 at the dry fit until it swings freely without rubbing.
 
-**Ripping the 25 mm strips** at home: clamp a straight batten to the blank as a fence and cut with
+**Ripping the 30 mm strips** at home: clamp a straight batten to the blank as a fence and cut with
 the T101B blade, or ask at the GZ workshop for a table saw. Cut a strip a little wide and sand to
-25 mm.
+30 mm. The flap's spacer strips (about 8 mm wide, two layers for 12 mm) come from 6 mm offcuts.
 
 ### 8.3 The shell and the front frame
 
@@ -944,33 +982,67 @@ move.
 
 ### 8.5 Scorer screen flap
 
-The 10.1″ screen sits in a **flap in the middle of the back panel**, set **25 mm deep into a pocket**
-so its edges are protected when closed. The flap is hinged at its **top** edge on two torque
+The 16″ screen sits in a **flap in the middle of the back panel**, set into a **30 mm deep pocket** so
+its edges are protected when closed. The flap is hinged at its **top** edge on three torque
 (friction) hinges and swings out like an awning, so the screen tilts up towards a scorer who looks
 down from above, and stays where it is left; a stop holds it at about 75°. A **magnetic catch**
 holds it shut. Closed, the screen faces out: in transport it is protected by the pocket and the kit
 bag and its lid (§8.12).
 
-- **Opening in B:** 280 × 205, centred left to right. In the design study its top edge is about
-  80 mm below the top of the box, which leaves the space below it for the ports. **Check** that the
-  pocket clears the top battens and the electronics inside before cutting.
-- **Pocket:** the four walls P2 (292 × 25, top and bottom) and P3 (205 × 25, sides) are glued edge-on
-  around the opening on the inside of B, flush with the opening; the pocket back P1 (292 × 217)
-  closes them. Inside, the pocket is 280 × 205 × 25. A strip of EPDM seal goes around it.
-- **Flap F:** the two 260 × 180 layers glued together (12 mm), so the hinge and catch screws hold.
-  **Check** the screen's real outline and mounting holes before trimming F, and how the screen fixes
-  to it; the flap must clear the pocket walls with the screen on.
-- **Torque hinges** (1.2 N·m, 38 × 40 mm), two along the flap's top edge, bolted with **M4 × 16 and
-  M4 lock nuts** through the wood (or into a glued 12 mm strip). **Check** the stop at about 75°:
-  if the hinges have no stop of their own, add a small block that the flap meets.
+The screen hangs **upside down**: its ports are then at the **top**, next to the flap's hinge, so the
+cables barely move when the flap opens. The picture and the touch are turned 180° in software
+(§10.4).
+
+| Part | Size (mm) |
+|---|---|
+| Opening in back panel B | **400 × 290**, centred left to right, top edge **40 mm** below the top of the box; 50 mm is left below |
+| Pocket, inside | **400 × 290 × 30** deep |
+| P2, top and bottom walls | **412 × 30** ×2 |
+| P3, side walls | **290 × 30** ×2 |
+| P1, pocket back | **412 × 302** |
+| F, flap: two 6 mm layers glued (12 mm) | **375 × 268**: the screen with 8 mm on three sides, plus **22 mm at the top for the plugs** |
+| Spacer strips on F, round the screen | **12 mm** high (two 6 mm offcuts), about 8 mm wide, with a **gap at the port corner** |
+| Front frame, 3 mm poplar, screwed onto the strips | **375 × 268**, window **351 × 230**: 12 mm in from each side, **11 mm** from the bottom, **27 mm** from the top, so it also hides the plugs |
+| Cable slot | in the pocket's **side wall** at the port corner, about **50 × 15**, starting about 15 mm below the pocket's top wall, edges rounded |
+
+- **Opening in B:** mark it with the rest of B, but cut it only after the dry-fit checks below.
+- **Pocket:** the walls P2 (top and bottom) and P3 (sides) are glued edge-on around the opening on
+  the inside of B, flush with the opening; the pocket back P1 closes them. Cut the cable slot in its
+  P3 before gluing. A strip of EPDM seal goes around the pocket.
+- **Flap F:** the two 375 × 268 layers glued together (12 mm), so the hinge and catch screws hold.
+- **Holding the screen:** it lies on F, face out, between the spacer strips. The front frame overlaps
+  its edges by about 3 mm, clear of the touch area. Felt or foam under the thin part of its back
+  keeps it from rattling. Its folding stand stays folded flat on the back.
+- **Depth:** the glass sits about 3.5 mm below the back panel's surface. 28 mm is left in front of the
+  pocket for the parts on the tray (§8.11).
+- **Torque hinges** (1.2 N·m, 38 × 40 mm), **three** along the flap's top edge, bolted with **M4 × 16
+  and M4 lock nuts** through the wood (or into a glued 12 mm strip). The flap with the screen weighs
+  about 1.4 kg: two hinges would hold it with only about 30 % to spare. **Check** the stop at about
+  75°: if the hinges have no stop of their own, add a small block that the flap meets.
 - **Magnetic catch:** one Hettich catch at the bottom edge of the flap, screwed into a block, not
   into 6 mm plywood; pre-drill Ø2. If there is no counter-plate, screw on a steel washer.
-- **Display cable:** the 300 mm standard–mini cable runs from the flap into the box at the hinge
-  side with a loop, so it flexes rather than folds. **Check** where it passes through the pocket
-  (a slot with smooth, rounded edges) and that it does not pinch when the flap shuts.
+- **Cables:** three leave the screen at its top edge: video (micro-HDMI → HDMI, with the 90° adapter
+  at the screen), touch (USB-C → USB-A to the Pi) and power (USB-C → USB-A to the socket on way 11).
+  The adapter must turn the cable **along the screen's edge**, left or right, never up or down: there
+  is only about 12 mm of depth there. The cables run along the top edge, out through the gap in the
+  strips and the slot in the side wall, with a loop inside the box so they flex rather than fold.
+  **Check** that they do not pinch when the flap shuts.
 
-**Check before relying on it:** the screen goes in only if the flicker test passes (§10.4). Until
-then, keep the flap shut or blank.
+**Check at the dry fit, before cutting B's opening, the pocket or F:**
+
+- the pocket's top wall clears the top battens and the handle trays;
+- which top corner the screen's ports end up in, so you know which side wall gets the cable slot and
+  where the strips leave their gap;
+- the HDMI adapter's direction: plug the cable in with the screen upside down, the way it will hang,
+  and check that "Right" (not "Left") turns it along the edge.
+
+**Flicker test:** passed on the bench on 8 Nov 2026 (§10.4). Repeat it at bring-up in the finished
+box; if the screen ever makes the modules flicker, keep the flap shut and the scorer uses a tablet on
+the DATA cable.
+
+**Alternative: the 10.1″ DSI screen** (§2.3) fits the old sizes: opening 280 × 205, pocket 25 mm deep
+(P1 292 × 217, P2 292 × 25, P3 205 × 25), F 260 × 180, lid 300 × 225, two torque hinges. Its 300 mm
+standard–mini display cable runs into the box at the hinge side with a loop.
 
 ### 8.6 Bottom: stand flange, tripod threads, backing plates Y
 
@@ -1069,8 +1141,8 @@ in B, instead of a hole for each. A socket cut wrong then costs a new plate, not
 - **Where it goes:** low on the left, seen from outside: about x 30–170 and 10–70 mm up, with the button
   and lights to its right. That clears the corner block, the flap pocket and transport lid, and the
   bottom middle block, and it sits near the PD board and the Pi, so the 30 cm cables can reach. There
-  is no room for it under the flap: only about 95 mm is left there, with the pocket wall, the lid and
-  the middle block in the way. **Check** at the dry fit: only 64 mm is free from B to the tray, so each
+  is no room for it under the flap: only 50 mm is left there, with the pocket wall, the lid and the
+  middle block in the way. **Check** at the dry fit: only 64 mm is free from B to the tray, so each
   socket and its cable bend must fit in that.
 - **It comes off with the back panel:** the plate stays on B, and every cable to it needs enough slack
   (the 15 cm of §5.4) to lift B off and put it down without unplugging. **Check** that the 30 cm
@@ -1093,7 +1165,9 @@ use plastic.
 - **Brush seal** on the gaps at the bottom cap K and the cheeks H.
 - **Dust caps** on POWER, DATA and both BACKUP sockets when nothing is plugged in.
 - **Vents face down**, with **vent mesh** behind them. **Check** their exact place at the dry fit:
-  clear of K's sweep, the foot rails and Y, and near the converter.
+  clear of K's sweep, the foot rails and Y, and near the converter. On the back panel B the 16″
+  flap's opening and lid leave no room above it: the manual draws B's vents in the strip **below**
+  the opening, about 29–37 mm up, between the bottom batten and the pocket's bottom wall.
 - **Corners:** every outside edge is rounded with P120 (about 3 mm). The four front corners get
   **black rubber caps**; the back corners stay bare, so the back panel lifts straight off.
 - **Matte black** inside and out, two coats, so nothing reflects behind the LEDs — except the
@@ -1138,7 +1212,7 @@ Rules:
   10 mm standoffs, or put an offcut of the polycarbonate sheet under a board.
 - **Check at the dry fit** (§9 B): K clears the tray at 0° and at 20°; the ribbons reach the modules
   over the tray's top edge with 12 cm of slack (longer HUB75 ribbons are cheap if not).
-- **Depth.** 64 mm is free from the tray to the back panel, 39 mm in front of the flap pocket. Keep the
+- **Depth.** 64 mm is free from the tray to the back panel, 28 mm in front of the flap pocket (30 + its 6 mm back). Keep the
   tall parts off the pocket, and measure the Pi + bonnet + ribbon stack at the dry fit.
 - No lead may hang into the Pi's fan.
 
@@ -1147,8 +1221,10 @@ On the tray: the PD board by the POWER socket, the hub and the charging module b
 RTC, temperature sensor, the two INA226 and the MCP23017; the AOD4184 module by the horn. **Put the Pi close to the back panel**,
 beside the pocket: its built-in Wi-Fi is the board's only internet link, and its antenna cannot see
 through the modules and the steel bars, while plywood lets the signal out. Keep USB 3 devices off
-the blue ports if the hall uplink is weak (USB 3 traffic is noisy on the 2.4 GHz band). The display
-cable from the flap must reach the Pi's DSI connector with its loop.
+the blue ports if the hall uplink is weak (USB 3 traffic is noisy on the 2.4 GHz band). The screen's
+three cables from the flap must reach, with their loop: the HDMI cable the Pi's micro-HDMI port **next
+to its USB-C socket** (HDMI0; the other port gave no picture), the touch cable a Pi USB-A port, and the
+power cable the USB-A socket on way 11.
 
 ### 8.12 Transport covers
 
@@ -1159,16 +1235,16 @@ hold on magnets sunk into the box, so nothing sticks out and the look stays clea
 |---|---|---|
 | Front, on A's border | 1020 × 380 | 8 (4 corners + the middle of each side) |
 | Ends, on D's border | 380 × 220 × 2 | 4 each |
-| Lid over the flap, on B | 300 × 225 | 4, in the corners |
+| Lid over the flap, on B | 420 × 310 | 6 (4 corners + the middle of each long side) |
 
-- **Magnets:** N48, Ø8 × 3, sunk **flush**: pockets Ø8 × 3 mm into the 6 mm borders. Drill them **before
+- **Magnets:** 22 in all (8 + 4 + 4 + 6). N48, Ø8 × 3, sunk **flush**: pockets Ø8 × 3 mm into the 6 mm borders. Drill them **before
   the paint**, glue the magnets in after it. A strip of tape on the bit is the depth stop.
 - **Washers:** M5 body washers, sunk about 1 mm into the 3 mm covers. Use a **Forstner bit**: a spade
   bit's spur goes through 3 mm. To mark the places, dab paint on each magnet and press the cover on.
 - **Felt:** one sheet of thin dark grey felt, 0.8–1 mm, inside each cover. Not 4 mm: it holds the
   magnet too far away.
 - **Check at the dry fit:** the lid has only 10 mm of border around the flap opening, so an M5 body
-  washer does not fit. Use smaller washers there, in the corners.
+  washer does not fit. Use smaller washers there, at all six magnets.
 
 ---
 
@@ -1193,13 +1269,16 @@ and do the checks marked in §8 at the dry fit, not after the glue.
 
 ### A — Cutting (GZ workshop)
 
-1. **Pick up the plywood** at Jumbo. Check every piece against the cut list (§8.2), letter it in
+1. **Pick up the plywood** at Jumbo (both orders). Check every piece against the cut list (§8.2), letter it in
    pencil, and **measure the real thickness** of A, B and C1 at several points. Write it down.
 2. **Mark and cut the windows**: A 960 × 320 (22 mm from the sides, 23 mm from top and bottom),
-   D 160 × 320 twice (see the check in §8.4 before placing them), B 280 × 205. Masking tape on the
+   D 160 × 320 twice (see the check in §8.4 before placing them), and the flap's 3 mm front frame
+   351 × 230 (§8.5). **Mark** B's flap opening, 400 × 290, centred and 40 mm below the top, but cut it
+   only after the checks at the dry fit (step 14), before B goes to paint. Masking tape on the
    cut line; drill Ø8 inside each corner; join the holes with the jigsaw (T101B on the straights,
    T101AOF in the corners); file the corners clean.
-3. **Cut the small parts from the blanks:** P2/P3 strips (rip 25 mm, §8.2), Y into 2 × 208 × 140, H
+3. **Cut the small parts from the blanks:** P2/P3 strips (rip 30 mm, §8.2), the flap's spacer strips
+   (about 8 mm, from offcuts), Y into 2 × 208 × 140, H
    to 370 × 130 and then diagonally into two triangles. Leave K at 150 mm wide for now (final width
    at the dry fit).
 4. **Handle cut-outs** in C1: 129 × 52 each, marked from the handle itself (§8.7). Drill the
@@ -1228,8 +1307,12 @@ and do the checks marked in §8 at the dry fit, not after the glue.
 13. **K/Y decision:** with A at 0° and at 20°, watch K sweep the floor and decide where Y goes
     (§8.6). Mark Y's place and the inserts' holes. Stand the electronics tray (§8.11) upright on its two posts:
     K must clear it as well. Mark the posts' places.
-14. **Flap:** fit the pocket, the flap with its torque hinges and the catch; put the screen (or its
-    outline on cardboard) on the flap; check the stop and the cable route (§8.5).
+14. **Flap:** with B taped on, hold the pocket walls on the marked opening and do the checks in §8.5:
+    the top wall clears the top battens and the handle trays, which top corner the screen's ports end
+    up in, and the HDMI adapter's direction. Then cut B's opening (as in step 2) and the cable slot in
+    the side wall at the port corner. Fit the pocket, the flap with its three torque hinges and the
+    catch; put the screen (or its outline on cardboard) on the flap; check the stop and the cable
+    route (§8.5).
 15. **Foot:** fit the two rails and T; check it slides 120 mm, the stop screws catch, and the turn
     button holds it in (§8.8).
 16. **Back panel:** fit B on its six blocks; mark the screw holes, and check the handles' trays and
@@ -1247,7 +1330,8 @@ and do the checks marked in §8 at the dry fit, not after the glue.
 19. **Glue the six back-panel screw blocks** into the back edge, flush with it.
 20. **Front frame:** glue the long battens to A; glue K and the cheeks H as decided at the dry fit.
 21. **Flap and pocket:** glue the two F layers (weights on top, or clamps with a scrap board); glue
-    P2/P3 around the opening on the inside of B and P1 onto them.
+    the spacer strips round the screen's place on F, with the gap at the port corner; glue P2/P3
+    around the opening on the inside of B and P1 onto them.
 22. **Backing plates:** glue the two Y layers together; then glue Y onto C2 where the dry fit said.
 23. **Foot rails** under C2 as at the dry fit.
 24. **Fill** screw holes and gaps with wood filler; sand flush when dry. Sand all outside joints
@@ -1286,9 +1370,11 @@ and do the checks marked in §8 at the dry fit, not after the glue.
     module 3, OUT 2 → module 6, OUT 3 → bench L → bench R; 120 mm slack to the front; I²C to pins
     27/28; MCP23017 → AOD4184 → buzzer on way 10; DATA socket → hub → patch cable → Pi network port;
     charging module behind its 3 A fuse → hub; the two BACKUP cables → the Pi's USB ports, each on its
-    own. Check the cables have the slack to lift B off (§8.9). Label every plug.
-34. **Software and tests** (§10): first light, then the flicker test before the screen goes in for
-    good, then the horn test.
+    own; the screen's USB-A power socket → way 11. Check the cables have the slack to lift B off
+    (§8.9). Label every plug.
+34. **Software and tests** (§10): first light, then the screen bring-up and the flicker test (§10.4)
+    before the screen goes into the flap for good (front frame on, cables through the slot), then the
+    horn test.
 35. **Pads:** once the paint has cured, stick the rubber pads: 4 under the box, 2 under the back end
     of the foot.
 36. **Close up:** back panel on, six T20 screws, turn buttons. Fuse map, spare fuses and spare SD
@@ -1479,12 +1565,19 @@ measure refresh and banding the same way once it exists.
 
 ### 10.4 Touchscreen bring-up and the flicker test
 
-1. Connect the Waveshare 10.1″ DSI LCD (C) to one of the Pi 5's display connectors with the 300 mm
-   standard–mini cable (contacts the right way round at both ends; Pi off).
-2. Add the display overlay line that **Waveshare's wiki for the 10.1inch DSI LCD (C) on the Pi 5**
-   gives to `config.txt`, and reboot. **Check** there whether the screen needs its own 5 V; if so,
-   take it from a free fuse way (11) and note it on the fuse map.
-3. Check the picture (1280 × 800), the orientation, and that touch works.
+The MINIX passed this on the bench on 8 November 2026 (results below); do it again in the finished box.
+
+1. **Connect it** (Pi off): HDMI from the Pi 5's micro-HDMI port **next to its USB-C socket** (HDMI0;
+   the other port gave no picture) to the screen, through the 90° adapter; the touch cable to a Pi
+   USB-A port; the power cable to the USB-A socket on fuse way 11.
+2. **Software:** `provisioning/point-hub/setup-board.sh` installs the screen's start script and writes
+   `POINTHUB_SCREEN_ROTATE=180` to `/etc/default/pointhub-screen`, which turns the picture and the
+   touch for the upside-down screen (point-hub #34). On a bench with the screen the right way up,
+   set it to 0.
+3. **Check** that the picture is upright and sharp at its own 1920 × 1200 (the pages are zoomed 1.5×),
+   and that taps land where you touch. The screen comes on by itself when 5 V returns (only its very
+   first start ever needs its button) and shows its own logo for about 4 s at power-up, which cannot
+   be removed. Its brightness is set to 100 over DDC/CI.
 4. **Flicker test — before the screen goes into the flap for good.** All eight modules running a
    test pattern at bring-up brightness, the screen on, and someone using it (scrolling, tapping) for
    at least **10 minutes**, Wi-Fi traffic included. Watch the modules by eye and through a phone
@@ -1492,8 +1585,19 @@ measure refresh and banding the same way once it exists.
    core to itself; **if the screen makes the modules flicker, the screen stays out**: keep the flap
    shut (or blank it), and the scorer uses a tablet on the DATA cable.
 
-The scorer's own screen (points, timeouts, substitutions, sets on the 10.1″) is still to be written
-(§10.7); until then the screen can show the console in a browser.
+**Bench results, 8 November 2026.** Flicker test passed: the LED refresh stayed at 180–185 Hz while
+the app scrolled and the Wi-Fi moved 24 MB/s, for 5 minutes, at 57 °C at most, with the Pi not
+throttled, and the owner saw nothing. The screen ran from 5 V (a power bank through a USB-A → USB-C
+cable) at brightness 100, three runs, with no dimming or dropouts. The 10.1″ passed the same flicker
+test.
+
+**Alternative: Waveshare 10.1″ DSI LCD (C)** (§2.3). On the bench it took
+`dtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch` in `config.txt`, on CAM/DISP 1, with its DIP switch
+on I2C0. Its 12 cm ribbon goes in with the 15-pin end's print up and the 22-pin end's contacts towards
+the Ethernet port. It takes its own 5 V through its USB-C, and the screen has to be powered before the
+Pi. It shows as 1280 × 800; its touch runs on its own I²C, so the hub's GPIO0/1 bus is untouched.
+
+On the screen, the start screen asks for the Point Hub console or the OpenVolley eScoresheet (§10.7).
 
 ### 10.5 Calibrate on glass, horn, diagnostics
 
@@ -1550,8 +1654,8 @@ order for setting it up and the bench list are in
 | Power-on self-test: per-module current step (§6) | `src/boardHardware.js` | written, the settle time needs the real board |
 | Module-number test screen, eight modules | `firmware/openscore/layout/kscw_test.xml` | written |
 | Bench screens on the 192 × 96 canvas | openscore | written, the rotation is set on the glass |
-| Console on the 10.1″ screen, with an on-screen keyboard | `provisioning/point-hub/pointhub-screen` | written, needs the screen |
-| OpenVolley eScoresheet on the 10.1″; the board follows its live match | Settings ▸ Board screen, openvolley CI | written, the arm64 build has not run yet |
+| Console on the board screen, with an on-screen keyboard | `provisioning/point-hub/pointhub-screen` | written and bench-tested on both screens, 07–08.11 (point-hub #34) |
+| OpenVolley eScoresheet on the board screen; the board follows its live match | Settings ▸ Board screen, openvolley CI | written and bench-tested on both screens, 07–08.11; in OpenVolley 3.0.12 (openvolley #75/#76) |
 | Client-only Wi-Fi, cable DHCP, firewall, board setup script | `provisioning/point-hub/setup-board.sh` | written, never run |
 | Backup copy to a stick or SD reader on the BACKUP ports | `provisioning/point-hub/pointhub-backup-stick` | written, the copy is tested, the mount needs the board |
 | Read-only root with a persistent `/data` | `prepare-card.sh`, `enable-readonly-root.sh` | written, never run; **must before the first match** |
@@ -1559,6 +1663,11 @@ order for setting it up and the bench list are in
 | Text placement fix (openscore draws ~4 px high) | openscore, ROADMAP Phase 2 | **not done**: check on the glass |
 | Native OpenBeach on the board | openvolley CI | the same build; not set up |
 | Cable tablet trusted without the scorer PIN (§7) | console | done (cable trust, 22.10.2026) |
+
+**On the board screen** (bench-tested on both screens, 07–08.11): the console and OpenVolley run on
+it; the on-screen keyboard has a ▼ key that closes it, the field being typed in scrolls into view
+above the keyboard, and the picture is clean with the shared-memory renderer. On the tablets, pinch
+zoom is off except on the scoresheet.
 
 ---
 
@@ -1638,7 +1747,9 @@ kein Produkt, wird ohne Gewähr veröffentlicht und ist keine Rechtsberatung.
 - Adafruit Piomatter (HUB75 on the Raspberry Pi 5 through RP1 PIO) —
   <https://github.com/adafruit/Adafruit_Blinka_Raspberry_Pi5_Piomatter>
 - Adafruit Triple LED Matrix Bonnet — <https://www.adafruit.com/product/6358>
-- Waveshare 10.1inch DSI LCD (C) — Waveshare wiki
+- MINIX SF16T Touch (the scorer screen) — Digitec product 42926203; PowerGuard HDMI 2.1 8K 90°
+  adapter — Digitec product 25478363
+- Waveshare 10.1inch DSI LCD (C) (the alternative screen) — Waveshare wiki
 - Mean Well RSD-60 datasheet — <https://www.meanwell.com/Upload/PDF/RSD-60/RSD-60-SPEC.PDF>
 - STUSB4500 NVM settings: SparkFun DEV-15801 and the STUSB4500 CircuitPython library documentation
 - MCP23017 datasheet (Microchip): registers IODIRA `0x00`, OLATA `0x14`
