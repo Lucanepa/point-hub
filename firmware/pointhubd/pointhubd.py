@@ -94,7 +94,7 @@ DEFAULTS = {
     "converter_w": 60.0,    # Mean Well RSD-60G-5, what the 5 V side can deliver at most
     "converter_eff": 0.90,  # its efficiency, near the data sheet's figure at this load
     "margin": 0.10,         # kept back from the contract so a peak does not trip the charger
-    "pi_w": 8.0,            # Pi 5 with the fan and the 10-inch screen, on the 5 V side
+    "pi_w": 13.5,           # Pi 5 with the fan (about 5 W) and the 16-inch MINIX (about 8.3 W), on the 5 V side
     "tablet_w": 18.0,       # the tablet charging module, only on a contract of 12 V or more
     "fallback_w": 18.0,     # assumed when the contract cannot be read: the weakest charger we run on
     # Per module at 5 V, measured at first light (BUILD.md section 10.2): 2.3 A at full white and
