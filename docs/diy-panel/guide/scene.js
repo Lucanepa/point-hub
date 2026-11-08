@@ -333,7 +333,7 @@ async function main() {
   const backupLab = add(new THREE.PlaneGeometry(0.03, 0.006), new THREE.MeshBasicMaterial({ map: labelTex('BACKUP', 400, 80, '#9aa0a7', '600 44px "Instrument Sans", Arial, sans-serif', 8), transparent: true }), 0.3745, 0.0585, PZ - 0.0032);
   backupLab.rotation.y = Math.PI; backupLab.castShadow = false;
   add(new THREE.CylinderGeometry(0.016, 0.016, 0.002, 32), mDark, -0.38, 0.31, PZ - 0.001).rotation.x = Math.PI / 2;
-  for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.349, PZ - 0.0004).castShadow = false;
+  for (let i = 0; i < 8; i++) add(new THREE.BoxGeometry(0.04, 0.008, 0.002), mDark, -0.19 + i * 0.055, 0.033, PZ - 0.0004).castShadow = false;
   for (const x of [-0.496, 0, 0.496]) for (const y of [0.014, H - 0.014]) add(new THREE.CylinderGeometry(0.0042, 0.0042, 0.0015, 20), mHw, x, y, PZ - 0.0006).rotation.x = Math.PI / 2;
 
   // two K16 recessed spring handles in the top, near the back edge

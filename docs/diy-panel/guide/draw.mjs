@@ -280,7 +280,7 @@ export function step2() {
   b += rect(bx, by, 1020 * s, 380 * s, 'o p0') + wbadge(bx + 4, by - 4, 'B');
   const pw = G.pocket;
   b += rect(Bx(510 - pw.w / 2), Bz(pw.cz + pw.h / 2), pw.w * s, pw.h * s, 'o nf dash') + txt(Bx(510), Bz(pw.cz) - 4, `${pw.w} × ${pw.h}`, 'tm halo') + txt(Bx(510), Bz(pw.cz) + 8, 'cut after the dry fit', 'tt halo');
-  for (let i = 0; i < 8; i++) b += rect(Bx(300 + i * 55), Bz(353), 40 * s, 8 * s, 'o hatchf thin');
+  for (let i = 0; i < 8; i++) b += rect(Bx(300 + i * 55), Bz(37), 40 * s, 8 * s, 'o hatchf thin');
   for (const [x, z] of [[14, 14], [510, 14], [1006, 14], [14, 366], [510, 366], [1006, 366]]) b += circ(Bx(x), Bz(z), 1.6, 'o hatchf');
   b += circ(Bx(890), Bz(310), 16 * s, 'o hatchf') + txt(Bx(890), Bz(310) - 7, 'Ø32', 'tt');
   // port plate: one hole, first guess 120 × 40, four corner holes on the 140 × 60 plate
@@ -867,7 +867,7 @@ export function step25() {
   { const pw = G.pocket, fl = G.flap, x0 = 510 - fl.w / 2, z0 = pw.cz - pw.h / 2 + fl.gap;
     b += poly(fFront(P, 510 - pw.w / 2, pw.cz - pw.h / 2, pw.w, pw.h, by), 'o dark') + poly(fFront(P, x0, z0, fl.w, fl.h, by - 0.1), 'o p1');
     b += poly(fFront(P, x0 + fl.winSide, z0 + fl.winBot, fl.win[0], fl.win[1], by - 0.2), 'o dark'); }
-  for (let i = 0; i < 8; i++) b += poly(fFront(P, 300 + i * 55, 345, 40, 8, by), 'o dark thin');
+  for (let i = 0; i < 8; i++) b += poly(fFront(P, 300 + i * 55, 29, 40, 8, by), 'o dark thin');
   const hp = F(890, 310); b += circ(hp[0], hp[1], 6, 'o p2');
   b += poly(fFront(P, 30, 10, 140, 60, by), 'o p1');
   for (const [x, cls] of [[55, 'ringg'], [82, 'ringb'], [122, 'o nf thin'], [149, 'o nf thin']]) { const p = F(x, 40); b += circ(p[0], p[1], 3.5, cls); }

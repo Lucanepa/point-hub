@@ -137,7 +137,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
-| Plywood, cut to size | **Oecoplan poplar 6 mm (A/B)**, Jumbo online cut-to-size; the 15 pieces of the cut list, plus a **second order** for the 16″ screen's flap and pocket (§8.2) | 2 orders | Jumbo (online, store pickup) | 54 + Check |
+| Plywood, cut to size | **Oecoplan poplar 6 mm (A/B)**, Jumbo online cut-to-size; the 15 pieces of the cut list, plus a **second order** for the 16″ screen's flap and pocket (§8.2) | 2 orders | Jumbo (online, store pickup) | 54 + 14 |
 | Battens | **beech 15 × 20 mm, 1 m** (15 × 15 is not stocked in Zürich): 2 long battens, 2 foot rails, 2 tray posts of 362 mm, blocks, 1 spare | 5 | DIY store | Check |
 | Polycarbonate, smoked | 3 mm **Makrolon UV 2760 grey** (about 62 % light), cut to 990 × 350 × 1 and 172 × 332 × 2. Not acrylic: a ball can crack it | 1 set | acrylglas-shop.com (ships to DE/AT only) or kunststoff-shop.ch (51 % light, ~CHF 89) | 42 |
 | Steel flat bar | **20 × 4 mm steel**, 1 m — must be steel, the module magnets hold on it; cut 3 bars of 360 mm (§8.3), two per 1 m bar | 2 | Hornbach.de or any DIY store | 3–5 each |
@@ -165,7 +165,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 |---|---|---|---|---|
 | Touchscreen | **MINIX SF16T Touch**, 16″, 1920 × 1200 (16:10), touch over USB (HID), about 8.3 W. Measured 357 × 236 mm and 11.5 mm at the thickest point (±1.5 mm): design for **359 × 238 × 12**. Its ports are on one long edge, at one end of a thicker strip on the back: HDMI (full size), USB-C, USB-C, 3.5 mm. It hangs **upside down**, ports at the top (§8.5) | 1 | Digitec (product 42926203) | Check |
 | Video cable | **micro-HDMI → HDMI**, about 0.5–1 m (the club has the one from the bench) | 1 | any shop | — |
-| HDMI adapter | **PowerGuard HDMI 2.1 8K 90° "Right"**, low profile, at the screen: it turns the cable **along the screen's edge**. A left/right type, never an up/down one: there is only about 12 mm of depth there. **Check** "Right" against "Left" (§8.5) | 1 | Digitec (product 25478363) | Check |
+| HDMI adapter | **PowerGuard HDMI 2.1 8K 90° "Right"**, low profile, at the screen: it turns the cable **along the screen's edge**. A left/right type, never an up/down one: there is only about 12 mm of depth there. **Check** "Right" against "Left" (§8.5) | 1 | Digitec (product 25478363) | 13 |
 | USB cables | **Ugreen right-angle USB-C → USB-A, 1 m, 18 W**: one for touch (to a Pi USB-A port), one for power (to the socket below) | 2 | any shop | Check |
 | Power socket | **USB-A socket with screw terminals** (5 V + GND), on fuse way 11 (§5.1) | 1 | any shop | Check |
 | Front frame | **3 mm poplar, 375 × 268**, window 351 × 230 cut at home: screwed onto the spacer strips, it holds the screen by its edges (§8.5) | 1 | Jumbo, with the lid (§8.2) | Check |
@@ -855,7 +855,7 @@ Jumbo does not cut pieces smaller than **230 × 150 mm**, so the small parts are
 | **T** pull-out foot | 600 × 150 | 1 | slot for the stop screws (§8.8) |
 | Spare | 400 × 300 | 1 | practice cuts, remakes, packing strips, turn buttons if needed; too small for the new P1 (412 × 302) |
 
-**Second order, for the 16″ screen** (Jumbo cut-to-size again, the same 230 × 150 minimum):
+**Second order, for the 16″ screen** (Jumbo cut-to-size again, the same 230 × 150 minimum; ordered 8 November 2026, CHF 14.45):
 
 | Part | Ordered (mm) | Qty | At home afterwards |
 |---|---|---|---|
@@ -1013,7 +1013,7 @@ cables barely move when the flap opens. The picture and the touch are turned 180
 - **Holding the screen:** it lies on F, face out, between the spacer strips. The front frame overlaps
   its edges by about 3 mm, clear of the touch area. Felt or foam under the thin part of its back
   keeps it from rattling. Its folding stand stays folded flat on the back.
-- **Depth:** the glass sits about 3.5 mm below the back panel's surface. 34 mm is left in front of the
+- **Depth:** the glass sits about 3.5 mm below the back panel's surface. 28 mm is left in front of the
   pocket for the parts on the tray (§8.11).
 - **Torque hinges** (1.2 N·m, 38 × 40 mm), **three** along the flap's top edge, bolted with **M4 × 16
   and M4 lock nuts** through the wood (or into a glued 12 mm strip). The flap with the screen weighs
@@ -1165,7 +1165,9 @@ use plastic.
 - **Brush seal** on the gaps at the bottom cap K and the cheeks H.
 - **Dust caps** on POWER, DATA and both BACKUP sockets when nothing is plugged in.
 - **Vents face down**, with **vent mesh** behind them. **Check** their exact place at the dry fit:
-  clear of K's sweep, the foot rails and Y, and near the converter.
+  clear of K's sweep, the foot rails and Y, and near the converter. On the back panel B the 16″
+  flap's opening and lid leave no room above it: the manual draws B's vents in the strip **below**
+  the opening, about 29–37 mm up, between the bottom batten and the pocket's bottom wall.
 - **Corners:** every outside edge is rounded with P120 (about 3 mm). The four front corners get
   **black rubber caps**; the back corners stay bare, so the back panel lifts straight off.
 - **Matte black** inside and out, two coats, so nothing reflects behind the LEDs — except the
@@ -1210,7 +1212,7 @@ Rules:
   10 mm standoffs, or put an offcut of the polycarbonate sheet under a board.
 - **Check at the dry fit** (§9 B): K clears the tray at 0° and at 20°; the ribbons reach the modules
   over the tray's top edge with 12 cm of slack (longer HUB75 ribbons are cheap if not).
-- **Depth.** 64 mm is free from the tray to the back panel, 34 mm in front of the flap pocket. Keep the
+- **Depth.** 64 mm is free from the tray to the back panel, 28 mm in front of the flap pocket (30 + its 6 mm back). Keep the
   tall parts off the pocket, and measure the Pi + bonnet + ribbon stack at the dry fit.
 - No lead may hang into the Pi's fan.
 
