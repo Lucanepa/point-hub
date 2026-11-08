@@ -19,7 +19,7 @@ echo "== packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y python3-pil i2c-tools build-essential curl rsync dnsmasq iptables \
-  labwc squeekboard chromium libglib2.0-bin dbus
+  labwc squeekboard wlr-randr chromium libglib2.0-bin dbus
 # The eScoresheet runs natively on the screen. The arm64 .deb is a workflow artifact, not on APT: put
 # it in the repo folder before this script, or install it later.
 for deb in "$REPO"/openvolley-escoresheet_*_arm64.deb; do
@@ -57,6 +57,7 @@ echo "== hardware service"
 mkdir -p /opt/pointhub
 install -m 0755 "$REPO/firmware/pointhubd/pointhubd.py" /opt/pointhub/pointhubd.py
 install -m 0755 "$HERE/pointhub-screen" /opt/pointhub/pointhub-screen
+rsync -a --delete "$HERE/squeekboard/" /opt/pointhub/squeekboard/
 install -m 0755 "$HERE/pointhub-backup-stick" /opt/pointhub/pointhub-backup-stick
 install -m 0644 "$HERE/99-pointhub-backup-stick.rules" /etc/udev/rules.d/99-pointhub-backup-stick.rules
 [ -e /etc/default/pointhubd ] || cat > /etc/default/pointhubd <<'CONF'

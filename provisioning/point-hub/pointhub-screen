@@ -23,6 +23,29 @@ ov_installed=1
 [ -x "$OPENVOLLEY" ] || { ov_installed=0; [ "$choice" != openvolley ] || choice=console; }
 
 mkdir -p "$SCREEN_HOME/.config/labwc" "$SCREEN_HOME/.cache" "$SCREEN_HOME/.local/share"
+
+# The screen: the HDMI one if one answers (the 16" MINIX SF16T, on the port next to the USB-C power
+# socket: the other port read no EDID), else the 10.1" on the ribbon. A 1920 x 1200 screen runs at its
+# own resolution and the pages are enlarged instead (OPENVOLLEY_ZOOM, Chromium's scale factor): at a
+# compositor scale of 1.5, GTK 3 draws at 2 and labwc shrinks that, soft and with 78 % more pixels per
+# frame. The layouts are made for 800 px of height.
+out= mode=
+for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
+  [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
+  out=${c##*/card[0-9]-} mode=$(head -1 "$c/modes" 2>/dev/null)
+  break
+done
+zoom=$(awk -v h="${mode#*x}" 'BEGIN { z = h / 800; if (z < 1.05) z = 1; printf "%.2f", z }')
+[ "$zoom" = 1.00 ] || export OPENVOLLEY_ZOOM="$zoom"
+
+# The keyboard's layouts: Raspberry Pi's set, with ours kept over it (a key to close the keyboard:
+# squeekboard has no such action, so it sends F20 and the pages close the keyboard on it).
+# squeekboard reads SQUEEKBOARD_KEYBOARDSDIR, else only /usr/share/misc/squeekboard/keyboards.
+SQ_DIR="$SCREEN_HOME/.local/share/squeekboard/keyboards"
+mkdir -p "$SQ_DIR"
+cp -rn /usr/share/misc/squeekboard/keyboards/. "$SQ_DIR"/ 2>/dev/null || true
+cp -r /opt/pointhub/squeekboard/. "$SQ_DIR"/ 2>/dev/null || true
+export SQUEEKBOARD_KEYBOARDSDIR="$SQ_DIR"
 # A fixed folder, so the stick copy (pointhub-backup-stick) knows where the backups are.
 export OPENVOLLEY_BACKUP_DIR=${OPENVOLLEY_BACKUP_DIR:-/data/backups/openvolley}
 mkdir -p "$OPENVOLLEY_BACKUP_DIR"
@@ -35,6 +58,9 @@ case "$choice" in
     # addresses and the firewall opens its ports on eth0 only (ETH0_EXTRA_PORTS).
     # So its easy matches reach the local relay too: this board's panel follows them.
     export OPENVOLLEY_POINTHUB_BOARD=1
+    # Its default renderer shows a scrambled picture on both screens (the buffer layout the compositor
+    # gets is not the one WebKit drew); drawn on the GPU and handed over in shared memory, it is clean
+    export WEBKIT_DMABUF_RENDERER_FORCE_SHM=1
     app=("$OPENVOLLEY") ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
@@ -48,7 +74,8 @@ case "$choice" in
       sleep 1
     done
     app=(/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland
-         --enable-wayland-ime --password-store=basic --no-first-run "http://127.0.0.1:8890$page") ;;
+         --enable-wayland-ime --password-store=basic --no-first-run --force-device-scale-factor="$zoom"
+         "http://127.0.0.1:8890$page") ;;
 esac
 
 cat > "$SCREEN_HOME/.config/labwc/rc.xml" <<'XML'
@@ -68,6 +95,12 @@ dbus-run-session -- gsettings set org.gnome.desktop.input-sources sources "[('xk
 then_quit=
 [ "$choice" != openvolley ] || then_quit="[ \$? -ne 0 ] || rm -f $(printf %q "$STATE/screen-now"); "
 {
+  # Only the chosen screen, at 60 Hz (the MINIX offers 120 Hz first: twice the work for nothing)
+  for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
+    o=${c##*/card[0-9]-}
+    [ "$(cat "$c/status" 2>/dev/null)" = connected ] && [ "$o" != "$out" ] && printf 'wlr-randr --output %q --off\n' "$o"
+  done
+  [ -z "$out" ] || printf 'wlr-randr --output %q --mode %q 2>/dev/null\n' "$out" "${mode}@60.000000Hz"
   printf 'squeekboard &\n'
   printf '('
   printf ' %q' "${app[@]}"
