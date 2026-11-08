@@ -36,6 +36,15 @@ for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
   break
 done
 zoom=$(awk -v h="${mode#*x}" 'BEGIN { z = h / 800; if (z < 1.05) z = 1; printf "%.2f", z }')
+# The MINIX is mounted upside down, its ports at the top by the flap's hinge, so the cables barely move
+# when the flap opens: POINTHUB_SCREEN_ROTATE=180 (/etc/default/pointhub-screen) turns the picture, and
+# the touch with it (libinput's calibration matrix: labwc does not turn touch with the output).
+rotate=${POINTHUB_SCREEN_ROTATE:-0}
+touch_matrix=
+case "$rotate" in
+  180) touch_matrix="-1 0 1 0 -1 1" ;;
+  *) rotate=0 ;;
+esac
 [ "$zoom" = 1.00 ] || export OPENVOLLEY_ZOOM="$zoom"
 
 # The keyboard's layouts: Raspberry Pi's set, with ours kept over it (a key to close the keyboard:
@@ -78,14 +87,17 @@ case "$choice" in
          "http://127.0.0.1:8890$page") ;;
 esac
 
-cat > "$SCREEN_HOME/.config/labwc/rc.xml" <<'XML'
+{
+  cat <<'XML'
 <?xml version="1.0"?>
 <labwc_config>
   <windowRules>
     <windowRule identifier="*" serverDecoration="no"><action name="Maximize"/></windowRule>
   </windowRules>
-</labwc_config>
 XML
+  [ -z "$touch_matrix" ] || printf '  <libinput>\n    <device category="touch"><calibrationMatrix>%s</calibrationMatrix></device>\n  </libinput>\n' "$touch_matrix"
+  printf '</labwc_config>\n'
+} > "$SCREEN_HOME/.config/labwc/rc.xml"
 # Team names need Ü: the Swiss layout first, kept in dconf under HOME. Writing needs a bus, reading not.
 dbus-run-session -- gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'ch'), ('xkb', 'us')]" || true
 # When the app ends, labwc ends too and the unit starts everything again. Without this a crash would
@@ -101,6 +113,7 @@ then_quit=
     [ "$(cat "$c/status" 2>/dev/null)" = connected ] && [ "$o" != "$out" ] && printf 'wlr-randr --output %q --off\n' "$o"
   done
   [ -z "$out" ] || printf 'wlr-randr --output %q --mode %q 2>/dev/null\n' "$out" "${mode}@60.000000Hz"
+  [ -z "$out" ] || [ "$rotate" = 0 ] || printf 'wlr-randr --output %q --transform %q\n' "$out" "$rotate"
   printf 'squeekboard &\n'
   printf '('
   printf ' %q' "${app[@]}"

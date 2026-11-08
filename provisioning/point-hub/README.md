@@ -55,6 +55,9 @@ The scorer's screen is a **MINIX SF16T** (16", 1920 x 1200, touch over USB) on H
 bench 08.11 over the Waveshare 10.1" DSI screen; `pointhub-screen` still runs either.
 
 - **HDMI port:** the one next to the Pi's USB-C power socket. On the other one it read no EDID.
+- **Upside down:** its ports are on one short end of the bottom edge, so it hangs upside down in the
+  flap, ports at the top by the hinge. `POINTHUB_SCREEN_ROTATE=180` in `/etc/default/pointhub-screen`
+  (written by `setup-board.sh`) turns the picture and the touch; set 0 on a bench.
 - **Resolution:** its own 1920 x 1200 at 60 Hz (it offers 120 Hz first), and the pages are enlarged
   instead: `OPENVOLLEY_ZOOM` for OpenVolley, `--force-device-scale-factor` for Chromium. A compositor
   scale of 1.5 made GTK 3 draw at 2 and labwc shrink it, soft and slower. Needs OpenVolley with

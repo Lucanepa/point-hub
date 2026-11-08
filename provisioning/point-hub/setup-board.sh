@@ -66,6 +66,12 @@ install -m 0644 "$HERE/99-pointhub-backup-stick.rules" /etc/udev/rules.d/99-poin
 # PH_FULL_WHITE_MA=19800  calibration (BUILD.md section 5.5); PH_IDLE_MA, PH_PI_W, PH_TABLET_W
 CONF
 
+[ -e /etc/default/pointhub-screen ] || cat > /etc/default/pointhub-screen <<'CONF'
+# The MINIX hangs upside down in the flap (ports by the hinge): the picture and the touch are turned.
+# 0 on a bench, with the screen the right way up.
+POINTHUB_SCREEN_ROTATE=180
+CONF
+
 echo "== renderer and LED driver"
 install -d -o "$OWNER" -g "$OWNER" "$LED" "$LED/bin" "$LED/www" "$LED/media"
 rsync -a --delete --exclude='__pycache__' "$REPO/firmware/openscore/layout/" "$LED/layout/"
