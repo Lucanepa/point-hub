@@ -16,6 +16,10 @@ Small Node service, **no production dependencies** (uses Node 22's built-in glob
 LAN relay, maps the live match state onto the LedBox `volleyball_matchscore` layout,
 and pushes it over TCP with the documented gzip/JSON protocol.
 
+The Point Hub apps (the tablet console, the desktop app for Linux, Windows and macOS) are
+downloaded from https://lucanepa.github.io/point-hub/; how each channel is published:
+[packaging/README.md](packaging/README.md).
+
 ### Runtime on the board
 
 The board's own distro Node is far too old, so the runtime is a tarball install kept

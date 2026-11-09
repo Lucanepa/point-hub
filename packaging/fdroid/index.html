@@ -1,0 +1,78 @@
+<!doctype html>
+<!-- Template: packaging/fdroid/publish-fdroid.sh fills in the @...@ values and
+     publishes it as https://lucanepa.github.io/point-hub/ (gh-pages). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Point Hub downloads</title>
+<meta name="description" content="Point Hub, the console of the LedBox scoreboard: Android, Windows, macOS and Linux.">
+<link rel="icon" href="fdroid/repo/icons/point-hub-repo.png">
+<style>
+  :root { --bg:#ffffff; --fg:#0A0B0D; --muted:#5a606b; --line:#e3e5ea; --fill:#fafafc; --blue:#0A34D6; color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#0d0f13; --fg:#eef0f4; --muted:#a3a9b5; --line:#2a2e37; --fill:#161a21; --blue:#7f9cff; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg:#0d0f13; --fg:#eef0f4; --muted:#a3a9b5; --line:#2a2e37; --fill:#161a21; --blue:#7f9cff; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 1.8rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 8px; }
+  p { margin: 0 0 10px; }
+  .lead { color: var(--muted); margin-bottom: 24px; }
+  section { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 0 0 14px; background: var(--fill); }
+  a { color: var(--blue); }
+  code, pre { font: 0.9rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 6px 0 10px; overflow-x: auto; white-space: pre; }
+  .fp { word-break: break-all; color: var(--muted); font-size: 0.85rem; }
+  .note { color: var(--muted); font-size: 0.92rem; }
+  .btn { display: inline-block; padding: 8px 14px; border-radius: 8px; background: var(--blue); color: #fff; text-decoration: none; font-weight: 600; margin: 4px 8px 8px 0; }
+  :root[data-theme="dark"] .btn { color: #0d0f13; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn { color: #0d0f13; } }
+  footer { color: var(--muted); font-size: 0.9rem; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Point Hub</h1>
+  <p class="lead">The console of the LedBox scoreboard, for the scorer's table. By KSC Wiedikon.</p>
+
+  <section>
+    <h2>Android tablet</h2>
+    <p>The tablet at the board updates Point Hub from the board by itself. For a new tablet, use F-Droid:
+      add this repository once, then install Point Hub from it.</p>
+    <a class="btn" href="https://fdroid.link/#@REPO_URL@?fingerprint=@FINGERPRINT@">Add to F-Droid</a>
+    <a class="btn" href="@APK@">APK @APK_VERSION@</a>
+    <p class="note">Repository: <code>@REPO_URL@</code></p>
+    <p class="fp">Fingerprint: @FINGERPRINT@</p>
+  </section>
+
+  <section>
+    <h2>Windows</h2>
+    <p>The .msi from the <a href="https://github.com/Lucanepa/point-hub/releases/latest">latest release</a>, or Scoop:</p>
+    <pre>scoop bucket add point-hub https://github.com/Lucanepa/point-hub
+scoop install point-hub/point-hub</pre>
+  </section>
+
+  <section>
+    <h2>macOS</h2>
+    <p>The .dmg for your Mac from the <a href="https://github.com/Lucanepa/point-hub/releases/latest">latest release</a>
+      (arm64 = Apple silicon), or Homebrew:</p>
+    <pre>brew tap lucanepa/point-hub https://github.com/Lucanepa/point-hub
+brew install --cask lucanepa/point-hub/point-hub</pre>
+    <p class="note">Point Hub is not notarized by Apple: the first time, open it, then System Settings &gt;
+      Privacy &amp; Security &gt; Open Anyway.</p>
+  </section>
+
+  <section>
+    <h2>Linux</h2>
+    <p>The .deb (Debian, Ubuntu) or .rpm (Fedora) from the
+      <a href="https://github.com/Lucanepa/point-hub/releases/latest">latest release</a>.
+      Point Hub does not update itself: install each new version over the old one.</p>
+  </section>
+
+  <footer>Source and issues: <a href="https://github.com/Lucanepa/point-hub">github.com/Lucanepa/point-hub</a> (MIT)</footer>
+</main>
+</body>
+</html>
