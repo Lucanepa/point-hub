@@ -171,6 +171,8 @@ jobs:
           body: |
             Point Hub for Linux, Windows and macOS: the LedBox scoreboard's console, with the native Game tab.
 
-            - **Linux:** `sudo apt install point-hub` from https://get.openvolley.app, or the .deb / .rpm below.
-            - **Windows:** the .msi.
-            - **macOS:** the .dmg for your Mac (arm64 = Apple Silicon). It is not notarized: the first time, right-click the app and choose Open.
+            - **Linux:** the .deb / .rpm below.
+            - **Windows:** the .msi, or Scoop: `scoop bucket add point-hub https://github.com/Lucanepa/point-hub`, then `scoop install point-hub/point-hub`.
+            - **macOS:** the .dmg for your Mac (arm64 = Apple Silicon), or Homebrew: `brew tap lucanepa/point-hub https://github.com/Lucanepa/point-hub`, then `brew install --cask lucanepa/point-hub/point-hub`. It is not notarized: the first time, right-click the app and choose Open.
+
+            All downloads, also the tablet app: https://lucanepa.github.io/point-hub/
