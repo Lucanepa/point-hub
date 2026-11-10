@@ -477,6 +477,7 @@ footer.end { margin-top: 72px; padding-block: 24px 56px; border-top: 1px solid v
 <header class="wrap rail">
   <span class="club">KSC Wiedikon</span>
   <span class="label">Build manual</span>
+  <span class="label">Made by referees · Designed and built in Switzerland</span>
   <span class="label">Design D · draft 8.11.2026</span>
 </header>
 
