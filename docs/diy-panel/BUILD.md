@@ -1,5 +1,7 @@
 # Point Hub board — DIY scoreboard build guide (KSCW)
 
+*Made by referees · Designed and built in Switzerland.*
+
 How KSC Wiedikon builds its own scoreboard from open parts: the same 192 × 64 pixels as the
 Tech4Sport LedBox C0270 at **1.67× its pitch**, a small score panel facing each bench, a 16″
 touchscreen for the scorer in the back, powered by **USB-C only** and driven by the same open software
