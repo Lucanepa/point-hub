@@ -76,6 +76,9 @@ const LINK_END_GRACE_MS = 3000
 // The routes that put something on the panel. While the panel test is up, each of them first ends
 // it — the panel goes back to what it showed — and only then does its own work, so a point scored
 // or a countdown started during a test is on the glass at once instead of 20 s later.
+// What a tap on the Game tab gets while the board follows the scoresheet (409 reason 'following').
+export const FOLLOWING_TEXT = 'The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.'
+
 const TAKES_PANEL = new Set(['/api/action', '/api/manual', '/api/link', '/api/countdown', '/api/idle',
   '/api/prematch', '/api/game', '/api/message', '/api/result'])
 // How long the test screen stays up when the console does not say (it does not); and the bounds.
@@ -1045,10 +1048,16 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       alog.info('hall Wi-Fi login page opened', { ip: clientIp(req) })
       return sendJson(res, 200, { ok: true, ...r })
     }
-    // POST /api/manual
+    // POST /api/manual — score here. { takeOver: true } while the board follows the eScoresheet:
+    // "Stop following and score here", carrying the score the board shows over, so the panel does
+    // not jump back to whatever was last scored by hand.
     if (pathname === '/api/manual' && req.method === 'POST') {
       if (!pinOk(req)) return denyPin(res, req)
-      await readJson(req) // drain
+      const mbody = await readJson(req)
+      if (mbody && mbody.takeOver === true && !['manual', 'idle'].includes(sourceManager.status.mode)) {
+        takeOverFromScoresheet(req)
+        return sendJson(res, 200, status(req))
+      }
       // Leave the crest/idle screen so the manual scoreboard paints — from a pre-match, that is
       // starting the match.
       if (prematch) await beginMatch('manual mode')
@@ -1090,6 +1099,16 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
           }
         }
       }
+      // While the board follows the OpenVolley eScoresheet, scoring here is off: a + on the board
+      // as well counts the rally twice, and a tap used to drop the link without a word (the board
+      // went to hand scoring and stopped following the scoresheet). Only an explicit take-over
+      // ("Stop following and score here", takeOver: true) switches to scoring here.
+      const following = !['manual', 'idle'].includes(sourceManager.status.mode)
+      if (following && body.takeOver !== true) {
+        alog.info(`${action.type} refused — the board follows the OpenVolley eScoresheet`, { type: action.type, mode: sourceManager.status.mode, matchId: sourceManager.status.matchId, ip: clientIp(req) })
+        return sendJson(res, 409, { ok: false, reason: 'following', error: FOLLOWING_TEXT })
+      }
+      if (following) takeOverFromScoresheet(req)
       if (sourceManager.status.mode !== 'manual') {
         sourceManager.setSource(manualSource, { mode: 'manual' })
       }
@@ -2434,6 +2453,20 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
     if (localRelayTimer.unref) localRelayTimer.unref()
   }
   server.followLocalScorer = followLocalScorer
+
+  // Stop following the eScoresheet and score here, from the score the board shows now (the linked
+  // state, OpenVolley's own format, which the scoring sources load as they load a resume).
+  function takeOverFromScoresheet(req) {
+    const from = { mode: sourceManager.status.mode, matchId: sourceManager.status.matchId }
+    const shown = sourceManager.getState()
+    try {
+      if (shown && typeof shown === 'object') manualSource.apply({ type: 'set-state', state: shown })
+    } catch (err) {
+      clog.warn(`could not carry the scoresheet's score over: ${err.message}`, { error: err.message })
+    }
+    sourceManager.setSource(manualSource, { mode: 'manual' })
+    clog.warn('the scorer stopped following the OpenVolley eScoresheet and scores here', { ...from, ip: clientIp(req) })
+  }
   // The C0270 with OpenVolley on the board: the same follow, with no hardware behind it.
   // Its own timer: on the C0270 startHardware's one runs too, but only acts where the hardware is.
   // Each tick also asks the board's OpenVolley for its list, for /api/status.openvolley.

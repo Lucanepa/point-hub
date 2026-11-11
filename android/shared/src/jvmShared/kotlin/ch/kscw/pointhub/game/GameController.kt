@@ -457,6 +457,8 @@ class GameController(private val host: GameHost) {
      */
     private fun notSentFor(e: Exception, key: String?) {
         if (e is BoardApi.Refused && e.status == 403) { toast(errText(e)); return }
+        // The board follows the eScoresheet: the tap was not meant to count. Say why, no red ring.
+        if (e is BoardApi.Refused && e.status == 409 && following) { toast(errText(e)); scope.launch { refreshStatus() }; return }
         if (key != null) notSent[key] = true
         if (e !is BoardApi.Refused) {
             showFrozen()
@@ -948,6 +950,24 @@ class GameController(private val host: GameHost) {
     }
 
     var startingMatch by mutableStateOf(false); private set
+
+    /** The board follows the OpenVolley eScoresheet: scoring here is off (the board refuses it). */
+    val following: Boolean get() = status.mode.let { it != null && it != "manual" && it != "idle" }
+
+    /** "Stop following and score here": the board keeps the score it shows (POST /api/manual takeOver). */
+    fun stopFollowing() = scope.launch {
+        if (!askConfirm(
+                "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.",
+                yes = "Stop following", danger = true,
+            )) return@launch
+        try {
+            val r = post("/api/manual", JSONObject().put("takeOver", true))
+            renderStatus(r)
+            toast("Scoring here now — the board no longer follows the eScoresheet")
+        } catch (e: Exception) {
+            toast(if (pinWords(e)) "Scoring is locked — enter the scorer PIN, then try again." else "Couldn't stop following: " + errText(e))
+        }
+    }
 
     fun startMatchNow() = scope.launch {
         startingMatch = true

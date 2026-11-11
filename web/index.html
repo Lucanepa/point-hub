@@ -262,6 +262,9 @@
 
   /* Pre-match banner (see #prematch). Gold, like the other "the board is waiting on you" cues, and
      in the flow rather than over the cards: names and colours are still being fixed at this point. */
+  /* Following the eScoresheet: the scoring controls are faded and do not take taps. */
+  body.following .board, body.following #undoBtn{opacity:.4;pointer-events:none}
+  .prematch.following{border-color:var(--blue)}
   .prematch{flex:0 0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;
     border:2px solid var(--gold);border-radius:var(--r);background:color-mix(in srgb,var(--gold) 9%,var(--card))}
   .prematch .pmtext{flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -1252,6 +1255,16 @@
   <!-- Tonight's home game, suggested by the board an hour before (autoPrepare.js). Nothing goes on
        the board until the scorer taps: "Set up" (or one of several games) / "Not now". -->
   <div id="suggest" class="prematch suggest" hidden role="status" aria-live="polite"></div>
+  <!-- The board follows the OpenVolley eScoresheet: scoring here is off (the server refuses it,
+       409 'following'), so nothing is counted twice. The way out is explicit and asks first. -->
+  <div id="followBar" class="prematch following" hidden role="status" aria-live="polite">
+    <div class="pmtext">
+      <span class="pmready"><b>The board follows the OpenVolley eScoresheet.</b> <span class="pmsub">Score there — scoring here is off.</span></span>
+    </div>
+    <div class="pmbtns">
+      <button type="button" id="followStop">Stop following and score here</button>
+    </div>
+  </div>
   <div id="prematch" class="prematch" hidden role="status" aria-live="polite">
     <div class="pmtext">
       <span class="pmready">Ready: <b id="pmTeams"></b> <span class="pmsub" id="pmSub">— board shows the team names</span></span>
@@ -2323,6 +2336,7 @@
       // "refused" apart cannot parse that back out of a sentence.
       const err = new Error((body && body.error) || (path + " → " + res.status));
       err.status = res.status;
+      err.reason = (body && body.reason) || null;
       throw err;
     }
     return body;
@@ -2773,6 +2787,8 @@
     // The source is only worth header space when the score is NOT coming from this tablet.
     const linked = !!st.mode && !["manual", "idle"].includes(st.mode);
     $("#modeTag").hidden = !linked;
+    $("#followBar").hidden = !linked;
+    document.body.classList.toggle("following", linked);
     // Colour and word together: green Live, yellow while the link is not delivering.
     const link = LINK_STATES[st.link] || null;
     $("#modeName").textContent = (link && link.text) || MODE_LABELS[st.mode]
@@ -3786,6 +3802,9 @@
   function notSent(e, btn) {
     const msg = (e && e.message) || String(e);
     if (e && e.status === 403) { toast(msg); return; }
+    // The board follows the eScoresheet: not a failure, the tap was not meant to count. Say so and
+    // show the way out; nothing is ringed, nothing is sticky.
+    if (e && e.reason === "following") { toast(msg); refreshStatus(); return; }
     if (btn && btn.isConnected) btn.classList.add("notsent");
     if (!(e && e.status)) {
       showFrozen();
@@ -5162,6 +5181,17 @@
     $("#confirm").hidden = false;
     return new Promise((res) => { confirmResolve = res; });
   }
+  // Stop following the eScoresheet and score here: the board keeps the score it shows and from
+  // then on only this console changes it.
+  $("#followStop").addEventListener("click", async () => {
+    const ok = await askConfirm("Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.", { yes: "Stop following", danger: true });
+    if (!ok) return;
+    try {
+      const st = await postJSON("/api/manual", { takeOver: true });
+      renderStatus(st);
+      toast("Scoring here now — the board no longer follows the eScoresheet");
+    } catch (e) { toast("Couldn't stop following: " + ((e && e.message) || e)); }
+  });
   function closeConfirm(v) { $("#confirm").hidden = true; const r = confirmResolve; confirmResolve = null; if (r) r(v); }
   $("#confirmYes").addEventListener("click", () => closeConfirm(true));
   $("#confirmNo").addEventListener("click", () => closeConfirm(false));
