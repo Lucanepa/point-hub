@@ -663,7 +663,14 @@
   "Link the OpenVolley eScoresheet": "OpenVolley eScoresheet verbinden",
   "Open OpenVolley": "OpenVolley öffnen",
   "No match in the OpenVolley eScoresheet yet. Open the match there, then tap Find eScoresheet matches.": "Noch kein Spiel im OpenVolley eScoresheet. Öffne das Spiel dort und tippe dann auf eScoresheet-Spiele suchen.",
-  "OpenVolley could not be opened here.": "OpenVolley lässt sich hier nicht öffnen."
+  "OpenVolley could not be opened here.": "OpenVolley lässt sich hier nicht öffnen.",
+  "The board follows the OpenVolley eScoresheet.": "Die Tafel folgt dem OpenVolley eScoresheet.",
+  "Score there — scoring here is off.": "Dort schreiben — hier zählen ist aus.",
+  "Stop following and score here": "Nicht mehr folgen, hier zählen",
+  "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.": "Dem OpenVolley eScoresheet nicht mehr folgen? Die Tafel behält den angezeigten Stand; danach ändern ihn nur noch die Eingaben hier. Im eScoresheet nicht weiter mitschreiben.",
+  "Stop following": "Nicht mehr folgen",
+  "Scoring here now — the board no longer follows the eScoresheet": "Jetzt wird hier gezählt — die Tafel folgt dem eScoresheet nicht mehr",
+  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "Die Tafel folgt dem OpenVolley eScoresheet, darum ist hier zählen aus. Um hier zu zählen: Nicht mehr folgen tippen."
  },
  "patterns": [
   [
@@ -1525,6 +1532,10 @@
   [
    "^(\\d+) matches are live in OpenVolley: the board follows one only when it is the only one\\.$",
    "$1 Spiele laufen in OpenVolley: die Tafel folgt nur, wenn genau eines läuft."
+  ],
+  [
+   "^Couldn't stop following: (.+)$",
+   "Folgen konnte nicht beendet werden: $1"
   ]
  ]
 }

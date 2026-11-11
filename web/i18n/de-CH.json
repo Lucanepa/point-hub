@@ -663,7 +663,14 @@
   "Link the OpenVolley eScoresheet": "OpenVolley eScoresheet verbinde",
   "Open OpenVolley": "OpenVolley öffne",
   "No match in the OpenVolley eScoresheet yet. Open the match there, then tap Find eScoresheet matches.": "No kei Spiil im OpenVolley eScoresheet. Mach s Spiil det uf und tipp dänn uf eScoresheet-Spiil sueche.",
-  "OpenVolley could not be opened here.": "OpenVolley chan da nöd ufgmacht werde."
+  "OpenVolley could not be opened here.": "OpenVolley chan da nöd ufgmacht werde.",
+  "The board follows the OpenVolley eScoresheet.": "D Tafle folgt em OpenVolley eScoresheet.",
+  "Score there — scoring here is off.": "Det schriibe — da zelle isch us.",
+  "Stop following and score here": "Nüm folge, da zelle",
+  "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.": "Em OpenVolley eScoresheet nüm folge? D Tafle bhaltet de aazeigti Stand; dänn ändered en nume no d Iigabe da. Im eScoresheet nöd wiiter mitschriibe.",
+  "Stop following": "Nüm folge",
+  "Scoring here now — the board no longer follows the eScoresheet": "Jetzt wird da zellt — d Tafle folgt em eScoresheet nüm",
+  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "D Tafle folgt em OpenVolley eScoresheet, drum isch da zelle us. Zum da zelle: Nüm folge tippe."
  },
  "patterns": [
   [
@@ -1525,6 +1532,10 @@
   [
    "^(\\d+) matches are live in OpenVolley: the board follows one only when it is the only one\\.$",
    "$1 Spiil laufed i OpenVolley: d Tafle folgt nume, wenn genau eis lauft."
+  ],
+  [
+   "^Couldn't stop following: (.+)$",
+   "Folge het nöd chönne beendet werde: $1"
   ]
  ]
 }

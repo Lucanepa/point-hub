@@ -89,8 +89,10 @@ fun GameScreen(g: GameController, onUplink: () -> Unit) {
         ) {
             UplinkBanner(g, onUplink)
             PrematchBanner(g)
+            FollowingBanner(g)
             val dim = when {
                 !g.reachable -> 0.45f
+                g.following -> 0.4f
                 g.locked -> 0.72f
                 else -> 1f
             }
@@ -234,6 +236,30 @@ private fun PrematchBanner(g: GameController) {
             "Start match now", { g.startMatchNow() }, enabled = !g.startingMatch,
             bg = c.blue, border = c.blue, fg = c.onAccent, fontSize = 15, minHeight = 52.dp,
         )
+    }
+}
+
+/**
+ * The board follows the OpenVolley eScoresheet: scoring here is off, so a rally is never counted
+ * twice. The way out asks first and keeps the score the board shows.
+ */
+@Composable
+private fun FollowingBanner(g: GameController) {
+    val c = Ph.colors
+    if (!g.following) return
+    Row(
+        Modifier.fillMaxWidth()
+            .border(2.dp, c.blue, PhShape)
+            .background(c.blue.copy(alpha = 0.08f).compositeOver(c.card), PhShape)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("The board follows the OpenVolley eScoresheet.", color = c.fg, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+            Text("Score there — scoring here is off.", color = c.blue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+        PhTextButton("Stop following and score here", { g.stopFollowing() }, fontSize = 15, minHeight = 52.dp)
     }
 }
 
