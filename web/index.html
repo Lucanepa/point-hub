@@ -414,6 +414,10 @@
   .ovways dt{font-size:13px;color:var(--muted);font-weight:700;margin-top:8px}
   .ovways dd{margin:2px 0 0;font-size:17px;font-weight:800;overflow-wrap:anywhere}
   .ovways a{color:inherit}
+  .ovurl{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+  .ovqr{display:block;width:148px;height:148px;background:#fff;border-radius:6px}
+  .ovqr:empty{display:none}
+  .ovqr svg{display:block;width:100%;height:100%}
   #timeModeBtn{font-variant-numeric:tabular-nums;white-space:nowrap}
   #timeModeBtn.on{border-color:var(--blue);color:var(--blue)}
   /* A page of its own, over the tabs and below the PIN pad and the confirm (z-index 80). */
@@ -1419,7 +1423,10 @@
         </div>
         <dl class="ovways">
           <dt>On a phone, tablet or laptop, in the browser</dt>
-          <dd><a id="ovUrl" href="http://172.24.1.1:5173" target="_blank" rel="noopener">http://172.24.1.1:5173</a></dd>
+          <dd class="ovurl"><a id="ovUrl" href="http://172.24.1.1:5173" target="_blank" rel="noopener">http://172.24.1.1:5173</a>
+            <!-- The same address as a QR code: a phone already on the board's Wi-Fi scans it and is in
+                 OpenVolley. Dark on white in every theme, or phone cameras do not read it. -->
+            <span class="ovqr" id="ovQr" role="img" aria-label="QR code: OpenVolley on the board"></span></dd>
           <dt>In the OpenVolley app (Android)</dt>
           <dd>Options ▸ Server ▸ Change server ▸ Local ▸ <b id="ovHost">172.24.1.1</b></dd>
         </dl>
@@ -2035,6 +2042,8 @@
 </div>
 
 <script src="/i18n.js"></script>
+<!-- QR Code Generator by Kazuhiko Arase (MIT, see NOTICE): the Link tab's OpenVolley QR. -->
+<script src="/qrcode-generator.js"></script>
 <script>
 (() => {
   "use strict";
@@ -2635,6 +2644,30 @@
     location.replace(to.href);
   }
   $("#secureNow").addEventListener("click", () => goSecure(true));
+  // A QR code as an SVG, dark modules on white with a 4-module quiet zone (what phone cameras need).
+  // Built from isDark rather than the library's own markup, so nothing it returns is parsed as HTML.
+  // No library (an old cached page, a failed load): no QR, and the address above still works.
+  function drawQr(box, text) {
+    if (!box) return;
+    box.replaceChildren();
+    if (typeof qrcode !== "function") return;
+    let qr;
+    try { qr = qrcode(0, "M"); qr.addData(text); qr.make(); } catch { return; }
+    const n = qr.getModuleCount(), q = 4, size = n + q * 2;
+    let d = "";
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += "M" + (c + q) + " " + (r + q) + "h1v1h-1z";
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 " + size + " " + size);
+    svg.setAttribute("shape-rendering", "crispEdges");
+    svg.setAttribute("aria-hidden", "true");
+    const bg = document.createElementNS(NS, "rect");
+    bg.setAttribute("width", size); bg.setAttribute("height", size); bg.setAttribute("fill", "#fff");
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", d); path.setAttribute("fill", "#000");
+    svg.append(bg, path);
+    box.appendChild(svg);
+  }
   // Link ▸ Score with OpenVolley, on a board that serves OpenVolley itself (st.openvolley). The
   // address is the one this console reached the board on when that is the cable, else the AP's:
   // the phones join the board's Wi-Fi.
@@ -2646,7 +2679,8 @@
     const host = location.hostname === "192.168.5.1" ? "192.168.5.1" : "172.24.1.1";
     const url = "http://" + host + ":5173";
     const a = $("#ovUrl");
-    if (a.getAttribute("href") !== url) { a.href = url; a.textContent = url; }
+    if (a.getAttribute("href") !== url) { a.href = url; a.textContent = url; drawQr($("#ovQr"), url); }
+    else if (!$("#ovQr").firstChild) drawQr($("#ovQr"), url);
     $("#ovHost").textContent = host;
     const stat = $("#ovStat"), txt = $("#ovStatTxt");
     let state = "checking", text = "Checking OpenVolley on the board…";

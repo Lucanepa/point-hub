@@ -247,8 +247,14 @@
   To make the panel dark for a while, set <b>Settings → Display → Panel brightness</b> to 0: the controller stays up,
   so you're one tap from being live again.</p>
 
-<h2>5 · Scoring on an OpenVolley laptop <span class="opt">— optional</span></h2>
-<p>When the match is scored on the electronic scoresheet (OpenVolley on a laptop), the board can follow it, so nobody taps
+<h2>5 · Scoring in OpenVolley <span class="opt">— optional</span></h2>
+<p><b>On a phone or tablet</b>, when the phone's <b>Link</b> tab shows <b>Score with OpenVolley</b>: the board runs
+   OpenVolley itself, with no laptop and no internet. Join <code>ledbox_C0270</code> on the scoring phone or tablet and open
+   <code>http://172.24.1.1:5173</code> (or scan the QR code in that card). In the OpenVolley app (Android) instead: Options →
+   Server → Change server → Local → <code>172.24.1.1</code>. Start the match in OpenVolley: once it is live, the board
+   follows it by itself, and the card says so. Nothing to tap in the Point Hub controller. If the phone asks whether to stay
+   on a wifi without internet, answer <b>Yes</b>. <b>Don't score on the Point Hub controller as well.</b></p>
+<p><b>On a laptop</b> with the OpenVolley app, the board can follow it too, so nobody taps
    the phone. Put the laptop on the board's wifi <code>ledbox_C0270</code> (or on the cable) and open the match there. Then on
    the phone: <b>Link</b> tab → <b>Live matches on this network</b> → <b>↻ Refresh matches</b> → tap the match. The board now
    shows the scoresheet's score, and its timeouts and set intervals run the board's own <b>TIME OUT</b> and <b>INTERVAL</b>
