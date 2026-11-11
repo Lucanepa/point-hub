@@ -67,6 +67,7 @@ cross the bridge. Parse JSON strings yourself.
 | `loadSchedule()` | string or `null` | `null` | Returns the last schedule saved, or `null` if there is none. |
 | `reloadConsole()` | void | (nothing) | Runs board discovery again and loads `<origin>/?app=1` fresh. Call it after the console notices that a new console build was deployed. |
 | `openSettings()` | void | (nothing) | Opens the app's admin PIN prompt, then the admin menu. Volunteers still need the app's admin PIN, which is **not** the board's scorer PIN. |
+| `openOpenVolley()` | boolean | `false` | Shows the board's OpenVolley eScoresheet full screen over the console. See **OpenVolley on the board**. Returns `true` once it is on its way. |
 
 Input limits (anything over them returns `false`):
 - `name`: at most 80 characters. The app sanitises it to `[A-Za-z0-9._-]`, and an empty result
@@ -261,3 +262,20 @@ These are served by the board (the server agent's side):
 | `GET /app/pointhub.apk` | The APK. Serve it as `application/vnd.android.package-archive` with `Cache-Control: no-store`. |
 
 `android/build-release.sh` writes `dist/pointhub.apk` and `dist/version.json` in exactly this shape.
+
+## OpenVolley on the board
+
+A C0270 that serves OpenVolley itself (`pointhub-openvolley.service`, `BOARD_OPENVOLLEY=1`) has the
+eScoresheet at `http://<board IP>:5173`. The console's Link tab card **Score with the OpenVolley
+eScoresheet** shows an **Open OpenVolley** button when `PointHubApp.openOpenVolley` exists.
+
+- The app shows OpenVolley as a full-screen layer in its own window (`web/OpenVolleyLayer.kt`), with
+  a native **‹ Point Hub** bar. The tablet stays pinned. Going back to the console only hides the
+  layer: the OpenVolley page keeps running, and the next `openOpenVolley()` brings it back as it was.
+- The address is the console's board IP on port 5173 (`OriginPolicy.openVolleyOrigin`): the cable
+  IP when the console came over the cable, the AP IP otherwise, including the https tailnet origin.
+  The process is bound to the board's network, so this works over the board's Wi-Fi and the cable.
+- That WebView loads exactly that origin (`Allowlist(only = …)`) and has **no** `PointHubApp`
+  bridge. Back goes back inside OpenVolley's pages and never leaves it.
+- File downloads from OpenVolley (scoresheet PDF) are not handled in the layer yet.
+

@@ -22,6 +22,21 @@ object OriginPolicy {
     /** The only hosts the network security config lets us reach over cleartext http. */
     val CLEARTEXT_HOSTS: Set<String> = setOf("172.24.1.1", "192.168.5.1")
 
+    /** OpenVolley's web app on a board that serves it (BRIDGE.md "OpenVolley on the board"). */
+    const val OPENVOLLEY_PORT = 5173
+
+    /**
+     * Where the board's OpenVolley is, seen from the console at [consoleUrl]: the same board IP on
+     * port 5173, plain http. The console's https origin (the tailnet name, which the board's own
+     * dnsmasq resolves to the AP address) maps to the AP. Null when [consoleUrl] is no http(s) URL.
+     */
+    fun openVolleyOrigin(consoleUrl: String?): String? {
+        val origin = originOf(consoleUrl) ?: return null
+        val host = URI(origin).host
+        val ip = if (host in CLEARTEXT_HOSTS) host else URI(AP_ORIGIN).host
+        return "http://$ip:$OPENVOLLEY_PORT"
+    }
+
     /**
      * The canonical origin of an absolute http(s) URL, or null for anything else (null, blank,
      * about:, data:, file:, javascript:, URLs with userinfo, URLs without a host).
@@ -75,10 +90,15 @@ object OriginPolicy {
         return origin
     }
 
-    /** The allow-list in force: the built-in board origins plus the (valid) override, if any. */
-    class Allowlist(override: String?) {
+    /**
+     * The allow-list in force: the built-in board origins plus the (valid) override, if any. With
+     * [only], exactly that one origin and nothing else (the OpenVolley layer, which must never
+     * load the console or anything off the board).
+     */
+    class Allowlist(override: String?, only: String? = null) {
         val override: String? = normalizeOverride(override)
-        val origins: Set<String> = (listOfNotNull(this.override) + BUILT_IN).toSet()
+        val origins: Set<String> =
+            if (only != null) setOfNotNull(originOf(only)) else (listOfNotNull(this.override) + BUILT_IN).toSet()
 
         /** True when [url] is an absolute http(s) URL on exactly one of the board origins. */
         fun isAllowed(url: String?): Boolean {

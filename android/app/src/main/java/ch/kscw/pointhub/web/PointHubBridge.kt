@@ -19,6 +19,8 @@ interface BridgeHost {
     fun startExport(): Boolean
     fun reloadConsole()
     fun openSettings()
+    /** Show the board's OpenVolley over the console (BRIDGE.md "OpenVolley on the board"). */
+    fun openOpenVolley(): Boolean = false
 
     // Native Game tab (BRIDGE.md "Native Game tab (embed mode)").
     /** The page asks whether the app draws the Game tab; true also marks this page as embedded. */
@@ -98,6 +100,9 @@ class PointHubBridge(private val host: BridgeHost) {
     fun openSettings() {
         if (allowed("openSettings")) host.openSettings()
     }
+
+    @JavascriptInterface
+    fun openOpenVolley(): Boolean = allowed("openOpenVolley") && host.openOpenVolley()
 
     // ---- Native Game tab ----
 

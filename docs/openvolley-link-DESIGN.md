@@ -111,7 +111,7 @@ Not done; it is the owner's call.
      24/24 against the 3.0.20 bundle in a network namespace with no internet. In Chromium, no
      internet: a test match scored at 390 × 844 and at 1280 × 800 from `:5173` was on the board
      about 1 s later (mode lan, 3:1); an Easy match was not (above).
-2. **"Score with OpenVolley" on the console** (built) — Link tab card, only where
+2. **"Score with the OpenVolley eScoresheet" on the console** (built) — Link tab card, only where
    `/api/status.openvolley` is set (`BOARD_OPENVOLLEY=1`): whether the board's OpenVolley answers
    and how many matches are live (checked every 3 s with the follow), the browser address (the
    cable's when the console is on the cable, else the AP's) and the Android app's server path,
