@@ -653,7 +653,15 @@
   "Not saved": "Nöd gspeicheret",
   "Not saved.": "Nöd gspeicheret.",
   "Couldn't save the settings": "Iistellige händ nöd chönne gspeicheret werde",
-  "The board didn't answer in time — try again.": "D Tafle hät nöd rächtziitig antwortet — probier s nomal."
+  "The board didn't answer in time — try again.": "D Tafle hät nöd rächtziitig antwortet — probier s nomal.",
+  "Score with OpenVolley": "Mit OpenVolley schriibe",
+  "Checking OpenVolley on the board…": "OpenVolley uf de Tafle wird prüeft…",
+  "On a phone, tablet or laptop, in the browser": "Uf em Handy, Tablet oder Laptop, im Browser",
+  "In the OpenVolley app (Android)": "I de OpenVolley-App (Android)",
+  "Join the board's Wi-Fi first; no internet needed. If the phone asks whether to stay on a Wi-Fi without internet, answer Yes. The board shows the match by itself once it is live.": "Zersch is Wi-Fi vo de Tafle; Internet bruuchts keis. Fröget s Handy, öbs imene Wi-Fi ohni Internet bliibe söll: Ja. D Tafle zeigt s Spiil vo sälber, sobald s lauft.",
+  "OpenVolley on the board is not answering. Scoring by hand still works.": "OpenVolley uf de Tafle antwortet nöd. Vo Hand zelle gaht wiiterhin.",
+  "The board follows the match being scored in OpenVolley.": "D Tafle folgt em Spiil, wo i OpenVolley gschribe wird.",
+  "OpenVolley is ready on the board. Start the match there; the board follows it.": "OpenVolley isch uf de Tafle parat. Start s Spiil det; d Tafle folgt em."
  },
  "patterns": [
   [
@@ -1511,6 +1519,10 @@
   [
    "^Not saved: (.+)$",
    "Nöd gspeicheret: $1"
+  ],
+  [
+   "^(\\d+) matches are live in OpenVolley: the board follows one only when it is the only one\\.$",
+   "$1 Spiil laufed i OpenVolley: d Tafle folgt nume, wenn genau eis lauft."
   ]
  ]
 }

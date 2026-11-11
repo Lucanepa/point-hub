@@ -653,7 +653,15 @@
   "Not saved": "Nicht gespeichert",
   "Not saved.": "Nicht gespeichert.",
   "Couldn't save the settings": "Einstellungen konnten nicht gespeichert werden",
-  "The board didn't answer in time — try again.": "Die Tafel hat nicht rechtzeitig geantwortet — versuche es nochmals."
+  "The board didn't answer in time — try again.": "Die Tafel hat nicht rechtzeitig geantwortet — versuche es nochmals.",
+  "Score with OpenVolley": "Mit OpenVolley schreiben",
+  "Checking OpenVolley on the board…": "OpenVolley auf der Tafel wird geprüft…",
+  "On a phone, tablet or laptop, in the browser": "Auf Handy, Tablet oder Laptop, im Browser",
+  "In the OpenVolley app (Android)": "In der OpenVolley-App (Android)",
+  "Join the board's Wi-Fi first; no internet needed. If the phone asks whether to stay on a Wi-Fi without internet, answer Yes. The board shows the match by itself once it is live.": "Zuerst ins Wi-Fi der Tafel; Internet braucht es keines. Fragt das Handy, ob es in einem Wi-Fi ohne Internet bleiben soll: Ja. Die Tafel zeigt das Spiel von selbst, sobald es läuft.",
+  "OpenVolley on the board is not answering. Scoring by hand still works.": "OpenVolley auf der Tafel antwortet nicht. Von Hand zählen geht weiterhin.",
+  "The board follows the match being scored in OpenVolley.": "Die Tafel folgt dem Spiel, das in OpenVolley geschrieben wird.",
+  "OpenVolley is ready on the board. Start the match there; the board follows it.": "OpenVolley ist auf der Tafel bereit. Starte das Spiel dort; die Tafel folgt ihm."
  },
  "patterns": [
   [
@@ -1511,6 +1519,10 @@
   [
    "^Not saved: (.+)$",
    "Nicht gespeichert: $1"
+  ],
+  [
+   "^(\\d+) matches are live in OpenVolley: the board follows one only when it is the only one\\.$",
+   "$1 Spiele laufen in OpenVolley: die Tafel folgt nur, wenn genau eines läuft."
   ]
  ]
 }

@@ -147,6 +147,9 @@ const PROBE_BODIES = {
 const SETTING_INI = PANEL_PATHS.settingIni
 
 export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, hostname = null, settingIni = SETTING_INI }) {
+  // What the last look at the board's own OpenVolley found (BOARD_OPENVOLLEY=1 only; see
+  // checkBoardOV). Up here because status() reads it.
+  const boardOV = { running: null, live: 0, checkedAt: null }
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -2100,6 +2103,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       // logs the board in (Settings ▸ Hall internet); validUntil is when the portal's auto login
       // lapses. GET /api/uplink has the rest.
       uplink: { status: uplink.state.status, validUntil: uplink.state.validUntil },
+      // OpenVolley on the board (BOARD_OPENVOLLEY=1, the C0270): whether its relay answers, and how
+      // many matches it has live, for the Link tab's "Score with OpenVolley" card. Null elsewhere.
+      openvolley: boardOpenVolley ? { ...boardOV } : null,
       ledbox: {
         connected: ledbox.ready === true, host: ledbox.host, port: ledbox.port, layout: ledbox.currentLayout,
         // What the idle screen is doing, so the console can show 'Show clock' as the active choice.
@@ -2430,10 +2436,20 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   server.followLocalScorer = followLocalScorer
   // The C0270 with OpenVolley on the board: the same follow, with no hardware behind it.
   // Its own timer: on the C0270 startHardware's one runs too, but only acts where the hardware is.
+  // Each tick also asks the board's OpenVolley for its list, for /api/status.openvolley.
   let boardFollowTimer = null
+  async function checkBoardOV() {
+    const r = await listFrom(relayHttpCandidates(LOCAL_RELAY, '', httpOpts), [])
+    boardOV.running = !!r
+    boardOV.live = r ? r.list.filter((m) => m && m.status === 'live').length : 0
+    boardOV.checkedAt = Date.now()
+  }
+  server.checkBoardOpenVolley = checkBoardOV
   server.startLocalFollow = () => {
     if (!boardOpenVolley || boardFollowTimer) return
-    boardFollowTimer = setInterval(() => { followLocalScorer().catch(() => {}) }, 3000)
+    const tick = () => { checkBoardOV().catch(() => {}).then(() => followLocalScorer()).catch(() => {}) }
+    tick()
+    boardFollowTimer = setInterval(tick, 3000)
     if (boardFollowTimer.unref) boardFollowTimer.unref()
   }
 
