@@ -16,6 +16,13 @@ Liberation Sans 2.1.5 (Regular, Bold)
             "Liberation" is a Reserved Font Name: a modified version must be renamed.
 
 
+QR Code Generator for JavaScript 2.0.4 (npm qrcode-generator), by Kazuhiko Arase
+  File:     web/qrcode-generator.js (dist/qrcode.js, unchanged)
+  Licence:  MIT License
+  Notice:   Copyright (c) 2009 Kazuhiko Arase. The word "QR Code" is a registered trademark of
+            DENSO WAVE INCORPORATED.
+
+
 Fetched by firmware/flushbuffer/build.sh, not stored here
 ---------------------------------------------------------
 

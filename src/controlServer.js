@@ -163,7 +163,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   // number someone has to remember to bump. Computed once: a deploy restarts the bridge.
   const consoleBuild = (() => {
     const h = createHash('sha1')
-    for (const f of ['index.html', 'logs.html', 'i18n.js', 'i18n/de.json', 'i18n/de-CH.json']) {
+    for (const f of ['index.html', 'logs.html', 'i18n.js', 'qrcode-generator.js', 'i18n/de.json', 'i18n/de-CH.json']) {
       try { h.update(fs.readFileSync(path.join(webDir, f))) } catch {}
     }
     return h.digest('hex').slice(0, 12)

@@ -400,6 +400,8 @@ console.log('[8] the console')
   ok(html.includes('data-set="screenApp"') && html.includes('id="screenAppSet" hidden'), 'Settings has the screen choice, hidden until there is hardware')
   ok(html.includes('"/api/hardware/selftest"'), 'Run self-test gets the long timeout')
   ok(html.includes('id="ovCard" class="ovcard" hidden') && html.includes('renderBoardOpenVolley(st.openvolley)'), 'Link has the "Score with OpenVolley" card, hidden unless the board serves OpenVolley')
+  ok(html.includes('<script src="/qrcode-generator.js"></script>') && fs.existsSync(path.join(root, 'web/qrcode-generator.js')), '...with its QR encoder shipped beside the console')
+  ok(/createElementNS\(NS, "path"\)/.test(html) && !/innerHTML\s*=\s*qr\./.test(html), '...drawing the QR as SVG nodes, never as parsed markup')
   ok(!/\.innerHTML\s*=.*hw/i.test(html), 'the checks go in as text, never as markup')
 }
 
