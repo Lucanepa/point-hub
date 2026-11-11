@@ -346,6 +346,46 @@ console.log('[7] following the board\'s own OpenVolley')
   daemon.close()
 }
 
+console.log('[7b] the C0270 serving OpenVolley itself (BOARD_OPENVOLLEY=1)')
+{
+  let list = [{ id: 'm1', status: 'live' }]
+  const relay = http.createServer((req, res) => {
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify(req.url.startsWith('/api/match/list') ? { matches: list } : {}))
+  })
+  await new Promise((r) => relay.listen(0, '127.0.0.1', r))
+  const localRelayUrl = `ws://127.0.0.1:${relay.address().port}`
+
+  // Without the flag the C0270 stays as it was: the console links, nothing follows by itself.
+  {
+    const { app, base } = await boot({ localRelayUrl })
+    await app.server.followLocalScorer()
+    ok((await J(base, '/api/status')).mode !== 'lan', 'a plain C0270 follows nothing by itself')
+    await app.close()
+  }
+
+  const { app, base } = await boot({ localRelayUrl, boardOpenVolley: true })
+  await app.server.followLocalScorer()
+  let st = await J(base, '/api/status')
+  eq(st.mode, 'lan', 'with OpenVolley on the board, the one live match is followed (Settings still says console)')
+  eq(st.matchId, 'm1', '...that one')
+
+  list = [{ id: 'm2', status: 'live' }]
+  await app.server.followLocalScorer()
+  eq((await J(base, '/api/status')).matchId, 'm2', 'the next match takes over once the first has ended')
+
+  // A game scored on the console is never taken over.
+  await post(base, '/api/manual')
+  await post(base, '/api/action', { action: { type: 'point', side: 'left', delta: 1 } })
+  list = [{ id: 'm3', status: 'live' }]
+  await app.server.followLocalScorer()
+  st = await J(base, '/api/status')
+  ok(st.matchId !== 'm3', `a hand-scored game in play is not taken over (mode ${st.mode}, match ${st.matchId})`)
+
+  await app.close()
+  relay.close()
+}
+
 console.log('[8] the console')
 {
   const html = fs.readFileSync(path.join(root, 'web/index.html'), 'utf8')

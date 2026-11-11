@@ -5,6 +5,8 @@
 //   backend   backend/server.js --local            the standalone/SEA relay: HTTP and WS on ONE port
 //   desktop   frontend/server.js                   the desktop app's Node relay (same core as
 //                                                  Electron): WS-only port + HTTP port (5173 live)
+//   board     an OpenVolley bundle (tools/build-openvolley-web.sh) the way the C0270 runs it:
+//                                                  OPENVOLLEY_WEB_DIR=<unpacked bundle>, E2E_RELAYS=board
 //   tauri     src-tauri/.../openvolley-escoresheet --server-only
 //                                                  the Tauri app's Rust relay, headless; skipped
 //                                                  when no binary is built
@@ -48,6 +50,7 @@ const FRONTEND = path.join(OV, 'frontend')
 const TAURI_BIN = process.env.OPENVOLLEY_TAURI_BIN || ['release', 'debug']
   .map((d) => path.join(FRONTEND, 'src-tauri', 'target', d, process.platform === 'win32' ? 'openvolley-escoresheet.exe' : 'openvolley-escoresheet'))
   .find((p) => fs.existsSync(p)) || ''
+const BOARD_WEB = process.env.OPENVOLLEY_WEB_DIR ? path.resolve(process.env.OPENVOLLEY_WEB_DIR) : ''
 const WANT = (process.env.E2E_RELAYS || 'backend,desktop,tauri').split(',').map((s) => s.trim()).filter(Boolean)
 
 let pass = 0, fail = 0
@@ -84,6 +87,22 @@ const RELAYS = {
       delete env.USE_HTTPS
       const proc = spawn(process.execPath, ['server.js'], { cwd: FRONTEND, env, stdio: ['ignore', 'pipe', 'pipe'] })
       return { proc, httpPort, wsPort, what: 'frontend/server.js (desktop Node relay)' }
+    },
+  },
+  // The C0270 serving OpenVolley itself: the bundle from tools/build-openvolley-web.sh, as the board
+  // runs it (pointhub-openvolley.service). OPENVOLLEY_WEB_DIR = an unpacked bundle.
+  board: {
+    available: () => BOARD_WEB && fs.existsSync(path.join(BOARD_WEB, 'server.js'))
+      ? '' : 'no OpenVolley bundle (tools/build-openvolley-web.sh, unpack it, set OPENVOLLEY_WEB_DIR)',
+    async start() {
+      const httpPort = await freePort(), wsPort = await freePort()
+      const env = { ...process.env, PORT: String(httpPort), WS_PORT: String(wsPort), HTTPS: 'false', HOSTNAME: '127.0.0.1' }
+      delete env.NODE_ENV
+      delete env.USE_HTTPS
+      const proc = spawn(process.execPath, ['server.js'], { cwd: BOARD_WEB, env, stdio: ['ignore', 'pipe', 'pipe'] })
+      let ver = '?'
+      try { ver = JSON.parse(fs.readFileSync(path.join(BOARD_WEB, 'BUILD.json'), 'utf8')).version } catch { /* no stamp */ }
+      return { proc, httpPort, wsPort, what: `OpenVolley ${ver} on the board (${BOARD_WEB})` }
     },
   },
   tauri: {

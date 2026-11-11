@@ -226,6 +226,7 @@ export async function startAppliance(config = loadConfig()) {
   const server = createControlServer({
     hardware,
     localRelayUrl: config.localRelayUrl || null, // test hook: the board's own OpenVolley relay
+    boardOpenVolley: config.boardOpenVolley === true, // the C0270 serves OpenVolley itself
     sourceManager,
     manualSource,
     ledbox,
@@ -327,6 +328,11 @@ export async function startAppliance(config = loadConfig()) {
     sysSlow = { cpuTempC: s?.cpu?.tempC ?? null, diskFreeBytes: s?.disk?.freeBytes ?? s?.disk?.free ?? null }
   }).catch(() => {})
   let sysTimer = null
+  // A C0270 serving OpenVolley itself follows the live match on its own relay (config.js).
+  if (config.boardOpenVolley) {
+    server.startLocalFollow()
+    log.info('OpenVolley on the board: following the live match on ws://127.0.0.1:8080 by itself')
+  }
   if (hardware) {
     refreshSys()
     sysTimer = setInterval(refreshSys, 10_000)

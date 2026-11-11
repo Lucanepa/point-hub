@@ -1,0 +1,38 @@
+[Unit]
+Description=OpenVolley on the board: the web app and LAN relay (HTTP :5173, WS :8080) for tablets and phones
+Documentation=https://github.com/Lucanepa/point-hub/blob/main/docs/openvolley-link-DESIGN.md
+# The C0270 only. A tablet or phone on the board's Wi-Fi (or cable) scores in OpenVolley against
+# this relay: a browser at http://172.24.1.1:5173, or the Android app pointed at 172.24.1.1. Link
+# mode follows it on ws://127.0.0.1:8080, its default, with no laptop and no internet.
+#
+# The code is OpenVolley's own frontend/server.js, unchanged, from tools/build-openvolley-web.sh;
+# deploy-board.sh puts it in /home/pi/openvolley-web/<version> and points `current` at it.
+# Installed and enabled by provisioning/setup-openvolley-web.sh.
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/openvolley-web/current
+# HTTPS=false and no NODE_ENV: server.js turns HTTPS on for NODE_ENV=production, and the tablets
+# reach it over plain http on the board's own network. HOSTNAME is only what /api/server/status
+# names in its links (the referee and bench QR codes): the board's AP address.
+Environment=PORT=5173 WS_PORT=8080 HTTPS=false HOSTNAME=172.24.1.1
+ExecStart=/opt/nodejs/bin/node server.js
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
+# The relay keeps everything in memory and writes nothing: matches live on the scorer's device.
+# A restart only makes the scorer sync the match again, which it does on its own.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+# Below the appliance, the panel and the watchdog, so a misbehaving relay is what the kernel
+# reclaims first and the panel keeps showing the score.
+MemoryMax=256M
+OOMScoreAdjust=500
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
