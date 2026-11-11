@@ -405,6 +405,15 @@
      the roster is wiedisync's (Geb. · Nr. · Name, F.), Liberos written a second time, then the
      Offizielle. The scorer reads it off the tablet and types it into the eScoresheet. */
   .matchinfobtn{margin-top:14px}
+  .ovcard{margin-top:14px}
+  .ovstat{display:flex;align-items:center;gap:9px;padding:0 2px 8px;font-size:15px;font-weight:800;line-height:1.25}
+  .ovdot{flex:0 0 auto;width:12px;height:12px;border-radius:50%;background:var(--muted)}
+  .ovstat[data-state="ok"]{color:var(--ok)} .ovstat[data-state="ok"] .ovdot{background:var(--ok)}
+  .ovstat[data-state="bad"]{color:var(--bad)} .ovstat[data-state="bad"] .ovdot{background:var(--bad)}
+  .ovways{margin:0;padding:0 2px}
+  .ovways dt{font-size:13px;color:var(--muted);font-weight:700;margin-top:8px}
+  .ovways dd{margin:2px 0 0;font-size:17px;font-weight:800;overflow-wrap:anywhere}
+  .ovways a{color:inherit}
   #timeModeBtn{font-variant-numeric:tabular-nums;white-space:nowrap}
   #timeModeBtn.on{border-color:var(--blue);color:var(--blue)}
   /* A page of its own, over the tabs and below the PIN pad and the confirm (z-index 80). */
@@ -1397,6 +1406,24 @@
         </div>
         <div id="upcoming" class="upcoming"></div>
         <button id="seasonMoreBtn" class="seasonmore" type="button" hidden>Show whole season</button>
+      </div>
+      <!-- OpenVolley on the board (BOARD_OPENVOLLEY=1, the C0270): a phone or tablet scores in
+           OpenVolley against the board itself, and the board follows by itself. Shown only where
+           /api/status carries `openvolley`. -->
+      <div id="ovCard" class="ovcard" hidden>
+        <div class="linkhead">
+          <h2 class="linkh">Score with OpenVolley</h2>
+        </div>
+        <div class="ovstat" id="ovStat" data-state="checking">
+          <span class="ovdot" aria-hidden="true"></span><span id="ovStatTxt">Checking OpenVolley on the board…</span>
+        </div>
+        <dl class="ovways">
+          <dt>On a phone, tablet or laptop, in the browser</dt>
+          <dd><a id="ovUrl" href="http://172.24.1.1:5173" target="_blank" rel="noopener">http://172.24.1.1:5173</a></dd>
+          <dt>In the OpenVolley app (Android)</dt>
+          <dd>Options ▸ Server ▸ Change server ▸ Local ▸ <b id="ovHost">172.24.1.1</b></dd>
+        </dl>
+        <p class="note">Join the board's Wi-Fi first; no internet needed. If the phone asks whether to stay on a Wi-Fi without internet, answer Yes. The board shows the match by itself once it is live.</p>
       </div>
       <div class="linkhead">
         <h2 class="linkh">Live matches on this network</h2>
@@ -2608,6 +2635,28 @@
     location.replace(to.href);
   }
   $("#secureNow").addEventListener("click", () => goSecure(true));
+  // Link ▸ Score with OpenVolley, on a board that serves OpenVolley itself (st.openvolley). The
+  // address is the one this console reached the board on when that is the cable, else the AP's:
+  // the phones join the board's Wi-Fi.
+  function renderBoardOpenVolley(ov) {
+    const card = $("#ovCard");
+    if (!card) return;
+    card.hidden = !ov;
+    if (!ov) return;
+    const host = location.hostname === "192.168.5.1" ? "192.168.5.1" : "172.24.1.1";
+    const url = "http://" + host + ":5173";
+    const a = $("#ovUrl");
+    if (a.getAttribute("href") !== url) { a.href = url; a.textContent = url; }
+    $("#ovHost").textContent = host;
+    const stat = $("#ovStat"), txt = $("#ovStatTxt");
+    let state = "checking", text = "Checking OpenVolley on the board…";
+    if (ov.running === false) { state = "bad"; text = "OpenVolley on the board is not answering. Scoring by hand still works."; }
+    else if (ov.running === true && ov.live === 1) { state = "ok"; text = "The board follows the match being scored in OpenVolley."; }
+    else if (ov.running === true && ov.live > 1) { state = "bad"; text = ov.live + " matches are live in OpenVolley: the board follows one only when it is the only one."; }
+    else if (ov.running === true) { state = "ok"; text = "OpenVolley is ready on the board. Start the match there; the board follows it."; }
+    stat.dataset.state = state;
+    if (txt.dataset.en !== text) { txt.dataset.en = text; txt.textContent = text; }
+  }
   let LAST_STATUS = {};
   // Replies are applied in the order they were REQUESTED, not the order they arrive. The poll's
   // GET and the POST sendAction makes are in the air at the same time and do not come back in
@@ -2649,6 +2698,7 @@
     applyOrientation();
     lastLedbox = st.ledbox || lastLedbox;
     renderClock(st.clock);
+    renderBoardOpenVolley(st.openvolley);
     const connected = !!(st.ledbox && st.ledbox.connected);
     // Only rewrite the icon SVG when the state flips — re-setting innerHTML every poll makes it flash.
     setDot(connected, connected

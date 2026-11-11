@@ -361,10 +361,14 @@ console.log('[7b] the C0270 serving OpenVolley itself (BOARD_OPENVOLLEY=1)')
     const { app, base } = await boot({ localRelayUrl })
     await app.server.followLocalScorer()
     ok((await J(base, '/api/status')).mode !== 'lan', 'a plain C0270 follows nothing by itself')
+    eq((await J(base, '/api/status')).openvolley, null, '...and has no "Score with OpenVolley" card')
     await app.close()
   }
 
   const { app, base } = await boot({ localRelayUrl, boardOpenVolley: true })
+  await app.server.checkBoardOpenVolley()
+  let ov = (await J(base, '/api/status')).openvolley
+  ok(ov && ov.running === true && ov.live === 1, `the card: OpenVolley answers, one match live (${JSON.stringify(ov)})`)
   await app.server.followLocalScorer()
   let st = await J(base, '/api/status')
   eq(st.mode, 'lan', 'with OpenVolley on the board, the one live match is followed (Settings still says console)')
@@ -382,8 +386,11 @@ console.log('[7b] the C0270 serving OpenVolley itself (BOARD_OPENVOLLEY=1)')
   st = await J(base, '/api/status')
   ok(st.matchId !== 'm3', `a hand-scored game in play is not taken over (mode ${st.mode}, match ${st.matchId})`)
 
+  await new Promise((r) => relay.close(r))
+  await app.server.checkBoardOpenVolley()
+  ov = (await J(base, '/api/status')).openvolley
+  eq(ov && ov.running, false, 'the card says so when OpenVolley on the board stops answering')
   await app.close()
-  relay.close()
 }
 
 console.log('[8] the console')
@@ -392,6 +399,7 @@ console.log('[8] the console')
   ok(html.includes('id="hwTag"') && html.includes('renderHardwareBrief(st.hardware)'), 'the header shows the charger')
   ok(html.includes('data-set="screenApp"') && html.includes('id="screenAppSet" hidden'), 'Settings has the screen choice, hidden until there is hardware')
   ok(html.includes('"/api/hardware/selftest"'), 'Run self-test gets the long timeout')
+  ok(html.includes('id="ovCard" class="ovcard" hidden') && html.includes('renderBoardOpenVolley(st.openvolley)'), 'Link has the "Score with OpenVolley" card, hidden unless the board serves OpenVolley')
   ok(!/\.innerHTML\s*=.*hw/i.test(html), 'the checks go in as text, never as markup')
 }
 

@@ -111,9 +111,12 @@ Not done; it is the owner's call.
      24/24 against the 3.0.20 bundle in a network namespace with no internet. In Chromium, no
      internet: a test match scored at 390 × 844 and at 1280 × 800 from `:5173` was on the board
      about 1 s later (mode lan, 3:1); an Easy match was not (above).
-2. **"Score with OpenVolley" on the console** — Link tab card: the board's relay running or not,
-   the address and a QR for "app" (server address) and "browser" (URL); the panel's idle QR can
-   point there too. Hall card and hall guide: one line per device.
+2. **"Score with OpenVolley" on the console** (built) — Link tab card, only where
+   `/api/status.openvolley` is set (`BOARD_OPENVOLLEY=1`): whether the board's OpenVolley answers
+   and how many matches are live (checked every 3 s with the follow), the browser address (the
+   cable's when the console is on the cable, else the AP's) and the Android app's server path,
+   German and Swiss German. Still open: a QR code (the console has no QR encoder; the panel's
+   QR is the firmware's image), and a line on the hall card and guide.
 3. **Cloud source** (optional) — `CloudSource` subscribes to `wss://backend.openvolley.app` by seed
    key, for a scorer on openvolley.app with internet. Only if wanted: it is online only and does
    not carry Easy matches.
