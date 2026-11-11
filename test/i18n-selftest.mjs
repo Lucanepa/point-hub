@@ -33,7 +33,7 @@ for (const [name, words] of [['de', de], ['de-CH', ch]]) {
   ok(empty.length === 0, 'no empty translation')
   for (const must of [
     'Close set →', 'Close match →', 'SET ENDED', 'MATCH ENDED', 'OFFICIAL WARM-UP', 'Start the official warm-up?', 'Not now',
-    'Start match now', 'New game', 'How do you want to score it?', 'Another game from the schedule', 'Link a scoresheet',
+    'Start match now', 'New game', 'How do you want to score it?', 'Another game from the schedule', 'Link the OpenVolley eScoresheet',
     'Manual', 'Match info', 'Switch sides', 'Reset match', 'Undo', 'Warm-up', 'Font size', 'Font\nsize',
     'Live', 'Waiting for the scoresheet', 'Link lost', 'Match ended',
   ]) ok(words.exact[must] && words.exact[must] !== must || must === 'Live', `${JSON.stringify(must)} → ${JSON.stringify(words.exact[must])}`)

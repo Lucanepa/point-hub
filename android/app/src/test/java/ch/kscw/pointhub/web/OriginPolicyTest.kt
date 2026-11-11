@@ -33,6 +33,23 @@ class OriginPolicyTest {
         ).forEach { assertFalse("should deny $it", a.isAllowed(it)) }
     }
 
+    @Test fun openVolleyOnTheSameBoard() {
+        assertEquals("http://172.24.1.1:5173", OriginPolicy.openVolleyOrigin("http://172.24.1.1:8890/?app=1"))
+        assertEquals("http://192.168.5.1:5173", OriginPolicy.openVolleyOrigin("http://192.168.5.1:8890/"))
+        // the tailnet name resolves to the AP address on the board's own Wi-Fi
+        assertEquals("http://172.24.1.1:5173", OriginPolicy.openVolleyOrigin("https://ledbox-c0270.noodlefish-pence.ts.net:8891/"))
+        assertNull(OriginPolicy.openVolleyOrigin(null))
+        assertNull(OriginPolicy.openVolleyOrigin("about:blank"))
+    }
+
+    @Test fun onlyAllowsExactlyOneOrigin() {
+        val ov = OriginPolicy.Allowlist(null, only = "http://172.24.1.1:5173")
+        assertTrue(ov.isAllowed("http://172.24.1.1:5173/referee?match=1"))
+        assertFalse("the console is not OpenVolley", ov.isAllowed("http://172.24.1.1:8890/"))
+        assertFalse(ov.isAllowed("https://backend.openvolley.app/api/x"))
+        assertFalse(ov.isAllowed("http://192.168.5.1:5173/"))
+    }
+
     @Test fun originCanonicalisation() {
         assertEquals("https://example.com", OriginPolicy.originOf("https://Example.COM:443/x"))
         assertEquals("http://172.24.1.1:8890", OriginPolicy.originOf("http://172.24.1.1:8890/a/b"))

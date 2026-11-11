@@ -2104,7 +2104,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       // lapses. GET /api/uplink has the rest.
       uplink: { status: uplink.state.status, validUntil: uplink.state.validUntil },
       // OpenVolley on the board (BOARD_OPENVOLLEY=1, the C0270): whether its relay answers, and how
-      // many matches it has live, for the Link tab's "Score with OpenVolley" card. Null elsewhere.
+      // many matches it has live, for the Link tab's "Score with the OpenVolley eScoresheet" card. Null elsewhere.
       openvolley: boardOpenVolley ? { ...boardOV } : null,
       ledbox: {
         connected: ledbox.ready === true, host: ledbox.host, port: ledbox.port, layout: ledbox.currentLayout,
@@ -2438,8 +2438,12 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   // Its own timer: on the C0270 startHardware's one runs too, but only acts where the hardware is.
   // Each tick also asks the board's OpenVolley for its list, for /api/status.openvolley.
   let boardFollowTimer = null
+  // Only the newest look writes: one still in flight from before a change must not overwrite it.
+  let boardOVSeq = 0
   async function checkBoardOV() {
+    const mine = ++boardOVSeq
     const r = await listFrom(relayHttpCandidates(LOCAL_RELAY, '', httpOpts), [])
+    if (mine !== boardOVSeq) return
     boardOV.running = !!r
     boardOV.live = r ? r.list.filter((m) => m && m.status === 'live').length : 0
     boardOV.checkedAt = Date.now()

@@ -353,15 +353,17 @@ console.log('[7b] the C0270 serving OpenVolley itself (BOARD_OPENVOLLEY=1)')
     res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify(req.url.startsWith('/api/match/list') ? { matches: list } : {}))
   })
-  await new Promise((r) => relay.listen(0, '127.0.0.1', r))
-  const localRelayUrl = `ws://127.0.0.1:${relay.address().port}`
+  // 127.0.0.2: the board also asks :5173 on the relay's host, and this machine may run something
+  // there on 127.0.0.1 (a dev server), which would answer for a relay that is gone.
+  await new Promise((r) => relay.listen(0, '127.0.0.2', r))
+  const localRelayUrl = `ws://127.0.0.2:${relay.address().port}`
 
   // Without the flag the C0270 stays as it was: the console links, nothing follows by itself.
   {
     const { app, base } = await boot({ localRelayUrl })
     await app.server.followLocalScorer()
     ok((await J(base, '/api/status')).mode !== 'lan', 'a plain C0270 follows nothing by itself')
-    eq((await J(base, '/api/status')).openvolley, null, '...and has no "Score with OpenVolley" card')
+    eq((await J(base, '/api/status')).openvolley, null, '...and has no "Score with the OpenVolley eScoresheet" card')
     await app.close()
   }
 
@@ -399,7 +401,9 @@ console.log('[8] the console')
   ok(html.includes('id="hwTag"') && html.includes('renderHardwareBrief(st.hardware)'), 'the header shows the charger')
   ok(html.includes('data-set="screenApp"') && html.includes('id="screenAppSet" hidden'), 'Settings has the screen choice, hidden until there is hardware')
   ok(html.includes('"/api/hardware/selftest"'), 'Run self-test gets the long timeout')
-  ok(html.includes('id="ovCard" class="ovcard" hidden') && html.includes('renderBoardOpenVolley(st.openvolley)'), 'Link has the "Score with OpenVolley" card, hidden unless the board serves OpenVolley')
+  ok(html.includes('id="ovCard" class="ovcard" hidden') && html.includes('renderBoardOpenVolley(st.openvolley)'), 'Link has the "Score with the OpenVolley eScoresheet" card, hidden unless the board serves OpenVolley')
+  ok(html.includes('id="ovOpenApp"') && html.includes('typeof APP_BRIDGE.openOpenVolley === "function"') && html.includes('appCall("openOpenVolley")'), '...an Open OpenVolley button only inside the tablet app that has openOpenVolley')
+  ok(html.includes('OpenVolley eScoresheet: live matches') && html.includes('↻ Find eScoresheet matches'), 'the laptop link says OpenVolley eScoresheet')
   ok(html.includes('<script src="/qrcode-generator.js"></script>') && fs.existsSync(path.join(root, 'web/qrcode-generator.js')), '...with its QR encoder shipped beside the console')
   ok(/createElementNS\(NS, "path"\)/.test(html) && !/innerHTML\s*=\s*qr\./.test(html), '...drawing the QR as SVG nodes, never as parsed markup')
   ok(!/\.innerHTML\s*=.*hw/i.test(html), 'the checks go in as text, never as markup')

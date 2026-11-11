@@ -205,7 +205,7 @@ private fun NewGamePage(g: GameController, ui: ch.kscw.pointhub.game.GamePickerU
             GameOption(label, hint, primary = i == 0, enabled = !ui.busy) { g.gameScheduled(game) }
         }
         GameOption("Another game from the schedule", "Opens the season's home games", enabled = !ui.busy) { g.gameFromLinkTab() }
-        GameOption("Link a scoresheet", "The board follows a match scored in OpenVolley", enabled = !ui.busy) { g.gameFromLinkTab() }
+        GameOption("Link the OpenVolley eScoresheet", "The board follows a match scored in OpenVolley", enabled = !ui.busy) { g.gameFromLinkTab() }
         GameOption("Manual", "Type the names, score from 0–0", enabled = !ui.busy) { g.gameManual() }
     }
     StatusLine(ui.status, ui.bad)

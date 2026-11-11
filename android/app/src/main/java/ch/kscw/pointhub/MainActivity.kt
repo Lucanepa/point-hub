@@ -45,6 +45,7 @@ import ch.kscw.pointhub.update.UpdateState
 import ch.kscw.pointhub.web.BridgeHost
 import ch.kscw.pointhub.web.ConsoleHost
 import ch.kscw.pointhub.web.ConsoleWebView
+import ch.kscw.pointhub.web.OpenVolleyLayer
 import ch.kscw.pointhub.web.OriginPolicy
 import ch.kscw.pointhub.web.PointHubBridge
 import kotlinx.coroutines.MainScope
@@ -117,6 +118,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     @Volatile override var allowlist = OriginPolicy.Allowlist(null)
         private set
     override val debug: Boolean get() = BuildConfig.DEBUG
+    /** The board's OpenVolley over the console, once the console asked for it. */
+    private var openVolley: OpenVolleyLayer? = null
 
     /** A board page has committed and has not failed since. */
     private var pageAlive = false
@@ -181,6 +184,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
 
         // Back never leaves the app: it goes back in the console's history, or does nothing.
         onBackPressedDispatcher.addCallback(this) {
+            // Over OpenVolley: back inside its pages, never out of it (‹ Point Hub does that).
+            openVolley?.takeIf { it.isShown }?.let { it.goBack(); return@addCallback }
             val wv = webView
             if (nativeActive && tab == Tab.GAME) return@addCallback
             if (wv != null && !offlineWanted && wv.canGoBack() && allowlist.isAllowed(committed.get())) wv.goBack()
@@ -585,6 +590,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
             it.destroy()
         }
         webView = null
+        openVolley?.destroy()
+        openVolley = null
         super.onDestroy()
     }
 
@@ -655,6 +662,16 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
 
     override fun openSettings() {
         main.post { openAdmin() }
+    }
+
+    override fun openOpenVolley(): Boolean {
+        val origin = OriginPolicy.openVolleyOrigin(committed.get()) ?: return false
+        main.post {
+            val layer = openVolley ?: OpenVolleyLayer(this, ConsoleWebView.userAgent(this, AppInfo.versionName(this)), BuildConfig.DEBUG)
+                .also { openVolley = it }
+            layer.show(origin)
+        }
+        return true
     }
 
     // ---------------------------------------------------------------- Native Game tab

@@ -414,6 +414,7 @@
   .ovways dt{font-size:13px;color:var(--muted);font-weight:700;margin-top:8px}
   .ovways dd{margin:2px 0 0;font-size:17px;font-weight:800;overflow-wrap:anywhere}
   .ovways a{color:inherit}
+  .ovopen{min-height:var(--tap);padding:0 18px;margin:0 2px 10px;font-weight:800}
   .ovurl{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
   .ovqr{display:block;width:148px;height:148px;background:#fff;border-radius:6px}
   .ovqr:empty{display:none}
@@ -1416,8 +1417,11 @@
            /api/status carries `openvolley`. -->
       <div id="ovCard" class="ovcard" hidden>
         <div class="linkhead">
-          <h2 class="linkh">Score with OpenVolley</h2>
+          <h2 class="linkh">Score with the OpenVolley eScoresheet</h2>
         </div>
+        <!-- In the Point Hub tablet app: OpenVolley opens over the console, still pinned, over the
+             board's Wi-Fi or the cable (BRIDGE.md "OpenVolley on the board"). -->
+        <button id="ovOpenApp" class="ovopen" type="button" hidden>Open OpenVolley</button>
         <div class="ovstat" id="ovStat" data-state="checking">
           <span class="ovdot" aria-hidden="true"></span><span id="ovStatTxt">Checking OpenVolley on the board…</span>
         </div>
@@ -1433,13 +1437,13 @@
         <p class="note">Join the board's Wi-Fi first; no internet needed. If the phone asks whether to stay on a Wi-Fi without internet, answer Yes. The board shows the match by itself once it is live.</p>
       </div>
       <div class="linkhead">
-        <h2 class="linkh">Live matches on this network</h2>
-        <button id="refreshBtn" type="button">↻ Refresh matches</button>
+        <h2 class="linkh">OpenVolley eScoresheet: live matches</h2>
+        <button id="refreshBtn" type="button">↻ Find eScoresheet matches</button>
       </div>
       <p class="note" id="relayLine" hidden></p>
       <div id="linkErrs"></div>
       <ul id="matches"></ul>
-      <p class="note" id="matchesNote">Tap “Refresh matches” to find a match an OpenVolley laptop is scoring on this network.</p>
+      <p class="note" id="matchesNote">Tap “Find eScoresheet matches” to find a match an OpenVolley eScoresheet laptop is scoring on this network.</p>
     </section>
 
     <!-- SETTINGS (Phase 2 placeholder) -->
@@ -1937,7 +1941,7 @@
         <span class="gphint">Opens the season's home games</span>
       </button>
       <button class="gpopt" id="gpLinkGame">
-        <span class="gplabel">Link a scoresheet</span>
+        <span class="gplabel">Link the OpenVolley eScoresheet</span>
         <span class="gphint">The board follows a match scored in OpenVolley</span>
       </button>
       <button class="gpopt" id="gpManual">
@@ -2668,7 +2672,7 @@
     svg.append(bg, path);
     box.appendChild(svg);
   }
-  // Link ▸ Score with OpenVolley, on a board that serves OpenVolley itself (st.openvolley). The
+  // Link ▸ Score with the OpenVolley eScoresheet, on a board that serves OpenVolley itself (st.openvolley). The
   // address is the one this console reached the board on when that is the cable, else the AP's:
   // the phones join the board's Wi-Fi.
   function renderBoardOpenVolley(ov) {
@@ -2682,6 +2686,12 @@
     if (a.getAttribute("href") !== url) { a.href = url; a.textContent = url; drawQr($("#ovQr"), url); }
     else if (!$("#ovQr").firstChild) drawQr($("#ovQr"), url);
     $("#ovHost").textContent = host;
+    const appBtn = $("#ovOpenApp");
+    appBtn.hidden = !(APP_BRIDGE && typeof APP_BRIDGE.openOpenVolley === "function");
+    if (!appBtn.dataset.wired) {
+      appBtn.dataset.wired = "1";
+      appBtn.addEventListener("click", () => { if (appCall("openOpenVolley") !== true) toast("OpenVolley could not be opened here."); });
+    }
     const stat = $("#ovStat"), txt = $("#ovStatTxt");
     let state = "checking", text = "Checking OpenVolley on the board…";
     if (ov.running === false) { state = "bad"; text = "OpenVolley on the board is not answering. Scoring by hand still works."; }
@@ -3985,7 +3995,7 @@
       });
       list.innerHTML = "";
       // The error line already says why the list is empty; "No matches found" under it is noise.
-      if (!matches.length) { note.textContent = errors.length ? "" : "No match on the scorer laptop yet. Open the match there, then tap Refresh."; return; }
+      if (!matches.length) { note.textContent = errors.length ? "" : "No match in the OpenVolley eScoresheet yet. Open the match there, then tap Find eScoresheet matches."; return; }
       note.textContent = "";
       for (const m of matches) {
         const li = document.createElement("li");
@@ -3993,7 +4003,7 @@
         // Every field here is whatever answered at RELAY_HTTP_URL, so none of it goes near
         // innerHTML. `label` was already built with textContent; `id` was not, and it is the same
         // kind of string — one crafted `id` in a match list ran script on this origin, where the
-        // scorer PIN sits in localStorage, the moment the operator tapped "Refresh matches".
+        // scorer PIN sits in localStorage, the moment the operator tapped "Find eScoresheet matches".
         const info = document.createElement("div"); info.className = "info";
         const label = document.createElement("div"); label.className = "label";
         label.textContent = m.label || String(m.id);
