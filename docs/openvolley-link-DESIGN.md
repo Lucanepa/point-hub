@@ -81,6 +81,18 @@ laptop today.
   laptop relay today; OpenVolley's own game and referee PINs guard the match, the scorer PIN
   guards the console.
 
+## Easy matches do not reach the board yet
+
+OpenVolley 3.0.20 sends an Easy match to a relay only on a Point Hub board's own screen
+(`relayMatchKey`: `easy` and not `window.__OV_POINTHUB_BOARD__` → no key). A phone or tablet
+scoring an Easy match against the C0270 therefore publishes nothing, and the board shows
+nothing (seen in Chromium, 11.11.2026). Test matches and official matches work.
+
+Setting that flag from the board is no fix: it also blocks pinch zoom and the small-screen gate,
+which phones need. The fix belongs in OpenVolley: let an Easy match publish to a **local** relay
+(`isLocalRelayUrl`, which already keeps test matches off the cloud), whoever serves the page.
+Not done; it is the owner's call.
+
 ## Phases
 
 1. **Board hosts OpenVolley** (built) —
@@ -96,7 +108,9 @@ laptop today.
    - `BOARD_OPENVOLLEY=1`: the C0270 follows the one live match on `ws://127.0.0.1:8080` by
      itself (the Point Hub board's `followLocalScorer`, now also without hardware).
    - Tests: `test/point-hub-selftest.mjs` [7b]; `E2E_RELAYS=board` in `test/e2e-live.mjs`, passed
-     24/24 against the 3.0.20 bundle in a network namespace with no internet.
+     24/24 against the 3.0.20 bundle in a network namespace with no internet. In Chromium, no
+     internet: a test match scored at 390 × 844 and at 1280 × 800 from `:5173` was on the board
+     about 1 s later (mode lan, 3:1); an Easy match was not (above).
 2. **"Score with OpenVolley" on the console** — Link tab card: the board's relay running or not,
    the address and a QR for "app" (server address) and "browser" (URL); the panel's idle QR can
    point there too. Hall card and hall guide: one line per device.
