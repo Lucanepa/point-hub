@@ -104,6 +104,26 @@ if [ -f "$APP_DIST/pointhub.apk" ] && [ -f "$APP_DIST/version.json" ]; then
 else
   echo "  tablet app: no android/dist/pointhub.apk + version.json here — the board keeps whatever it has"
 fi
+# OpenVolley on the board (docs/openvolley-link-DESIGN.md), when this checkout has a bundle from
+# tools/build-openvolley-web.sh: the newest dist-openvolley/openvolley-web-<version>.tar.gz goes to
+# /home/pi/openvolley-web/<version>, unpacked beside the old one, and `current` flips to it in one
+# rename, so the service never starts from a half-copied tree. The last 3 versions stay for a
+# rollback (point `current` back). Restarted only where setup-openvolley-web.sh enabled it.
+OVW=$(ls -1 "$REPO"/dist-openvolley/openvolley-web-*.tar.gz 2>/dev/null | sort -V | tail -1 || true)
+if [ -n "$OVW" ]; then
+  OVV=$(basename "$OVW" .tar.gz); OVV=${OVV#openvolley-web-}
+  ssh "${J[@]}" "$BOARD" "mkdir -p /home/pi/openvolley-web"
+  scp "${J[@]}" "$OVW" "$BOARD:/home/pi/openvolley-web/.incoming.tar.gz"
+  ssh "${J[@]}" "$BOARD" "set -e; cd /home/pi/openvolley-web
+    rm -rf .unpack && mkdir .unpack && tar -xzf .incoming.tar.gz -C .unpack && rm -f .incoming.tar.gz
+    rm -rf '$OVV' && mv '.unpack/openvolley-web-$OVV' '$OVV' && rmdir .unpack
+    ln -sfn '$OVV' .current.new && mv -T .current.new current
+    ls -1d [0-9]* 2>/dev/null | sort -V | head -n -3 | while read -r old; do [ \"\$old\" = '$OVV' ] || rm -rf -- \"\$old\"; done
+    if systemctl is-enabled --quiet pointhub-openvolley 2>/dev/null; then sudo systemctl restart pointhub-openvolley; echo '  OpenVolley $OVV shipped, restarted'
+    else echo '  OpenVolley $OVV shipped (service not set up: provisioning/setup-openvolley-web.sh)'; fi"
+else
+  echo "  OpenVolley: no dist-openvolley/openvolley-web-*.tar.gz here — the board keeps whatever it has"
+fi
 # Layouts the panel reads off the card. They live in the VENDOR's folder, not under $DEST, and
 # the panel process re-lists that folder on every SetLayout — so a new screen is a file drop and
 # needs no restart. Nothing was copying these at all, which is how 33_kscw_clock.xml came to exist

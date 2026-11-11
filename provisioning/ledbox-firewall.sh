@@ -123,6 +123,13 @@ build() { # $1 = iptables or ip6tables
   a $B -A $CHAIN -i wlan0 -p tcp --dport 53   -j ACCEPT
   [ "$v6" = 0 ] && a $B -A $CHAIN -i wlan0 -p udp --dport 67 -j ACCEPT   # DHCP server for clients
   [ "$v6" = 0 ] && a $B -A $CHAIN -i wlan0 -p icmp --icmp-type echo-request -j ACCEPT
+  # OpenVolley on the C0270 (setup-openvolley-web.sh): tablets and phones on the AP score against
+  # the board's own web app and relay, 5173 and 8080. Set in /etc/default/ledbox-firewall; unset on
+  # the Point Hub board (no AP) and on a C0270 without it, which then have exactly the rules above.
+  for extra in ${WLAN0_EXTRA_PORTS:-}; do
+    case "$extra" in ''|*[!0-9]*) continue ;; esac
+    a $B -A $CHAIN -i wlan0 -p tcp --dport "$extra" -j ACCEPT
+  done
 
   # ── eth0: the board's network port — the console tablet's cable (USB-C Ethernet adapter), a
   #    laptop, or the old Pi link. Management path and the fallback default route. Tablet or laptop
@@ -140,8 +147,9 @@ build() { # $1 = iptables or ip6tables
   # Using the bare IP instead gets a certificate warning, because the cert is for the name.
   a $B -A $CHAIN -i eth0 -p tcp --dport 8891 -j ACCEPT
   # The Point Hub board running OpenVolley on its screen: the referee, bench and livescore tablets
-  # on the cable reach its relay here. Only ever eth0: wlan1 (the hall) never gets these. Set in
-  # /etc/default/ledbox-firewall; unset on the C0270, which then has exactly the rules above.
+  # on the cable reach its relay here, and on a C0270 with setup-openvolley-web.sh the board's own.
+  # Only ever eth0: wlan1 (the hall) never gets these. Set in /etc/default/ledbox-firewall; unset,
+  # the board has exactly the rules above.
   for extra in ${ETH0_EXTRA_PORTS:-}; do
     case "$extra" in ''|*[!0-9]*) continue ;; esac
     a $B -A $CHAIN -i eth0 -p tcp --dport "$extra" -j ACCEPT

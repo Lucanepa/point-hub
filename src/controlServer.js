@@ -146,7 +146,7 @@ const PROBE_BODIES = {
 // setting.ini's [DISPLAY] block: the board's panel geometry for /api/status.board.caps.
 const SETTING_INI = PANEL_PATHS.settingIni
 
-export function createControlServer({ hardware = null, localRelayUrl = null, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, hostname = null, settingIni = SETTING_INI }) {
+export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, hostname = null, settingIni = SETTING_INI }) {
   const opt = (k) => (settings ? settings.values[k] : undefined)
   // Where match state lives. Defaults beside the bridge, but the appliance passes it explicitly so
   // a test can be pointed at a temp dir instead of the board's real history (see startAppliance).
@@ -2386,7 +2386,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   server.runHardwareSelfTest = runHardwareSelfTest
 
   // The board's own OpenVolley on its touchscreen: nobody is at a second device to link the board to
-  // the match, so it follows the local relay by itself. Only the console rules it out: after an
+  // the match, so it follows the local relay by itself. The same on a C0270 that serves OpenVolley
+  // itself (BOARD_OPENVOLLEY=1, provisioning/setup-openvolley-web.sh): the scorer is on a phone or
+  // tablet in OpenVolley, not at the console. On the touchscreen board only the console rules it out: after an
   // appliance restart the start-screen choice is gone, and with no OpenVolley running there is no
   // relay to find anyway. Only ever a LIVE
   // match, only one at a time, and never over a hand-scored game in play or a countdown. A match that
@@ -2395,7 +2397,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
   let localRelayTimer = null
   let localLinking = false
   async function followLocalScorer() {
-    if (localLinking || (screenNow || opt('screenApp')) === 'console' || !ledbox || ledbox.ready !== true || countdown) return
+    if (localLinking || (!boardOpenVolley && (screenNow || opt('screenApp')) === 'console') || !ledbox || ledbox.ready !== true || countdown) return
     const { mode, matchId } = sourceManager.status
     if (mode !== 'lan' && !ledbox._idle && matchInPlay(sourceManager.getState())) return
     localLinking = true
@@ -2426,9 +2428,18 @@ export function createControlServer({ hardware = null, localRelayUrl = null, sou
     if (localRelayTimer.unref) localRelayTimer.unref()
   }
   server.followLocalScorer = followLocalScorer
+  // The C0270 with OpenVolley on the board: the same follow, with no hardware behind it.
+  // Its own timer: on the C0270 startHardware's one runs too, but only acts where the hardware is.
+  let boardFollowTimer = null
+  server.startLocalFollow = () => {
+    if (!boardOpenVolley || boardFollowTimer) return
+    boardFollowTimer = setInterval(() => { followLocalScorer().catch(() => {}) }, 3000)
+    if (boardFollowTimer.unref) boardFollowTimer.unref()
+  }
 
   server.stopBackground = () => {
     if (localRelayTimer) clearInterval(localRelayTimer)
+    if (boardFollowTimer) clearInterval(boardFollowTimer)
     if (hardware) hardware.stop()
     if (matchUpload) matchUpload.stop()
     gameSheet.stop()

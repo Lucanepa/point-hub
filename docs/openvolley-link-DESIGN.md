@@ -1,7 +1,7 @@
 # Score in OpenVolley, show it on Point Hub — design
 
-Status: **design, nothing built yet** (11.11.2026). For the C0270; the DIY board already runs
-OpenVolley on its own screen. Phase 1 is the first thing to build.
+Status: **phase 1 built** (11.11.2026, not yet on the board). For the C0270; the DIY board already runs
+OpenVolley on its own screen. How to install it: README, "OpenVolley on the board (C0270)".
 
 The goal: score the match in OpenVolley on a PC, a tablet or a phone, and the Point Hub board
 shows it. It must work **with no internet** in the hall.
@@ -83,12 +83,20 @@ laptop today.
 
 ## Phases
 
-1. **Board hosts OpenVolley** — `pointhub-openvolley.service` (`node server.js`, `PORT=5173`,
-   `WS_PORT=8080`), a build step that takes `dist/` + `server.js` + `lanRelayCore` + `ws` from
-   an OpenVolley release tag into `/opt/openvolley-web/<version>` (symlink, as `/opt/nodejs`),
-   `deploy-board.sh` installs it on the C0270, firewall ports on `wlan0`. Test: the e2e
-   test (`npm run test:e2e`) with the relay on the board, scorer in Chromium at phone and tablet
-   size, no network namespace, board follows.
+1. **Board hosts OpenVolley** (built) —
+   - `tools/build-openvolley-web.sh <version>`: `git archive` of the release tag (no `.env`, no
+     `VITE_*`, as desktop.yml), `npm ci` + `vite build`, then `dist/` + `server.js` +
+     `lanRelayCore` + the two `.cjs` cores + `ws` (3.8 MB for 3.0.20) and a smoke test.
+   - `deploy-board.sh` ships the newest bundle to `/home/pi/openvolley-web/<version>`, flips
+     `current`, keeps 3, restarts the service where it is set up.
+   - `provisioning/pointhub-openvolley.service` and `setup-openvolley-web.sh` (`--check`,
+     `--apply`, `--rollback`): service, `WLAN0_EXTRA_PORTS` / `ETH0_EXTRA_PORTS` = 5173 8080 in
+     `/etc/default/ledbox-firewall` (applied through `install-firewall.sh` and its auto-rollback),
+     `BOARD_OPENVOLLEY=1` in the bridge's `.env`. Refuses a Point Hub board.
+   - `BOARD_OPENVOLLEY=1`: the C0270 follows the one live match on `ws://127.0.0.1:8080` by
+     itself (the Point Hub board's `followLocalScorer`, now also without hardware).
+   - Tests: `test/point-hub-selftest.mjs` [7b]; `E2E_RELAYS=board` in `test/e2e-live.mjs`, passed
+     24/24 against the 3.0.20 bundle in a network namespace with no internet.
 2. **"Score with OpenVolley" on the console** — Link tab card: the board's relay running or not,
    the address and a QR for "app" (server address) and "browser" (URL); the panel's idle QR can
    point there too. Hall card and hall guide: one line per device.
