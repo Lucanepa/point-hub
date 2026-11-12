@@ -83,4 +83,13 @@ bench 08.11 over the Waveshare 10.1" DSI screen; `pointhub-screen` still runs ei
 ## Security list before any hall use
 
 Remove the bench's passwordless sudo (`/etc/sudoers.d/010_pi-nopasswd`; `020_pointhub` stays), change
-the Pi password, and remove the laptop's bench key.
+the Pi password, and remove the laptop's bench key. One script does all of it, plus SSH without tunnels
+and the control-network lock (no internet through the board):
+
+```bash
+sudo bash ledbox-bridge/provisioning/point-hub/harden-for-hall.sh            # --check
+sudo bash ledbox-bridge/provisioning/point-hub/harden-for-hall.sh --apply    # from a terminal: asks the new password
+```
+
+Add the club's admin key to `authorized_keys` first: the bench key is refused if it is the only one.
+Write the new password into the club vault; from then on root needs it.

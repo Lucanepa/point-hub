@@ -21,6 +21,7 @@ otherwise drift apart:
     python3 docs/make-hall-guide.py --wifi-pass 'secret'  # or pass the passphrase explicitly
     python3 docs/make-hall-guide.py --only card --pdf     # just one of them
     python3 docs/make-hall-guide.py -o /tmp/guide.html    # preview the guide somewhere else
+    python3 docs/make-hall-guide.py --private-wifi --pdf  # no Wi-Fi password and no Wi-Fi QR on paper
 
 Then print the PDF (or the HTML from a browser): guide A4, card A5 double-sided flipped on the
 SHORT edge. Deps: qrcode + Pillow, same as firmware/idle-crest-qr/gen_qr.py (which renders the
@@ -96,6 +97,32 @@ def wifi_qr_data_uri(ssid, passphrase):
     # a different network than the one printed underneath it.
     esc = lambda s: "".join("\\" + c if c in "\\;,:\"" else c for c in s)
     return qr_data_uri(f"WIFI:T:WPA;S:{esc(ssid)};P:{esc(passphrase)};;")
+
+
+def no_wifi_qr_data_uri():
+    """--private-wifi: where the Wi-Fi QR was, a plain square that says to ask — same size, so the
+    layout (and the card's two-page fit) does not move."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        sys.exit("missing deps: pip install qrcode pillow")
+    img = Image.new("RGB", (PX, PX), "white")
+    from PIL import ImageFont
+    try:
+        font = ImageFont.load_default(size=26)
+    except TypeError:  # Pillow < 10.1: no sizes for the built-in font
+        font = ImageFont.load_default()
+    d = ImageDraw.Draw(img)
+    d.rectangle([4, 4, PX - 5, PX - 5], outline="black", width=4)
+    lines = ["Wi-Fi password:", "ask the coach", "or the club", "(not printed)"]
+    y = PX // 2 - len(lines) * 18
+    for ln in lines:
+        w = d.textlength(ln, font=font)
+        d.text(((PX - w) / 2, y), ln, fill="black", font=font)
+        y += 36
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
 def check_inline_pngs(html, label):
@@ -224,9 +251,15 @@ def main():
     ap.add_argument("--only", choices=sorted(ARTEFACTS), help="render just one artefact")
     ap.add_argument("-o", "--out", help="output path; only valid with --only (or for the guide)")
     ap.add_argument("--pdf", action="store_true", help="also print each artefact to PDF via Chrome")
+    ap.add_argument("--private-wifi", action="store_true",
+                    help="print NO Wi-Fi password and no Wi-Fi QR: the volunteer asks the coach or the club "
+                         "(the board's Wi-Fi password stays private; only people who are told it can join)")
     a = ap.parse_args()
 
-    passphrase = a.wifi_pass or from_vault()
+    if a.private_wifi:
+        passphrase = "password: ask the coach"
+    else:
+        passphrase = a.wifi_pass or from_vault()
     if not passphrase:
         sys.exit("empty passphrase — refusing to render a guide that cannot work")
 
@@ -242,7 +275,7 @@ def main():
 
     # One QR render shared by both — same SSID, same passphrase, so two renders could only differ
     # by being out of step with each other.
-    qr_uri = wifi_qr_data_uri(SSID, passphrase)
+    qr_uri = no_wifi_qr_data_uri() if a.private_wifi else wifi_qr_data_uri(SSID, passphrase)
     ctrl_uri = qr_data_uri(CONTROLLER_URL)
 
     for name in wanted:

@@ -28,7 +28,8 @@ const LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
 //   '172.24.1.23'               -> { ok, value: '172.24.1.23' }   (ws, port 8080)
 //   'Laptop.local:9000'         -> { ok, value: 'laptop.local:9000' }
 //   'ws://10.0.0.5:8080/'       -> { ok, value: '10.0.0.5:8080' } (a pasted URL is fine)
-//   'wss://backend.openvolley.app' -> { ok, value: 'wss://backend.openvolley.app' }
+//   'wss://backend.openvolley.app' -> { ok, value: 'wss://backend.openvolley.app' } (OpenVolley's own server)
+//   'example.com', '8.8.8.8'    -> { ok: false, error }          (not on the hall network)
 //   anything else               -> { ok: false, error }
 // The canonical value is what settings.json stores, and what relayWsUrl() turns into a URL.
 export function parseRelayAddress(input) {
@@ -56,8 +57,33 @@ export function parseRelayAddress(input) {
   if (isIp ? !IPV4_RE.test(host) : !(host.length <= 253 && host.split('.').every((l) => LABEL_RE.test(l)))) {
     return { ok: false, error: `"${host.slice(0, 40)}" is not an IP address or a host name` }
   }
+  // Only a relay in the hall (or OpenVolley's own server): the board must never be turned into a
+  // way out to an arbitrary internet host, not even by someone with the scorer PIN.
+  if (!isLocalRelayHost(host)) {
+    return { ok: false, error: `"${host.slice(0, 40)}" is not on the hall network. Use the scorer laptop's local address, like 172.24.1.23` }
+  }
   const hp = port != null ? `${host}:${port}` : host
   return { ok: true, value: secure ? `wss://${hp}` : hp }
+}
+
+// OpenVolley's own relay on the internet: the one remote host a scorer laptop address may name.
+export const CLOUD_RELAY_HOSTS = new Set(['backend.openvolley.app'])
+
+// Whether a relay host is on the hall's own networks (or OpenVolley's server): loopback, private
+// and link-local IPv4, the tailnet range, and local names (.local, .lan, .home.arpa, .internal,
+// .localhost, or a single label). The same idea as OpenVolley's isLocalRelayUrl.
+export function isLocalRelayHost(host) {
+  const h = String(host || '').toLowerCase().replace(/\.$/, '')
+  if (!h) return false
+  if (CLOUD_RELAY_HOSTS.has(h)) return true
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h)
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])]
+    return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
+      (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127)
+  }
+  if (!h.includes('.')) return true
+  return /\.(local|lan|home\.arpa|internal|localhost)$/.test(h)
 }
 
 // The relay WebSocket URL for a canonical address (see parseRelayAddress). A plain address gets
