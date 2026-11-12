@@ -200,6 +200,15 @@ sudo bash ledbox-bridge/provisioning/lock-control-network.sh --apply
 3. **DNS**: dnsmasq stops asking upstream (`no-resolv`), so devices get only the board's own names and
    cannot tunnel through DNS questions — skipped, and said so, if the board's own lookups use dnsmasq.
 
+Two more doors are closed in code: **Settings ▸ Scorer laptop address** takes only hall addresses
+(private IPs, the tailnet, `.local` names) or OpenVolley's own server, so even a PIN holder cannot point
+the board at an internet host; and SSH allows **no tunnels** (`AllowTcpForwarding no`, `PermitTunnel no`,
+in `harden-board.sh` and the Point Hub board's `harden-for-hall.sh`).
+
+To keep the board's Wi-Fi password off paper, print the hall card with
+`python3 docs/make-hall-guide.py --private-wifi --pdf` and turn off **Settings ▸ Show the connect QR codes**
+(the panel's QR carries the password): then only people who are told it can join.
+
 `test/control-network-selftest.mjs` proves layer 1 in a network namespace (a fake board with forwarding
 and NAT on: the phone is cut off, the board keeps its uplink). The Point Hub board's `setup-board.sh`
 runs layers 1–3 itself; its cable's dnsmasq answers no DNS at all (`port=0`).

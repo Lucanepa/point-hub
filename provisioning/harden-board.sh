@@ -56,6 +56,13 @@ ChallengeResponseAuthentication no
 PermitRootLogin prohibit-password
 MaxAuthTries 3
 X11Forwarding no
+# No tunnels: the board must never be a way out to the internet or the hall LAN, not even for
+# someone holding a key (ssh -L/-R/-D, -J through the board, tun devices).
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+AllowAgentForwarding no
+PermitTunnel no
+GatewayPorts no
 EOF
   # `Include sshd_config.d/*` must actually be honoured, else this file is inert.
   if ! grep -qE '^\s*Include\s+/etc/ssh/sshd_config\.d/\*' /etc/ssh/sshd_config; then

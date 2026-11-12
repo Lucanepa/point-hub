@@ -24,6 +24,13 @@ console.log('\n[1] what "Scorer laptop address" accepts')
   eq(v('ws://10.0.0.5:8080/'), { ok: true, value: '10.0.0.5:8080' }, 'a pasted ws:// URL loses the scheme and the slash')
   eq(v('http://10.0.0.5'), { ok: true, value: '10.0.0.5' }, 'a pasted http:// URL is the same laptop')
   eq(v('wss://backend.openvolley.app'), { ok: true, value: 'wss://backend.openvolley.app' }, 'wss:// is kept (a relay on the internet)')
+  // The board is never a way out to the internet: only hall addresses and OpenVolley's own server.
+  for (const bad of ['example.com', '8.8.8.8', 'wss://evil.example', 'ws://1.1.1.1:8080', '172.32.0.1', 'backend.openvolley.app.evil.com', '192.169.1.1']) {
+    eq(v(bad).ok, false, `"${bad}" is refused: not on the hall network`)
+  }
+  for (const good of ['172.24.1.23', '192.168.5.60:9000', '10.0.0.5', 'laptop.local', 'scorer', '100.101.102.103', '169.254.10.1']) {
+    eq(v(good).ok, true, `"${good}" is a hall address`)
+  }
   for (const bad of ['256.1.1.1', '1.2.3', '10.0.0.5:0', '10.0.0.5:70000', 'laptop:abc', 'ftp://x', 'a b', 'x/y', 'user@host', '-bad.host', 'x'.repeat(120), '::1']) {
     const r = v(bad)
     ok(r.ok === false && typeof r.error === 'string' && r.error.length > 0, `refused: ${JSON.stringify(bad.slice(0, 30))} (${r.error})`)
