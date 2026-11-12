@@ -21,6 +21,8 @@
 #   ./setup-wlan1-client.sh --forget-login   # remove that one again
 #   ./setup-wlan1-client.sh --hotspot ["SSID"] # a volunteer's phone hotspot (default KSCW-Board), PSK asked
 #   ./setup-wlan1-client.sh --forget-hotspot # remove that one again
+#   ./setup-wlan1-client.sh --router ["SSID"] # the club's own Wi-Fi router in the hall (default KSCW_eScoresheet), PSK asked
+#   ./setup-wlan1-client.sh --forget-router  # remove that one again
 set -uo pipefail
 
 CON=ledbox-uplink
@@ -620,7 +622,7 @@ hotspot() {
     IFS= read -r pass < "$HOTFILE"
     echo "  passphrase from $HOTFILE"
   elif [ -t 0 ]; then
-    IFS= read -r -s -p "  passphrase for '$ssid' (as printed on the hall card): " pass; echo
+    IFS= read -r -s -p "  passphrase for '$ssid': " pass; echo
   else
     echo "!! nothing staged at $HOTFILE and no terminal to ask on — use: ssh -t <board> ..."; exit 1
   fi
@@ -669,10 +671,33 @@ route-metric=$HOT_METRIC"
   fi
   body=""
   shred1 "$HOTFILE"
-  nmcli -t -f NAME,AUTOCONNECT-PRIORITY connection show 2>/dev/null | grep -E "^(ledbox-uplink|hall-login|$HOT_CON|hall-uplink):" \
+  nmcli -t -f NAME,AUTOCONNECT-PRIORITY connection show 2>/dev/null | grep -E "^(ledbox-uplink|kscw-router|hall-login|phone-hotspot|$HOT_CON|hall-uplink):" \
     | sort -t: -k2 -nr | sed 's/^/  order: /'
-  echo "  not brought up now. When the phone's hotspot is on, it joins by itself — at once if wlan1 is idle,"
+  echo "  not brought up now. When '$ssid' is on, the board joins it by itself — at once if wlan1 is idle,"
   echo "  else at its next reconnect:  sudo nmcli connection up $HOT_CON"
+}
+
+# The club's own router in the hall (a TP-Link mobile Wi-Fi with a SIM): the uplink the club runs
+# itself, so it goes ABOVE every hall network and the phone hotspot (priority 9, metric 52), below
+# only the house (ledbox-uplink, 10). Its own connection 'kscw-router', so the volunteer phone
+# fallback ('phone-hotspot', KSCW-Board) stays as it is. Same rules as the hotspot otherwise: WPA2,
+# any band, the passphrase asked (ssh -t) or read from $ROUTERFILE (/run/ledbox/router, 0600,
+# shredded), never into this repo. Undo: --forget-router.
+router() {
+  HOT_CON=kscw-router
+  HOT_PRIO=9
+  HOT_METRIC=52
+  HOT_KEYFILE=$NM_DIR/${HOT_CON}.nmconnection
+  HOTFILE=${ROUTERFILE:-/run/ledbox/router}
+  hotspot "${1:-KSCW_eScoresheet}"
+}
+
+forget_router() {
+  if sudo nmcli connection delete kscw-router >/dev/null 2>&1; then
+    echo "  'kscw-router' deleted"
+  else
+    echo "  no 'kscw-router' connection"
+  fi
 }
 
 forget_hotspot() {
@@ -738,5 +763,7 @@ case "${1:---check}" in
   --forget-login) forget_login ;;
   --hotspot) hotspot "${2:-}" ;;
   --forget-hotspot) forget_hotspot ;;
-  *) echo "usage: $0 [--check|--scan|--connect \"SSID\" [sae|wpa-psk] [a|bg|auto]|--verify|--hall [\"SSID\"]|--login [\"SSID\"]|--forget-login|--hotspot [\"SSID\"]|--forget-hotspot]"; exit 1 ;;
+  --router) router "${2:-}" ;;
+  --forget-router) forget_router ;;
+  *) echo "usage: $0 [--check|--scan|--connect \"SSID\" [sae|wpa-psk] [a|bg|auto]|--verify|--hall [\"SSID\"]|--login [\"SSID\"]|--forget-login|--hotspot [\"SSID\"]|--forget-hotspot|--router [\"SSID\"]|--forget-router]"; exit 1 ;;
 esac

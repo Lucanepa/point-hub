@@ -180,6 +180,20 @@ connection for a higher-priority one that appears later: a board already on Free
 its next reconnect (`sudo nmcli connection up phone-hotspot`). The phone giving the hotspot must not
 be the console tablet.
 
+### The club's router in the hall — `--router`
+
+```bash
+ssh -t <board> bash ledbox-bridge/provisioning/setup-wlan1-client.sh --router   # asks the passphrase
+ssh <board> bash ledbox-bridge/provisioning/setup-wlan1-client.sh --forget-router
+```
+
+NM connection `kscw-router` for the SSID **`KSCW_eScoresheet`** (the club's TP-Link mobile Wi-Fi):
+WPA2, no band pin, priority **9** — above every hall network and the phone hotspot, below only the
+house (10) — metric 52. Its own connection, so `phone-hotspot` stays as the volunteer fallback. The
+passphrase is asked for or read from `/run/ledbox/router` (0600, shredded), never into this repo; it is
+in the club vault. On the router: WPA2-PSK (or WPA2/WPA3 mixed, not WPA3 only), SSID visible, no
+auto power-off.
+
 ### Adapter notes
 
 Tested with a Netgear A6210 (MT7612U, USB `0846:9053`). No driver install: `mt76x2u` is in-kernel
