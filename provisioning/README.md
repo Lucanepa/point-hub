@@ -180,6 +180,30 @@ connection for a higher-priority one that appears later: a board already on Free
 its next reconnect (`sudo nmcli connection up phone-hotspot`). The phone giving the hotspot must not
 be the console tablet.
 
+### Control network only — no internet through the board
+
+The board's own Wi-Fi (`ledbox_C0270`) and the cable (`192.168.5.1`) are for controlling the board.
+A device on them reaches the board's own pages (console, OpenVolley) and nothing else: not the
+internet, not the hall network, not the tailnet.
+
+```bash
+sudo bash ledbox-bridge/provisioning/install-firewall.sh            # the forward drop, then verify
+sudo bash ledbox-bridge/provisioning/install-firewall.sh --commit
+sudo bash ledbox-bridge/provisioning/lock-control-network.sh        # --check: the evidence
+sudo bash ledbox-bridge/provisioning/lock-control-network.sh --apply
+```
+
+1. **Firewall** (`ledbox-firewall.sh`): every packet the board would forward is dropped, IPv4 and IPv6,
+   FORWARD policy DROP, our chain ahead of tailscale's. Holds even with vendor forwarding and NAT on.
+2. **Kernel**: `net.ipv4.ip_forward=0`, `net.ipv6.conf.all.forwarding=0`
+   (`/etc/sysctl.d/90-ledbox-no-forward.conf`); refused while tailscale advertises routes.
+3. **DNS**: dnsmasq stops asking upstream (`no-resolv`), so devices get only the board's own names and
+   cannot tunnel through DNS questions — skipped, and said so, if the board's own lookups use dnsmasq.
+
+`test/control-network-selftest.mjs` proves layer 1 in a network namespace (a fake board with forwarding
+and NAT on: the phone is cut off, the board keeps its uplink). The Point Hub board's `setup-board.sh`
+runs layers 1–3 itself; its cable's dnsmasq answers no DNS at all (`port=0`).
+
 ### The club's router in the hall — `--router`
 
 ```bash

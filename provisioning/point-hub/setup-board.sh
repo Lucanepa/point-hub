@@ -157,6 +157,11 @@ echo "== firewall: OpenVolley's ports on the cable only"
 echo 'ETH0_EXTRA_PORTS="5173 8080"' > /etc/default/ledbox-firewall
 install -m 0755 "$REPO/provisioning/ledbox-firewall.sh" /usr/local/sbin/ledbox-lan-guard.sh
 install -m 0644 "$REPO/provisioning/ledbox-lan-guard.service" /etc/systemd/system/ledbox-lan-guard.service
+
+echo "== control network: the cable never routes to the internet"
+# The firewall above drops every forwarded packet; this turns forwarding off in the kernel too and
+# checks dnsmasq answers no DNS on the cable (port=0). See lock-control-network.sh.
+bash "$REPO/provisioning/lock-control-network.sh" --apply || echo "!! lock-control-network.sh failed — see above"
 install -m 0644 "$REPO/provisioning/ledbox-buffer-tmpfs.service" /etc/systemd/system/ledbox-buffer-tmpfs.service
 install -m 0755 "$REPO/provisioning/ledbox-buffer-tmpfs.sh" /usr/local/sbin/ledbox-buffer-tmpfs.sh
 
