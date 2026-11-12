@@ -10,6 +10,11 @@
 #   wlan0  the board's own AP — the console tablet lives here; MUST NOT BREAK
 #   lo     the bridge reaches the panel at LEDBOX_HOST=127.0.0.1:8889 through here
 #
+# Nothing is ever ROUTED: the board's own Wi-Fi and cable are for control only, so a device on
+# them reaches the board and never the internet, the hall LAN or the tailnet through it. FORWARD is
+# DROP with our own drop-all chain first (see build()); lock-control-network.sh also turns kernel
+# forwarding off and stops the board's DNS answering internet names. test/control-network-selftest.mjs
+#
 # Everything is built in a private LEDBOX-IN chain. INPUT itself is only ever *appended* to,
 # never flushed, because tailscale owns `-j ts-input` there and re-adds it on its own schedule —
 # an iptables-restore of the whole filter table would silently delete tailscale's rules.
@@ -29,6 +34,7 @@ set -uo pipefail
 IPT='/usr/sbin/iptables -w 5'
 IP6='/usr/sbin/ip6tables -w 5'
 CHAIN=LEDBOX-IN
+FWD=LEDBOX-FWD
 
 # A COUNTER, not a 0/1 flag: build() decides whether to apply the DROP policy by comparing the
 # count before and after its own rules, and with a flag the v6 pass could not tell "v4 already
@@ -177,6 +183,23 @@ build() { # $1 = iptables or ip6tables
   # Hook the chain in exactly once, and only ever append — see the note at the top about ts-input.
   $B -C INPUT -j $CHAIN 2>/dev/null || a $B -A INPUT -j $CHAIN
 
+  # ── NO ROUTING, EVER. The board's own Wi-Fi (C0270 wlan0) and its cable (eth0) are for control
+  #    only: a phone, tablet or laptop on them reaches the board and nothing behind it — not the
+  #    hall uplink, not the tailnet, not the internet. The board is an appliance, not a router, so
+  #    every packet it would FORWARD is dropped, whatever the vendor image, a sysctl or a NAT rule
+  #    says (lock-control-network.sh also turns forwarding off in the kernel; this holds even if
+  #    something turns it back on). Its own chain, put FIRST in FORWARD — tailscale keeps ts-forward
+  #    there, and a board that is no subnet router or exit node needs none of it — and the FORWARD
+  #    policy DROP, so nothing is forwarded even if the chain were flushed.
+  $B -N $FWD 2>/dev/null || true
+  a $B -F $FWD
+  a $B -A $FWD -j DROP
+  if [ "$($B -S FORWARD 2>/dev/null | sed -n 2p)" != "-A FORWARD -j $FWD" ]; then
+    while $B -D FORWARD -j $FWD 2>/dev/null; do :; done
+    a $B -I FORWARD 1 -j $FWD
+  fi
+  a $B -P FORWARD DROP
+
   # Default-deny goes on LAST, and only if every allow above actually landed. The chain was
   # flushed at the top of this function, so a DROP policy over a half-built chain is a board with
   # no console, no SSH and no tailscale — reachable only by ladder. If anything failed we force
@@ -218,6 +241,7 @@ echo "  hashlimit: v4=$(hl "$HAVE_HASHLIMIT4") v6=$(hl "$HAVE_HASHLIMIT6")"
 echo "  v4 INPUT policy: $($IPT -S INPUT | head -1)"
 echo "  v6 INPUT policy: $($IP6 -S INPUT | head -1)"
 echo "  rules in $CHAIN: v4=$($IPT -S $CHAIN | grep -c '^-A') v6=$($IP6 -S $CHAIN | grep -c '^-A')"
+echo "  forwarding: v4 $($IPT -S FORWARD | head -1 | sed 's/^-P FORWARD //'), first rule '$($IPT -S FORWARD | sed -n 2p)'; v6 $($IP6 -S FORWARD | head -1 | sed 's/^-P FORWARD //')"
 # Exit on the FINAL state, not on RC. RC counts every failed call including ones a retry then
 # fixed, and a unit showing `failed` over a board that is in fact fully firewalled sends someone
 # poking at netfilter during a match for no reason. The count is still reported either way.
