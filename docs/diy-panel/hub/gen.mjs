@@ -47,8 +47,8 @@ parts.push(xh('J11', 2, 'down', H, 69, ['SW', 'SW'], 'Pi 5 J2 pads'));
 
 // MCP23017 module ≈ 28 × 21.5, label side up: one row of 10 on one long edge, two rows of 10 on
 // the other, 15.24 from the single row to the nearer double row. Paper check 13.11: single row at
-// the top, VCC at the left; the silk reads "B7/A7", so B is the inner row, A the outer (beep test
-// GND → right end of each double row confirms it: the A row has GND).
+// the top, VCC at the left; B is the inner row, A the outer (beep test: single-row GND beeps only
+// with the right end of the outer row, which is GND on the A row).
 const mx = 20, my = 14;
 const single = ['VCC', 'GND', 'SCL', 'SDA', 'NC', 'NC', 'RST', 'A0', 'A1', 'A2'];
 const rowB = ['B7', 'B6', 'B5', 'B4', 'B3', 'B2', 'B1', 'B0', 'INTB', 'VCC'];
@@ -181,7 +181,7 @@ const bom = [
 ];
 const checks = [
   'Print page 1 at <b>100 % / actual size</b> (not “fit to page”). The 50 mm bar must measure 50 mm, the board 90 × 60.',
-  '<b>MCP23017</b>, label side up: single row at the top, VCC at the left (checked 13.11). Beep test: one probe on single-row GND, the other on the right end of the inner row, then the outer row. The one that beeps is row A; the drawing says outer.',
+  '<b>MCP23017</b>, label side up: single row at the top, VCC at the left (checked 13.11). Beep test 13.11: single-row GND beeps only with the right end of the <b>outer</b> row, so the outer row is port A, as drawn.',
   '<b>DS3231</b>, chip side up: the four plain holes at its right end (SCL SDA VCC GND) sit over U2, SCL on the square (checked 13.11). Cell side up is mirrored: SCL would land on GND.',
   'Put the <b>INA226</b>, <b>AOD4184</b> and <b>button</b> next to the paper where they will sit in the box: are the J-sockets on the right side for their wires?',
   'Tell me what moves; I make the KiCad board from the corrected positions.',
