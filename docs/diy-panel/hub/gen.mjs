@@ -63,8 +63,10 @@ const mcp = { x: mx + 4.5 * P - 14, y: my + 3.5 * P - 10.75, w: 28, h: 21.5 };
 // cannot plug into the hub. Instead 4 straight male pins go into the module's empty pass-through
 // holes at the other end (SCL SDA VCC GND, top to bottom) and plug into a 1 × 4 female header.
 // Header 8.5 + pin plastic 2.5 = 11 mm under the module, room for the cell holder.
-const rtc = { x: 10.5, y: 36, w: 38, h: 22 };
-const dx = rtc.x + rtc.w - 2, dy = 47 - 1.5 * P;
+// Measured on the paper 13.11: ≈ 40 × 24; the holes sit 2 from the short edge and 1 above the
+// middle. Moved 2 right so the old right-angle pins (≈ 8 further left) stay over the board.
+const rtc = { x: 12.5, y: 35, w: 40, h: 24 };
+const dx = rtc.x + rtc.w - 2, dy = rtc.y + rtc.h / 2 - 1 - 1.5 * P;
 const ds = ['SCL', 'SDA', 'VCC', 'GND'];
 parts.push(strip('U2', ds.map((_, i) => [dx, dy + i * P]), ds));
 
@@ -90,7 +92,7 @@ function board(detail) {
   t(mcp.x + mcp.w / 2, mcp.y + mcp.h / 2 + (detail ? 0.8 : 2.2), '28 × 21.5', detail ? 1.2 : 1.6, 'text-anchor="middle" class="dim"');
   s.push(`<rect x="${f(rtc.x)}" y="${f(rtc.y)}" width="${rtc.w}" height="${rtc.h}" class="mod2"/>`);
   t(rtc.x + rtc.w / 2 - 3, rtc.y + rtc.h / 2 - 0.5, 'U2 DS3231, chip side up', detail ? 1.4 : 1.8, 'text-anchor="middle" class="modt"');
-  t(rtc.x + rtc.w / 2 - 3, rtc.y + rtc.h / 2 + 2, '38 × 22 · 11 mm above the board', detail ? 1.2 : 1.6, 'text-anchor="middle" class="dim"');
+  t(rtc.x + rtc.w / 2 - 3, rtc.y + rtc.h / 2 + 2, '40 × 24 · 11 mm above the board', detail ? 1.2 : 1.6, 'text-anchor="middle" class="dim"');
   t(rtc.x + 1, rtc.y + 2.6, '← old right-angle pins, unused', detail ? 1 : 1.3, 'class="dim"');
 
   for (const p of parts) {
@@ -137,7 +139,7 @@ function board(detail) {
       if (detail) t(bx + 1.2, ay + 0.3, p.what, 0.8, 'class="what"');
     }
   }
-  t(52, 41.5, 'Point Hub · hub L1 · v0.2', detail ? 1.2 : 1.5, 'class="silk"');
+  t(55, 41.5, 'Point Hub · hub L1 · v0.3', detail ? 1.2 : 1.5, 'class="silk"');
   return s.join('\n');
 }
 
@@ -180,7 +182,7 @@ const bom = [
 const checks = [
   'Print page 1 at <b>100 % / actual size</b> (not “fit to page”). The 50 mm bar must measure 50 mm, the board 90 × 60.',
   '<b>MCP23017</b>, label side up: single row at the top, VCC at the left (checked 13.11). Beep test: one probe on single-row GND, the other on the right end of the inner row, then the outer row. The one that beeps is row A; the drawing says outer.',
-  '<b>DS3231</b>, chip side up: the four plain holes at its right end (SCL SDA VCC GND) sit over U2 (checked 13.11: the right-angle header is the other way round and points sideways).',
+  '<b>DS3231</b>, chip side up: the four plain holes at its right end (SCL SDA VCC GND) sit over U2, SCL on the square (checked 13.11). Cell side up is mirrored: SCL would land on GND.',
   'Put the <b>INA226</b>, <b>AOD4184</b> and <b>button</b> next to the paper where they will sit in the box: are the J-sockets on the right side for their wires?',
   'Tell me what moves; I make the KiCad board from the corrected positions.',
 ];
@@ -217,7 +219,7 @@ text { font-family: system-ui, sans-serif; fill: #111; }
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Point Hub · hub board L1 · paper check</title><style>${css}</style></head><body>
 <section class="page">
   <h1>Hub board, Level 1 — paper check at 1:1</h1>
-  <p class="sub">Point Hub board · v0.2 · 13.11.2026 · seen from the parts side · print at 100 %</p>
+  <p class="sub">Point Hub board · v0.3 · 13.11.2026 · seen from the parts side · print at 100 %</p>
   <div class="center">${svg(1, false)}</div>
   <div class="bar"><div class="b"></div><span>50 mm: check with the ruler before you lay parts on it</span></div>
   <h2>What to check</h2>
