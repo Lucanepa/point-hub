@@ -277,5 +277,10 @@ eScoresheet** shows an **Open OpenVolley** button when `PointHubApp.openOpenVoll
   The process is bound to the board's network, so this works over the board's Wi-Fi and the cable.
 - That WebView loads exactly that origin (`Allowlist(only = …)`) and has **no** `PointHubApp`
   bridge. Back goes back inside OpenVolley's pages and never leaves it.
-- File downloads from OpenVolley (scoresheet PDF) are not handled in the layer yet.
+- **Second windows:** OpenVolley's own windows (the scoresheet that makes the match-end PDF) open as
+  further WebViews on top, opener intact; **‹ Close** or the page's `window.close()` removes them.
+- **Downloads:** OpenVolley's `<a download>` blob saves (scoresheet PDF, match ZIP, exports) go to
+  `Downloads/OpenVolley` on the tablet (MediaStore, no permission; the app's own Downloads before
+  Android 10), through a document-start script and a web message channel (`PointHubFiles`) that only
+  the OpenVolley origin gets. Plain links to files are refused with a toast.
 
