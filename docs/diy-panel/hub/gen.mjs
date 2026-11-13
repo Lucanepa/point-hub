@@ -45,9 +45,10 @@ parts.push(xh('J10', 4, 'right', W, 41, ['RING', 'RING', 'SW', 'SW'], 'button: r
 parts.push(xh('J7', 2, 'down', H, 58, ['GPA0', 'GND'], 'horn (AOD4184)'));
 parts.push(xh('J11', 2, 'down', H, 69, ['SW', 'SW'], 'Pi 5 J2 pads'));
 
-// MCP23017 module ≈ 28 × 21.5: one row of 10 on one long edge, two rows of 10 on the other,
-// 15.24 from the single row to the nearer double row. Pin order: as printed on the owner's board,
-// left to right with the single row at the top — CHECK on the paper.
+// MCP23017 module ≈ 28 × 21.5, label side up: one row of 10 on one long edge, two rows of 10 on
+// the other, 15.24 from the single row to the nearer double row. Paper check 13.11: single row at
+// the top, VCC at the left; the silk reads "B7/A7", so B is the inner row, A the outer (beep test
+// GND → right end of each double row confirms it: the A row has GND).
 const mx = 20, my = 14;
 const single = ['VCC', 'GND', 'SCL', 'SDA', 'NC', 'NC', 'RST', 'A0', 'A1', 'A2'];
 const rowB = ['B7', 'B6', 'B5', 'B4', 'B3', 'B2', 'B1', 'B0', 'INTB', 'VCC'];
@@ -57,12 +58,15 @@ parts.push(strip('U1b', rowB.map((_, i) => [mx + i * P, my + 6 * P]), rowB));
 parts.push(strip('U1a', rowA.map((_, i) => [mx + i * P, my + 7 * P]), rowA));
 const mcp = { x: mx + 4.5 * P - 14, y: my + 3.5 * P - 10.75, w: 28, h: 21.5 };
 
-// DS3231 module (ZS-042) ≈ 38 × 22 on its right-angle 6-pin header; the module lies over the
-// board to the right of the socket. Order GND VCC SDA SCL SQW 32K, top to bottom — CHECK.
-const dx = 12, dy = 47 - 2.5 * P;
-const ds = ['GND', 'VCC', 'SDA', 'SCL', 'SQW', '32K'];
+// DS3231 module (HW-084 / ZS-042) ≈ 38 × 22, chip side up, cell holder underneath. Paper check
+// 13.11: its right-angle header (32K SQW SCL SDA VCC GND, top to bottom) points out sideways and
+// cannot plug into the hub. Instead 4 straight male pins go into the module's empty pass-through
+// holes at the other end (SCL SDA VCC GND, top to bottom) and plug into a 1 × 4 female header.
+// Header 8.5 + pin plastic 2.5 = 11 mm under the module, room for the cell holder.
+const rtc = { x: 10.5, y: 36, w: 38, h: 22 };
+const dx = rtc.x + rtc.w - 2, dy = 47 - 1.5 * P;
+const ds = ['SCL', 'SDA', 'VCC', 'GND'];
 parts.push(strip('U2', ds.map((_, i) => [dx, dy + i * P]), ds));
-const rtc = { x: dx - 1.5, y: 47 - 11, w: 38, h: 22 };
 
 // Resistors, ¼ W axial, pads 10.16 apart.
 const res = [['R1', '10k', 'OE pull-up'], ['R2', '150', 'STATUS red'], ['R3', '47', 'STATUS green'], ['R4', '47', 'STATUS blue'],
@@ -85,8 +89,9 @@ function board(detail) {
   t(mcp.x + mcp.w / 2, mcp.y + mcp.h / 2 - (detail ? 1.2 : 0.2), 'U1 MCP23017', detail ? 1.5 : 1.9, 'text-anchor="middle" class="modt"');
   t(mcp.x + mcp.w / 2, mcp.y + mcp.h / 2 + (detail ? 0.8 : 2.2), '28 × 21.5', detail ? 1.2 : 1.6, 'text-anchor="middle" class="dim"');
   s.push(`<rect x="${f(rtc.x)}" y="${f(rtc.y)}" width="${rtc.w}" height="${rtc.h}" class="mod2"/>`);
-  t(rtc.x + rtc.w / 2 + 3, rtc.y + rtc.h / 2 - 0.5, 'U2 DS3231 (lies over the board)', detail ? 1.4 : 1.8, 'text-anchor="middle" class="modt"');
-  t(rtc.x + rtc.w / 2 + 3, rtc.y + rtc.h / 2 + 2, '38 × 22', detail ? 1.2 : 1.6, 'text-anchor="middle" class="dim"');
+  t(rtc.x + rtc.w / 2 - 3, rtc.y + rtc.h / 2 - 0.5, 'U2 DS3231, chip side up', detail ? 1.4 : 1.8, 'text-anchor="middle" class="modt"');
+  t(rtc.x + rtc.w / 2 - 3, rtc.y + rtc.h / 2 + 2, '38 × 22 · 11 mm above the board', detail ? 1.2 : 1.6, 'text-anchor="middle" class="dim"');
+  t(rtc.x + 1, rtc.y + 2.6, '← old right-angle pins, unused', detail ? 1 : 1.3, 'class="dim"');
 
   for (const p of parts) {
     if (p.kind === 'xh') {
@@ -132,7 +137,7 @@ function board(detail) {
       if (detail) t(bx + 1.2, ay + 0.3, p.what, 0.8, 'class="what"');
     }
   }
-  t(52, 41.5, 'Point Hub · hub L1 · v0.1', detail ? 1.2 : 1.5, 'class="silk"');
+  t(52, 41.5, 'Point Hub · hub L1 · v0.2', detail ? 1.2 : 1.5, 'class="silk"');
   return s.join('\n');
 }
 
@@ -160,21 +165,22 @@ const nets = [
   ['STATUS', 'U1 GPA1 → R2 150 → J8·1 red; GPA2 → R3 47 → J8·2 green; GPA3 → R4 47 → J8·3 blue; J8·4 = common cathode'],
   ['LINK', 'U1 GPA4 → R5 150 → J9·1 red; GPA5 → R6 47 → J9·2 green; GPA6 → R7 47 → J9·3 blue; J9·4 = common cathode'],
   ['Button', 'J10·3 → J11·1, J10·4 → J11·2 (straight through to the Pi 5 J2 pads; either way round)'],
-  ['Unused', 'U1 port B, INTA, INTB, GPA7 (input); U2 SQW, 32K'],
+  ['Unused', 'U1 port B, INTA, INTB, GPA7 (input); the DS3231 right-angle header (32K, SQW and a second copy of the bus)'],
 ];
 const bom = [
   ['Hub PCB', '90 × 60, 2 layers, 1.6 mm, JLCPCB (5 pieces is the minimum order)', 'after this check, in KiCad'],
   ['JST-XH sockets, top entry, through-hole', '2-pin × 2, 4-pin × 8, 6-pin × 1', 'to buy'],
   ['JST-XH pigtails, pre-crimped, 20–30 cm', '2-pin × 2, 4-pin × 8, 6-pin × 1 (no crimping needed)', 'to buy'],
-  ['Female headers 2.54 mm', '1 × 10 (×1), 2 × 10 (×1), 1 × 6 (×1)', 'to buy (or from a kit)'],
+  ['Female headers 2.54 mm, 8.5 mm tall', '1 × 10 (×1), 2 × 10 (×1), 1 × 4 (×1)', 'to buy (or from a kit)'],
+  ['Male pin header 2.54 mm, straight', '1 × 4 for the DS3231 (the MCP23017 bag has its own)', 'kit'],
   ['Dupont female housings 1-pin', '6, for the Pi end of the J1 lead', 'to buy (or cut a jumper)'],
   ['Resistors', '10k × 1, 150 × 2, 47 × 4', 'arrived 12.11'],
   ['M2.5 standoffs + screws', '4', 'kit'],
 ];
 const checks = [
   'Print page 1 at <b>100 % / actual size</b> (not “fit to page”). The 50 mm bar must measure 50 mm, the board 90 × 60.',
-  'Lay the <b>MCP23017</b> on U1 with its pins over the squares: does the single row fall on the top row, and is <b>VCC</b> at the left end? Which double row is <b>A</b> (with GND at the right end): the inner or the outer one?',
-  'Lay the <b>DS3231</b> on U2: header on the six squares, board to the right. Is <b>GND</b> the top pin? Does the cell holder face down or up?',
+  '<b>MCP23017</b>, label side up: single row at the top, VCC at the left (checked 13.11). Beep test: one probe on single-row GND, the other on the right end of the inner row, then the outer row. The one that beeps is row A; the drawing says outer.',
+  '<b>DS3231</b>, chip side up: the four plain holes at its right end (SCL SDA VCC GND) sit over U2 (checked 13.11: the right-angle header is the other way round and points sideways).',
   'Put the <b>INA226</b>, <b>AOD4184</b> and <b>button</b> next to the paper where they will sit in the box: are the J-sockets on the right side for their wires?',
   'Tell me what moves; I make the KiCad board from the corrected positions.',
 ];
@@ -211,12 +217,12 @@ text { font-family: system-ui, sans-serif; fill: #111; }
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Point Hub · hub board L1 · paper check</title><style>${css}</style></head><body>
 <section class="page">
   <h1>Hub board, Level 1 — paper check at 1:1</h1>
-  <p class="sub">Point Hub board · v0.1 · 12.11.2026 · seen from the parts side · print at 100 %</p>
+  <p class="sub">Point Hub board · v0.2 · 13.11.2026 · seen from the parts side · print at 100 %</p>
   <div class="center">${svg(1, false)}</div>
   <div class="bar"><div class="b"></div><span>50 mm: check with the ruler before you lay parts on it</span></div>
   <h2>What to check</h2>
   <ol>${checks.map((c) => `<li>${c}</li>`).join('')}</ol>
-  <p class="sub" style="margin-top:4mm">Squares = pin 1. Red outline = MCP23017 (plugs in from above). Blue outline = DS3231 (on its right-angle header, lying over the board).
+  <p class="sub" style="margin-top:4mm">Squares = pin 1. Red outline = MCP23017 (plugs in from above). Blue outline = DS3231 (on 4 straight pins, chip side up, cell underneath).
   Dashed circles = M2.5 holes, keep clear. The INA226 boards, AOD4184, PD board and button are <b>not</b> on the hub; they connect with cables.</p>
 </section>
 <section class="page">
@@ -229,6 +235,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
     <li>I²C pull-ups come from the modules. With all of them on the bus they add up: if the bus is unreliable, cut the I²C pull-up jumper on the STUSB4500 board first.</li>
     <li>The I²C ports are JST-XH, not Qwiic: through-hole, easy to solder by hand, and they lock. Wire each pigtail to the module's own pin labels (the INA226 order is VCC SDA SCL ALE GND).</li>
     <li>The J1 lead: XH-6 on the hub, six single Dupont housings on the Pi's pins 1, 4, 6, 12, 27, 28 through the tall stacking header.</li>
+    <li>DS3231: solder 4 straight male pins into its plain SCL SDA VCC GND holes, plastic on the cell side, pins pointing down (with the Pinecil, in the same session as removing the module's charging resistor “201” next to D2). Leave the right-angle header on; put tape over its pins so they touch nothing.</li>
     <li>Positions follow ruler photos (±1 mm). Nothing is ordered until the paper check is done.</li>
   </ol>
 </section>
