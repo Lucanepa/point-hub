@@ -7,8 +7,8 @@ STATUS and LINK lights, the button, the horn module, the Pi 5 power pads, the le
 
 `gen.mjs` draws it from the module sizes measured with a ruler (±1 mm) into `hub-level1.html`:
 page 1 at 1:1 to lay the real modules on, page 2 with pin names, page 3 the connections and parts.
-Nothing is ordered until the paper check is done; the KiCad board follows from the corrected
-positions.
+The paper check was done on 13.11.2026; the KiCad board in `kicad/` is built from these positions
+(`kicad/make.sh`, see `kicad/README.md`).
 
 ```bash
 node docs/diy-panel/hub/gen.mjs

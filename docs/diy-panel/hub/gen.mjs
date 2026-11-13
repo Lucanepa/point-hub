@@ -37,9 +37,9 @@ ports.forEach(([ref, what], k) => parts.push(xh(ref, 4, 'up', 0, 11 + k * 14, ['
 parts.push(xh('J1', 6, 'left', 0, 17, ['3V3', '5V', 'GND', 'SDA', 'SCL', 'OE'], 'to the Pi: pins 1, 4, 6, 27, 28, 12'));
 
 // Lights and button, right edge.
-parts.push(xh('J8', 4, 'right', W, 13, ['R', 'G', 'B', 'K'], 'STATUS light'));
-parts.push(xh('J9', 4, 'right', W, 27, ['R', 'G', 'B', 'K'], 'LINK light'));
-parts.push(xh('J10', 4, 'right', W, 41, ['RING', 'RING', 'SW', 'SW'], 'button: red, red, black, black'));
+parts.push(xh('J8', 4, 'right', W, 12, ['R', 'G', 'B', 'K'], 'STATUS light'));
+parts.push(xh('J9', 4, 'right', W, 25.5, ['R', 'G', 'B', 'K'], 'LINK light'));
+parts.push(xh('J10', 4, 'right', W, 39, ['RING', 'RING', 'SW', 'SW'], 'button: red, red, black, black'));
 
 // Horn signal and the Pi 5 power pads, bottom edge.
 parts.push(xh('J7', 2, 'down', H, 58, ['GPA0', 'GND'], 'horn (AOD4184)'));
@@ -254,3 +254,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 
 fs.writeFileSync(dir + 'hub-level1.html', html);
 console.log('wrote', dir + 'hub-level1.html');
+
+// The same positions for the KiCad board (kicad/build_pcb.py reads this).
+fs.writeFileSync(dir + 'layout.json', JSON.stringify({ W, H, parts, holes, mcp, rtc }, null, 1) + '\n');
+console.log('wrote', dir + 'layout.json');
