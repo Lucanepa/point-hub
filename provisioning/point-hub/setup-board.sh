@@ -19,7 +19,7 @@ echo "== packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y python3-pil i2c-tools build-essential curl rsync dnsmasq iptables \
-  labwc squeekboard wlr-randr chromium libglib2.0-bin dbus
+  labwc squeekboard wlr-randr chromium libglib2.0-bin dbus swaybg plymouth
 # The eScoresheet runs natively on the screen. The arm64 .deb is a workflow artifact, not on APT: put
 # it in the repo folder before this script, or install it later.
 for deb in "$REPO"/openvolley-escoresheet_*_arm64.deb; do
@@ -32,12 +32,46 @@ sed -i '/^# >>> point-hub/,/^# <<< point-hub/d' "$CFG"
 cat >> "$CFG" <<'CONF'
 # >>> point-hub (provisioning/point-hub/setup-board.sh)
 enable_uart=0
-dtparam=i2c_vc=on
+# I2C0 on GPIO0/1 for the hub. dtparam=i2c_vc=on is the Pi 4's switch and does nothing on the Pi 5
+# (bench, 10 Nov 2026): the Pi 5 needs its own overlay.
+dtoverlay=i2c0-pi5
 dtoverlay=i2c-rtc,ds3231,i2c0
 gpio=18=op,dh
+# No rainbow square: the boot picture is ours (Plymouth, firmware/screen-splash)
+disable_splash=1
 # <<< point-hub
 CONF
 sed -i 's/ *console=serial0,[0-9]*//' /boot/firmware/cmdline.txt
+# A quiet boot behind the Point Hub picture: no kernel text, no cursor, no Raspberry logos.
+# shellcheck source=../lib-provision.sh
+. "$REPO/provisioning/lib-provision.sh"
+# console=tty3: the kernel's and systemd's own messages (also at power-off, bench 16.11) go to a
+# console nobody looks at, not the screen's tty1; ssh is the way in for debugging.
+lp_cmdline_edit "console=tty3 quiet splash plymouth.ignore-serial-consoles logo.nologo vt.global_cursor_default=0 loglevel=3 systemd.show_status=false rd.udev.log_level=3" ""
+# The screen's mode from the very first picture: the boot picture at the screen's size and 60 Hz,
+# the rate the touchscreen runs at (pointhub-screen). The MINIX offers 120 Hz first, so the boot
+# came up at 120 and labwc's switch to 60 re-synced the screen ("HDMI" on the MINIX, bench 16.11).
+for c in /sys/class/drm/card*-HDMI-A-*; do
+  [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
+  m=$(head -1 "$c/modes" 2>/dev/null); [ -n "$m" ] || continue
+  lp_cmdline_edit "video=${c##*/card[0-9]-}:${m}@60" ""
+  break
+done
+
+echo "== boot picture (firmware/screen-splash)"
+rsync -a --delete "$REPO/firmware/screen-splash/plymouth/" /usr/share/plymouth/themes/pointhub/
+plymouth-set-default-theme -R pointhub
+# The picture stays until the screen is up: the boot reaches its end in ~5 s, long before labwc,
+# and Plymouth's own quit there showed the boot text in between (bench 16.11). Plymouth now quits
+# only in pointhub-screen.service (ExecStartPre: plymouth quit --retain-splash).
+mkdir -p /etc/systemd/system/plymouth-quit.service.d
+cat > /etc/systemd/system/plymouth-quit.service.d/pointhub.conf <<'EOF'
+[Service]
+ExecStart=
+ExecStart=/bin/true
+EOF
+mkdir -p /opt/pointhub/screen-splash
+install -m 0644 "$REPO"/firmware/screen-splash/splash.html "$REPO"/firmware/screen-splash/splash-*.png /opt/pointhub/screen-splash/
 
 echo "== Node $NODE_VERSION (arm64)"
 if ! /opt/nodejs/bin/node -v 2>/dev/null | grep -qx "v$NODE_VERSION"; then

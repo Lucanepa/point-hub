@@ -12,6 +12,7 @@
 set -u
 STATE=${POINTHUB_STATE:-/data/pointhub}
 SCREEN_HOME=${POINTHUB_SCREEN_HOME:-/data/screen}
+SPLASH=${POINTHUB_SPLASH:-/opt/pointhub/screen-splash}
 OPENVOLLEY=/usr/bin/openvolley-escoresheet
 choice=$(cat "$STATE/screen-app" 2>/dev/null || echo ask)
 # The start screen's choice, written with this boot's id: a power-up asks again.
@@ -127,7 +128,10 @@ case "$choice" in
     done
     app=(/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland
          --enable-wayland-ime --password-store=basic --no-first-run --force-device-scale-factor="$zoom"
+         --default-background-color=ff111827 --disable-gpu-compositing
          "http://127.0.0.1:8890$page") ;;
+    # (navy background + CPU compositing: no white frame when the window opens over the start
+    # picture, as the splash window below; the console's pages are light work for the CPU)
 esac
 
 {
@@ -136,6 +140,10 @@ esac
 <labwc_config>
   <windowRules>
     <windowRule identifier="*" serverDecoration="no"><action name="Maximize"/></windowRule>
+    <!-- The starting picture (splash below) closes a few seconds after the app's window appears:
+         the console's Chromium or the eScoresheet. It sits under the app, so this only frees it. -->
+    <windowRule identifier="chromium"><action name="Execute" command="sh -c 'sleep 5; pkill -f -- --class=pointhub-splash'"/></windowRule>
+    <windowRule identifier="*penvolley*"><action name="Execute" command="sh -c 'sleep 5; pkill -f -- --class=pointhub-splash'"/></windowRule>
   </windowRules>
 XML
   [ -z "$touch_matrix" ] || printf '  <libinput>\n    <device category="touch"><calibrationMatrix>%s</calibrationMatrix></device>\n  </libinput>\n' "$touch_matrix"
@@ -198,6 +206,21 @@ turn=normal
   [ -z "$out" ] || [ "$rotate" = 0 ] || printf 'wlr-randr --output %q --transform %q\n' "$out" "$rotate"
   # shellcheck disable=SC2086 # others: a list of output names
   [ -z "$out" ] || { printf '%q' "$keep"; printf ' %q' "$out" "$mode" "$rate" "$turn" $others; printf ' &\n'; }
+  # While the app starts (power-up, a switch, after Quit): the Point Hub picture, first still
+  # (swaybg is up at once), then moving with a progress bar and phrases (splash.html in its own
+  # Chromium, under the app). It closes itself when the app's window appears (rc.xml), at the latest
+  # after two minutes. Navy background + CPU compositing: else Chromium's window shows one white
+  # frame before the page (bench 16.11, frame grabs); the page is simple, the CPU draws it easily.
+  if [ -r "$SPLASH/splash.html" ]; then
+    still="$SPLASH/splash-1920x1200.png"
+    case "$mode" in *x800|*x768|*x600) still="$SPLASH/splash-1280x800.png" ;; esac
+    printf 'swaybg -c %q -m fill -i %q &\n' '#111827' "$still"
+    printf '%q ' /usr/bin/chromium --kiosk --class=pointhub-splash --user-data-dir="$SCREEN_HOME/.cache/pointhub-splash" \
+      --noerrdialogs --disable-infobars --ozone-platform=wayland --no-first-run --password-store=basic \
+      --force-device-scale-factor=1 --default-background-color=ff111827 --disable-gpu-compositing \
+      "--app=file://$SPLASH/splash.html"
+    printf '&\n(sleep 120; pkill -f -- --class=pointhub-splash) &\n'
+  fi
   printf 'squeekboard &\n'
   printf '('
   printf ' %q' "${app[@]}"

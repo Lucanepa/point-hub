@@ -1,0 +1,109 @@
+# Point Hub boot picture (firmware/screen-splash): the mark held still in the middle while a
+# volleyball, a whistle and a basketball run three crossed elliptical orbits around it (svrz_rc's
+# spinner, with a third orbit), the name under it, a progress bar that never stands still and a
+# phrase that changes every 1.6 s (as wiedisync's loading screen). The sprites are drawn for a
+# 1200-px-high screen (gen.mjs) and scaled to this one; splash.html is the same picture in a browser.
+
+Window.SetBackgroundTopColor(0.0667, 0.0941, 0.1529);      # #111827
+Window.SetBackgroundBottomColor(0.0667, 0.0941, 0.1529);
+
+w = Window.GetWidth();
+h = Window.GetHeight();
+k = h / 1200;
+
+fun sized(name) {
+  img = Image(name);
+  if (k != 1) img = img.Scale(img.GetWidth() * k, img.GetHeight() * k);
+  return img;
+}
+
+cx = w / 2;
+cy = h / 2 - 90 * k;
+box = 558;                       # BOX in gen.mjs: the sprites' layout, all times k
+label_y = box / 2 + 40;          # LABEL_Y, BAR_Y, WORD_Y in gen.mjs
+bar_y = label_y + 90;
+word_y = bar_y + 40;
+
+tracks = sized("tracks.png");
+# Every sprite is kept in a variable: Plymouth frees an unreferenced sprite and it vanishes
+# (the orbit tracks, the mark and the name never showed, bench 16.11).
+tracks_s = Sprite(tracks);
+tracks_s.SetPosition(cx - tracks.GetWidth() / 2, cy - tracks.GetHeight() / 2, 1);
+mark = sized("mark.png");
+mark_s = Sprite(mark);
+mark_s.SetPosition(cx - mark.GetWidth() / 2, cy - mark.GetHeight() / 2, 2);
+label = sized("label.png");
+label_s = Sprite(label);
+label_s.SetPosition(cx - label.GetWidth() / 2, cy + label_y * k, 2);
+
+bar_track = sized("bar-track.png");
+bar_x = cx - bar_track.GetWidth() / 2;
+bar_track_s = Sprite(bar_track);
+bar_track_s.SetPosition(bar_x, cy + bar_y * k, 2);
+bar_fill_img = Image("bar-fill.png");
+bar_fill = Sprite();
+bar_fill.SetPosition(bar_x, cy + bar_y * k, 3);
+bar_h = bar_track.GetHeight();
+bar_w = bar_track.GetWidth();
+
+# The phrases: words/w00.png .. w24.png (words.json), one picked at random every 1.6 s.
+n_words = 25;
+for (i = 0; i < n_words; i++) {
+  name = "words/w";
+  if (i < 10) name += "0";
+  word_img[i] = sized(name + i + ".png");
+}
+word = Sprite();
+word_shown = -1;
+
+sat[0] = sized("ball.png");          # orbit tilted +60
+sat[1] = sized("whistle.png");       # -60
+sat[2] = sized("basketball.png");    # 0
+tilt_cos[0] = 0.5;  tilt_sin[0] = 0.8660254;
+tilt_cos[1] = 0.5;  tilt_sin[1] = -0.8660254;
+tilt_cos[2] = 1;    tilt_sin[2] = 0;
+for (i = 0; i < 3; i++) sat_s[i] = Sprite(sat[i]);
+
+rx = 234 * k;                    # svrz_rc's 78 x 32 at 3x
+ry = 96 * k;
+lap = 2.8 * 50;                  # 2.8 s a lap at Plymouth's 50 refreshes a second
+frame = 0;
+boot_progress = 0;
+shown = 0.08;
+
+fun progress_cb(duration, progress) {
+  global.boot_progress = progress;
+}
+Plymouth.SetBootProgressFunction(progress_cb);
+
+# Plymouth script: an assignment inside a function makes a local variable, so the state that
+# must last from one frame to the next is written as global.* (else the orbits stand still).
+fun refresh() {
+  global.frame++;
+  for (i = 0; i < 3; i++) {
+    t = frame * 2 * Math.Pi / lap + i * 2 * Math.Pi / 3;
+    x = rx * Math.Cos(t) * tilt_cos[i] - ry * Math.Sin(t) * tilt_sin[i];
+    y = rx * Math.Cos(t) * tilt_sin[i] + ry * Math.Sin(t) * tilt_cos[i];
+    # over the mark, as in svrz_rc: a ball cut in half behind it reads as a fault
+    sat_s[i].SetPosition(cx + x - sat[i].GetWidth() / 2, cy + y - sat[i].GetHeight() / 2, 4);
+  }
+  # The bar: the boot's own progress (from the last boots' timings), never below a slow climb,
+  # so it always moves; the boot fills the first half, splash.html takes over at 50 %.
+  if (shown < 1) global.shown += (1 - shown) * 0.003;
+  p = boot_progress;
+  if (p < shown) p = shown;
+  if (p > 1) p = 1;
+  p = p * 0.5;
+  fw = Math.Int(bar_w * p);
+  if (fw < bar_h) fw = bar_h;
+  bar_fill.SetImage(bar_fill_img.Scale(fw, bar_h));
+  if (frame % 80 == 1) {
+    pick = Math.Int(Math.Random() * n_words);
+    if (pick == word_shown) pick = (pick + 1) % n_words;
+    global.word_shown = pick;
+    word.SetImage(word_img[pick]);
+    word.SetPosition(cx - word_img[pick].GetWidth() / 2, cy + word_y * k, 2);
+  }
+}
+
+Plymouth.SetRefreshFunction(refresh);

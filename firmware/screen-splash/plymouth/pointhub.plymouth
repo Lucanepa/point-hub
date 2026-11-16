@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Point Hub
+Description=Point Hub board: the mark with a volleyball and a whistle on crossed orbits
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/pointhub
+ScriptFile=/usr/share/plymouth/themes/pointhub/pointhub.script
