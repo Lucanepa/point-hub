@@ -225,6 +225,7 @@ export async function startAppliance(config = loadConfig()) {
 
   const server = createControlServer({
     hardware,
+    adminPinFile: path.resolve(stateDir, 'admin-pin'),
     localRelayUrl: config.localRelayUrl || null, // test hook: the board's own OpenVolley relay
     boardOpenVolley: config.boardOpenVolley === true, // the C0270 serves OpenVolley itself
     sourceManager,

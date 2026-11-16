@@ -19,6 +19,7 @@ import { PER_SPORT_KEYS, PIN_RE } from './settings.js'
 import { log, LEVELS } from './logStore.js'
 import { systemInfo, parseThrottled } from './systemInfo.js'
 import { PinGate, safeEqual } from './pinGate.js'
+import { makeAdminPin } from './adminPin.js'
 import { makeCableTrust } from './cableTrust.js'
 import { boardIdentity, readPanelGeometry } from './boardIdentity.js'
 import os from 'node:os'
@@ -149,7 +150,7 @@ const PROBE_BODIES = {
 // setting.ini's [DISPLAY] block: the board's panel geometry for /api/status.board.caps.
 const SETTING_INI = PANEL_PATHS.settingIni
 
-export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, hostname = null, settingIni = SETTING_INI }) {
+export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, adminPinFile = null, hostname = null, settingIni = SETTING_INI }) {
   // What the last look at the board's own OpenVolley found (BOARD_OPENVOLLEY=1 only; see
   // checkBoardOV). Up here because status() reads it.
   const boardOV = { running: null, live: 0, checkedAt: null }
@@ -266,6 +267,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   // loopback request stays an ordinary one.
   // What the start screen chose since power-up. Null: what Settings says.
   let screenNow = null
+  const adminPin = adminPinFile ? makeAdminPin(adminPinFile) : null
   const localScreen = (req) => {
     if (!hardware || !hardware.present || !req.socket) return false
     const isLoop = (a) => /^(::ffff:)?127\.0\.0\.1$/.test(String(a)) || a === '::1'
@@ -1191,6 +1193,27 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       screenNow = app
       if (typeof server.onScreenChoice === 'function') server.onScreenChoice(app)
       return sendJson(res, 200, { ok: true, app })
+    }
+    // POST /api/admin { pin } — the start screen's Admin button: opens a terminal on the board's own
+    // screen after the Admin PIN (a hash in <state>/admin-pin, see adminPin.js). Never from the
+    // network: only the board's own screen, like /api/screen. Its own lockout, not the scorer PIN's.
+    if (pathname === '/api/admin' && req.method === 'POST') {
+      if (!localScreen(req)) return sendJson(res, 403, { error: "Only the board's own screen can open Admin" })
+      if (!adminPin) return sendJson(res, 501, { error: 'Admin is not set up on this board' })
+      const body = await readJson(req)
+      const r = adminPin.check(body && body.pin)
+      if (r.unset) return sendJson(res, 501, { error: 'No Admin PIN set on this board' })
+      if (r.locked) {
+        clog.warn(`Admin PIN locked for ${Math.round(r.retryAfterMs / 1000)}s`, { ip: clientIp(req) })
+        return sendJson(res, 429, { error: 'Too many tries', retryAfterMs: r.retryAfterMs })
+      }
+      if (!r.ok) {
+        clog.warn('wrong Admin PIN', { ip: clientIp(req) })
+        return sendJson(res, 403, { error: 'Wrong PIN' })
+      }
+      screenNow = 'admin'
+      if (typeof server.onScreenChoice === 'function') server.onScreenChoice('admin')
+      return sendJson(res, 200, { ok: true })
     }
     // POST /api/settings — partial update; unknown keys are dropped and numbers clamped
     if (pathname === '/api/settings' && req.method === 'POST') {

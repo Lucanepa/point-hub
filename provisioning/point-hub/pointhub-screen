@@ -115,6 +115,11 @@ case "$choice" in
     # gets is not the one WebKit drew); drawn on the GPU and handed over in shared memory, it is clean
     export WEBKIT_DMABUF_RENDERER_FORCE_SHM=1
     app=("$OPENVOLLEY") ;;
+  admin)
+    # The Admin button on the start screen (after its PIN): a terminal, with the on-screen keyboard.
+    # Closing it (exit, or Ctrl-D) goes back to the start screen.
+    force_osk=1
+    app=(/usr/bin/foot --app-id=pointhub-admin --font=monospace:size=16) ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
     exec sleep infinity ;;
@@ -143,6 +148,7 @@ esac
     <!-- The starting picture (splash below) closes a few seconds after the app's window appears:
          the console's Chromium or the eScoresheet. It sits under the app, so this only frees it. -->
     <windowRule identifier="chromium"><action name="Execute" command="sh -c 'sleep 5; pkill -f -- --class=pointhub-splash'"/></windowRule>
+    <windowRule identifier="pointhub-admin"><action name="Execute" command="sh -c 'sleep 2; pkill -f -- --class=pointhub-splash'"/></windowRule>
     <windowRule identifier="*penvolley*"><action name="Execute" command="sh -c 'sleep 5; pkill -f -- --class=pointhub-splash'"/></windowRule>
   </windowRules>
 XML
@@ -157,7 +163,7 @@ dbus-run-session -- sh -c "gsettings set org.gnome.desktop.input-sources sources
 # menu (exit 0) goes back to the start screen; a crash reopens the app. Only for OpenVolley: Chromium
 # also exits 0 when a switch closes it, and that must not wipe the choice just made.
 then_quit=
-[ "$choice" != openvolley ] || then_quit="[ \$? -ne 0 ] || rm -f $(printf %q "$STATE/screen-now"); "
+[ "$choice" != openvolley ] && [ "$choice" != admin ] || then_quit="[ \$? -ne 0 ] || rm -f $(printf %q "$STATE/screen-now"); "
 # Only the chosen screen, at 60 Hz (the MINIX offers 120 Hz first: twice the work for nothing)
 others=
 for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
@@ -222,6 +228,8 @@ turn=normal
     printf '&\n(sleep 120; pkill -f -- --class=pointhub-splash) &\n'
   fi
   printf 'squeekboard &\n'
+  # A terminal never asks for text input, so squeekboard stays hidden: show it by hand once it is up.
+  [ -z "${force_osk:-}" ] || printf "(for _ in 1 2 3 4 5 6 7 8; do sleep 1; busctl --user call sm.puri.OSK0 /sm/puri/OSK0 sm.puri.OSK0 SetVisible b true 2>/dev/null && break; done) &\\n"
   printf '('
   printf ' %q' "${app[@]}"
   printf '; %slabwc --exit) &\n' "$then_quit"
