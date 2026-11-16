@@ -106,23 +106,23 @@ class Budget(unittest.TestCase):
     def test_guide_chargers(self):
         # BUILD.md section 5.3: 65 W charger, tablet charging, cool box.
         b = ph.led_budget(65.0, 20.0, temp_c=25.0)
-        # (65 * 0.9 - 18) * 0.9 - 8 = 28.45 W at 5 V
-        self.assertEqual(b["ma"], 5690)
+        # (65 * 0.9 - 18) * 0.9 - 13.5 = 22.95 W at 5 V (Pi and the 16-inch screen: 13.5 W)
+        self.assertEqual(b["ma"], 4590)
         self.assertEqual(b["reasons"], [])
-        # 18 W on 9 V: no tablet allowance, dimmed but alive.
+        # 18 W on 9 V: no tablet allowance; after the Pi and the screen about 1 W is left, so dim.
         b = ph.led_budget(18.0, 9.0, temp_c=25.0)
-        self.assertEqual(b["ma"], 1316)
+        self.assertEqual(b["ma"], 216)
 
     def test_converter_caps_a_big_charger(self):
-        # 240 W cannot get more than the converter's 60 W out of the 5 V side: 52 W for the LEDs.
-        self.assertEqual(ph.led_budget(240.0, 48.0, temp_c=25.0)["ma"], 10400)
+        # 240 W cannot get more than the converter's 60 W out of the 5 V side: 46.5 W for the LEDs.
+        self.assertEqual(ph.led_budget(240.0, 48.0, temp_c=25.0)["ma"], 9300)
 
     def test_temperature_ramp(self):
         self.assertEqual(ph.derate_for_temperature(50.0), 1.0)
         self.assertAlmostEqual(ph.derate_for_temperature(55.0), 0.5)
         self.assertEqual(ph.derate_for_temperature(60.0), 0.0)
         half = ph.led_budget(65.0, 20.0, temp_c=55.0)
-        self.assertEqual(half["ma"], 2845)
+        self.assertEqual(half["ma"], 2295)
         self.assertIn("hot", half["reasons"])
 
     def test_blank_is_never_zero(self):
@@ -134,13 +134,13 @@ class Budget(unittest.TestCase):
         self.assertEqual(starved["ma"], 1)
 
     def test_no_sensor_or_contract_stays_at_the_weakest(self):
-        self.assertEqual(ph.led_budget(None, None, temp_c=25.0)["ma"], 1316)
+        self.assertEqual(ph.led_budget(None, None, temp_c=25.0)["ma"], 216)
         self.assertIn("contract unknown", ph.led_budget(None, None, temp_c=25.0)["reasons"])
         # A 100 W charger with no temperature reading must not run at full power unprotected.
-        self.assertEqual(ph.led_budget(100.0, 20.0, temp_c=None)["ma"], 1316)
+        self.assertEqual(ph.led_budget(100.0, 20.0, temp_c=None)["ma"], 216)
 
     def test_undervoltage_cuts_a_fifth(self):
-        self.assertEqual(ph.led_budget(65.0, 20.0, temp_c=25.0, undervoltage_now=True)["ma"], 4552)
+        self.assertEqual(ph.led_budget(65.0, 20.0, temp_c=25.0, undervoltage_now=True)["ma"], 3672)
 
     def test_power_file_format_is_what_flushbuffer_reads(self):
         text = ph.power_file_text(1234)
@@ -219,9 +219,9 @@ class ServiceBehaviour(unittest.TestCase):
         self.assertAlmostEqual(hw["rail"]["amps"], 2.0, delta=0.01)
         self.assertAlmostEqual(hw["env"]["temp_c"], 25.0, delta=0.2)
         self.assertTrue(hw["clock_battery_ok"])
-        self.assertEqual(hw["budget"]["ma"], 5690)
+        self.assertEqual(hw["budget"]["ma"], 4590)
         self.assertTrue(all(hw["parts"].values()), hw["parts"])
-        self.assertIn("budget_ma=5690\n", text_of(tmp, "power"))
+        self.assertIn("budget_ma=4590\n", text_of(tmp, "power"))
 
     def test_hot_box_blanks_and_goes_red_even_if_the_console_says_ready(self):
         service, _clock, tmp = make()
@@ -275,7 +275,7 @@ class ServiceBehaviour(unittest.TestCase):
         service.probe_parts()
         service.poll()
         self.assertIsNone(service.hw["bus"])
-        self.assertEqual(service.hw["budget"]["ma"], 1316)
+        self.assertEqual(service.hw["budget"]["ma"], 216)
 
     def test_bench_supply_stands_in_for_the_charger(self):
         bus = FakeBus()

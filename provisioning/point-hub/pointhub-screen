@@ -29,12 +29,28 @@ mkdir -p "$SCREEN_HOME/.config/labwc" "$SCREEN_HOME/.cache" "$SCREEN_HOME/.local
 # own resolution and the pages are enlarged instead (OPENVOLLEY_ZOOM, Chromium's scale factor): at a
 # compositor scale of 1.5, GTK 3 draws at 2 and labwc shrinks that, soft and with 78 % more pixels per
 # frame. The layouts are made for 800 px of height.
+# Without its EDID (asleep for lack of a picture, as in the gap while this restarts, or just plugged
+# in) the MINIX offers only the kernel's 1024 x 768 and less: then the size last read with an EDID.
 out= mode=
+last="$SCREEN_HOME/.config/pointhub-screen-mode"
 for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
   [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
   out=${c##*/card[0-9]-} mode=$(head -1 "$c/modes" 2>/dev/null)
+  case "$out" in
+    HDMI-A-*)
+      # (sysfs gives every file the size 0: count what it reads)
+      if [ "$(wc -c < "$c/edid" 2>/dev/null)" -gt 0 ] 2>/dev/null && [ -n "$mode" ]; then
+        printf '%s %s\n' "$out" "$mode" > "$last"
+      elif read -r o m 2>/dev/null < "$last" && [ "$o" = "$out" ]; then
+        mode=$m
+      fi ;;
+  esac
   break
 done
+# The HDMI screen not answering at all: the last one, waited for below (keep-screen).
+if [ -z "$out" ] && read -r o m 2>/dev/null < "$last"; then
+  out=$o mode=$m
+fi
 zoom=$(awk -v h="${mode#*x}" 'BEGIN { z = h / 800; if (z < 1.05) z = 1; printf "%.2f", z }')
 # The MINIX is mounted upside down, its ports at the top by the flap's hinge, so the cables barely move
 # when the flap opens: POINTHUB_SCREEN_ROTATE=180 (/etc/default/pointhub-screen) turns the picture, and
@@ -55,6 +71,33 @@ mkdir -p "$SQ_DIR"
 cp -rn /usr/share/misc/squeekboard/keyboards/. "$SQ_DIR"/ 2>/dev/null || true
 cp -r /opt/pointhub/squeekboard/. "$SQ_DIR"/ 2>/dev/null || true
 export SQUEEKBOARD_KEYBOARDSDIR="$SQ_DIR"
+# No mouse pointer, ever: a cursor theme whose every cursor is empty. labwc reads XCURSOR_THEME, GTK 3
+# (the eScoresheet, squeekboard) its GSettings key (set below), Chromium asks labwc by name.
+CUR_DIR="$SCREEN_HOME/.local/share/icons/pointhub-none/cursors"
+if [ ! -s "$CUR_DIR/default" ]; then
+  mkdir -p "$CUR_DIR"
+  printf '[Icon Theme]\nName=pointhub-none\n' > "${CUR_DIR%/cursors}/index.theme"
+  le32() { local v=$1 i; for i in 0 8 16 24; do printf "\\x$(printf %02x $(( (v >> i) & 255 )))"; done; }
+  # Xcursor: header, one table entry, one 24 x 24 image chunk at byte 28, then its pixels, all clear.
+  { printf 'Xcur'; le32 16; le32 65536; le32 1
+    le32 $((0xfffd0002)); le32 24; le32 28
+    le32 36; le32 $((0xfffd0002)); le32 24; le32 1; le32 24; le32 24; le32 0; le32 0; le32 0
+    head -c $((24 * 24 * 4)) /dev/zero; } > "$CUR_DIR/default"
+  for n in left_ptr arrow top_left_arrow text xterm ibeam vertical-text pointer hand hand1 hand2 \
+      grab grabbing openhand closedhand move fleur all-scroll crosshair cross tcross wait watch \
+      progress left_ptr_watch half-busy help question_arrow whats_this not-allowed no-drop \
+      crossed_circle forbidden circle copy dnd-copy alias dnd-link link dnd-move dnd-none \
+      dnd-ask context-menu cell plus col-resize row-resize split_h split_v ew-resize ns-resize \
+      nesw-resize nwse-resize n-resize s-resize e-resize w-resize ne-resize nw-resize se-resize \
+      sw-resize sb_h_double_arrow sb_v_double_arrow size_hor size_ver size_bdiag size_fdiag \
+      h_double_arrow v_double_arrow top_side bottom_side left_side right_side top_left_corner \
+      top_right_corner bottom_left_corner bottom_right_corner zoom-in zoom-out X_cursor pirate \
+      color-picker pencil draft right_ptr center_ptr; do
+    ln -sf default "$CUR_DIR/$n"
+  done
+fi
+export XCURSOR_THEME=pointhub-none XCURSOR_SIZE=24 \
+       XCURSOR_PATH="$SCREEN_HOME/.local/share/icons:/usr/share/icons"
 # A fixed folder, so the stick copy (pointhub-backup-stick) knows where the backups are.
 export OPENVOLLEY_BACKUP_DIR=${OPENVOLLEY_BACKUP_DIR:-/data/backups/openvolley}
 mkdir -p "$OPENVOLLEY_BACKUP_DIR"
@@ -99,21 +142,62 @@ XML
   printf '</labwc_config>\n'
 } > "$SCREEN_HOME/.config/labwc/rc.xml"
 # Team names need Ü: the Swiss layout first, kept in dconf under HOME. Writing needs a bus, reading not.
-dbus-run-session -- gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'ch'), ('xkb', 'us')]" || true
+dbus-run-session -- sh -c "gsettings set org.gnome.desktop.input-sources sources \"[('xkb', 'ch'), ('xkb', 'us')]\";
+  gsettings set org.gnome.desktop.interface cursor-theme pointhub-none" || true
 # When the app ends, labwc ends too and the unit starts everything again. Without this a crash would
 # leave labwc running with an empty screen, and systemd would see nothing wrong. Quit in OpenVolley's
 # menu (exit 0) goes back to the start screen; a crash reopens the app. Only for OpenVolley: Chromium
 # also exits 0 when a switch closes it, and that must not wipe the choice just made.
 then_quit=
 [ "$choice" != openvolley ] || then_quit="[ \$? -ne 0 ] || rm -f $(printf %q "$STATE/screen-now"); "
+# Only the chosen screen, at 60 Hz (the MINIX offers 120 Hz first: twice the work for nothing)
+others=
+for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
+  o=${c##*/card[0-9]-}
+  [ "$(cat "$c/status" 2>/dev/null)" = connected ] && [ "$o" != "$out" ] && others="$others $o"
+done
+# A screen that comes back (its power or cable out and in) gets labwc's defaults again: 120 Hz and not
+# turned (the MINIX once showed only white), and for a few seconds it may offer only 1024 x 768 (no
+# EDID yet). keep-screen looks every 2 s and puts the settings back. kanshi did not: after one replug
+# it applied nothing.
+keep="$SCREEN_HOME/.config/labwc/keep-screen"
+cat > "$keep" <<'SH'
+#!/bin/sh
+# keep-screen OUT MODE RATE TURN [OTHER...]: written by pointhub-screen. Every 2 s: OUT on, at MODE and
+# RATE Hz (RATE "-": any) once that mode is offered, turned TURN; the OTHER screens off.
+out=$1 mode=$2 rate=$3 turn=$4; shift 4
+# Ends with its labwc (same socket): logind keeps a finished session's leftovers running.
+sock="$XDG_RUNTIME_DIR/${WAYLAND_DISPLAY:-wayland-0}"
+id=$(stat -c %i "$sock" 2>/dev/null) || exit 0
+while sleep 2 && [ "$(stat -c %i "$sock" 2>/dev/null)" = "$id" ]; do
+  wlr-randr 2>/dev/null | awk -v out="$out" -v mode="$mode" -v rate="$rate" -v turn="$turn" -v others=" $* " '
+    /^[^ ]/ { name = $1; next }
+    /Enabled: yes/ { on[name] = 1 }
+    / px, .*current/ { cur[name] = $1 " " $3 }
+    $1 == mode && $2 == "px," && (rate == "-" || $3 == rate) { has[name] = 1 }
+    /Transform:/ { t[name] = $2 }
+    END {
+      for (n in on) if (index(others, " " n " ")) print "--output " n " --off"
+      if (!(out in t)) exit
+      fix = ""
+      if (!(out in on)) fix = fix " --on"
+      if (rate != "-" && has[out] && cur[out] != mode " " rate) fix = fix " --mode " mode "@" rate "Hz"
+      if (t[out] != turn) fix = fix " --transform " turn
+      if (fix != "") print "--output " out fix
+    }' | while read -r args; do wlr-randr $args; done
+done
+SH
+chmod +x "$keep"
+rate=-
+case "$out" in HDMI-A-*) rate=60.000000 ;; esac
+turn=normal
+[ "$rotate" = 0 ] || turn=$rotate
 {
-  # Only the chosen screen, at 60 Hz (the MINIX offers 120 Hz first: twice the work for nothing)
-  for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
-    o=${c##*/card[0-9]-}
-    [ "$(cat "$c/status" 2>/dev/null)" = connected ] && [ "$o" != "$out" ] && printf 'wlr-randr --output %q --off\n' "$o"
-  done
+  for o in $others; do printf 'wlr-randr --output %q --off\n' "$o"; done
   [ -z "$out" ] || printf 'wlr-randr --output %q --mode %q 2>/dev/null\n' "$out" "${mode}@60.000000Hz"
   [ -z "$out" ] || [ "$rotate" = 0 ] || printf 'wlr-randr --output %q --transform %q\n' "$out" "$rotate"
+  # shellcheck disable=SC2086 # others: a list of output names
+  [ -z "$out" ] || { printf '%q' "$keep"; printf ' %q' "$out" "$mode" "$rate" "$turn" $others; printf ' &\n'; }
   printf 'squeekboard &\n'
   printf '('
   printf ' %q' "${app[@]}"
