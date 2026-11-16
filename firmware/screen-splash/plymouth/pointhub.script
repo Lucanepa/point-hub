@@ -25,15 +25,21 @@ bar_y = label_y + 90;
 word_y = bar_y + 40;
 
 tracks = sized("tracks.png");
-Sprite(tracks).SetPosition(cx - tracks.GetWidth() / 2, cy - tracks.GetHeight() / 2, 1);
+# Every sprite is kept in a variable: Plymouth frees an unreferenced sprite and it vanishes
+# (the orbit tracks, the mark and the name never showed, bench 16.11).
+tracks_s = Sprite(tracks);
+tracks_s.SetPosition(cx - tracks.GetWidth() / 2, cy - tracks.GetHeight() / 2, 1);
 mark = sized("mark.png");
-Sprite(mark).SetPosition(cx - mark.GetWidth() / 2, cy - mark.GetHeight() / 2, 2);
+mark_s = Sprite(mark);
+mark_s.SetPosition(cx - mark.GetWidth() / 2, cy - mark.GetHeight() / 2, 2);
 label = sized("label.png");
-Sprite(label).SetPosition(cx - label.GetWidth() / 2, cy + label_y * k, 2);
+label_s = Sprite(label);
+label_s.SetPosition(cx - label.GetWidth() / 2, cy + label_y * k, 2);
 
 bar_track = sized("bar-track.png");
 bar_x = cx - bar_track.GetWidth() / 2;
-Sprite(bar_track).SetPosition(bar_x, cy + bar_y * k, 2);
+bar_track_s = Sprite(bar_track);
+bar_track_s.SetPosition(bar_x, cy + bar_y * k, 2);
 bar_fill_img = Image("bar-fill.png");
 bar_fill = Sprite();
 bar_fill.SetPosition(bar_x, cy + bar_y * k, 3);
@@ -81,12 +87,13 @@ fun refresh() {
     # over the mark, as in svrz_rc: a ball cut in half behind it reads as a fault
     sat_s[i].SetPosition(cx + x - sat[i].GetWidth() / 2, cy + y - sat[i].GetHeight() / 2, 4);
   }
-  # The bar: the boot's own progress (from the last boots' timings), never below a slow climb
-  # toward 92 %, so it always moves.
-  if (shown < 0.92) global.shown += (0.92 - shown) * 0.004;
+  # The bar: the boot's own progress (from the last boots' timings), never below a slow climb,
+  # so it always moves; the boot fills the first half, splash.html takes over at 50 %.
+  if (shown < 1) global.shown += (1 - shown) * 0.003;
   p = boot_progress;
   if (p < shown) p = shown;
   if (p > 1) p = 1;
+  p = p * 0.5;
   fw = Math.Int(bar_w * p);
   if (fw < bar_h) fw = bar_h;
   bar_fill.SetImage(bar_fill_img.Scale(fw, bar_h));

@@ -45,7 +45,9 @@ sed -i 's/ *console=serial0,[0-9]*//' /boot/firmware/cmdline.txt
 # A quiet boot behind the Point Hub picture: no kernel text, no cursor, no Raspberry logos.
 # shellcheck source=../lib-provision.sh
 . "$REPO/provisioning/lib-provision.sh"
-lp_cmdline_edit "quiet splash plymouth.ignore-serial-consoles logo.nologo vt.global_cursor_default=0 loglevel=3 systemd.show_status=false rd.udev.log_level=3" ""
+# console=tty3: the kernel's and systemd's own messages (also at power-off, bench 16.11) go to a
+# console nobody looks at, not the screen's tty1; ssh is the way in for debugging.
+lp_cmdline_edit "console=tty3 quiet splash plymouth.ignore-serial-consoles logo.nologo vt.global_cursor_default=0 loglevel=3 systemd.show_status=false rd.udev.log_level=3" ""
 
 echo "== boot picture (firmware/screen-splash)"
 rsync -a --delete "$REPO/firmware/screen-splash/plymouth/" /usr/share/plymouth/themes/pointhub/
