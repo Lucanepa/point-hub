@@ -118,6 +118,7 @@ case "$choice" in
   admin)
     # The Admin button on the start screen (after its PIN): a terminal, with the on-screen keyboard.
     # Closing it (exit, or Ctrl-D) goes back to the start screen.
+    force_osk=1
     app=(/usr/bin/foot --fullscreen --app-id=pointhub-admin --font=monospace:size=16) ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
@@ -227,6 +228,8 @@ turn=normal
     printf '&\n(sleep 120; pkill -f -- --class=pointhub-splash) &\n'
   fi
   printf 'squeekboard &\n'
+  # A terminal never asks for text input, so squeekboard stays hidden: show it by hand once it is up.
+  [ -z "${force_osk:-}" ] || printf "(for _ in 1 2 3 4 5 6 7 8; do sleep 1; busctl --user call sm.puri.OSK0 /sm/puri/OSK0 sm.puri.OSK0 SetVisible b true 2>/dev/null && break; done) &\\n"
   printf '('
   printf ' %q' "${app[@]}"
   printf '; %slabwc --exit) &\n' "$then_quit"
