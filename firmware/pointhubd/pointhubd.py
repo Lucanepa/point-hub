@@ -267,7 +267,10 @@ class I2cBus:
     def _transfer(self, msgs):
         array = (_I2cMsg * len(msgs))(*msgs)
         data = _I2cRdwr(array, len(msgs))
-        fcntl.ioctl(self.fd, I2C_RDWR, ctypes.addressof(data))
+        # The struct itself, as a buffer: fcntl hands the kernel a pointer to it. Its address as an
+        # int does not fit the C int fcntl.ioctl converts an int argument to on a 64-bit Pi
+        # (OverflowError at the first transfer: pointhubd died at start on the Pi 5, 16 Nov 2026).
+        fcntl.ioctl(self.fd, I2C_RDWR, data)
 
     def write(self, addr, payload):
         buf = ctypes.create_string_buffer(bytes(payload), len(payload))

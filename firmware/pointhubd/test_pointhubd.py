@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """pointhubd against simulated chips: no board, no /dev/i2c. Run: python3 -m unittest (from here)."""
 
+import ctypes
 import json
 import os
 import socket
@@ -411,6 +412,33 @@ class SocketRoundTrip(unittest.TestCase):
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)
         self.assertIn("not answering", result.stderr)
+
+
+class I2cTransfer(unittest.TestCase):
+    """The real I2cBus hands the kernel its I2C_RDWR struct as a buffer, never as an int address
+    (an int does not fit fcntl's C int on a 64-bit Pi: OverflowError, pointhubd dead at start)."""
+
+    def test_ioctl_gets_the_struct_not_its_address(self):
+        seen = []
+
+        def fake_ioctl(fd, req, arg):
+            seen.append((req, arg))
+            data = ph._I2cRdwr.from_buffer_copy(memoryview(arg).cast("B"))
+            msg = data.msgs[1]
+            ctypes.memmove(msg.buf, b"\x54\x49", msg.len)   # the INA226's manufacturer id
+            return 0
+
+        bus = ph.I2cBus.__new__(ph.I2cBus)
+        bus.fd = -1
+        real = ph.fcntl.ioctl
+        ph.fcntl.ioctl = fake_ioctl
+        try:
+            got = bus.read_reg(0x40, 0xFE, 2)
+        finally:
+            ph.fcntl.ioctl = real
+        self.assertEqual(seen[0][0], ph.I2C_RDWR)
+        self.assertNotIsInstance(seen[0][1], int)
+        self.assertEqual(got, b"\x54\x49")
 
 
 if __name__ == "__main__":
