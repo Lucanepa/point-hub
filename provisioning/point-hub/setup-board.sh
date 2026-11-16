@@ -19,7 +19,7 @@ echo "== packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y python3-pil i2c-tools build-essential curl rsync dnsmasq iptables \
-  labwc squeekboard wlr-randr chromium libglib2.0-bin dbus
+  labwc squeekboard wlr-randr chromium libglib2.0-bin dbus swaybg plymouth
 # The eScoresheet runs natively on the screen. The arm64 .deb is a workflow artifact, not on APT: put
 # it in the repo folder before this script, or install it later.
 for deb in "$REPO"/openvolley-escoresheet_*_arm64.deb; do
@@ -32,12 +32,26 @@ sed -i '/^# >>> point-hub/,/^# <<< point-hub/d' "$CFG"
 cat >> "$CFG" <<'CONF'
 # >>> point-hub (provisioning/point-hub/setup-board.sh)
 enable_uart=0
-dtparam=i2c_vc=on
+# I2C0 on GPIO0/1 for the hub. dtparam=i2c_vc=on is the Pi 4's switch and does nothing on the Pi 5
+# (bench, 10 Nov 2026): the Pi 5 needs its own overlay.
+dtoverlay=i2c0-pi5
 dtoverlay=i2c-rtc,ds3231,i2c0
 gpio=18=op,dh
+# No rainbow square: the boot picture is ours (Plymouth, firmware/screen-splash)
+disable_splash=1
 # <<< point-hub
 CONF
 sed -i 's/ *console=serial0,[0-9]*//' /boot/firmware/cmdline.txt
+# A quiet boot behind the Point Hub picture: no kernel text, no cursor, no Raspberry logos.
+# shellcheck source=../lib-provision.sh
+. "$REPO/provisioning/lib-provision.sh"
+lp_cmdline_edit "quiet splash plymouth.ignore-serial-consoles logo.nologo vt.global_cursor_default=0 loglevel=3" ""
+
+echo "== boot picture (firmware/screen-splash)"
+rsync -a --delete "$REPO/firmware/screen-splash/plymouth/" /usr/share/plymouth/themes/pointhub/
+plymouth-set-default-theme -R pointhub
+mkdir -p /opt/pointhub/screen-splash
+install -m 0644 "$REPO"/firmware/screen-splash/splash.html "$REPO"/firmware/screen-splash/splash-*.png /opt/pointhub/screen-splash/
 
 echo "== Node $NODE_VERSION (arm64)"
 if ! /opt/nodejs/bin/node -v 2>/dev/null | grep -qx "v$NODE_VERSION"; then

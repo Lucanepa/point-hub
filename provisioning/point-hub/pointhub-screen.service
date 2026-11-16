@@ -12,7 +12,11 @@ StandardInput=tty-fail
 UtmpIdentifier=tty1
 UtmpMode=user
 SupplementaryGroups=video render input
+# Nothing of ours on the screen's text console: the boot picture stays until labwc takes over
+StandardOutput=journal
+StandardError=journal
 EnvironmentFile=-/etc/default/pointhub-screen
+ExecStartPre=-+/usr/bin/plymouth quit --retain-splash
 ExecStart=/opt/pointhub/pointhub-screen
 Restart=always
 RestartSec=3

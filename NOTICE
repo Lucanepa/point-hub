@@ -85,3 +85,7 @@ to the vendor code.
 
 Arial. The vendor board renders text with Monotype's ARIAL.TTF, which is proprietary and may not
 be redistributed; openscore uses the metric-compatible Liberation Sans.
+
+Board screen splash (firmware/screen-splash): the volleyball and whistle icons are from Game Icons
+(https://game-icons.net, by Delapouite and Lorc), licensed CC BY 3.0
+(https://creativecommons.org/licenses/by/3.0/). Unchanged paths, recoloured.
