@@ -54,6 +54,15 @@
     </button>
   </main>
   <footer><span id="msg" role="status"></span><button id="adm" type="button">Admin</button><button id="off" type="button">Shut down</button></footer>
+  <div id="pad" hidden role="dialog" aria-label="Admin PIN">
+    <div class="box">
+      <b>Admin PIN</b>
+      <div id="dots" aria-live="polite"></div>
+      <div id="perr" role="status"></div>
+      <div id="keys"></div>
+      <button id="pcancel" type="button">Cancel</button>
+    </div>
+  </div>
 <script>
   const msg = document.getElementById('msg')
   const buttons = [...document.querySelectorAll('.app')]
@@ -111,14 +120,5 @@
   document.getElementById('adm').addEventListener('click', () => { pin = ''; draw(); perr.textContent = ''; pad.hidden = false })
   document.getElementById('pcancel').addEventListener('click', () => { pad.hidden = true; pin = ''; draw() })
 </script>
-  <div id="pad" hidden role="dialog" aria-label="Admin PIN">
-    <div class="box">
-      <b>Admin PIN</b>
-      <div id="dots" aria-live="polite"></div>
-      <div id="perr" role="status"></div>
-      <div id="keys"></div>
-      <button id="pcancel" type="button">Cancel</button>
-    </div>
-  </div>
 </body>
 </html>
