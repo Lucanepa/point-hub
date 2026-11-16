@@ -119,7 +119,7 @@ case "$choice" in
     # The Admin button on the start screen (after its PIN): a terminal, with the on-screen keyboard.
     # Closing it (exit, or Ctrl-D) goes back to the start screen.
     force_osk=1
-    app=(/usr/bin/foot --fullscreen --app-id=pointhub-admin --font=monospace:size=16) ;;
+    app=(/usr/bin/foot --app-id=pointhub-admin --font=monospace:size=16) ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
     exec sleep infinity ;;
