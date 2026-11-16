@@ -280,10 +280,9 @@ _BOLD_FONT_CANDIDATES = [
 SMALL_TEXT_PX = 26
 
 
-# The Point Hub board's third HUB75 output: rows 64-95, 64 x 32 slots (BUILD.md section 4.1). A chain
-# keeps the LAST pixels clocked in the module nearest the Pi (seen on the glass, 5 Nov 2026), so with
-# two modules on a chain of three, the first slot is the one that falls off the end: bench L, nearest
-# the Pi, is the third slot and bench R the second.
+# The Point Hub board's bench slots: rows 64-95, 64 x 32 each (BUILD.md section 4.1). The canvas
+# keeps the layout it had with three chains of three; flushBuffer2 moves these two slots onto the
+# bench modules at the ends of the board's two chains of four (HubMap in flushbuffer.cc).
 BENCH_ROW = 64
 BENCH_SLOT_W = 64
 BENCH_SLOT_H = 32

@@ -120,7 +120,7 @@ class Config(unittest.TestCase):
         cfg = os_.build_config(tmp)
         self.assertEqual(cfg["height"], 96)
         self.assertIn("pointhubd.py ctl horn", cfg["horn_cmd"])
-        self.assertEqual(cfg["bench_rotate"], (90, 270))
+        self.assertEqual(cfg["bench_rotate"], (270, 270))   # both bench modules turned, 16 Nov 2026
 
 
 if __name__ == "__main__":

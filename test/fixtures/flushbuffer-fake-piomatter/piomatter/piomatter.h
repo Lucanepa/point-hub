@@ -4,6 +4,8 @@
 //
 // Every show() appends one line to $FAKE_MATRIX_LOG:
 //   frame bf=<the brightness float show() saw> lit=<non-black framebuffer pixels> px=<all of them>
+// and, with $FAKE_MATRIX_DUMP set, writes the whole framebuffer there (uint32 0x00RRGGBB per pixel,
+// row by row, little-endian), so a test can see where each canvas pixel landed on the glass.
 // The constructor refuses a pixel map that is not a permutation of the framebuffer (every glass
 // pixel exactly once), the way a wrong map would draw garbage on the real thing.
 //
@@ -92,6 +94,11 @@ struct piomatter : piomatter_base {
   int show() override {
     long lit = 0;
     for (uint32_t v : fb_) if (v & 0xffffff) ++lit;
+    const char *dump = getenv("FAKE_MATRIX_DUMP");
+    if (dump && *dump) {
+      FILE *d = fopen(dump, "wb");
+      if (d) { fwrite(fb_.data(), sizeof(uint32_t), fb_.size(), d); fclose(d); }
+    }
     if (log_) fprintf(log_, "frame bf=%.6f lit=%ld px=%zu\n", brightness, lit, fb_.size());
     fps = 250;
     return 0;

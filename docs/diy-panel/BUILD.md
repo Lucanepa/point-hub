@@ -360,41 +360,53 @@ Sellers change chips between batches under the same listing.
 
 ## 4. Outputs and GPIO plan
 
-### 4.1 Three outputs × three modules
+### 4.1 Two outputs × four modules
 
 ```mermaid
 graph LR
-  PI["Pi 5 + Triple Bonnet"] -->|OUT 1| M3["module 3"] --> M2["module 2"] --> M1["module 1"]
-  PI -->|OUT 2| M6["module 6"] --> M5["module 5"] --> M4["module 4"]
-  PI -->|OUT 3| BL["bench L"] --> BR["bench R"]
+  PI["Pi 5 + Triple Bonnet"] -->|OUT 1| M3["module 3"] --> M2["module 2"] --> M1["module 1"] --> BL["bench L"]
+  PI -->|OUT 2| BR["bench R"] --> M6["module 6"] --> M5["module 5"] --> M4["module 4"]
 ```
 
-| Output | Modules | Canvas rows |
+| Output | Modules, Pi first | Slots 1 → 4 (slot 1 = furthest from the Pi) |
 |---|---|---|
-| OUT 1 | Pi → 3 → 2 → 1, the **top row** | 0–31 |
-| OUT 2 | Pi → 6 → 5 → 4, the **bottom row** | 32–63 |
-| OUT 3 | Pi → **bench L → bench R**, first slot of the row empty | 64–95 |
+| OUT 1 | Pi → 3 → 2 → 1 → **bench L** | bench L, 1, 2, 3 |
+| OUT 2 | Pi → **bench R** → 6 → 5 → 4 | 4, 5, 6, bench R |
+| OUT 3 | empty | — |
 
 Numbers are as seen **from the front**, 1 at the top left, and they are what the test screen, the
-self-test and the fuse map say. Working from the back the chain runs left to right, input to output:
-a module's input is on the left seen from the back with its ↑ arrows up. **The module nearest the Pi
-shows the last slot of its row** (checked on the glass, 5 Nov 2026): the first pixels clocked in travel
-furthest. So module 3, not 1, takes the ribbon from the Pi, and on OUT 3 bench L is the row's third
-slot, bench R the second, and the first slot falls off the end of the chain.
+self-test and the fuse map say. **Bench L is at the left end seen from the front** (by modules 1
+and 4), **bench R at the right end** (by 3 and 6, the Pi side). Working from the back the chain runs
+left to right, input to output: a module's input is on the left seen from the back with its ↑ arrows
+up. **The module nearest the Pi shows the last slot of its chain** (checked on the glass, 5 and 16
+Nov 2026): the first pixels clocked in travel furthest.
 
-The driver runs three chains of three 64 × 32 modules in parallel: a **192 × 96** canvas whose top
-192 × 64 is the unchanged scoreboard (hzeller flags: `--led-rows=32 --led-cols=64 --led-chain=3
---led-parallel=3`). The drivers need the same chain length on every output, so OUT 3 is a chain of
-three with one slot unpopulated; that costs no refresh, because the outputs are clocked in parallel.
-All module arrows point the same way (data direction); the bench modules stand upright, arrows up.
-Which canvas slot lands on which end, and the rotation of the bench content, is checked on glass
-with the module-number test (§10.5).
+Why two chains of four: the bench modules sit on the two end walls, about 1 m apart, and a short
+ribbon cannot run from one to the other. With one bench module at the end of each chain every ribbon
+stays short. Both bench modules stand **upright and turned**: bench R upside down, so its input is
+next to module 6's output, and bench L turned the same way, so its input is next to module 1's
+output. Follow the arrows next to each module's ribbon sockets: the ribbon goes into the socket the
+arrows point **away** from.
 
-**The trade-off.** Three outputs keep 192 pixels per row, the fastest way to drive eight modules
-from this bonnet. The price is that OUT 3 uses the I²C1 and UART pins. The alternative — two
-outputs × four modules (`--led-parallel=2 --led-chain=4` with the hzeller `Remap` pixel mapper, one
-bench module at the end of each chain) — frees those pins at about 25 % less refresh. Switching is
-only ribbons and settings.
+The chain test (16 Nov 2026, module-number screen) showed all eight modules in place, the front
+upright and unmirrored, and both bench modules showing their slot turned a quarter turn
+counter-clockwise (the slot's top edge on the module's left, seen from the front). The driver
+(`firmware/flushbuffer`, Piomatter backend) drives a **256 × 64** glass (32-row, 64-column modules,
+chain 4, parallel 2) and moves openscore's unchanged **192 × 96** canvas onto it: the 192 × 64
+scoreboard on the six front modules, the two bench slots of rows 64–95 onto the bench modules.
+openscore turns each upright 32 × 64 bench picture into its slot with `bench_left_rotate` /
+`bench_right_rotate` = **270** (setting.ini), which the modules' quarter turn brings back upright.
+
+**Refresh.** 70 Hz measured with eight modules (Piomatter, 10 planes, 2 temporal). No flicker by
+eye; a phone camera may show bands.
+
+**Current**, measured with an INA226 in the 5 V feed (16 Nov 2026), all eight modules: 0.80 A dark
+(driven, black), 0.85 A the module-number screen, white at ¼ brightness 1.3 A, ½ 2.5 A, **full 8.0 A
+(about 40 W)**. A real score screen is mostly black, roughly 1–2 A. At full white the supply or the
+modules may whistle faintly (coil whine): harmless.
+
+**What it frees.** OUT 3 is unused, but Piomatter claims all 18 RGB pins of the triple pinout
+anyway, so GPIO2/3 (I²C1) and 14 (UART) stay taken (§4.2); the hub uses I²C0 on GPIO0/1.
 
 **The front tilts, the ribbons must not pull.** Modules 1–6 move with the front panel; the Pi, the
 bonnet and the bench modules do not. Leave **about 120 mm of slack** in the OUT 1 and OUT 2 ribbons

@@ -145,7 +145,7 @@ class Budget(unittest.TestCase):
     def test_power_file_format_is_what_flushbuffer_reads(self):
         text = ph.power_file_text(1234)
         self.assertIn("budget_ma=1234\n", text)
-        self.assertIn("full_white_ma=19800\n", text)
+        self.assertIn("full_white_ma=7200\n", text)
         self.assertIn("idle_ma=800\n", text)
 
 

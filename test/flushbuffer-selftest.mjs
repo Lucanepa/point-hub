@@ -184,10 +184,10 @@ async function suite (be, tmp) {
     const e45 = await est(CAP), e46 = await est(CAP + 1)
     pr.p.kill('SIGTERM'); await pr.exited
     ok(e45 > 0 && e46 > e45 && e46 < FULL, `the estimate climbs with the level (${e45} mA at ${CAP}, ${e46} at ${CAP + 1})`)
-    // White over the front's 192x64 of the 192x96 canvas: two thirds of the duty, times PmScale
-    // (less what whole pixel clocks cut off the short planes).
-    const expect = FULL * (2 / 3) * pmScale(CAP)
-    ok(Math.abs(e45 - expect) / expect < 0.03, `and follows PmScale: ${e45} mA ~ ${expect.toFixed(0)} (2/3 of the canvas at ${(pmScale(CAP) * 100).toFixed(1)} %)`)
+    // White over the front's 192x64 of the 256x64 glass (two chains of four): three quarters of
+    // the duty, times PmScale (less what whole pixel clocks cut off the short planes).
+    const expect = FULL * (3 / 4) * pmScale(CAP)
+    ok(Math.abs(e45 - expect) / expect < 0.03, `and follows PmScale: ${e45} mA ~ ${expect.toFixed(0)} (3/4 of the glass at ${(pmScale(CAP) * 100).toFixed(1)} %)`)
     budget = Math.floor((e45 + e46) / 2)
   }
   const g = start('g', [img, '--led-brightness=100', `--ctl-dir=${ctlG}`, `--power-budget-ma=${budget}`,
@@ -245,11 +245,52 @@ async function suite (be, tmp) {
     ok(await waitFor(() => n.frames().some((f) => f.b === 60 && f.lit === W * H)), "startled's flags start it: frames at 60")
     ok(['slowdown-gpio', 'pwm-lsb-nanoseconds', 'limit-refresh', 'no-hardware-pulse'].every((k) => new RegExp(`--led-${k}\\S* has no Piomatter equivalent`).test(n.stderr())),
       'the four with no Piomatter equivalent are said to be ignored')
-    ok(/Piomatter 192x96 \(3 outputs, 1\/16 scan\), 7 planes, 2 temporal, pinout active3\n/.test(n.stderr()),
-      `the Point Hub geometry: 192x96, 3 outputs, 1/16 scan (${(n.stderr().match(/Piomatter \d.*/) || ['?'])[0]})`)
+    ok(/Piomatter 256x64 \(2 outputs, 1\/16 scan\), 7 planes, 2 temporal, pinout active3\n/.test(n.stderr()),
+      `the Point Hub glass: two chains of four, 256x64, 1/16 scan (${(n.stderr().match(/Piomatter \d.*/) || ['?'])[0]})`)
+    ok(/Point Hub board, two chains of four: canvas 192x96/.test(n.stderr()), "and openscore's 192x96 canvas on it")
     ok(n.frames().every((f) => f.lit === 0 || f.lit === W * H) && n.frames().some((f) => f.lit === W * H),
-      'the 192x64 picture lands on the 192x96 canvas, the bench rows black')
+      'the 192x64 picture lands on the front, the bench modules black')
     n.p.kill('SIGTERM'); await n.exited
+    console.log('▶ [piomatter] where each canvas pixel lands on the glass (BUILD.md section 4.1)')
+    // A 192x96 canvas whose every pixel says where it came from: red = x, green = y, blue = 7.
+    const CW = 192, CH = 96
+    const coded = Buffer.alloc(CW * CH * 3)
+    for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) coded.set([x, y, 7], (y * CW + x) * 3)
+    const codedImg = path.join(dir, 'coded.ppm')
+    fs.writeFileSync(codedImg, Buffer.concat([Buffer.from(`P6\n${CW} ${CH}\n255\n`), coded]))
+    // Read the dump of a still-running driver, before its black exit frame overwrites it.
+    const snap = async (name, args, gw) => {
+      const dump = path.join(dir, `${name}.fb`)
+      const logFile = path.join(dir, `${name}.frames`)
+      const p = spawn(bin, [codedImg, '--ctl-dir=', ...args], { env: { ...process.env, FAKE_MATRIX_LOG: logFile, FAKE_MATRIX_DUMP: dump }, stdio: 'ignore' })
+      kids.push(p)
+      const exited = new Promise((res) => p.on('exit', res))
+      await waitFor(() => frames(logFile).some((f) => f.lit > 0))
+      await sleep(60)
+      const buf = fs.readFileSync(dump)
+      p.kill('SIGTERM'); await exited
+      const at = (gx, gy) => buf.readUInt32LE((gy * gw + gx) * 4)
+      return { at, px: buf.length / 4 }
+    }
+    // Where HubMap must put canvas pixel (x, y): null = not on the glass.
+    const hub = (x, y) => y < 32 ? [x + 64, y] : y < 64 ? [x, y] : x >= 128 ? [x - 128, y - 64] : x >= 64 ? [x + 128, y - 32] : null
+    const g = await snap('hubmap', ['--led-brightness=100'], 256)
+    let right = 0, wrong = 0, seen = new Set()
+    for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+      const to = hub(x, y)
+      if (!to) continue
+      const v = g.at(to[0], to[1])
+      if (v === ((x << 16) | (y << 8) | 7)) right++; else wrong++
+      seen.add(to[1] * 256 + to[0])
+    }
+    ok(g.px === 256 * 64, `the glass is 256x64 (${g.px} pixels)`)
+    ok(wrong === 0 && right === 256 * 64 && seen.size === 256 * 64,
+      `every glass pixel shows exactly its canvas pixel: front top +64 (M1-M3), bottom as is (M4-M6), bench L slot -> A1, bench R slot -> B4 (${right} right, ${wrong} wrong)`)
+    const id = await snap('identity', ['--led-brightness=100', '--led-chain=3', '--led-parallel=3'], 192)
+    let idWrong = 0
+    for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) if (id.at(x, y) !== ((x << 16) | (y << 8) | 7)) idWrong++
+    ok(id.px === 192 * 96 && idWrong === 0, `any other geometry (--led-chain=3 --led-parallel=3) draws the canvas as it is (${idWrong} off)`)
+
     const bgr = start('bgr', [img, '--ctl-dir=', '--led-rgb-sequence=BGR'])
     ok(await waitFor(() => /pinout active3_bgr/.test(bgr.stderr())), '--led-rgb-sequence=BGR picks the _bgr pinout')
     bgr.p.kill('SIGTERM'); await bgr.exited

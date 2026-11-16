@@ -375,7 +375,9 @@ static void LogPower(const PowerConfig &p) {
 //   name()                 the backend, for the driver file and the log
 //   BuildDutyTable()       fills duty[][] for the governor with this backend's own drive curve
 //   BeginFrame(level)      a new frame, all black, whose pixels light at `level` (0 = dark)
-//   SetPixel(x, y, r, g, b)
+//   SetPixel(x, y, r, g, b)  a canvas pixel; one the glass does not have is dropped
+//   Shown(x, y)            whether the canvas pixel is on the glass (the governor counts only those)
+//   glass_pixels()         how many pixels the glass has
 //   Show()                 the frame goes to the glass
 //   ~Panel()               black, hardware released
 
@@ -422,6 +424,8 @@ class Panel {
     canvas_->Fill(0, 0, 0);
   }
   void SetPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) { canvas_->SetPixel(x, y, r, g, b); }
+  bool Shown(int, int) const { return true; }
+  double glass_pixels() const { return (double)width() * height(); }
   void Show() { canvas_ = matrix_->SwapOnVSync(canvas_); }
 
  private:
@@ -443,10 +447,15 @@ class Panel {
 //                GPIO15 left untouched), n_lanes = 2 per HUB75 output, and a map from each shifted
 //                pixel to a framebuffer index. The map below is Piomatter's simple_multilane_mapper
 //                (pixelmappers.py): output 1 is rows 0..rows-1, output 2 the next, output 3 the
-//                next, and within an output x runs along the chain — the same canvas hzeller builds
-//                with --led-parallel=3 --led-chain=3, so the 192x96 layout of docs/diy-panel/BUILD.md
-//                section 4.1 holds unchanged: the 192x64 front on outputs 1+2, the bench modules on
-//                output 3 (rows 64-95).
+//                next, and within an output x runs along the chain, x = 0 clocked first (so it
+//                lands in the module FURTHEST from the Pi).
+//   canvas       what the picture is drawn on. The Point Hub board is wired as two chains of four
+//                (docs/diy-panel/BUILD.md section 4.1, chain test on the glass 16 Nov 2026): OUT 1
+//                = Pi -> M3 -> M2 -> M1 -> bench L, OUT 2 = Pi -> bench R -> M6 -> M5 -> M4. That
+//                geometry (32-row, 64-column modules, chain 4, parallel 2: the defaults) keeps
+//                openscore's 192x96 canvas (setting-point-hub.ini) and HubMap moves it onto the
+//                256x64 glass: the 192x64 front unchanged, the two bench slots of rows 64-95 onto
+//                the bench modules. Any other geometry draws the glass as it is, as before.
 //   pinout       active3_pinout = hzeller's "regular" pins (the Triple Bonnet's), or its _bgr twin
 //                for --led-rgb-sequence=BGR. GPIO0/1 are not in it (I2C0 stays free).
 //   n_planes     colour depth, 1-10 bit planes (hzeller has 11): from --led-pwm-bits, capped at 10.
@@ -465,6 +474,23 @@ class Panel {
 // --led-no-hardware-pulse or --led-panel-type: they are accepted, noted once and ignored, so the
 // same startled works. A setting it cannot honour at all (another multiplexing, scan mode or row
 // addressing, the C0270's applicon mapping) refuses to start rather than draw garbage.
+
+// openscore's canvas (192x96) -> the glass of the Point Hub board's two chains of four (256x64).
+// Slot n of a chain is x 64(n-1)..64n-1; the last slot is the module nearest the Pi. Seen on the
+// glass with a module-number picture, 16 Nov 2026 (A = OUT 1, B = OUT 2):
+//   A1 bench L   A2 M1   A3 M2   A4 M3        B1 M4   B2 M5   B3 M6   B4 bench R
+// so the front's top row (M1 M2 M3, left to right from the front) is OUT 1's slots 2-4 and its
+// bottom row (M4 M5 M6) OUT 2's slots 1-3, both upright and unmirrored. The bench slots of the
+// canvas (openscore: bench L at x 128-191, bench R at x 64-127, rows 64-95, each a 32x64 picture
+// already turned into its 64x32 slot) go to slot A1 and B4 unchanged; the turn is openscore's
+// bench_left/right_rotate. x 0-63 of rows 64-95 is not on the glass. Returns false for those.
+static bool HubMap(int x, int y, int *gx, int *gy) {
+  if (y < 32)  { *gx = x + 64;  *gy = y;      return true; }   // M1 M2 M3: A2-A4
+  if (y < 64)  { *gx = x;       *gy = y;      return true; }   // M4 M5 M6: B1-B3
+  if (x >= 128) { *gx = x - 128; *gy = y - 64; return true; }  // bench L: A1
+  if (x >= 64)  { *gx = x + 128; *gy = y - 32; return true; }  // bench R: B4
+  return false;
+}
 
 static float PmScale(int b) {
   if (b <= 0) return 0;
@@ -494,7 +520,7 @@ class Panel {
  public:
   static Panel *Create(int *argc, char ***argv) {
     // The Point Hub board (docs/diy-panel/BUILD.md section 4.1, 10.3). Tuning comes from startled.
-    int rows = 32, cols = 64, chain = 3, parallel = 3;
+    int rows = 32, cols = 64, chain = 4, parallel = 2;
     int brightness = 40, pwm_bits = 10, dither = 2;
     int scan_mode = 0, multiplexing = 0, row_addr_type = 0;
     int unused = 0;
@@ -591,6 +617,7 @@ class Panel {
 
     const int width = cols * chain, height = rows * parallel;
     const size_t n_lanes = 2 * (size_t)parallel;
+    const bool hub = rows == 32 && cols == 64 && chain == 4 && parallel == 2;
 
     // Piomatter starts its refresh thread in the constructor. With SIGINT/SIGTERM blocked while it
     // is made, that thread never takes one (a signal there would cut a DMA transfer short); they
@@ -601,7 +628,7 @@ class Panel {
     sigaddset(&stop, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &stop, &before);
     Panel *p = Create(width, height, brightness, n_planes, n_temporal, n_addr_lines, n_lanes,
-                      parallel, show_refresh, bgr);
+                      parallel, show_refresh, bgr, hub);
     pthread_sigmask(SIG_SETMASK, &before, NULL);
     if (p == NULL) return NULL;
 
@@ -620,7 +647,8 @@ class Panel {
   }
 
   static Panel *Create(int width, int height, int brightness, int n_planes, int n_temporal,
-                       int n_addr_lines, size_t n_lanes, int parallel, bool show_refresh, bool bgr) {
+                       int n_addr_lines, size_t n_lanes, int parallel, bool show_refresh, bool bgr,
+                       bool hub) {
     const size_t n_addr = (size_t)1 << n_addr_lines;
     piomatter::matrix_map map;   // simple_multilane_mapper, see above
     map.reserve((size_t)width * height);
@@ -629,7 +657,7 @@ class Panel {
         for (size_t lane = 0; lane < n_lanes; ++lane)
           map.push_back(x + width * (int)(addr + lane * n_addr));
 
-    Panel *p = new Panel(width, height, brightness, n_planes, show_refresh);
+    Panel *p = new Panel(width, height, brightness, n_planes, show_refresh, hub);
     try {
       piomatter::matrix_geometry geometry((size_t)width, (size_t)n_addr_lines, n_planes, n_temporal,
                                           (size_t)width, (size_t)height, map, n_lanes);
@@ -648,6 +676,9 @@ class Panel {
     fprintf(stderr, "flushBuffer2: Piomatter %dx%d (%d outputs, 1/%zu scan), %d planes, %d temporal, "
             "pinout active3%s\n", width, height, parallel, n_addr, n_planes, n_temporal,
             bgr ? "_bgr" : "");
+    if (hub)
+      fprintf(stderr, "flushBuffer2: Point Hub board, two chains of four: canvas %dx%d (front 192x64, "
+              "bench L x 128-191 and bench R x 64-127 of rows 64-95)\n", p->width(), p->height());
     return p;
   }
 
@@ -662,11 +693,13 @@ class Panel {
     }
   }
 
-  int width() const { return width_; }
-  int height() const { return height_; }
+  int width() const { return hub_ ? 192 : width_; }
+  int height() const { return hub_ ? 96 : height_; }
   int start_brightness() const { return start_brightness_; }
   int pwm_bits() const { return n_planes_; }
   const char *name() const { return "piomatter"; }
+  bool Shown(int x, int y) const { int gx, gy; return !hub_ || HubMap(x, y, &gx, &gy); }
+  double glass_pixels() const { return (double)width_ * height_; }
 
   // Piomatter's own drive curve: gamma 2.2 to 10 bits (colorspace_rgb888's gamma_lut), each set
   // bit lit for its schedule entry's active_time * brightness, truncated to whole pixel clocks
@@ -699,6 +732,7 @@ class Panel {
     std::fill(fb_.begin(), fb_.end(), 0);
   }
   void SetPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+    if (hub_ && !HubMap(x, y, &x, &y)) return;
     fb_[(size_t)y * width_ + x] = ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
   }
   void Show() {
@@ -721,14 +755,15 @@ class Panel {
   }
 
  private:
-  Panel(int w, int h, int start_brightness, int n_planes, bool show_refresh)
+  Panel(int w, int h, int start_brightness, int n_planes, bool show_refresh, bool hub)
     : width_(w), height_(h), start_brightness_(start_brightness), n_planes_(n_planes),
-      show_refresh_(show_refresh), fb_((size_t)w * h, 0) {}
+      show_refresh_(show_refresh), hub_(hub), fb_((size_t)w * h, 0) {}
   Panel(const Panel &) = delete;
   Panel &operator=(const Panel &) = delete;
 
-  const int width_, height_, start_brightness_, n_planes_;
+  const int width_, height_, start_brightness_, n_planes_;   // the glass
   const bool show_refresh_;
+  const bool hub_;             // the Point Hub board's two chains of four: canvas 192x96, HubMap
   std::vector<uint32_t> fb_;   // 0x00RRGGBB, never resized: Piomatter holds a span of it
   piomatter::piomatter_base *matter_ = NULL;
   piomatter::schedule_sequence schedules_;
@@ -855,12 +890,13 @@ int main(int argc, char *argv[]) {
       const int cw  = (w < W) ? w : W;
       const int chh = (h < H) ? h : H;
 
-      // Histogram the part of the image that lands on the panel; the rest of the panel is black.
+      // Histogram the part of the image that lands on the glass; the rest of the glass is black.
       memset(&hist, 0, sizeof hist);
-      hist.pixels = (double)W * H;
+      hist.pixels = panel->glass_pixels();
       for (int y = 0; y < chh; ++y) {
         const unsigned char *rowp = px + (size_t)y * w * 3;
         for (int x = 0; x < cw; ++x) {
+          if (!panel->Shown(x, y)) continue;
           const unsigned char *p = rowp + x * 3;
           ++hist.n[0][p[0]]; ++hist.n[1][p[1]]; ++hist.n[2][p[2]];
         }

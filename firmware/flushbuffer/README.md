@@ -318,13 +318,18 @@ it (passing it does no harm). `setting.ini` for this board: `hardware_mapping=re
 | `--led-show-refresh` | Piomatter's own refresh measurement, printed in hzeller's format |
 | `--led-no-drop-privs` | stays root; by default it drops to `daemon` after opening `/dev/pio0`, like hzeller |
 
-**Canvas.** 192×96, built with Piomatter's `simple_multilane_mapper`: output 1 = rows 0–31,
-output 2 = rows 32–63, output 3 = rows 64–95, x along each chain — the same canvas hzeller makes
-with `--led-parallel=3 --led-chain=3` ([BUILD.md §4.1](../../docs/diy-panel/BUILD.md)). The 192×64
-`buffer.png` lands on outputs 1+2; the bench rows stay black until openscore draws a taller
-picture. x = 0 is clocked first, so the module nearest the Pi shows the LAST slot of its row (one
-module on Port 1 showed x = 128-191, on the glass, 5 Nov 2026). The bench rotation is still to be
-seen on glass.
+**Canvas.** The Point Hub board is two chains of four (BUILD.md §4.1): OUT 1 = Pi → module 3 → 2 →
+1 → bench L, OUT 2 = Pi → bench R → 6 → 5 → 4. That geometry (`--led-rows=32 --led-cols=64
+--led-chain=4 --led-parallel=2`, the compiled-in default) is a **256×64** glass, and `HubMap` moves
+openscore's unchanged **192×96** canvas onto it: the 192×64 front on the six front modules, the
+bench slots of rows 64–95 (bench L x 128–191, bench R x 64–127) on the bench modules; x 0–63 of
+rows 64–95 is not on the glass. x = 0 is clocked first, so the module nearest the Pi shows the LAST
+slot of its chain. Seen on the glass with a module-number picture, 16 Nov 2026: OUT 1 slots 1–4 =
+bench L, 1, 2, 3; OUT 2 slots 1–4 = 4, 5, 6, bench R; front upright and unmirrored; both bench
+modules show their slot a quarter turn counter-clockwise, which openscore's `bench_left_rotate` /
+`bench_right_rotate` = 270 undoes. Any other geometry draws the canvas on the glass as it is (as
+with `--led-chain=3 --led-parallel=3` before). The governor counts the glass's pixels only.
+Refresh with eight modules: 70 Hz.
 
 **Brightness.** Piomatter's brightness is a float 0–1 that shortens the OE time of every plane —
 linear in light — while hzeller's 1–100 goes through CIE1931 first. So level *b* is sent as
