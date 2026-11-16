@@ -206,14 +206,16 @@ turn=normal
   # While the app starts (power-up, a switch, after Quit): the Point Hub picture, first still
   # (swaybg is up at once), then moving with a progress bar and phrases (splash.html in its own
   # Chromium, under the app). It closes itself when the app's window appears (rc.xml), at the latest
-  # after two minutes.
+  # after two minutes. Navy background + CPU compositing: else Chromium's window shows one white
+  # frame before the page (bench 16.11, frame grabs); the page is simple, the CPU draws it easily.
   if [ -r "$SPLASH/splash.html" ]; then
     still="$SPLASH/splash-1920x1200.png"
     case "$mode" in *x800|*x768|*x600) still="$SPLASH/splash-1280x800.png" ;; esac
     printf 'swaybg -c %q -m fill -i %q &\n' '#111827' "$still"
     printf '%q ' /usr/bin/chromium --kiosk --class=pointhub-splash --user-data-dir="$SCREEN_HOME/.cache/pointhub-splash" \
       --noerrdialogs --disable-infobars --ozone-platform=wayland --no-first-run --password-store=basic \
-      --force-device-scale-factor=1 "--app=file://$SPLASH/splash.html"
+      --force-device-scale-factor=1 --default-background-color=ff111827 --disable-gpu-compositing \
+      "--app=file://$SPLASH/splash.html"
     printf '&\n(sleep 120; pkill -f -- --class=pointhub-splash) &\n'
   fi
   printf 'squeekboard &\n'
