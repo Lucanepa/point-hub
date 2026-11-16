@@ -43,7 +43,7 @@ const ellipse = (deg) => {
   return `M ${c - dx},${c - dy} A ${RX},${RY} ${deg} 1 0 ${c + dx},${c + dy} A ${RX},${RY} ${deg} 1 0 ${c - dx},${c - dy}`
 }
 const tracksSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${BOX}" height="${BOX}">
-  <g fill="none" stroke="#FFFFFF" stroke-opacity=".14" stroke-width="${1.25 * S}">${TILTS.map((d) => `<path d="${ellipse(d)}"/>`).join('')}</g></svg>`
+  <g fill="none" stroke="#FFFFFF" stroke-opacity=".34" stroke-width="${1.6 * S}">${TILTS.map((d) => `<path d="${ellipse(d)}"/>`).join('')}</g></svg>`
 
 // A point on the orbit tilted by `deg`, at parameter t (radians), relative to the box's centre.
 export function orbit (deg, t) {

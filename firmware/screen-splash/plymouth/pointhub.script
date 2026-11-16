@@ -66,12 +66,14 @@ boot_progress = 0;
 shown = 0.08;
 
 fun progress_cb(duration, progress) {
-  boot_progress = progress;
+  global.boot_progress = progress;
 }
 Plymouth.SetBootProgressFunction(progress_cb);
 
+# Plymouth script: an assignment inside a function makes a local variable, so the state that
+# must last from one frame to the next is written as global.* (else the orbits stand still).
 fun refresh() {
-  frame++;
+  global.frame++;
   for (i = 0; i < 3; i++) {
     t = frame * 2 * Math.Pi / lap + i * 2 * Math.Pi / 3;
     x = rx * Math.Cos(t) * tilt_cos[i] - ry * Math.Sin(t) * tilt_sin[i];
@@ -81,7 +83,7 @@ fun refresh() {
   }
   # The bar: the boot's own progress (from the last boots' timings), never below a slow climb
   # toward 92 %, so it always moves.
-  if (shown < 0.92) shown += (0.92 - shown) * 0.004;
+  if (shown < 0.92) global.shown += (0.92 - shown) * 0.004;
   p = boot_progress;
   if (p < shown) p = shown;
   if (p > 1) p = 1;
@@ -91,7 +93,7 @@ fun refresh() {
   if (frame % 80 == 1) {
     pick = Math.Int(Math.Random() * n_words);
     if (pick == word_shown) pick = (pick + 1) % n_words;
-    word_shown = pick;
+    global.word_shown = pick;
     word.SetImage(word_img[pick]);
     word.SetPosition(cx - word_img[pick].GetWidth() / 2, cy + word_y * k, 2);
   }

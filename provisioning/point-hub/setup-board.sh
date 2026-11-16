@@ -45,11 +45,20 @@ sed -i 's/ *console=serial0,[0-9]*//' /boot/firmware/cmdline.txt
 # A quiet boot behind the Point Hub picture: no kernel text, no cursor, no Raspberry logos.
 # shellcheck source=../lib-provision.sh
 . "$REPO/provisioning/lib-provision.sh"
-lp_cmdline_edit "quiet splash plymouth.ignore-serial-consoles logo.nologo vt.global_cursor_default=0 loglevel=3" ""
+lp_cmdline_edit "quiet splash plymouth.ignore-serial-consoles logo.nologo vt.global_cursor_default=0 loglevel=3 systemd.show_status=false rd.udev.log_level=3" ""
 
 echo "== boot picture (firmware/screen-splash)"
 rsync -a --delete "$REPO/firmware/screen-splash/plymouth/" /usr/share/plymouth/themes/pointhub/
 plymouth-set-default-theme -R pointhub
+# The picture stays until the screen is up: the boot reaches its end in ~5 s, long before labwc,
+# and Plymouth's own quit there showed the boot text in between (bench 16.11). Plymouth now quits
+# only in pointhub-screen.service (ExecStartPre: plymouth quit --retain-splash).
+mkdir -p /etc/systemd/system/plymouth-quit.service.d
+cat > /etc/systemd/system/plymouth-quit.service.d/pointhub.conf <<'EOF'
+[Service]
+ExecStart=
+ExecStart=/bin/true
+EOF
 mkdir -p /opt/pointhub/screen-splash
 install -m 0644 "$REPO"/firmware/screen-splash/splash.html "$REPO"/firmware/screen-splash/splash-*.png /opt/pointhub/screen-splash/
 
