@@ -128,7 +128,10 @@ case "$choice" in
     done
     app=(/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland
          --enable-wayland-ime --password-store=basic --no-first-run --force-device-scale-factor="$zoom"
+         --default-background-color=ff111827 --disable-gpu-compositing
          "http://127.0.0.1:8890$page") ;;
+    # (navy background + CPU compositing: no white frame when the window opens over the start
+    # picture, as the splash window below; the console's pages are light work for the CPU)
 esac
 
 {

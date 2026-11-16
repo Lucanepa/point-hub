@@ -22,7 +22,7 @@
   .app:disabled{opacity:.45;cursor:default}
   .app img{width:96px;height:96px}
   .app b{font-size:34px;font-weight:700;letter-spacing:-.02em}
-  .app span{font-size:17px;color:#57534e;line-height:1.4;max-width:420px}
+  .app span{font-size:22px;color:#57534e;line-height:1.4;max-width:420px}
   footer{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:52px}
   #msg{font-size:16px;color:#57534e}
   #off{height:52px;padding:0 20px;border-radius:12px;border:1px solid #d6d3d1;background:#fff;font-size:16px;font-weight:600;color:#44403c}
@@ -30,17 +30,16 @@
 </style>
 </head>
 <body>
-  <h1>What do you want to open?</h1>
   <main id="apps">
     <button class="app" data-app="console" type="button">
       <img src="favicon.svg" alt="">
       <b>Point Hub</b>
-      <span>Score on the board: points, sets, time-outs and subs, tonight's game, board settings.</span>
+      <span>Scoring board</span>
     </button>
     <button class="app" data-app="openvolley" type="button">
       <img src="openvolley_mark.svg" alt="">
       <b>OpenVolley eScoresheet</b>
-      <span>The full scoresheet: rosters, lineups, court, signatures. The board follows the match by itself.</span>
+      <span>eScoresheet</span>
     </button>
   </main>
   <footer><span id="msg" role="status"></span><button id="off" type="button">Shut down</button></footer>

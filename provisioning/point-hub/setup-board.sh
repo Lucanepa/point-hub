@@ -48,6 +48,15 @@ sed -i 's/ *console=serial0,[0-9]*//' /boot/firmware/cmdline.txt
 # console=tty3: the kernel's and systemd's own messages (also at power-off, bench 16.11) go to a
 # console nobody looks at, not the screen's tty1; ssh is the way in for debugging.
 lp_cmdline_edit "console=tty3 quiet splash plymouth.ignore-serial-consoles logo.nologo vt.global_cursor_default=0 loglevel=3 systemd.show_status=false rd.udev.log_level=3" ""
+# The screen's mode from the very first picture: the boot picture at the screen's size and 60 Hz,
+# the rate the touchscreen runs at (pointhub-screen). The MINIX offers 120 Hz first, so the boot
+# came up at 120 and labwc's switch to 60 re-synced the screen ("HDMI" on the MINIX, bench 16.11).
+for c in /sys/class/drm/card*-HDMI-A-*; do
+  [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
+  m=$(head -1 "$c/modes" 2>/dev/null); [ -n "$m" ] || continue
+  lp_cmdline_edit "video=${c##*/card[0-9]-}:${m}@60" ""
+  break
+done
 
 echo "== boot picture (firmware/screen-splash)"
 rsync -a --delete "$REPO/firmware/screen-splash/plymouth/" /usr/share/plymouth/themes/pointhub/
