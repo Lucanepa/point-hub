@@ -97,12 +97,12 @@ DEFAULTS = {
     "pi_w": 13.5,           # Pi 5 with the fan (about 5 W) and the 16-inch MINIX (about 8.3 W), on the 5 V side
     "tablet_w": 18.0,       # the tablet charging module, only on a contract of 12 V or more
     "fallback_w": 18.0,     # assumed when the contract cannot be read: the weakest charger we run on
-    # Per module at 5 V, measured at first light (BUILD.md section 10.2): 2.3 A at full white and
-    # about 0.1 A black. flushBuffer2 averages over the WHOLE 192 x 96 canvas, nine slots of which
-    # eight are fitted, so its calibration figure is nine modules' worth: eight lit modules are then
-    # 8/9 of the duty, which is eight modules' current.
-    "full_white_ma": 9 * 2200,
-    "idle_ma": 8 * 100,
+    # All eight modules on the board's two chains of four, measured with an INA226 in the 5 V feed
+    # (BUILD.md section 4.1, 16 Nov 2026): 8.0 A at full white and full brightness, 0.80 A black.
+    # flushBuffer2 averages over its 256 x 64 glass, exactly the eight modules, so the calibration
+    # figure is the eight modules' white current above idle.
+    "full_white_ma": 7200,
+    "idle_ma": 800,
     "rise_per_s": 50,
 }
 
@@ -267,7 +267,10 @@ class I2cBus:
     def _transfer(self, msgs):
         array = (_I2cMsg * len(msgs))(*msgs)
         data = _I2cRdwr(array, len(msgs))
-        fcntl.ioctl(self.fd, I2C_RDWR, ctypes.addressof(data))
+        # The struct itself, as a buffer: fcntl hands the kernel a pointer to it. Its address as an
+        # int does not fit the C int fcntl.ioctl converts an int argument to on a 64-bit Pi
+        # (OverflowError at the first transfer: pointhubd died at start on the Pi 5, 16 Nov 2026).
+        fcntl.ioctl(self.fd, I2C_RDWR, data)
 
     def write(self, addr, payload):
         buf = ctypes.create_string_buffer(bytes(payload), len(payload))

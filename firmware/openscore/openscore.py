@@ -280,10 +280,9 @@ _BOLD_FONT_CANDIDATES = [
 SMALL_TEXT_PX = 26
 
 
-# The Point Hub board's third HUB75 output: rows 64-95, 64 x 32 slots (BUILD.md section 4.1). A chain
-# keeps the LAST pixels clocked in the module nearest the Pi (seen on the glass, 5 Nov 2026), so with
-# two modules on a chain of three, the first slot is the one that falls off the end: bench L, nearest
-# the Pi, is the third slot and bench R the second.
+# The Point Hub board's bench slots: rows 64-95, 64 x 32 each (BUILD.md section 4.1). The canvas
+# keeps the layout it had with three chains of three; flushBuffer2 moves these two slots onto the
+# bench modules at the ends of the board's two chains of four (HubMap in flushbuffer.cc).
 BENCH_ROW = 64
 BENCH_SLOT_W = 64
 BENCH_SLOT_H = 32
@@ -576,6 +575,7 @@ class Device:
         # for Clear/StopAllProcess/showInfo, which re-acquire it. A plain Lock deadlocks
         # the client thread on those commands; RLock lets the same thread re-enter.
         self._lock = threading.RLock()
+        self._idle_shown = False
         self.show_idle()
 
     # openscore paints only on change, but the board watchdog reads "buffer.png unchanged for 60s"
@@ -600,16 +600,48 @@ class Device:
         lay = self.layouts.get(name)
         if lay is None:
             return None
+        self._idle_shown = False  # a client's screen (show_idle sets it again for its own)
         self.current = lay
         self.renderer.render(lay)
         return lay
 
     def show_idle(self):
         with self._lock:
-            if self._set_current(self.idle_layout) is None:
-                # fall back to a blank frame if the idle layout is missing
+            if self._set_current(self.idle_layout) is None and self._set_current("waiting") is None:
+                # fall back to the vendor's screen, then a blank frame, if the idle layout is missing
                 self.current = Layout(name="__blank__")
                 self.renderer.render(self.current)
+            else:
+                self._idle_shown = True
+                self._tick_idle_clock()
+
+    # An idle layout with a "time" section (kscw_clock) is a clock: with no client to write the
+    # time, openscore keeps it running itself, in the hub's format (ledboxClient formatClock).
+    DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+    def _tick_idle_clock(self, now=None):
+        if not self._idle_shown or self.current is None or self.current.get("time") is None:
+            return False
+        t = time.localtime(now if now is not None else time.time())
+        text = time.strftime("%H:%M:%S", t)
+        date = "%s %02d.%02d.%d" % (self.DAYS[t.tm_wday], t.tm_mday, t.tm_mon, t.tm_year)
+        sec, dsec = self.current.get("time"), self.current.get("date")
+        if sec.text == text and (dsec is None or dsec.text == date):
+            return False
+        sec.text = text
+        if dsec is not None:
+            dsec.text = date
+        self.renderer.render(self.current)
+        return True
+
+    def start_idle_clock(self):
+        def tick():
+            while True:
+                time.sleep(1.0 - (time.time() % 1.0) + 0.02)
+                with self._lock:
+                    self._tick_idle_clock()
+
+        threading.Thread(target=tick, name="idle-clock", daemon=True).start()
 
     def show_info(self):
         """Paint the network-info screen the vendor board flashes at boot: device name,
@@ -631,6 +663,7 @@ class Device:
                                         fontsize=13, text=txt))
             y += 16
         with self._lock:
+            self._idle_shown = False
             self.current = lay
             self.renderer.render(lay)
 
@@ -868,7 +901,9 @@ def build_config(base_dir):
         "height": geti("DISPLAY", "height", 64),
         "device_name": device_name,
         "version": version,
-        "idle_layout": "waiting",
+        # The screen with no client: the vendor's "Join WiFi / Open UI" QR screen by default; the
+        # Point Hub board shows its clock straight away ([DISPLAY] idle_layout = kscw_clock).
+        "idle_layout": ini.get("DISPLAY", "idle_layout", fallback="waiting") or "waiting",
         "port": geti("TCP", "port", 8889),
         # [HORN] cmd wins: the Point Hub board's horn is a switch on the I2C bus, not a sound file.
         "horn_cmd": ini.get("HORN", "cmd", fallback=None) or (
@@ -901,6 +936,7 @@ def main():
                         bench_rotate=cfg.get("bench_rotate", (90, 270)))
     device = Device(cfg, renderer)
     device.start_heartbeat()
+    device.start_idle_clock()
     Server(device, args.host, cfg["port"]).serve_forever()
 
 
