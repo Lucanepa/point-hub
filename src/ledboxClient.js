@@ -1412,6 +1412,11 @@ export class LedboxClient extends EventEmitter {
       // of that window queued behind it. A point in that window reached the panel up to five
       // seconds late. GetLayout does answer, so the normal case now costs one fast round trip.
       const seen = await this.send('GetLayout', '', {}, { timeoutMs: 1500 }).catch(() => null)
+      // The answer can arrive after a countdown (or idle, or a test) took the panel while we were
+      // asking: the board then correctly reports the break screen, and "correcting" it put the
+      // scoreboard back for a moment at the start of a time-out (match -> break -> match -> break).
+      // Whatever switched the layout owns it; the next tick looks again.
+      if (!this.ready || this._suppressPaint || this._idle || this._layoutTarget || (this.currentLayout && this.currentLayout !== this.layout && !strayTest)) return
       if (typeof seen === 'string' && seen) {
         if (seen !== this.layout) blog.warn(`board is on ${seen} — re-asserting the scoreboard`, { seen, layout: this.layout })
         this.currentLayout = seen
