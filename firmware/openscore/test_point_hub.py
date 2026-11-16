@@ -123,5 +123,51 @@ class Config(unittest.TestCase):
         self.assertEqual(cfg["bench_rotate"], (270, 270))   # both bench modules turned, 16 Nov 2026
 
 
+
+class IdleClock(unittest.TestCase):
+    """No client yet: the Point Hub board shows its clock, ticking, not the QR screen."""
+
+    def device(self, idle):
+        tmp = tempfile.mkdtemp(prefix="point-hub-idle-")
+        lay = os.path.join(tmp, "layout")
+        os.makedirs(lay)
+        clock = os.path.join(HERE, "..", "idle-crest-qr", "33_kscw_clock.xml")
+        with open(clock) as src, open(os.path.join(lay, "33_kscw_clock.xml"), "w") as dst:
+            dst.write(src.read())
+        with open(os.path.join(HERE, "layout", "system", "waiting.xml")) as src, open(os.path.join(lay, "waiting.xml"), "w") as dst:
+            dst.write(src.read())
+        os.makedirs(os.path.join(tmp, "www"))
+        cfg = {"layout_dir": lay, "device_name": "t", "version": "t", "idle_layout": idle}
+        return os_.Device(cfg, os_.Renderer(192, 96, os.path.join(tmp, "www", "buffer.png"), HERE))
+
+    def test_point_hub_ini_starts_on_the_clock(self):
+        ini = configparser.ConfigParser()
+        ini.read(os.path.join(HERE, "setting-point-hub.ini"))
+        self.assertEqual(ini.get("DISPLAY", "idle_layout"), "kscw_clock")
+
+    def test_the_idle_clock_runs_by_itself_in_the_hubs_format(self):
+        d = self.device("kscw_clock")
+        self.assertEqual(d.current.name, "kscw_clock")
+        # Mon 16.11.2026 18:30:05 local time
+        import time as t
+        now = t.mktime((2026, 11, 16, 18, 30, 5, 0, 0, -1))
+        self.assertTrue(d._tick_idle_clock(now))
+        self.assertEqual(d.current.get("time").text, "18:30:05")
+        self.assertEqual(d.current.get("date").text, "Mon 16.11.2026")
+        self.assertFalse(d._tick_idle_clock(now))  # same second: no repaint
+
+    def test_a_client_screen_stops_the_idle_clock(self):
+        d = self.device("kscw_clock")
+        d._set_current("kscw_clock")  # the hub picks the clock itself and writes its own time
+        d.current.get("time").text = "T - 05:00"
+        self.assertFalse(d._tick_idle_clock())
+        self.assertEqual(d.current.get("time").text, "T - 05:00")
+        d.show_idle()  # the client left: the clock is back, at once
+        self.assertRegex(d.current.get("time").text, r"^\d\d:\d\d:\d\d$")
+
+    def test_the_vendor_default_stays_the_qr_screen(self):
+        self.assertEqual(self.device("waiting").current.name, "waiting")
+        self.assertEqual(self.device("missing").current.name, "waiting")
+
 if __name__ == "__main__":
     unittest.main()
