@@ -5,6 +5,7 @@
 // A stand-in for pointhubd answers on a real unix socket and writes a real hw.json, so everything from
 // that file inward is the production code. The chips themselves are firmware/pointhubd/test_pointhubd.py.
 
+import { hashAdminPin } from '../src/adminPin.js'
 import fs from 'node:fs'
 import http from 'node:http'
 import net from 'node:net'
@@ -335,6 +336,17 @@ console.log('[7] following the board\'s own OpenVolley')
   const refused = await fetch(`${base}/api/screen`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ app: 'doom' }) })
   eq(refused.status, 400, 'an unknown app is refused')
   await post(base, '/api/screen', { app: 'console' })
+  // Admin: only with the right PIN from <state>/admin-pin; wrong ones are counted and lock the pad.
+  const adm = (pin) => fetch(`${base}/api/admin`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin }) })
+  eq((await adm('123456')).status, 501, 'Admin: no PIN set, nothing opens')
+  fs.writeFileSync(path.join(stateDir, 'admin-pin'), hashAdminPin('123456') + '\n')
+  eq((await adm('000000')).status, 403, 'Admin: a wrong PIN is refused')
+  ok(!/admin/.test(fs.readFileSync(nowFile, 'utf8')), '...and opens nothing')
+  eq((await adm('123456')).status, 200, 'Admin: the right PIN opens it')
+  eq(fs.readFileSync(nowFile, 'utf8').trim(), `admin ${boot_id}`, '...for this boot')
+  await post(base, '/api/screen', { app: 'console' })
+  for (let i = 0; i < 5; i++) await adm('999999')
+  eq((await adm('123456')).status, 429, 'Admin: after several wrong tries the pad locks, even for the right PIN')
   list = [{ id: 'm3', status: 'live' }]
   await app.server.followLocalScorer()
   eq((await J(base, '/api/status')).matchId, 'm2', 'with Point Hub chosen, it follows nothing new')

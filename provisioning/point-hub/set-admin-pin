@@ -1,0 +1,14 @@
+#!/bin/bash
+# set-admin-pin: store the board's Admin PIN as a scrypt hash in <state>/admin-pin (mode 600).
+# The PIN is read from stdin, not an argument: an argument shows in the process list and history.
+#   echo 123456 | POINTHUB_APP=/path/to/point-hub ./set-admin-pin
+set -eu
+STATE=${POINTHUB_STATE:-/data/pointhub}
+APP=${POINTHUB_APP:-/opt/pointhub/app}
+read -r PIN
+[[ "$PIN" =~ ^[0-9]{4,12}$ ]] || { echo "PIN must be 4-12 digits" >&2; exit 1; }
+umask 077
+H=$(PIN="$PIN" node --input-type=module -e "import {hashAdminPin} from '$APP/src/adminPin.js'; console.log(hashAdminPin(process.env.PIN))")
+printf '%s\n' "$H" > "$STATE/admin-pin"
+chmod 600 "$STATE/admin-pin"
+echo "Admin PIN set."
