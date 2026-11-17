@@ -128,7 +128,21 @@ case "$choice" in
     # The Admin button on the start screen (after its PIN): a terminal, with the on-screen keyboard.
     # Closing it (exit, or Ctrl-D) goes back to the start screen.
     force_osk=1
-    app=(/usr/bin/foot --app-id=pointhub-admin --font=monospace:size=16) ;;
+    # No PageUp on the on-screen keyboard and no mouse wheel on the screen, so scrolling back
+    # moves to the arrows: with Ctrl a page at a time, with Ctrl and Shift a line at a time.
+    mkdir -p "$SCREEN_HOME/.config/foot"
+    cat > "$SCREEN_HOME/.config/foot/foot.ini" <<'INI'
+[main]
+font=monospace:size=14
+[scrollback]
+lines=5000
+[key-bindings]
+scrollback-up-page=Control+Up
+scrollback-down-page=Control+Down
+scrollback-up-line=Control+Shift+Up
+scrollback-down-line=Control+Shift+Down
+INI
+    app=(/usr/bin/foot --app-id=pointhub-admin --config="$SCREEN_HOME/.config/foot/foot.ini") ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
     exec sleep infinity ;;
