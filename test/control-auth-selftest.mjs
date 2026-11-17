@@ -45,6 +45,8 @@ const ROUTES = {
   '/api/admin': { guard: 'pin', body: { pin: '0000' }, setup: 'refused', skipAuthed: 'a scorer PIN does not open it: only the board\'s own screen, with the Admin PIN (point-hub-selftest)' },
   '/api/sport': { guard: 'pin', body: { sport: 'volleyball' }, skipAuthed: 'a real switch restarts the appliance' },
   '/api/link': { guard: 'pin', body: { source: 'lan', matchId: 'x' }, skipAuthed: 'reaches for an unreachable relay' },
+  // Offers a match PIN to the running link's relay (409 with nothing linked).
+  '/api/link/pin': { guard: 'pin', body: { pin: '' }, skipAuthed: 'needs a linked match (409 without one; linked-display-selftest drives it)' },
   '/api/countdown': { guard: 'pin', body: { seconds: 5 } },
   '/api/countdown/stop': { guard: 'pin', body: {} },
   '/api/idle': { guard: 'pin', body: { on: true } },

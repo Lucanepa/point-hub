@@ -686,7 +686,16 @@
   "OpenVolley online is off": "OpenVolley online ist ausgeschaltet",
   "On — waiting for the hall internet": "Ein — wartet auf das Internet der Halle",
   "Not set up on this board": "Auf dieser Tafel nicht eingerichtet",
-  "No match on OpenVolley's server from this hall right now.": "Zurzeit kein Spiel aus dieser Halle auf dem Server von OpenVolley."
+  "No match on OpenVolley's server from this hall right now.": "Zurzeit kein Spiel aus dieser Halle auf dem Server von OpenVolley.",
+  "Match PIN (optional)": "Spiel-PIN (optional)",
+  "Send PIN": "PIN senden",
+  "The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.": "Die Spiel-PIN aus OpenVolley. Über das Internet bekommt die Tafel dann auch die Wechsel; ohne sie zählt die Tafel sie selbst.",
+  "PIN sent, waiting for OpenVolley.": "PIN gesendet, warte auf OpenVolley.",
+  "PIN accepted: the board gets the full live state, substitutions included.": "PIN angenommen: Die Tafel bekommt den vollen Live-Stand, mit den Wechseln.",
+  "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.": "OpenVolley hat die PIN abgelehnt. Die Tafel folgt ohne sie und zählt die Wechsel selbst.",
+  "PIN sent to OpenVolley": "PIN an OpenVolley gesendet",
+  "PIN taken back": "PIN zurückgenommen",
+  "A linked OpenVolley match follows this too: with the box off (the scorer faces the board), the panel's sides are turned round. It can be switched during the match.": "Ein verknüpftes OpenVolley-Spiel folgt dem auch: Ist das Kästchen aus (der Schreiber schaut zur Tafel), werden die Seiten auf der Anzeige getauscht. Das geht auch während des Spiels."
  },
  "patterns": [
   [

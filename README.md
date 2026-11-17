@@ -238,7 +238,11 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   breaks itself, on the same break screen, clock and horn as a console tap: the scorer's timeout
   puts up **TIME OUT** with the calling team (the one whose timeout count went up), a set end the
   **INTERVAL** with the set score, each for the length in Settings ▸ Countdowns. Each is timed from
-  the moment the board sees it, never from the laptop's `*_started_at`. The laptop's end takes it
+  the moment the board sees it, not from the laptop's `*_started_at` — except a break that was
+  already running when the link began (a bridge restart in a set break, a link made mid-timeout):
+  that one resumes from the match's own `set_interval_started_at` / `timeout_started_at` when the
+  board's clock is believed, and stays off the panel when the start is unknown or already more than
+  the break's length ago (never the full 3 minutes again). The laptop's end takes it
   down — silently when the scorer stopped it early, with the horn when it lands within 3 s of the
   board's zero — and when that end never comes (a link drop), the board's own zero ends it. A
   timeout is on while `timeout_active` is; OpenVolley sets `set_interval_active` on the set_end
@@ -248,6 +252,34 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   timeout / Show on set interval off. A match end ends any break before the result goes up.
   Indoor volleyball only (`sports.js` `linkBreaks`); beach, basketball and simple links are as
   before.
+- **What a linked match shows** (`src/linkedView.js`, test/linked-display-selftest.mjs) —
+  - *Sides*: **Settings ▸ Scorer sits behind the board** (`orientation`) also turns a linked
+    match: on (`behind`, the default) passes OpenVolley's `side_a` / `serving_team` through as
+    before; off (`front`, the scorer faces the board) mirrors them, with the time-out, sub and serve
+    indicators. Read on every state and applied at once when it is saved, mid-match too.
+  - *Substitutions*: the cloud (`wss://backend.openvolley.app`) strips `subs_a` / `subs_b` for a
+    viewer without the match PIN. The board then counts them from the public events
+    (`last_event_type: 'substitution'` + `last_event_team` home/away, per set, once per
+    type + `last_event_ts`; an `undo` right after a sub with the score unchanged takes it back;
+    `libero_*` is no sub), home/away to A/B learned from `point` events (whose points rose) and,
+    before the first one, from the summary's team names. Real counts win: `subs_count_a/_b`
+    (openvolley#241), then `subs_a/subs_b` whenever the state carries the keys.
+  - *Match PIN*: optional. Link tab ▸ **Match PIN (optional)** goes with the link
+    (`POST /api/link { …, pin }`), **Send PIN** offers it to the running link
+    (`POST /api/link/pin { pin }`, empty takes it back). Sent with `subscribe-match` (the backend's
+    `registerRelayAccess`), held in memory only, never logged or saved; a refusal (`pin-invalid`,
+    `rate-limited`, `access-denied`) drops it so no reconnect counts another wrong PIN.
+    `/api/status.linkPin`: `none` | `offered` | `accepted` | `refused`.
+  - *Per-set result line*: a non-empty `set_results` in the state wins; else the board records each
+    finished set itself (the summary's finished sets, else the last score it saw in each set) and
+    fills `set_results` only when it knows every finished set and they add up to `sets_won_a/_b`.
+    The result screen then reads "27-25  25-12  25-16", /live gets the sets, and the interval
+    history screen (Settings) works for a linked match too.
+  - *Game number*: `game_n` from the match summary (`match.game_n` / `gameN` / `gameNumber`) or the
+    Link tab's list when the live state has none, so livePush finds the game's own `game-<id>` row.
+- **Team colours** — a team in pure black (`#000000`) is painted **white**, whatever the source
+  (`src/ledColor.js` `teamRgb`): black is also the mappers' "no box" value, and a black team lost
+  its score box. No team colour can equal one of the panel's "off" values any more.
 - **Live-state order** — OpenVolley numbers every live state it pushes (`_seq`, within the
   `_session` of one scoring page; a reload starts again at 1). A state older than the newest one
   the board has taken is dropped (`src/relaySubscriber.js`), so the relay's replay after a
