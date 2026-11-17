@@ -93,6 +93,27 @@ which phones need. The fix belongs in OpenVolley: let an Easy match publish to a
 (`isLocalRelayUrl`, which already keeps test matches off the cloud), whoever serves the page.
 Not done; it is the owner's call.
 
+## Following a cloud match (17.11.2026)
+
+The C0270 followed its first real match through the cloud (`relayAddress` =
+`wss://backend.openvolley.app`, the Android app on the board's Wi-Fi with OpenVolley's hosts let
+through). What that showed, and what the board does about it now (README, "What a linked match
+shows"):
+
+- The board faced the scorer across the court: the panel's sides were the wrong way round.
+  Settings ▸ Scorer sits behind the board off (`orientation: 'front'`) now mirrors a linked match,
+  live.
+- A viewer without the match PIN gets no substitutions from the cloud (`LIVE_STATE_PRIVATE_COLUMNS`):
+  the board counts them from the public events, takes the PIN when offered, and prefers OpenVolley's
+  public `subs_count_a/_b` (openvolley#241) once a release sends them.
+- The live state has no `set_results`: the board records the sets itself, and takes OpenVolley's
+  (openvolley#241: `[{ set, home, away, a, b }]`) when they come.
+- A bridge restart in a set break restarted the 3-minute interval: a break already running when the
+  link begins now resumes from the match's own start, or stays off.
+- livePush timed out about once per 20 minutes on the school Wi-Fi: 8 s budget, the first failure
+  of a round is info, the retry carries the latest state.
+- The board did not know the match's game number: it now comes from the match summary.
+
 ## Phases
 
 1. **Board hosts OpenVolley** (built) —

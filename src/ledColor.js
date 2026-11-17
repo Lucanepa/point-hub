@@ -28,6 +28,8 @@
 // the colours the operator chose. Both renderers get it, because it acts on what goes down the
 // wire. Pure functions, no state: test/led-color-selftest.mjs drives all of it.
 
+import { hexToRgb } from './ledboxProtocol.js'
+
 // hzeller lib/framebuffer-internal.h. The CIE value is 11 bits wide whatever pwm_bits says.
 export const BIT_PLANES = 11
 // setting.ini pwm_bits on the C0270 (firmware/setting.ini.example, firmware/openscore/setting.ini).
@@ -52,9 +54,25 @@ export const DARK_INK = '220,220,220'
 // #111827 becomes 70,98,160, which drives 1/2/5 at brightness 40 instead of nothing.
 export const EDGE_LIFT = 160
 // The mappers' own "off" for a border or a serve bar (box() in the warm-up, the simple
-// scoreboard's invisible boxes, SERVE_OFF). These are meant to be dark and are never lifted. A
-// team in exactly #000000 therefore keeps a black border; its digits still go light grey.
+// scoreboard's invisible boxes, SERVE_OFF). These are meant to be dark and are never lifted. They
+// are recognised by value, so no TEAM colour may ever arrive as one of them: every team colour
+// reaches the mappers through teamRgb() below, which keeps the two apart.
 export const PANEL_OFF = new Set(['0,0,0', '30,30,30'])
+
+// What a team colour paints with, for every source (the console's own scoring, a linked OpenVolley
+// match, a schedule start) — the mappers' toLeftRight and the result screen read it from here.
+//   * Pure black (#000000) is shown WHITE (owner, 17.11.2026). Sent as black it was the "no box"
+//     sentinel above: a team in black shirts lost its score box on the C0270, and dark text on a
+//     black panel reads as nothing anyway.
+//   * Any other colour that happens to equal a sentinel (#1e1e1e = SERVE_OFF) moves one step up,
+//     which the eye cannot tell, so it is a team colour again and gets the dark-colour lift.
+// Everything else is exactly hexToRgb's answer. A missing or unreadable colour is `fallback`.
+export function teamRgb(color, fallback = '255,255,255') {
+  const rgb = hexToRgb(color, fallback)
+  if (rgb === '0,0,0') return '255,255,255'
+  if (!PANEL_OFF.has(rgb)) return rgb
+  return rgb.split(',').map((c) => Math.min(255, Number(c) + 1)).join(',')
+}
 
 // Default text size per layout for the sections that carry a team colour. The volleyball match and
 // countdown sizes are the vendor's layouts on the board (not in this repo); the rest are ours in

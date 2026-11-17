@@ -369,6 +369,10 @@
   #matches .sub{font-size:12px;color:var(--muted)}
   .live{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--on-accent);background:var(--ok);padding:3px 8px;border-radius:20px}
   #matches li.linked .linkbtn{color:var(--on-accent);background:var(--blue);border-color:var(--blue)}
+  .linkpin{display:flex;align-items:flex-end;gap:10px;margin-top:14px}
+  .linkpinrow{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700}
+  .linkpinrow input{min-height:var(--tap);padding:8px 12px;font-size:16px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:inherit}
+  #linkPinBtn{min-height:var(--tap);padding:11px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   /* A schedule row is ONE big button: time · HOME vs AWAY · league. The whole row is the target —
      read and tapped at arm's length, often with the teams already on court. */
   .schedlist{list-style:none;padding:0;margin:0 0 4px;display:flex;flex-direction:column;gap:10px}
@@ -1457,6 +1461,15 @@
       <div id="linkErrs"></div>
       <ul id="matches"></ul>
       <p class="note" id="matchesNote">Tap “Find eScoresheet matches” to find a match an OpenVolley eScoresheet laptop is scoring on this network.</p>
+      <!-- The match PIN, optional: sent with the link (or to the running link) so OpenVolley's cloud
+           sends the full live state, substitutions included. Never kept on this tablet or the board's
+           disk; the board holds it for the link only. -->
+      <div class="linkpin">
+        <label class="linkpinrow"><span>Match PIN (optional)</span>
+          <input id="linkPin" type="text" inputmode="numeric" autocomplete="off" maxlength="32" spellcheck="false"></label>
+        <button id="linkPinBtn" type="button" hidden>Send PIN</button>
+      </div>
+      <p class="note" id="linkPinNote">The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.</p>
     </section>
 
     <!-- SETTINGS (Phase 2 placeholder) -->
@@ -1630,6 +1643,8 @@
             public /live page. With the scorer behind the board, the Game tab's team cards are
             swapped to match what the scorer sees — the team on your left is the one on the panel's
             right. The preview under them always shows the panel as the court sees it.</p>
+          <p class="hint">A linked OpenVolley match follows this too: with the box off (the scorer faces
+            the board), the panel's sides are turned round. It can be switched during the match.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /></svg> Schedule</legend>
@@ -2821,6 +2836,7 @@
     renderBoard(sides(st.state));
     renderSetStrip(st.state);
     markLinked();
+    renderLinkPin(st);
     maybePromptServeOrder(st.state);
     syncSetEndPrompt(st.state);
     maybeAskEndMatch(st.state);
@@ -3361,6 +3377,9 @@
   function colorAdvice(left, right, brightness, presets, prefer) {
     const ok = (h) => /^#[0-9a-fA-F]{6}$/.test(String(h || ""));
     if (!ok(left) || !ok(right)) return null;
+    // Pure black is painted WHITE on the board (src/ledColor.js teamRgb), so it is judged as white.
+    const onBoard = (h) => (/^#000000$/.test(String(h)) ? "#ffffff" : h);
+    left = onBoard(left); right = onBoard(right);
     const dark = [ledDark(left, brightness), ledDark(right, brightness)];
     const shown = (h, isDark) => (isDark ? DARK_TEAM_INK : h);
     const gap = colorGap(shown(left, dark[0]), shown(right, dark[1]));
@@ -4437,11 +4456,35 @@
     try {
       // `relay` binds the link to the laptop that listed this row, not to whatever the board
       // found last (the list is open to anyone on the Wi-Fi; the link needs the PIN).
-      const r = await postJSON("/api/link", { source: m.source || "lan", matchId: m.id, relay: m.relay || undefined });
+      const pin = ($("#linkPin").value || "").trim();
+      const r = await postJSON("/api/link", { source: m.source || "lan", matchId: m.id, relay: m.relay || undefined, pin: pin || undefined });
       const at = r && r.relay && r.relay.address;
       toast("Linked to " + (m.label || m.id) + (at ? " on " + at + (r.relay.source === "discovered" ? " (found on the network)" : "") : ""));
       refreshStatus();
     } catch (e) { toast(e.message); }
+  }
+
+  // The match PIN on the running link (POST /api/link/pin), and what became of it (/api/status
+  // linkPin: none | offered | accepted | refused — never the PIN itself).
+  async function sendLinkPin() {
+    const pin = ($("#linkPin").value || "").trim();
+    try {
+      await postJSON("/api/link/pin", { pin });
+      toast(pin ? "PIN sent to OpenVolley" : "PIN taken back");
+      refreshStatus();
+    } catch (e) { toast(e.message); }
+  }
+  function renderLinkPin(st) {
+    const linked = !!st && st.mode === "lan";
+    const btn = $("#linkPinBtn"), note = $("#linkPinNote");
+    if (!btn || !note) return;
+    btn.hidden = !linked;
+    const said = {
+      offered: "PIN sent, waiting for OpenVolley.",
+      accepted: "PIN accepted: the board gets the full live state, substitutions included.",
+      refused: "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.",
+    }[linked ? st.linkPin : ""];
+    note.textContent = said || "The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.";
   }
 
   // --- diagnostics --------------------------------------------------------
@@ -5662,6 +5705,7 @@
     }
   });
   $("#refreshBtn").addEventListener("click", refreshMatches);
+  $("#linkPinBtn").addEventListener("click", sendLinkPin);
 
   // Anything on the scoreboard worth losing: a point or a set on either side.
   function hasScore(state) {
