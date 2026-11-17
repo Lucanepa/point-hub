@@ -20,7 +20,7 @@ shows it. It must work **with no internet** in the hall.
   openvolley.app always uses the cloud, and an https page cannot open `ws://` to the board anyway.
 - **The cloud** (`wss://backend.openvolley.app`) needs internet on both ends, never carries test
   or Easy matches, and lists a match only with the referee connection on or from the same public
-  IP. `src/cloudSource.js` is still a stub.
+  IP. `src/cloudSource.js` is still a stub; the board links cloud matches with `LanSource` instead (phase 3).
 - **The DIY board** already runs the OpenVolley desktop app on its own touchscreen
   (pointhub-screen) and follows its live match by itself. That is how the DIY board is used with
   OpenVolley (owner 11.11.2026): **nothing in this design is needed there.**
@@ -57,7 +57,8 @@ The **DIY Point Hub** is scored on its own touchscreen, so it is not in this tab
 | **Tablet / iPad, browser** | OpenVolley from the board | the address above (QR on the console) | yes |
 | **Phone, Android app** | the board's relay | as the tablet | yes |
 | **Phone, browser (incl. iPhone)** | OpenVolley from the board | as the tablet | yes |
-| **Any device on openvolley.app** | the cloud | board needs hall internet + the cloud source (phase 3) | **no** |
+| **Any device on openvolley.app** | the cloud | board needs hall internet; Link tab ▸ OpenVolley cloud (phase 3) | **no** |
+| **Tablet on `ledbox_C0270`, Android app, online** | the cloud | Settings ▸ OpenVolley online ON; the board follows by itself | **no** |
 
 Referee and bench tablets connect to the same address (`/referee`, `/bench`), as they do to a
 laptop today.
@@ -117,6 +118,19 @@ Not done; it is the owner's call.
    cable's when the console is on the cable, else the AP's) and the Android app's server path,
    German and Swiss German. Still open: a QR code (the console has no QR encoder; the panel's
    QR is the firmware's image), and a line on the hall card and guide.
-3. **Cloud source** (optional) — `CloudSource` subscribes to `wss://backend.openvolley.app` by seed
-   key, for a scorer on openvolley.app with internet. Only if wanted: it is online only and does
-   not carry Easy matches.
+3. **Cloud** (built 17.11.2026, not yet on the board) — no `CloudSource`: the cloud speaks the relay
+   protocol, so a cloud match is linked with the same `LanSource`, on `wss://backend.openvolley.app`.
+   - **Link tab**: `GET /api/matches` also asks the cloud's `/api/match/list` and lists its matches
+     under the laptop's ("OpenVolley cloud"): the hall's own first — listed with the referee
+     connection off (the cloud shows those only to the scorer's own public address) or with a game
+     number from this board's schedule — then up to 30 others. Only the board's sport, never a test
+     or a finished match. One tap: `POST /api/link { source: 'cloud' }`.
+   - **Settings ▸ OpenVolley online** (owner switch, scorer PIN, OFF by default): a tablet on
+     `ledbox_C0270` reaches `*.openvolley.app` on 443 through the board's uplink and nothing else
+     (`provisioning/ledbox-ov-online.sh`, installed by `setup-ov-online.sh`), so the Android app
+     scores online; the tablet shares the board's public address, so the board sees its match.
+   - With the switch ON the board links the one live cloud match from this hall by itself, every
+     10 s (`followCloudScorer`, the rules of `followLocalScorer`): never over a hand-scored game in
+     play or a countdown, never over a laptop's or the board's own match, and a cloud match still
+     going stays linked until it has ended.
+   - Online only, and no Easy matches (the cloud does not carry them).

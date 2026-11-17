@@ -670,7 +670,23 @@
   "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.": "Em OpenVolley eScoresheet nüm folge? D Tafle bhaltet de aazeigti Stand; dänn ändered en nume no d Iigabe da. Im eScoresheet nöd wiiter mitschriibe.",
   "Stop following": "Nüm folge",
   "Scoring here now — the board no longer follows the eScoresheet": "Jetzt wird da zellt — d Tafle folgt em eScoresheet nüm",
-  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "D Tafle folgt em OpenVolley eScoresheet, drum isch da zelle us. Zum da zelle: Nüm folge tippe."
+  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "D Tafle folgt em OpenVolley eScoresheet, drum isch da zelle us. Zum da zelle: Nüm folge tippe.",
+  "OpenVolley online": "OpenVolley online",
+  "Turn on": "Iischalte",
+  "Turn off": "Uusschalte",
+  "Turning on…": "Wird iigschaltet…",
+  "Turning off…": "Wird uusgschaltet…",
+  "Remove them": "Wägmache",
+  "Off — the board's Wi-Fi has no internet": "Uus — s WLAN vo de Tafele hät kei Internet",
+  "On — devices on the board's Wi-Fi reach OpenVolley": "Ii — Grät im WLAN vo de Tafele chömed zu OpenVolley",
+  "On — but not working yet": "Ii — gaht aber no nöd",
+  "Only OpenVolley's servers, nothing else.": "Nur d Server vo OpenVolley, susch nüt.",
+  "Only OpenVolley's servers, nothing else. The board shows a live OpenVolley match from this hall by itself.": "Nur d Server vo OpenVolley, susch nüt. D Tafele zeigt es laufends OpenVolley-Spiel us dere Halle vo sälber.",
+  "OpenVolley online is on": "OpenVolley online isch iigschaltet",
+  "OpenVolley online is off": "OpenVolley online isch uusgschaltet",
+  "On — waiting for the hall internet": "Ii — wartet ufs Internet vo de Halle",
+  "Not set up on this board": "Uf dere Tafele nöd iigrichtet",
+  "No match on OpenVolley's server from this hall right now.": "Im Moment kei Spiel us dere Halle uf em Server vo OpenVolley."
  },
  "patterns": [
   [

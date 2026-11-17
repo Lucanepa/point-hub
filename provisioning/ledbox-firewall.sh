@@ -14,6 +14,9 @@
 # them reaches the board and never the internet, the hall LAN or the tailnet through it. FORWARD is
 # DROP with our own drop-all chain first (see build()); lock-control-network.sh also turns kernel
 # forwarding off and stops the board's DNS answering internet names. test/control-network-selftest.mjs
+# The one exception is the owner's, OFF unless switched on in the console: OpenVolley online
+# (ledbox-ov-online.sh) — two accepts for *.openvolley.app on 443 ahead of the forward DROP, put back
+# here after every rebuild while it is on. test/ov-online-helper-selftest.mjs
 #
 # Everything is built in a private LEDBOX-IN chain. INPUT itself is only ever *appended* to,
 # never flushed, because tailscale owns `-j ts-input` there and re-adds it on its own schedule —

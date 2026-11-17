@@ -670,7 +670,23 @@
   "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.": "Dem OpenVolley eScoresheet nicht mehr folgen? Die Tafel behält den angezeigten Stand; danach ändern ihn nur noch die Eingaben hier. Im eScoresheet nicht weiter mitschreiben.",
   "Stop following": "Nicht mehr folgen",
   "Scoring here now — the board no longer follows the eScoresheet": "Jetzt wird hier gezählt — die Tafel folgt dem eScoresheet nicht mehr",
-  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "Die Tafel folgt dem OpenVolley eScoresheet, darum ist hier zählen aus. Um hier zu zählen: Nicht mehr folgen tippen."
+  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "Die Tafel folgt dem OpenVolley eScoresheet, darum ist hier zählen aus. Um hier zu zählen: Nicht mehr folgen tippen.",
+  "OpenVolley online": "OpenVolley online",
+  "Turn on": "Einschalten",
+  "Turn off": "Ausschalten",
+  "Turning on…": "Wird eingeschaltet…",
+  "Turning off…": "Wird ausgeschaltet…",
+  "Remove them": "Entfernen",
+  "Off — the board's Wi-Fi has no internet": "Aus — das WLAN der Tafel hat kein Internet",
+  "On — devices on the board's Wi-Fi reach OpenVolley": "Ein — Geräte im WLAN der Tafel erreichen OpenVolley",
+  "On — but not working yet": "Ein — funktioniert aber noch nicht",
+  "Only OpenVolley's servers, nothing else.": "Nur die Server von OpenVolley, sonst nichts.",
+  "Only OpenVolley's servers, nothing else. The board shows a live OpenVolley match from this hall by itself.": "Nur die Server von OpenVolley, sonst nichts. Die Tafel zeigt ein laufendes OpenVolley-Spiel aus dieser Halle von selbst.",
+  "OpenVolley online is on": "OpenVolley online ist eingeschaltet",
+  "OpenVolley online is off": "OpenVolley online ist ausgeschaltet",
+  "On — waiting for the hall internet": "Ein — wartet auf das Internet der Halle",
+  "Not set up on this board": "Auf dieser Tafel nicht eingerichtet",
+  "No match on OpenVolley's server from this hall right now.": "Zurzeit kein Spiel aus dieser Halle auf dem Server von OpenVolley."
  },
  "patterns": [
   [

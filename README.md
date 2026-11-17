@@ -191,6 +191,28 @@ Each OpenVolley release: build its bundle and deploy again (the last 3 stay on t
 back by pointing `current` at the old one and `sudo systemctl restart pointhub-openvolley`).
 Tested by `OPENVOLLEY_WEB_DIR=<unpacked bundle> E2E_RELAYS=board npm run test:e2e`.
 
+### Scoring online from the board's Wi-Fi — Settings ▸ OpenVolley online
+The board's own Wi-Fi has no internet. To score **online** (OpenVolley's cloud) in the OpenVolley
+app on a tablet that is on `ledbox_C0270`, the owner turns on **Settings ▸ OpenVolley online**
+(behind the scorer PIN): devices on the board's Wi-Fi then reach `*.openvolley.app` (and Android's
+connectivity check) on port 443 through the board's hall internet, and nothing else. **Off by
+default**, remembered across reboots, removed completely when switched off. The tablet shares the
+board's public address, so OpenVolley's server lists the hall's own match to the board: the **Link**
+tab shows it under the laptop's ("OpenVolley cloud · this hall"), one tap links it, and with the
+switch on the board links the one live match from this hall by itself (never over a hand-scored game
+in play, a countdown, or a laptop's match). How it works and what is checked: the header of
+[`provisioning/ledbox-ov-online.sh`](provisioning/ledbox-ov-online.sh).
+
+```bash
+# once, on the board (after install-firewall.sh, which it builds on):
+sudo bash ledbox-bridge/provisioning/setup-ov-online.sh            # --check
+sudo bash ledbox-bridge/provisioning/setup-ov-online.sh --apply    # the switch, its boot unit, sudo for the bridge
+sudo bash ledbox-bridge/provisioning/install-firewall.sh           # only if --apply says the firewall predates it
+sudo bash ledbox-bridge/provisioning/install-firewall.sh --commit
+# then the console, or by hand:  sudo ledbox-ov-online on | off | status
+```
+`CLOUD_RELAY=0` in `.env` turns the Link tab's cloud list off; `OV_ONLINE=0` hides the switch.
+
 ## Appliance — web control UI (manual + link)
 Instead of the headless bridge, run the **appliance**: a phone-friendly control page
 served by the Pi (`CONTROL_PORT`, default 8890) with two modes — **Manual** (drive the

@@ -12,6 +12,9 @@
 #     forwarded, IPv6 not at all (dnsmasq filters AAAA, the v6 forward drop is untouched);
 #   - the board NATs those connections out of its uplink, so the tablet shares the board's public
 #     address — which is what the cloud's /api/match/list keys a hall's own matches by.
+# The filter is by address: openvolley.app is behind Cloudflare, whose addresses other Cloudflare sites
+# share, so those are reachable on 443 too by a device that asks for them by address. An SNI filter
+# would break as soon as the tablet uses Encrypted Client Hello (Cloudflare offers it).
 #
 # Installed at /usr/local/sbin/ledbox-ov-online by setup-ov-online.sh, root-owned. The bridge (user
 # pi) asks for it through sudo, allowed for exactly `on`, `off` and `status` (/etc/sudoers.d/

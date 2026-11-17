@@ -19,6 +19,7 @@ import { livePushFromEnv } from './livePush.js'
 import { matchUploadFromEnv } from './matchUpload.js'
 import { SourceManager } from './sourceManager.js'
 import { createControlServer } from './controlServer.js'
+import { OvOnline } from './ovOnline.js'
 import { Settings } from './settings.js'
 import { makeCableTrust } from './cableTrust.js'
 import { BoardHardware } from './boardHardware.js'
@@ -223,8 +224,17 @@ export async function startAppliance(config = loadConfig()) {
     ...(config.hardwareSettleMs != null ? { settleMs: config.hardwareSettleMs } : {}),
   }) : null
 
+  // OpenVolley online for devices on the board's Wi-Fi (ovOnline.js): a real boot names the helper
+  // (loadConfig); a test config hands in an OvOnline of its own (config.ovOnline) or none. The console
+  // never offers it on the Point Hub board, which has no Wi-Fi of its own (see status()).
+  const ovOnline = config.ovOnline || (config.ovOnlineHelper
+    ? new OvOnline({ helper: config.ovOnlineHelper, sudo: config.ovOnlineSudo !== false }) : null)
   const server = createControlServer({
     hardware,
+    ovOnline,
+    // OpenVolley's server for the Link tab's cloud list: a real boot only (loadConfig), so no
+    // selftest asks the internet; a test points it at a fake.
+    cloudRelay: config.cloudRelay || null,
     adminPinFile: path.resolve(stateDir, 'admin-pin'),
     localRelayUrl: config.localRelayUrl || null, // test hook: the board's own OpenVolley relay
     boardOpenVolley: config.boardOpenVolley === true, // the C0270 serves OpenVolley itself
@@ -330,6 +340,8 @@ export async function startAppliance(config = loadConfig()) {
   }).catch(() => {})
   let sysTimer = null
   // A C0270 serving OpenVolley itself follows the live match on its own relay (config.js).
+  // With OpenVolley online on, the one live cloud match from this hall is followed by itself.
+  if (config.cloudRelay && ovOnline) server.startCloudFollow()
   if (config.boardOpenVolley) {
     server.startLocalFollow()
     log.info('OpenVolley on the board: following the live match on ws://127.0.0.1:8080 by itself')
