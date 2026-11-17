@@ -142,14 +142,19 @@ scrollback-down-page=Control+Down
 scrollback-up-line=Control+Shift+Up
 scrollback-down-line=Control+Shift+Down
 INI
-    app=(/usr/bin/foot --app-id=pointhub-admin --config="$SCREEN_HOME/.config/foot/foot.ini")
+    # The terminal logs in as `admin` (sudo rights; pi has none in the hall): su asks admin's
+    # password, again after a typo; exit goes back to the start screen. Not automatic on purpose:
+    # anything running as pi could otherwise become root the same way.
+    # First time (admin has no password yet, and pi still has the bench's sudo): choose it here.
+    login=(/bin/bash -c 'if sudo -n passwd -S admin 2>/dev/null | grep -q " L "; then echo "First time: choose the admin password."; sudo -n passwd admin; fi; while :; do su -l admin && exit 0; [ $? -eq 1 ] || exit 0; echo "Try again, or close this window."; done')
+    app=(/usr/bin/foot --app-id=pointhub-admin --config="$SCREEN_HOME/.config/foot/foot.ini" "${login[@]}")
     # GNOME Console when installed (apt install gnome-console): made for phones, so a finger
     # drag scrolls, and it asks for the on-screen keyboard by itself. foot stays the fallback.
     if [ -x /usr/bin/kgx ]; then
       force_osk=
       # Its own D-Bus session: kgx hands itself to a D-Bus-activated copy and exits at once
       # (its --wait is a TODO), which would end labwc; with a private bus it stays in front.
-      app=(dbus-run-session -- /usr/bin/kgx)
+      app=(dbus-run-session -- /usr/bin/kgx -- "${login[@]}")
     fi ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
