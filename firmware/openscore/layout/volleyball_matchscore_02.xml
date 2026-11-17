@@ -36,6 +36,6 @@
   <section name="sub2" type="text" x="116" y="52" visible="true" private="false" enable="true" fontsize="15" color="200, 200, 200" align="center" valign="middle">0</section>
   <!-- Serve bars: lit in the serving team's colour, 30,30,30 when off. No border, so the whole
        bar is the colour. -->
-  <section name="serve1" type="rectangle" x="66" y="60" width="20" height="3" visible="true" private="false" enable="true" color="30, 30, 30"></section>
-  <section name="serve2" type="rectangle" x="106" y="60" width="20" height="3" visible="true" private="false" enable="true" color="30, 30, 30"></section>
+  <section name="serve1" type="rectangle" x="66" y="60" width="20" height="3" visible="true" private="false" enable="true" color="0, 0, 0"></section>
+  <section name="serve2" type="rectangle" x="106" y="60" width="20" height="3" visible="true" private="false" enable="true" color="0, 0, 0"></section>
 </layout>
