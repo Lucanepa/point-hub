@@ -79,7 +79,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 | **Screen flicker test** | **Passed 8 Nov 2026** on the bench, with both screens. Repeat it in the finished box: if the touchscreen makes the LED modules flicker, the screen stays out and the scorer uses a tablet on the DATA cable | at bring-up | §10.4 |
 | Screen pocket and flap | the bigger pocket may hit the top blocks or the handle trays; the cable slot on the wrong side; the HDMI adapter turning the cable the wrong way | dry fit, before cutting B's opening, the pocket or F | §8.5 |
 | **Bottom cap K vs backing plates Y** | both want the front/centre of the floor | dry fit, before gluing Y | §8.6 |
-| **Soak test** (2 h at the power cap) | the box runs too hot | before the first match | §6 |
+| **Soak test** (2 h at the power cap) | the box runs too hot | **Open bench passed 17 Nov 2026** (§6); repeat in the closed box before the first match | §6 |
 | Cheeks H and stays vs the bench modules | the parts that close the side gaps may hit the bench modules | dry fit | §8.4 |
 | Polycarbonate sheet vs battens on A | the front sheet was cut for the earlier frame and may overlap the battens | dry fit | §8.3 |
 | Piano hinge position | A's top corner must clear the top C1 when tilting | dry fit | §8.4 |
@@ -695,7 +695,13 @@ condensation can short the modules. A sachet of silica gel lives in the box.
 1. **First power-up** with a small 9 V charger and nothing connected but the converter: 5.0–5.2 V at
    the fuse box (§9 step 30). A 5 V-only source must leave the box off.
 2. **Soak: 2 h at the power cap** with thermocouples on the converter, a module back and the Pi (a
-   borrowed thermal camera is a bonus). Log the SHT40 alongside. **Not done yet for design D.**
+   borrowed thermal camera is a bonus). Log the SHT40 alongside. **Open bench, 17 Nov 2026:** all
+   eight modules full white for 2 h, about 8.1 A at 5 V (41 W, highest 9.3 A); IR at the end: Mean
+   Well 40–45 °C (still rising slowly), modules 28–31 °C, Wagos 26 °C, INA226 25 °C; Pi 5 chip at
+   most 51 °C, never throttled. **Not done yet in the closed box**, where the Mean Well will run
+   hotter. Same day: 5.08 V at the Mean Well but 4.75 V at the last module through a chain of four
+   Wagos (0.33 V lost on the way): wire the modules as a star from the fuse box (§5.4), not through
+   chained Wagos.
 3. **Fuse-clear test** on every branch: short it through a 0.2 Ω load; its fuse must open.
 4. **Screen flicker test** (§10.4): all eight modules running, touchscreen on and in use, 10 minutes.
    Any flicker → the screen stays out. Passed on the bench on 8 Nov 2026; repeat it in the finished box.
@@ -1417,8 +1423,11 @@ the Pi 5 before the first boot.
 
 **Use a current Raspberry Pi Imager**, from raspberrypi.com, not an old distribution package. Version
 1.8.5 from Ubuntu silently dropped the user, Wi-Fi and SSH settings on a Debian 13 (trixie) image, and
-the Pi then boots with no way in. A WPA3-only network works on the Pi 5, but only with
-`key-mgmt=sae` and the plain password in the NetworkManager profile; a hashed key cannot do WPA3. Then:
+the Pi then boots with no way in. **Use a WPA2 network** (or WPA2/WPA3 mixed). A WPA3-only
+network worked once with `key-mgmt=sae` and the plain password in the NetworkManager profile (a
+hashed key cannot do WPA3), but on 17 Nov 2026 the bench Pi lost a WPA3-only network mid-test and
+then failed every login (`brcmf_cyw_external_auth: External authentication failed`) until it moved
+to a WPA2 network. Then:
 
 ```ini
 # /boot/firmware/config.txt — both paths
