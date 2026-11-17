@@ -34,6 +34,15 @@ mkdir -p "$SCREEN_HOME/.config/labwc" "$SCREEN_HOME/.cache" "$SCREEN_HOME/.local
 # in) the MINIX offers only the kernel's 1024 x 768 and less: then the size last read with an EDID.
 out= mode=
 last="$SCREEN_HOME/.config/pointhub-screen-mode"
+# The MINIX wakes a few seconds after the Pi. When it was the screen last time and does not answer
+# yet, wait for it (up to 30 s) instead of falling back to the ribbon screen and leaving the MINIX at
+# the compositor's defaults (120 Hz, not the board's 60 Hz layout): bench 17.11.
+if read -r o m 2>/dev/null < "$last" && [[ "$o" == HDMI-A-* ]]; then
+  for _ in $(seq 1 30); do
+    for c in /sys/class/drm/card*-HDMI-A-*; do [ "$(cat "$c/status" 2>/dev/null)" = connected ] && break 2; done
+    sleep 1
+  done
+fi
 for c in /sys/class/drm/card*-HDMI-A-* /sys/class/drm/card*-DSI-*; do
   [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
   out=${c##*/card[0-9]-} mode=$(head -1 "$c/modes" 2>/dev/null)
