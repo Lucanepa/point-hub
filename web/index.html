@@ -6373,19 +6373,34 @@
   $("#upCheck").addEventListener("click", uplinkCheck);
   // The hall's own login page, through the board (portalProxy.js). Same tab: the tablet app has no
   // second window, and the page's bar leads back here — to Settings, via #settings below.
-  $("#upPortal").addEventListener("click", async () => {
+  //
+  // The board fetches the page from the hall's portal before the tablet sees anything (up to half a
+  // minute on a slow portal), so the button keeps saying "Opening…" until the page is there: it used
+  // to spring back the moment the navigation started, which looked like a tap that did nothing.
+  const UPLINK_PORTAL_WAIT_MS = 40000;
+  async function uplinkOpenPortal() {
     if (upBusy) return;
     uplinkError("");
     const btn = $("#upPortal");
     uplinkBusy(true, btn, "Opening…");
+    let leaving = false;
     try {
       const r = await uplinkPost("/api/uplink/portal", {}, UPLINK_CHECK_TIMEOUT_MS);
       if (!r || !r.url) { uplinkError("The board could not open the login page — try again."); return; }
+      leaving = true;
+      toast("Opening the hall's login page — the board fetches it, this can take a few seconds");
       location.assign(r.url);
+      // Still on the console long after: the page never came (the portal did not answer the board).
+      setTimeout(() => {
+        if (!upBusy) return;
+        uplinkBusy(false, btn);
+        uplinkError("The hall's login page didn't open — the hall Wi-Fi may not be answering the board. Try again, or Check again.");
+      }, UPLINK_PORTAL_WAIT_MS);
     } catch (e) {
       uplinkError(e && e.status === 404 ? "This board cannot open the login page yet — it needs an update." : uplinkFail(e));
-    } finally { uplinkBusy(false, btn); }
-  });
+    } finally { if (!leaving) uplinkBusy(false, btn); }
+  }
+  $("#upPortal").addEventListener("click", uplinkOpenPortal);
   // Back from the login page: land on Settings, where the card says whether it worked. Through
   // goToTab, which is the same click on the Settings button — and in embed mode also tells the app,
   // whose tab bar would otherwise still show the tab the scorer left from.
