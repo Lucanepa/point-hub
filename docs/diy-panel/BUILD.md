@@ -75,7 +75,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 
 | Check | What could go wrong | When | Section |
 |---|---|---|---|
-| **First light on the Pi 5 + Piomatter** | **Passed 4 Nov 2026** with one module. Still open: all eight modules, Ports 2 and 3 | before cutting | §10.2 |
+| **First light on the Pi 5 + Piomatter** | **Passed 4 Nov 2026** with one module; **all eight modules lit on 16 Nov 2026** (owner saw them, TO-start flash included). Still open: confirm Ports 2 and 3 separately | before cutting | §10.2 |
 | **Screen flicker test** | **Passed 8 Nov 2026** on the bench, with both screens. Repeat it in the finished box: if the touchscreen makes the LED modules flicker, the screen stays out and the scorer uses a tablet on the DATA cable | at bring-up | §10.4 |
 | Screen pocket and flap | the bigger pocket may hit the top blocks or the handle trays; the cable slot on the wrong side; the HDMI adapter turning the cable the wrong way | dry fit, before cutting B's opening, the pocket or F | §8.5 |
 | **Bottom cap K vs backing plates Y** | both want the front/centre of the floor | dry fit, before gluing Y | §8.6 |
