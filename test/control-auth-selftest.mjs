@@ -25,6 +25,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startAppliance } from '../src/appliance.js'
+import { OvOnline } from '../src/ovOnline.js'
 
 let pass = 0, fail = 0
 const ok = (cond, label) => { if (cond) { pass++; console.log(`  ✅ ${label}`) } else { fail++; console.log(`  ❌ ${label}`) } }
@@ -84,6 +85,9 @@ const ROUTES = {
   '/api/uplink/login': { guard: 'pin', body: { phone: '079 000 00 00' } },
   '/api/uplink/code': { guard: 'pin', body: { code: '000000' } },
   '/api/uplink/portal': { guard: 'pin', body: {} },
+  // Settings ▸ OpenVolley online (ovOnline.js): opens OpenVolley's servers to the board's Wi-Fi, so
+  // gated like every switch (a stand-in helper here, see startAppliance below).
+  '/api/ovonline': { guard: 'pin', body: { on: false } },
   // Game info is the public schedule; the roster inside the answer is PIN-gated in the body, and a
   // missing PIN must NOT count as a guess (a locked tablet polls it) — test/gamesheet-selftest.mjs.
   '/api/gamesheet': { guard: 'open', body: {}, why: 'game info is public; the roster in it needs the PIN (gamesheet-selftest)' },
@@ -119,6 +123,8 @@ const app = await startAppliance({
   mock: true, controlPort: 0, debug: false,
   // Never the real connectivity check or portal from a test: port 9 on loopback refuses at once.
   uplinkProbeUrl: 'http://127.0.0.1:9/generate_204', uplinkPortalUrl: 'http://127.0.0.1:9',
+  // The OpenVolley-online switch with a stand-in helper: never sudo from a test.
+  ovOnline: new OvOnline({ exists: () => true, run: async () => ({ code: 0, stdout: '{"installed":true,"enabled":false,"active":false,"reason":null}\n', stderr: '' }) }),
 })
 const base = `http://127.0.0.1:${app.server.address().port}`
 await sleep(200)

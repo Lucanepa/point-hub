@@ -132,7 +132,7 @@ export class PortalProxy {
     }
     if (req.method !== 'GET' && req.method !== 'POST') return this._send(res, 405, 'method not allowed', 'text/plain; charset=utf-8')
     const rest = url.pathname.slice(this.prefix.length)
-    if ((rest === '' || rest === '/') && !url.search) return this._start(res)
+    if ((rest === '' || rest === '/') && !url.search) return this._start(req, res)
     const upstream = this.origin + (rest || '/') + url.search
     let body = null
     if (req.method === 'POST') body = await readRaw(req)
@@ -141,15 +141,23 @@ export class PortalProxy {
 
   // Where to begin: wherever the portal sends this device. That carries the portal's sub-id for
   // the board; its front page is the fallback when the probe saw no portal at all.
-  async _start(res) {
+  //
+  // The portal's front page is fetched right here, not redirected to: its local path IS the start
+  // (/hall-login/), so a redirect there came straight back to _start — an endless loop of 302s
+  // whenever the probe saw no portal redirect (the "login page is not answering" case, the very one
+  // the button is offered for) or one to another host. The browser gave up with "too many
+  // redirects" and the tablet app's WebView dropped the page: "Open the login page" did nothing.
+  async _start(req, res) {
     let d = null
     try { d = this.uplink && this.uplink.login ? await this.uplink.login.detect() : null } catch { d = null }
     if (d && d.status === 'online') {
       return this._send(res, 200, page('The board is online', '<p>The hall Wi-Fi already lets the board out — there is nothing to log in to.</p>'))
     }
     const entry = d && d.status === 'portal' && d.entryUrl && this.isPortal(d.entryUrl) ? d.entryUrl : this.origin + '/'
-    plog.info('hall login page: starting', { from: d && d.status === 'portal' ? 'the portal redirect' : 'the portal front page' })
-    return this._redirect(res, this._local(entry))
+    plog.info('hall login page: starting', { from: d && d.status === 'portal' && entry !== this.origin + '/' ? 'the portal redirect' : 'the portal front page' })
+    const local = this._local(entry)
+    if (local === `${this.prefix}/`) return this._relay(req, res, this.origin + '/', null)
+    return this._redirect(res, local)
   }
 
   _local(u) {
