@@ -64,8 +64,11 @@ class Canvas(unittest.TestCase):
         self.assertEqual(left.size, (32, 64))
         reds = lambda pic, box: sum(1 for p in pic.crop(box).getdata() if p[0] > 200 and p[2] < 60)
         blues = lambda pic, box: sum(1 for p in pic.crop(box).getdata() if p[2] > 200 and p[0] < 60)
-        # The two small rows at the bottom must not run into each other: a dark line between them.
-        self.assertTrue(any(all(left.getpixel((x, y)) == (0, 0, 0) for x in range(32)) for y in range(50, 56)))
+        # Set score on top (white), and a dark line between the lower score and the T/S row.
+        whites = lambda pic, box: sum(1 for p in pic.crop(box).getdata() if min(p) > 200)
+        self.assertGreater(whites(left, (0, 0, 32, 11)), 5)
+        self.assertTrue(any(all(left.getpixel((x, y)) == (0, 0, 0) for x in range(32)) for y in range(51, 56)))
+        self.assertGreater(whites(left, (0, 54, 32, 64)), 5)
         self.assertGreater(reds(left, (0, 0, 32, 24)), 20)    # left bench: red team on top
         self.assertGreater(blues(left, (0, 24, 32, 48)), 5)
         self.assertGreater(blues(right, (0, 0, 32, 24)), 5)   # right bench: blue team on top
