@@ -149,6 +149,9 @@ username `vorname.nachname.schule` (…`.kwi`), the Sek II intranet password.
 - **If the account's password changes, run `--forget-login` straight away**, then `--login` with
   the new one: until then every boot presents the old password — about 2 strikes per boot even
   with `auth-retries=1` (0 would mean unlimited), after which NM blocks it until the next reboot.
+  With the **uplink keeper** installed (§10) that is no longer so: it owns `hall-login`'s attempts,
+  stops for good after one refusal, and the console says "School Wi-Fi login refused — the password
+  may have changed". A `--login` that works clears that (the keeper is paused while `--login` runs).
 - Saved as its own NM connection **`hall-login`**: priority 8 (above Free_WLAN_KTZH's 5, below the
   house's 10), metric 55, the same DNS options as `hall-uplink`, `band=a` when seen on 5 GHz.
 - **Run it over the AP or the cable, not Tailscale** — the attempt drops wlan1, which would cut a
@@ -177,8 +180,8 @@ renamed. The passphrase is asked for (not echoed) or read from `/run/ledbox/hots
 and goes only into a 0600 keyfile. A hotspot passphrase on a hall card is semi-public, which is fine
 for a CLIENT whose traffic is all HTTPS or WireGuard. NetworkManager does not leave a working
 connection for a higher-priority one that appears later: a board already on Free_WLAN_KTZH switches at
-its next reconnect (`sudo nmcli connection up phone-hotspot`). The phone giving the hotspot must not
-be the console tablet.
+its next reconnect (`sudo nmcli connection up phone-hotspot`) — or, with the uplink keeper (§10),
+by itself within a few minutes. The phone giving the hotspot must not be the console tablet.
 
 ### Control network only — no internet through the board
 
@@ -470,6 +473,64 @@ vendor tree for code that writes the hostapd config, and never prints the passph
   port is for the tablet or a laptop only — never a hall or school switch**: the board would hand out
   addresses there, and the appliance trusts a client on the cable without the scorer PIN.
 - **`setup-wlan1-client.sh --hotspot`** — a pre-provisioned phone-hotspot uplink (`KSCW-Board`, see §1).
+
+## 10. Uplink keeper — `setup-uplink-keeper.sh`
+
+```bash
+sudo bash ledbox-bridge/provisioning/setup-uplink-keeper.sh              # --check: read-only, incl. a dry run
+sudo bash ledbox-bridge/provisioning/setup-uplink-keeper.sh --apply      # install / update the root copy
+sudo bash ledbox-bridge/provisioning/setup-uplink-keeper.sh --rollback
+sudo bash ledbox-bridge/provisioning/setup-uplink-keeper.sh --reset hall-login   # try a refused login again
+journalctl -t ledbox-uplink-keeper -f
+```
+
+NetworkManager joins the best saved network it can see *when it connects*, then stays: it does not
+leave a working connection — nor a captive, offline one — for a better one that appears later, and a
+profile it failed once (SSID not seen yet at boot, a timeout, `auth-retries=1` used up) is blocked
+until the next reboot. On 17.11.2026 the C0270 came up at KWI on Free_WLAN_KTZH (not logged in, so
+offline) with SCHULEN_KTZH in range, and nobody could reach it.
+
+The keeper (`src/uplinkKeeper.js`, run as root from a root-owned copy) looks at wlan1 45 s after boot
+and every 2 minutes after: the active connection, whether the board is really online (the same
+`generate_204` probe as the console), and which saved profiles' SSIDs a scan shows, and how strong.
+It brings up a saved profile with a **higher priority** than the active one when one is in range
+(any, when wlan1 is idle) — **only ever up**, so the Free_WLAN_KTZH fallback and the console's SMS
+login are untouched, and a board online on the best network it can see is left alone (no scan
+even). Online on a lower profile, the better one must be seen twice in a row before the working link
+is dropped for it. A failed move goes straight back to the profile it came from.
+
+**The school login (any 802.1X profile, i.e. `hall-login`) is handled strictly** — a wrong password
+locks the account for up to 8 h:
+
+- **The keeper owns its attempts**: NM autoconnect is switched off (by `--apply` and on every look),
+  because NM would present a changed password at every boot, ~2 strikes each, where no cap could see it.
+- **Every failure is classified** from nmcli's answer and the NetworkManager + wpa_supplicant journal.
+  Only what is *positively* not a refusal is retried: SSID not found, server certificate refused (with
+  TTLS/PAP the password is only sent inside the tunnel), EAP never started while the journal shows the
+  radio stage, or EAP succeeded and DHCP failed. **Anything else counts as a refusal** — including a
+  timeout after EAP started and any message the classifier has not seen before.
+- **One refusal and it stops for good**, across reboots (`/var/lib/ledbox-uplink/keeper.json`), until a
+  `--login` that works or `--reset`. The console's Hall internet card says *School Wi-Fi login refused —
+  the password may have changed*.
+- **At most 4 attempts that did not connect in any 24 h**, whatever the classification, with backoff
+  2, 5, 15, 30 min — measured on the monotonic clock within a boot, so an NTP jump cannot empty the
+  window. 4, because each attempt is one `connection up` of a profile with `auth-retries=1` and
+  `auth-timeout=12`, i.e. at most ~2 EAP exchanges: even four misread refusals stay near the lower end
+  of where directory lockouts usually start, and four still covers what really happens at boot.
+- Signal at least 35 (25 for the other profiles), the band pin respected, never while wlan1 is already
+  activating, never while `--login` runs (it drops `/run/ledbox-uplink/pause`), never with a clock
+  before 2026 (the certificate check would fail on the dates).
+- An attempt cut short by a power cut is read back from the journal on the next look; with nothing
+  there it counts towards the cap and the backoff but is not taken as a refusal.
+
+The bridge (user pi) only **reads** `/var/lib/ledbox-uplink/keeper.json` and `/run/ledbox-uplink/status.json`
+(0644: profile names and times, never an SSID or a secret) and shows one line on the Hall internet card:
+the network in use, a move it made, an attempt that failed, or the refusal. A loop service rather than a
+timer, like `ledbox-bridge-probe`: it logs only when it acts. `deploy-board.sh` ships `src/uplinkKeeper.js`
+but does not update the installed copy — its verify step says when they differ; re-run `--apply`.
+To keep wlan1 off on purpose (`nmcli device disconnect wlan1`), stop the keeper first
+(`sudo systemctl stop ledbox-uplink-keeper`): an idle wlan1 with a saved network in range is exactly
+what it is there to fix.
 
 ## Gotchas on the board
 

@@ -63,7 +63,7 @@ function page({ reply = {}, liveScoring = 'kscw' } = {}) {
     // pinNow: the PIN every write carries (SCORER_PIN, or the tablet app's in embed mode).
     'setCard', 'diagOpen', 'deadline', 'SCORER_PIN', 'pinNow', 'localStorage', 'sessionStorage',
     block + `
-    return { uplinkUntil, uplinkSoon, uplinkView, renderUplink, renderUplinkBrief, refreshUplink, uplinkSendCode, uplinkLogIn,
+    return { uplinkUntil, uplinkSoon, uplinkView, uplinkKeeperLine, renderUplink, renderUplinkBrief, refreshUplink, uplinkSendCode, uplinkLogIn,
       uplinkCheck, goToUplink,
       get UPLINK() { return UPLINK }, set UPLINK(v) { UPLINK = v }, get upStep() { return upStep } }`)
   const f = make($, api, (m, o) => io.toasts.push({ m, o }), { liveScoring }, LAST_STATUS, (t) => io.tabs.push(t), () => {},
@@ -288,6 +288,48 @@ console.log('\n[8] the rest of the console is wired to it')
   ok(!/reportUi\(/.test(block), 'and the card reports nothing to the board log itself')
   // The phone field must never be picked up by the settings save (setEls is every [data-set]).
   ok(/const setEls = \(\) => \$\$\("\[data-set\]"\)/.test(js), 'settings still save [data-set] fields only — which the card has none of')
+}
+
+console.log('\n[k] the uplink keeper\'s line (provisioning/setup-uplink-keeper.sh)')
+{
+  const { f, $ } = page()
+  const now = Date.parse('2026-11-17T18:30:00Z')
+  const L = (k) => f.uplinkKeeperLine(k, now)
+  const fresh = { checkedAt: '2026-11-17T18:29:00Z', stale: false }
+  ok(L(null) === null && L(undefined) === null, 'no keeper on the board: no line')
+  const refused = L({ ...fresh, refused: { profile: 'hall-login', kind: 'school' }, using: { profile: 'hall-uplink', kind: 'free' } })
+  ok(refused && refused.text === 'School Wi-Fi login refused — the password may have changed' && refused.level === 'bad', `refused, said plainly: ${refused && refused.text}`)
+  ok(L({ stale: true, refused: { profile: 'hall-login', kind: 'school' } }).level === 'bad', '…even when the keeper has not looked for a while')
+  const moved = L({ ...fresh, using: { profile: 'hall-login', kind: 'school' }, last: { at: '2026-11-17T18:20:00Z', profile: 'hall-login', kind: 'school', ok: true } })
+  ok(moved && /^Moved to the school Wi-Fi by itself at \d\d:\d\d$/.test(moved.text), `a move: ${moved && moved.text}`)
+  const tried = L({ ...fresh, using: { profile: 'hall-uplink', kind: 'free' }, last: { at: '2026-11-17T18:25:00Z', profile: 'kscw-router', kind: 'router', ok: false } })
+  ok(tried && /^Tried the club's router at \d\d:\d\d — it did not connect$/.test(tried.text) && tried.level === 'warn', `a failed try: ${tried && tried.text}`)
+  const steady = L({ ...fresh, using: { profile: 'hall-login', kind: 'school' }, last: { at: '2026-11-17T15:00:00Z', profile: 'hall-login', kind: 'school', ok: true } })
+  ok(steady && steady.text === 'On the school Wi-Fi', `later: just the network in use (${steady && steady.text})`)
+  ok(L({ stale: true, using: { profile: 'hall-login', kind: 'school' } }) === null, 'stale and nothing refused: no line rather than an old one')
+  ok(/^School Wi-Fi: 4 tries without success/.test(L({ ...fresh, capped: { profile: 'hall-login', kind: 'school', tries: 4 } }).text), 'capped: says it waits')
+  f.UPLINK = { status: 'portal', ssid: 'Free_WLAN_KTZH', step: 'idle', keeper: { ...fresh, refused: { profile: 'hall-login', kind: 'school' } } }
+  f.renderUplink()
+  ok(!$('#upKeeper').hidden && $('#upKeeper').classList.contains('bad') && /refused/.test($('#upKeeper').textContent), 'the card shows it, in red')
+  f.UPLINK = { status: 'online', step: 'idle', keeper: null }
+  f.renderUplink()
+  ok($('#upKeeper').hidden && $('#upKeeper').textContent === '', 'and hides it when there is nothing to say')
+  ok(/<p class="upsub" id="upKeeper"[^>]*hidden><\/p>/.test(markup) && markup.indexOf('id="upKeeper"') > markup.indexOf('id="upSub"'), 'one line, under the status')
+  ok(/\.uplink \.upsub\.bad\{/.test(css), 'with a red style')
+  // Every sentence it can show has a German and a Swiss German one.
+  for (const lang of ['de', 'de-CH']) {
+    const w = JSON.parse(fs.readFileSync(path.resolve(here, '..', 'web', 'i18n', `${lang}.json`), 'utf8'))
+    const tr = (t) => { if (w.exact[t]) return w.exact[t]; for (const [re, to] of w.patterns) { const r = new RegExp(re); if (r.test(t)) return t.replace(r, to) } return null }
+    const kinds = ['school', 'router', 'hotspot', 'free', 'house', 'other']
+    const lines = [refused.text, L({ ...fresh, capped: { tries: 4 } }).text]
+    for (const kind of kinds) {
+      lines.push(L({ ...fresh, using: { profile: 'x', kind } }).text)
+      lines.push(L({ ...fresh, using: { profile: 'x', kind }, last: { at: '2026-11-17T18:20:00Z', profile: 'x', kind, ok: true } }).text)
+      lines.push(L({ ...fresh, last: { at: '2026-11-17T18:20:00Z', profile: 'x', kind, ok: false } }).text)
+    }
+    const missing = lines.filter((t) => { const x = tr(t); return !x || x === t || /the |Wi-Fi by|Tried|Moved/.test(x) })
+    ok(missing.length === 0, `${lang}: all ${lines.length} keeper lines translated${missing.length ? ' — missing: ' + missing.join(' | ') : ''}`)
+  }
 }
 
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

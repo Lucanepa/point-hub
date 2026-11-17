@@ -670,7 +670,14 @@
   "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.": "Dem OpenVolley eScoresheet nicht mehr folgen? Die Tafel behält den angezeigten Stand; danach ändern ihn nur noch die Eingaben hier. Im eScoresheet nicht weiter mitschreiben.",
   "Stop following": "Nicht mehr folgen",
   "Scoring here now — the board no longer follows the eScoresheet": "Jetzt wird hier gezählt — die Tafel folgt dem eScoresheet nicht mehr",
-  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "Die Tafel folgt dem OpenVolley eScoresheet, darum ist hier zählen aus. Um hier zu zählen: Nicht mehr folgen tippen."
+  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "Die Tafel folgt dem OpenVolley eScoresheet, darum ist hier zählen aus. Um hier zu zählen: Nicht mehr folgen tippen.",
+  "School Wi-Fi login refused — the password may have changed": "Anmeldung im Schul-Wi-Fi abgelehnt — das Passwort hat sich vielleicht geändert",
+  "On the school Wi-Fi": "Im Schul-Wi-Fi",
+  "On the club's router": "Am Router des Vereins",
+  "On the phone hotspot": "Am Handy-Hotspot",
+  "On the hall's free Wi-Fi": "Im Gratis-Wi-Fi der Halle",
+  "On the house Wi-Fi": "Im Haus-Wi-Fi",
+  "On a saved Wi-Fi": "In einem gespeicherten Wi-Fi"
  },
  "patterns": [
   [
@@ -1536,6 +1543,58 @@
   [
    "^Couldn't stop following: (.+)$",
    "Folgen konnte nicht beendet werden: $1"
+  ],
+  [
+   "^School Wi-Fi: (\\d+) tries without success — the board waits a day before the next one$",
+   "Schul-Wi-Fi: $1 Versuche ohne Erfolg — die Tafel wartet einen Tag bis zum nächsten"
+  ],
+  [
+   "^Moved to the school Wi-Fi by itself at (.+)$",
+   "Um $1 von selbst ins Schul-Wi-Fi gewechselt"
+  ],
+  [
+   "^Moved to the club's router by itself at (.+)$",
+   "Um $1 von selbst zum Router des Vereins gewechselt"
+  ],
+  [
+   "^Moved to the phone hotspot by itself at (.+)$",
+   "Um $1 von selbst zum Handy-Hotspot gewechselt"
+  ],
+  [
+   "^Moved to the hall's free Wi-Fi by itself at (.+)$",
+   "Um $1 von selbst ins Gratis-Wi-Fi der Halle gewechselt"
+  ],
+  [
+   "^Moved to the house Wi-Fi by itself at (.+)$",
+   "Um $1 von selbst ins Haus-Wi-Fi gewechselt"
+  ],
+  [
+   "^Moved to a saved Wi-Fi by itself at (.+)$",
+   "Um $1 von selbst in ein gespeichertes Wi-Fi gewechselt"
+  ],
+  [
+   "^Tried the school Wi-Fi at (.+) — it did not connect$",
+   "Um $1 das Schul-Wi-Fi versucht — keine Verbindung"
+  ],
+  [
+   "^Tried the club's router at (.+) — it did not connect$",
+   "Um $1 den Router des Vereins versucht — keine Verbindung"
+  ],
+  [
+   "^Tried the phone hotspot at (.+) — it did not connect$",
+   "Um $1 den Handy-Hotspot versucht — keine Verbindung"
+  ],
+  [
+   "^Tried the hall's free Wi-Fi at (.+) — it did not connect$",
+   "Um $1 das Gratis-Wi-Fi der Halle versucht — keine Verbindung"
+  ],
+  [
+   "^Tried the house Wi-Fi at (.+) — it did not connect$",
+   "Um $1 das Haus-Wi-Fi versucht — keine Verbindung"
+  ],
+  [
+   "^Tried a saved Wi-Fi at (.+) — it did not connect$",
+   "Um $1 ein gespeichertes Wi-Fi versucht — keine Verbindung"
   ]
  ]
 }

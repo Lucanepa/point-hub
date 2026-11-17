@@ -304,6 +304,25 @@ KTZH_CA_CANDIDATES="$(dirname "$(readlink -f "$0")")/swisssign-gold-ca-g2.pem /e
 KTZH_CA_INSTALLED=${NM_DIR%/*}/certs/swisssign-gold-ca-g2.pem
 LOGIN_AUTH_TIMEOUT=12   # s: a TTLS/PAP exchange takes 2-5; wpa_supplicant's re-try comes >= 12 s after the start
 
+# The uplink keeper (setup-uplink-keeper.sh, src/uplinkKeeper.js) moves wlan1 to the best saved
+# network by itself, and owns hall-login's attempts once it is installed. --login must not have it
+# bringing something up in the middle of the one attempt, so it is paused (a marker the keeper
+# honours for 15 min at most) for as long as --login has wlan1, and told about the outcome: a login
+# that worked is proof the password is right, so the keeper's refusal and attempt count for that
+# profile are cleared (that is the documented way to let a refused school login be tried again).
+KEEPER_LIB=/usr/local/lib/ledbox/uplink-keeper.mjs
+KEEPER_UNIT=/etc/systemd/system/ledbox-uplink-keeper.service
+KEEPER_PAUSE=/run/ledbox-uplink/pause
+keeper_installed() { [ -f "$KEEPER_UNIT" ] && [ -f "$KEEPER_LIB" ]; }
+keeper_pause()  { keeper_installed && sudo sh -c 'mkdir -p "${1%/*}" && : > "$1"' sh "$KEEPER_PAUSE" 2>/dev/null; return 0; }
+keeper_resume() { sudo rm -f "$KEEPER_PAUSE" 2>/dev/null; return 0; }
+keeper_reset() {
+  keeper_installed || return 0
+  local node=/opt/nodejs/bin/node; [ -x "$node" ] || node=$(command -v node 2>/dev/null) || return 0
+  sudo "$node" "$KEEPER_LIB" --reset "$1" 2>/dev/null | sed 's/^/  /'
+  return 0
+}
+
 # How the board is being talked to right now: the interface the route back to the SSH client uses.
 session_dev() {
   local client="${SSH_CONNECTION:-}"; client=${client%% *}
@@ -387,8 +406,9 @@ login() {
   LOGIN_PENDING=0
   # The device autoconnect is given back on every exit: the `device disconnect` below blocks it, and
   # a board left like that after a typo would sit off every network until the next reboot.
-  trap '[ "$LOGIN_PENDING" = 1 ] && sudo nmcli connection delete "$LOGIN_CON" >/dev/null 2>&1; sudo nmcli device set wlan1 autoconnect yes >/dev/null 2>&1; shred1 "$LOGINFILE"' EXIT
+  trap '[ "$LOGIN_PENDING" = 1 ] && sudo nmcli connection delete "$LOGIN_CON" >/dev/null 2>&1; sudo nmcli device set wlan1 autoconnect yes >/dev/null 2>&1; shred1 "$LOGINFILE"; keeper_resume' EXIT
   trap 'exit 130' INT TERM HUP
+  keeper_pause
   local ssid="${1:-$LOGIN_SSID_DEFAULT}"
   [ -d /sys/class/net/wlan1 ] || { echo "!! wlan1 absent — plug the adapter in first"; exit 1; }
   case "$ssid" in *[[:cntrl:]]*) echo "!! SSID contains a control character — refusing"; exit 1 ;; esac
@@ -562,11 +582,22 @@ login() {
     exit 1
   fi
 
-  sudo nmcli connection modify "$LOGIN_CON" connection.autoconnect yes >/dev/null
-  LOGIN_PENDING=0
-  say "connected"
-  echo "  saved as '$LOGIN_CON' (priority $LOGIN_PRIO, metric $LOGIN_METRIC) — rejoins by itself, also after a reboot"
-  echo "  if this account's password ever changes: --forget-login straight away (each boot would cost ~2 strikes)"
+  if [ "$kind" = eap ] && keeper_installed; then
+    # The keeper brings it up (lockout-safe: capped, and never again after a refusal) — NM's own
+    # autoconnect would present a changed password at every boot.
+    LOGIN_PENDING=0
+    say "connected"
+    keeper_reset "$LOGIN_CON"
+    echo "  saved as '$LOGIN_CON' (priority $LOGIN_PRIO, metric $LOGIN_METRIC); NM autoconnect stays off — the uplink"
+    echo "  keeper rejoins it by itself, also after a reboot, and stops for good if the login is ever refused"
+  else
+    sudo nmcli connection modify "$LOGIN_CON" connection.autoconnect yes >/dev/null
+    LOGIN_PENDING=0
+    say "connected"
+    echo "  saved as '$LOGIN_CON' (priority $LOGIN_PRIO, metric $LOGIN_METRIC) — rejoins by itself, also after a reboot"
+    echo "  if this account's password ever changes: --forget-login straight away (each boot would cost ~2 strikes)"
+    [ "$kind" = eap ] && echo "  (install the uplink keeper — setup-uplink-keeper.sh --apply — so a changed password costs one try, not 2 a boot)"
+  fi
   sleep 3
   verify
   exit 0   # verify's last grep finds nothing on a board without timedatectl's NTP lines — still a success
@@ -578,6 +609,7 @@ forget_login() {
   else
     echo "  no '$LOGIN_CON' connection"
   fi
+  keeper_reset "$LOGIN_CON"
 }
 
 # Any volunteer's phone hotspot as the board's uplink, with no SSH and no board setup on the day
@@ -598,7 +630,8 @@ forget_login() {
 #     (/run/ledbox/hotspot, 0600, shredded on every exit), and only ever written into a 0600
 #     keyfile. Never into this repo.
 #   - NetworkManager does not drop a WORKING connection for a higher-priority one that appears later.
-#     A board already on Free_WLAN_KTZH takes the hotspot at its next (re)connect, not at once:
+#     With the uplink keeper installed (setup-uplink-keeper.sh) the board moves up to it by itself
+#     within a few minutes; without it, it takes the hotspot only at its next (re)connect:
 #     `sudo nmcli connection up phone-hotspot` (or a power cycle) when it matters.
 #   - The console tablet must NOT be the phone giving the hotspot: it stays on the board's own AP.
 #   - Idempotent: a re-run with the same passphrase writes nothing; with a new one it replaces the
@@ -674,7 +707,8 @@ route-metric=$HOT_METRIC"
   nmcli -t -f NAME,AUTOCONNECT-PRIORITY connection show 2>/dev/null | grep -E "^(ledbox-uplink|kscw-router|hall-login|phone-hotspot|$HOT_CON|hall-uplink):" \
     | sort -t: -k2 -nr | sed 's/^/  order: /'
   echo "  not brought up now. When '$ssid' is on, the board joins it by itself — at once if wlan1 is idle,"
-  echo "  else at its next reconnect:  sudo nmcli connection up $HOT_CON"
+  if keeper_installed; then echo "  else within a few minutes (the uplink keeper moves up to it)"
+  else echo "  else at its next reconnect:  sudo nmcli connection up $HOT_CON"; fi
 }
 
 # The club's own router in the hall (a TP-Link mobile Wi-Fi with a SIM): the uplink the club runs

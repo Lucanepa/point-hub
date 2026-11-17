@@ -278,6 +278,15 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   `/hall-login/`), so it is still the board that logs in: `POST /api/uplink/portal` (PIN) opens it
   for that tablet for ten minutes, its scripts run sandboxed away from the console's storage, and
   its cookies stay on the board. An offline `/api/uplink` also names the Wi-Fi and says `why`.
+- **Best saved Wi-Fi, by itself** — NetworkManager stays on whatever it joined first (at KWI on
+  17.11.2026: Free_WLAN_KTZH, not logged in, with SCHULEN_KTZH in range). The root **uplink keeper**
+  (`src/uplinkKeeper.js`, installed by `provisioning/setup-uplink-keeper.sh`) looks every 2 minutes
+  and moves wlan1 *up* to a higher-priority saved profile in range — never down, never off a board
+  online on the best one it can see. The school login (802.1X) is lockout-safe: the keeper owns its
+  attempts, stops for good after one refusal, and tries at most 4 times a day with backoff
+  (provisioning/README.md §10). `GET /api/uplink` carries `keeper: { using, last, refused, capped,
+  stale }` (roles and profile names, never an SSID) and the Hall internet card shows one line from it,
+  e.g. *School Wi-Fi login refused — the password may have changed*.
 - **Panel test** — **Diagnostics ▸ Panel test** is the volunteer's self-check of the LED hardware,
   on the glass: **Show test screen** puts up `kscw_test` (`layouts/36_kscw_test.xml`), which
   numbers the C0270's three 64×64 modules **1 | 2 | 3** from the left, frames each one in white and

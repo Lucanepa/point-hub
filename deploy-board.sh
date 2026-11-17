@@ -164,6 +164,12 @@ ssh "${J[@]}" "$BOARD" "
   # The tablet app, as the board actually serves it (informational: a board without one is fine).
   \$N -e 'fetch(\"http://127.0.0.1:8890/app/version.json\").then(async r=>{if(r.status===404){console.log(\"  tablet app: none on the board\");return}if(!r.ok)throw new Error(\"HTTP \"+r.status);const v=await r.json();const a=await fetch(\"http://127.0.0.1:8890/app/pointhub.apk\",{method:\"HEAD\"});if(!a.ok||a.headers.get(\"content-type\")!==\"application/vnd.android.package-archive\")throw new Error(\"apk \"+a.status);console.log(\"  tablet app: \"+v.versionName+\" (\"+v.versionCode+\"), \"+a.headers.get(\"content-length\")+\" bytes\")}).catch(e=>{console.log(\"  tablet app ERR\",e.message);process.exit(1)})' || rc=1
   grep -q logStore         $DEST/src/appliance.js;    chk \$? 'structured logging'
+  # The uplink keeper runs a root-owned COPY of src/uplinkKeeper.js, which a deploy never touches
+  # (provisioning is shipped, not run). Informational: say when the copy is behind what just shipped.
+  K=/usr/local/lib/ledbox/uplink-keeper.mjs
+  if [ ! -f \$K ]; then echo '  uplink keeper: not installed (provisioning/setup-uplink-keeper.sh --apply)'
+  elif cmp -s \$K $DEST/src/uplinkKeeper.js; then echo \"  uplink keeper: up to date, \$(systemctl is-active ledbox-uplink-keeper 2>/dev/null)\"
+  else echo '  uplink keeper: OLDER than what shipped — sudo bash $DEST/provisioning/setup-uplink-keeper.sh --apply'; fi
   exit \$rc"
 VERIFY=$?
 set -e
