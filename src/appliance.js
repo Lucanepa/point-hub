@@ -205,7 +205,6 @@ export async function startAppliance(config = loadConfig()) {
     matchFontMaxLeft: settings.values.matchFontMaxLeft,
     matchFontMaxRight: settings.values.matchFontMaxRight,
     clubName: settings.values.clubName,
-    idleQr: settings.values.idleQr,
     intervalHistory: settings.values.intervalHistory,
     brightness: settings.values.brightness,
   })

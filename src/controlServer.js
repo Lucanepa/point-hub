@@ -858,11 +858,6 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   server.setHttpsOrigin = (origin, validTo = null) => { httpsOrigin = origin || null; httpsValidTo = validTo || null }
 
   async function handleApi(req, res, pathname) {
-    // Any API traffic means an operator has the control UI open (it polls /api/status every
-    // 1.5s). The board uses this to drop the "how do I connect" QR codes for a wall clock.
-    // Except the livestream overlay's: an OBS scene or a vMix machine reads it all evening with
-    // nobody at the console, and counting it would keep the QR codes off the panel for good.
-    if (ledbox && typeof ledbox.noteViewer === 'function' && !pathname.startsWith('/api/overlay')) ledbox.noteViewer()
     // A web page open on some other device must not be able to drive the board. Both guards are
     // free for the real client: a same-origin fetch sends no Origin header at all, and every
     // caller we ship already sends `content-type: application/json`. What they stop is a page on
@@ -1296,7 +1291,6 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
           matchFontMaxLeft: updated.matchFontMaxLeft,
           matchFontMaxRight: updated.matchFontMaxRight,
           clubName: updated.clubName,
-          idleQr: updated.idleQr,
           intervalHistory: updated.intervalHistory,
           brightness: updated.brightness,
         })
