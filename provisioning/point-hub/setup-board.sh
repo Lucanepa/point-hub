@@ -94,6 +94,7 @@ install -m 0755 "$HERE/pointhub-screen" /opt/pointhub/pointhub-screen
 rsync -a --delete "$HERE/squeekboard/" /opt/pointhub/squeekboard/
 install -m 0755 "$HERE/pointhub-backup-stick" /opt/pointhub/pointhub-backup-stick
 install -m 0644 "$HERE/99-pointhub-backup-stick.rules" /etc/udev/rules.d/99-pointhub-backup-stick.rules
+install -m 0644 "$HERE/90-pointhub-touch-dup.rules" /etc/udev/rules.d/90-pointhub-touch-dup.rules
 [ -e /etc/default/pointhubd ] || cat > /etc/default/pointhubd <<'CONF'
 # PH_I2C_BUS=0            found by itself; set it only if the probe picks the wrong bus
 # PH_BENCH_SUPPLY_W=60    a bench supply instead of a USB-PD charger

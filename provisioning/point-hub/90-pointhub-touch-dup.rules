@@ -1,0 +1,4 @@
+# MINIX SF16T touch (Goodix 27c6:0529 via WingCool): the same taps also arrive as a mouse,
+# so every tap counted twice (menus opened twice, OpenVolley: taken as a double tap). Keep the
+# touchscreen, ignore the mouse emulation.
+ACTION=="add|change", SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_MOUSE}=="1", ATTRS{idVendor}=="27c6", ATTRS{idProduct}=="0529", ENV{LIBINPUT_IGNORE_DEVICE}="1"
