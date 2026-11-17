@@ -27,6 +27,7 @@ import { readPanelGeometry } from './boardIdentity.js'
 import { PANEL_PATHS } from './panelBrightness.js'
 import { systemInfo } from './systemInfo.js'
 import { log as logStore, installProcessLogging } from './logStore.js'
+import { boardAnnouncementFromEnv, setBoardAnnouncement } from './boardAnnounce.js'
 
 export async function startAppliance(config = loadConfig()) {
   const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'web')
@@ -223,6 +224,10 @@ export async function startAppliance(config = loadConfig()) {
     log: logStore.child('hardware'),
     ...(config.hardwareSettleMs != null ? { settleMs: config.hardwareSettleMs } : {}),
   }) : null
+
+  // Every OpenVolley relay the board follows hears it is a scoreboard display, with its Settings page
+  // (boardAnnounce.js): the scorer's menu then offers this board's settings.
+  setBoardAnnouncement(boardAnnouncementFromEnv(process.env, { controlPort: config.controlPort }))
 
   // OpenVolley online for devices on the board's Wi-Fi (ovOnline.js): a real boot names the helper
   // (loadConfig); a test config hands in an OvOnline of its own (config.ovOnline) or none. The console

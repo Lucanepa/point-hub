@@ -102,6 +102,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     private lateinit var bannerText: TextView
     private lateinit var bannerInstall: Button
     private lateinit var netPill: View
+    /** Board settings opened from the OpenVolley layer: "‹ Back to the match" (openBoardSettings). */
+    private lateinit var returnBar: View
     private lateinit var shellHeader: ComposeView
     private lateinit var gameView: ComposeView
 
@@ -160,6 +162,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         bannerText = findViewById(R.id.updateText)
         bannerInstall = findViewById(R.id.updateInstall)
         netPill = findViewById(R.id.netPill)
+        returnBar = findViewById(R.id.returnBar)
+        findViewById<Button>(R.id.returnToMatch).setOnClickListener { returnToMatch() }
         shellHeader = findViewById(R.id.shellHeader)
         gameView = findViewById(R.id.gameView)
 
@@ -186,6 +190,8 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
         onBackPressedDispatcher.addCallback(this) {
             // Over OpenVolley: back inside its pages, never out of it (‹ Point Hub does that).
             openVolley?.takeIf { it.isShown }?.let { it.goBack(); return@addCallback }
+            // Board settings opened from OpenVolley: back is back to the match.
+            if (returnBar.visibility == View.VISIBLE) { returnToMatch(); return@addCallback }
             val wv = webView
             if (nativeActive && tab == Tab.GAME) return@addCallback
             if (wv != null && !offlineWanted && wv.canGoBack() && allowlist.isAllowed(committed.get())) wv.goBack()
@@ -667,11 +673,42 @@ class MainActivity : ComponentActivity(), ConsoleHost, BridgeHost {
     override fun openOpenVolley(): Boolean {
         val origin = OriginPolicy.openVolleyOrigin(committed.get()) ?: return false
         main.post {
-            val layer = openVolley ?: OpenVolleyLayer(this, ConsoleWebView.userAgent(this, AppInfo.versionName(this)), BuildConfig.DEBUG)
-                .also { openVolley = it }
+            val layer = openVolley ?: OpenVolleyLayer(
+                this, ConsoleWebView.userAgent(this, AppInfo.versionName(this)), BuildConfig.DEBUG,
+                consoleAllowlist = { allowlist },
+                onBoardSettings = { openBoardSettings() },
+            ).also { openVolley = it }
+            returnBar.visibility = View.GONE
             layer.show(origin)
         }
         return true
+    }
+
+    /**
+     * Board settings from the OpenVolley layer (its "⚙ Board settings", or OpenVolley's own
+     * "Scoreboard settings"; BRIDGE.md "Board settings from OpenVolley"). The layer is only hidden:
+     * the match, its relay link and anything typed keep running, nothing reloads. The console's
+     * Settings tab comes up the way a tap on it does (its scorer PIN as always), under a bar that
+     * leads back to the match; Back does too.
+     */
+    private fun openBoardSettings() {
+        val layer = openVolley ?: return
+        layer.hide()
+        returnBar.visibility = View.VISIBLE
+        if (nativeActive) {
+            selectTab(Tab.SETTINGS, null)
+        } else {
+            val wv = webView ?: return
+            if (!allowlist.isAllowed(committed.get())) return
+            // A console that is not embedded: the same click on its own Settings tab.
+            wv.evaluateJavascript("(function(){var b=document.querySelector('.nav button[data-tab=\"settings\"]');if(b)b.click();})()", null)
+        }
+    }
+
+    /** "‹ Back to the match": OpenVolley in front again, as it was. */
+    private fun returnToMatch() {
+        returnBar.visibility = View.GONE
+        openVolley?.showAgain()
     }
 
     // ---------------------------------------------------------------- Native Game tab
