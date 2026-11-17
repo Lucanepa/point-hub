@@ -1,4 +1,4 @@
-# Point Hub board: as squeekboard 1.43.1's ch_wide.yaml, with a ▼ key (F20: the app closes the keyboard)
+# Point Hub board: as squeekboard 1.43.1's ch_wide.yaml, with a ▼ key (F20: labwc hides the keyboard) and a number pad on the right
 # Language: German (Switzerland)
 # Maintained by: Jordy Bossy <jordy@bossy.space>
 # and Patrick Jörg <patrickjoerg@gmx.ch>. No Copyright, enjoy!
@@ -17,30 +17,30 @@ outlines:
 
 views:
     base:
-        - "q w e r t z u i o p ü"
-        - "a s d f g h j k l ö ä"
-        - "show_upper y x c v b n m ' BackSpace"
-        - "show_numbers show_eschars hide space , . Return"
+        - "q w e r t z u i o p ü 7 8 9"
+        - "a s d f g h j k l ö ä 4 5 6"
+        - "show_upper y x c v b n m ' BackSpace 1 2 3"
+        - "show_numbers show_eschars hide space , . Return 0"
     upper:
-        - "Q W E R T Z U I O P Ü"
-        - "A S D F G H J K L Ö Ä"
-        - "show_upper Y X C V B N M \" BackSpace"
-        - "show_numbers show_eschars hide space , . Return"
+        - "Q W E R T Z U I O P Ü 7 8 9"
+        - "A S D F G H J K L Ö Ä 4 5 6"
+        - "show_upper Y X C V B N M \" BackSpace 1 2 3"
+        - "show_numbers show_eschars hide space , . Return 0"
     numbers:      
-        - "1 2 3 4 5 6 7 8 9 0 ^"
-        - "* + - = ( ) ~ < > ! ?"
-        - "show_symbols _ # & / \\ √ ; : BackSpace"
-        - "show_letters show_eschars hide space , . Return"
+        - "1 2 3 4 5 6 7 8 9 0 ^ 7 8 9"
+        - "* + - = ( ) ~ < > ! ? 4 5 6"
+        - "show_symbols _ # & / \\ √ ; : BackSpace 1 2 3"
+        - "show_letters show_eschars hide space , . Return 0"
     symbols:
-        - "€ $ £ ¥ % | § µ [ ] ²"
-        - "© ® § ` { } @ · ¡ ¿ ³"
-        - "show_numbers « » ÷ × “ ” „ BackSpace"
-        - "show_letters show_eschars hide space , . Return"
+        - "€ $ £ ¥ % | § µ [ ] ² 7 8 9"
+        - "© ® § ` { } @ · ¡ ¿ ³ 4 5 6"
+        - "show_numbers « » ÷ × “ ” „ BackSpace 1 2 3"
+        - "show_letters show_eschars hide space , . Return 0"
     eschars:
-        - "à â ç é è ê î ô ù û ñ"
-        - "À Â Ç É È Ê Î Ô Ù Û Ñ"
-        - "show_numbers æ œ ä ë ï ö ü ß BackSpace"
-        - "show_letters show_eschars hide space ° Return"
+        - "à â ç é è ê î ô ù û ñ 7 8 9"
+        - "À Â Ç É È Ê Î Ô Ù Û Ñ 4 5 6"
+        - "show_numbers æ œ ä ë ï ö ü ß BackSpace 1 2 3"
+        - "show_letters show_eschars hide space ° Return 0"
 
 buttons:
     hide:
