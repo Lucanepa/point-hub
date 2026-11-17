@@ -62,6 +62,8 @@ assert(m && m.matchId === 'seed-1' && !('device' in m) && !('settingsUrl' in m),
 setBoardAnnouncement(boardAnnouncementFromEnv({}, { controlPort: 8890 }))
 m = await follow()
 assert(m && m.device === 'display' && m.settingsUrl === 'http://172.24.1.1:8890/#settings', 'configured: device display + the Settings page')
+m = await follow({ pin: '4711' })
+assert(m && m.pin === '4711' && m.device === 'display' && m.settingsUrl, 'a match PIN and the announcement go together')
 m = await follow({ announce: null })
 assert(m && !('device' in m), 'announce: null subscribes plainly')
 m = await follow({ announce: { settingsUrl: 'http://192.168.5.1:8890/#settings' } })
