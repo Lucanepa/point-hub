@@ -670,7 +670,16 @@
   "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.": "Em OpenVolley eScoresheet nüm folge? D Tafle bhaltet de aazeigti Stand; dänn ändered en nume no d Iigabe da. Im eScoresheet nöd wiiter mitschriibe.",
   "Stop following": "Nüm folge",
   "Scoring here now — the board no longer follows the eScoresheet": "Jetzt wird da zellt — d Tafle folgt em eScoresheet nüm",
-  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "D Tafle folgt em OpenVolley eScoresheet, drum isch da zelle us. Zum da zelle: Nüm folge tippe."
+  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "D Tafle folgt em OpenVolley eScoresheet, drum isch da zelle us. Zum da zelle: Nüm folge tippe.",
+  "Match PIN (optional)": "Spiel-PIN (optional)",
+  "Send PIN": "PIN schicke",
+  "The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.": "D Spiel-PIN us OpenVolley. Über s Internet überchunnt d Tafle denn au d Wächsel; ohni si zellt d Tafle si sälber.",
+  "PIN sent, waiting for OpenVolley.": "PIN gschickt, wartet uf OpenVolley.",
+  "PIN accepted: the board gets the full live state, substitutions included.": "PIN agno: D Tafle überchunnt de ganz Live-Stand, mit de Wächsel.",
+  "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.": "OpenVolley hät d PIN abglehnt. D Tafle folgt ohni si und zellt d Wächsel sälber.",
+  "PIN sent to OpenVolley": "PIN a OpenVolley gschickt",
+  "PIN taken back": "PIN zruggno",
+  "A linked OpenVolley match follows this too: with the box off (the scorer faces the board), the panel's sides are turned round. It can be switched during the match.": "Es verchnüpfts OpenVolley-Spiel folgt däm au: Isch s Chäschtli us (de Schriiber luegt zur Tafle), wärded d Siite uf de Aazeig tuscht. Das gaht au während em Spiel."
  },
  "patterns": [
   [

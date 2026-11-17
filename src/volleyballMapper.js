@@ -9,7 +9,7 @@
 //   timeout1/timeout2 (T), sub1/sub2 (S, substitution counts),
 //   serve1/serve2 (rectangles lit in the serving team colour).
 
-import { hexToRgb } from './ledboxProtocol.js'
+import { teamRgb } from './ledColor.js'
 
 // timeouts_a / subs_a arrive as an array (full detail, for the referee) or a
 // plain number depending on the source — count either shape.
@@ -49,8 +49,10 @@ export function toLeftRight(state) {
     leftFull: upper(pick(state.team_a_name || state.team_a_short, state.team_b_name || state.team_b_short) || 'TEAM A'),
     rightFull: upper(pick(state.team_b_name || state.team_b_short, state.team_a_name || state.team_a_short) || 'TEAM B'),
     rightName: upper(pick(state.team_b_short || state.team_b_name, state.team_a_short || state.team_a_name) || 'TEAM B'),
-    leftColor: hexToRgb(pick(state.team_a_color, state.team_b_color)),
-    rightColor: hexToRgb(pick(state.team_b_color, state.team_a_color)),
+    // teamRgb, not hexToRgb: pure black is shown white, and no team colour can pass for the
+    // panel's own "off" (ledColor.js).
+    leftColor: teamRgb(pick(state.team_a_color, state.team_b_color)),
+    rightColor: teamRgb(pick(state.team_b_color, state.team_a_color)),
     leftPoints: pick(state.points_a, state.points_b) || 0,
     rightPoints: pick(state.points_b, state.points_a) || 0,
     leftSets: pick(state.sets_won_a, state.sets_won_b) || 0,

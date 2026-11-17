@@ -670,7 +670,16 @@
   "Stop following the OpenVolley eScoresheet? The board keeps the score it shows now; from then on only taps here change it. Don't keep scoring on the eScoresheet as well.": "Dem OpenVolley eScoresheet nicht mehr folgen? Die Tafel behält den angezeigten Stand; danach ändern ihn nur noch die Eingaben hier. Im eScoresheet nicht weiter mitschreiben.",
   "Stop following": "Nicht mehr folgen",
   "Scoring here now — the board no longer follows the eScoresheet": "Jetzt wird hier gezählt — die Tafel folgt dem eScoresheet nicht mehr",
-  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "Die Tafel folgt dem OpenVolley eScoresheet, darum ist hier zählen aus. Um hier zu zählen: Nicht mehr folgen tippen."
+  "The board is following the OpenVolley eScoresheet, so scoring here is off. To score here instead, tap Stop following.": "Die Tafel folgt dem OpenVolley eScoresheet, darum ist hier zählen aus. Um hier zu zählen: Nicht mehr folgen tippen.",
+  "Match PIN (optional)": "Spiel-PIN (optional)",
+  "Send PIN": "PIN senden",
+  "The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.": "Die Spiel-PIN aus OpenVolley. Über das Internet bekommt die Tafel dann auch die Wechsel; ohne sie zählt die Tafel sie selbst.",
+  "PIN sent, waiting for OpenVolley.": "PIN gesendet, warte auf OpenVolley.",
+  "PIN accepted: the board gets the full live state, substitutions included.": "PIN angenommen: Die Tafel bekommt den vollen Live-Stand, mit den Wechseln.",
+  "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.": "OpenVolley hat die PIN abgelehnt. Die Tafel folgt ohne sie und zählt die Wechsel selbst.",
+  "PIN sent to OpenVolley": "PIN an OpenVolley gesendet",
+  "PIN taken back": "PIN zurückgenommen",
+  "A linked OpenVolley match follows this too: with the box off (the scorer faces the board), the panel's sides are turned round. It can be switched during the match.": "Ein verknüpftes OpenVolley-Spiel folgt dem auch: Ist das Kästchen aus (der Schreiber schaut zur Tafel), werden die Seiten auf der Anzeige getauscht. Das geht auch während des Spiels."
  },
  "patterns": [
   [
