@@ -64,6 +64,10 @@ const WRITES = {
   // NOT appliance state: PANEL_OFF and setting.ini belong to the panel firmware and are read by it
   // (and by ledbox-watchdog.sh) at those fixed paths, and /run/ledbox-panel/brightness is the live
   // driver's control file on tmpfs, so moving any of them would break the driver.
+  // NOT appliance state either, and not written by the bridge at all: the uplink keeper is a ROOT
+  // job (provisioning/setup-uplink-keeper.sh runs a root-owned copy) with fixed system paths —
+  // /var/lib/ledbox-uplink/keeper.json, /run/ledbox-uplink/{status.json,lock} — that the bridge only reads.
+  'uplinkKeeper.js': [7, 'the root uplink keeper\'s own /var/lib/ledbox-uplink and /run/ledbox-uplink files (never written by the bridge)'],
   'panelBrightness.js': [9, 'the FIRMWARE\'s own setting.ini and PANEL_OFF flag, and the live driver\'s /run/ledbox-panel/brightness (fixed paths the driver reads)'],
 }
 const WRITE_RE = /\bfs(?:\.promises)?\.(?:writeFileSync|appendFileSync|mkdirSync|renameSync|rmSync|unlinkSync|createWriteStream|copyFileSync|writeFile|appendFile|mkdir|rename|rm|unlink|copyFile|symlinkSync|truncateSync|openSync)\(/g

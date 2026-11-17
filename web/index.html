@@ -630,6 +630,7 @@
   .uplink .upstat[data-state="soon"]{color:var(--gold)}
   .uplink .upsub{margin:2px 0 0;font-size:13px;color:var(--muted)}
   .uplink .upsub.warn{color:var(--gold);font-weight:700}
+  .uplink .upsub.bad{color:var(--bad);font-weight:700}
   .uplink .upform{margin:10px 0 0}
   .uplink .uplbl{display:block;font-size:13px;font-weight:700;margin:0 0 5px}
   .uplink .uprow{display:flex;gap:8px;flex-wrap:wrap}
@@ -1472,6 +1473,9 @@
             <span class="updot" aria-hidden="true"></span><span id="upStatTxt">Checking the internet…</span>
           </div>
           <p class="upsub" id="upSub" hidden></p>
+          <!-- What the board's uplink keeper did (provisioning/setup-uplink-keeper.sh): the saved
+               Wi-Fi it is on or moved to, a try that failed, or a refused school login. One line. -->
+          <p class="upsub" id="upKeeper" role="status" hidden></p>
           <form id="upPhoneForm" class="upform" autocomplete="off" novalidate hidden>
             <label class="uplbl" for="upPhone">Your mobile number — the code comes by SMS</label>
             <div class="uprow">
@@ -6164,6 +6168,30 @@
     };
   }
 
+  // The board's uplink keeper (src/uplinkKeeper.js) moves the board to the best saved Wi-Fi in
+  // range by itself — the school's, the club's router — and stops trying the school login for good
+  // after one refusal, so the school account cannot get locked. Its last word, in one line: a
+  // refused school login always (someone has to enter it again on the board), otherwise what it did
+  // in the last half hour, otherwise the network in use. Roles, never network names.
+  const UPLINK_KEEPER_RECENT_MS = 30 * 60 * 1000;
+  const KEEPER_NET = { school: "the school Wi-Fi", router: "the club's router", hotspot: "the phone hotspot",
+    free: "the hall's free Wi-Fi", house: "the house Wi-Fi", other: "a saved Wi-Fi" };
+  function uplinkKeeperLine(k, now = Date.now()) {
+    if (!k || typeof k !== "object") return null;
+    if (k.refused) return { text: "School Wi-Fi login refused — the password may have changed", level: "bad" };
+    if (k.stale) return null;      // the keeper has not looked for a while: what it last said may be old
+    if (k.capped) return { text: "School Wi-Fi: " + k.capped.tries + " tries without success — the board waits a day before the next one", level: "warn" };
+    const net = (kind) => KEEPER_NET[kind] || KEEPER_NET.other;
+    const at = k.last ? Date.parse(k.last.at) : NaN;
+    if (Number.isFinite(at) && now - at >= 0 && now - at < UPLINK_KEEPER_RECENT_MS) {
+      const hm = uplinkUntil(k.last.at, now);
+      if (k.last.ok && k.using && k.using.profile === k.last.profile) return { text: "Moved to " + net(k.last.kind) + " by itself at " + hm, level: "" };
+      if (!k.last.ok) return { text: "Tried " + net(k.last.kind) + " at " + hm + " — it did not connect", level: "warn" };
+    }
+    if (k.using) return { text: "On " + net(k.using.kind), level: "" };
+    return null;
+  }
+
   function renderUplink() {
     const card = $("#uplinkCard");
     if (!card) return;
@@ -6175,6 +6203,10 @@
     $("#upStatTxt").textContent = v.line;
     const sub = $("#upSub");
     sub.hidden = !v.sub; sub.textContent = v.sub; sub.classList.toggle("warn", v.warn);
+    const kl = uplinkKeeperLine(UPLINK && UPLINK.keeper);
+    const ke = $("#upKeeper");
+    ke.hidden = !kl; ke.textContent = kl ? kl.text : "";
+    ke.classList.toggle("warn", !!kl && kl.level === "warn"); ke.classList.toggle("bad", !!kl && kl.level === "bad");
     // A login already half-way through (the board is holding a session waiting for its code) wins
     // over whatever the status line says: the SMS is on its way to someone's phone.
     const serverCode = !!(UPLINK && UPLINK.step === "code");

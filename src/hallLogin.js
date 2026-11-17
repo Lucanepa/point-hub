@@ -33,6 +33,7 @@ import { execFile } from 'node:child_process'
 import dns from 'node:dns'
 import { log } from './logStore.js'
 import { zurichEpoch } from './schedule.js'
+import { readKeeperView } from './uplinkKeeper.js'
 
 const ulog = log.child('uplink')
 
@@ -522,9 +523,13 @@ function nmcliSsid() {
 export class Uplink {
   // `file` keeps validUntil / loggedInAt across a restart (and nothing else — never the number).
   // `ssid` and `login` are injectable so a test never runs nmcli or reaches the real portal.
-  constructor({ file = null, login = null, probeUrl, portalUrl, ssid = nmcliSsid, now = () => Date.now(), pollOnlineMs = POLL_ONLINE_MS, pollOfflineMs = POLL_OFFLINE_MS, settleMs = 1500 } = {}) {
+  // `keeper` reads what the root uplink keeper (uplinkKeeper.js, provisioning/setup-uplink-keeper.sh)
+  // last did — which saved Wi-Fi it moved wlan1 to, and whether the school login was refused. Read,
+  // never written: the keeper is the privileged half, this process runs as pi. null = no keeper.
+  constructor({ file = null, login = null, probeUrl, portalUrl, ssid = nmcliSsid, now = () => Date.now(), pollOnlineMs = POLL_ONLINE_MS, pollOfflineMs = POLL_OFFLINE_MS, settleMs = 1500, keeper = () => readKeeperView({ now: now() }) } = {}) {
     this.file = file
     this.now = now
+    this._keeper = keeper
     this.login = login || new HallLogin({ probeUrl, portalUrl, now })
     this._ssid = ssid
     this.pollOnlineMs = pollOnlineMs
@@ -540,7 +545,9 @@ export class Uplink {
 
   view() {
     const codeExpiresAt = this.login.sessionExpiresAt()
-    return { ...this.state, step: codeExpiresAt ? 'code' : 'idle', codeExpiresAt }
+    let keeper = null
+    try { keeper = this._keeper() || null } catch { keeper = null }
+    return { ...this.state, step: codeExpiresAt ? 'code' : 'idle', codeExpiresAt, keeper }
   }
 
   start() {

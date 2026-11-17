@@ -1001,7 +1001,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       return sendJson(res, 200, info)
     }
     // GET /api/uplink — the hall internet: { status: online|portal|offline|checking, portal, ssid,
-    // validUntil, loggedInAt, step: idle|code, codeExpiresAt, checkedAt }. Open like every read.
+    // validUntil, loggedInAt, step: idle|code, codeExpiresAt, checkedAt, keeper }. Open like every read.
+    // `keeper` is what the board's uplink keeper last did (uplinkKeeper.js keeperView: the network in
+    // use, the last attempt, a refused school login), by role and profile name — never an SSID.
     // `ssid` is named only while the portal is in the way (a public network with a login page),
     // so the scorer knows which login this is; otherwise null — see systemInfo.js on SSIDs.
     if (pathname === '/api/uplink' && req.method === 'GET') {
