@@ -17,7 +17,9 @@
 // sent with the subscription (the backend's registerRelayAccess) and brings the full state. It is
 // held in memory only, never logged, and dropped the moment the relay refuses it (a wrong PIN is
 // counted against the board's address; sending it again on every reconnect would lock it out).
-//   -> { type: 'subscribe-match', matchId, pin? }
+//   -> { type: 'subscribe-match', matchId, pin?, device?: 'display', settingsUrl? }
+//      device/settingsUrl: the board's announcement (boardAnnounce.js), when the appliance set one: the
+//      relay tells the scorer a scoreboard follows and offers this board's Settings in its menu.
 //   <- { type: 'match-full-data',   matchId, data }   (initial, on subscribe)
 //   <- { type: 'match-data-update', matchId, data }   (on every scoreboard sync)
 //   <- { type: 'match-deleted',     matchId }
@@ -32,6 +34,7 @@
 
 import { EventEmitter } from 'node:events'
 import { log } from './logStore.js'
+import { announcementFields } from './boardAnnounce.js'
 
 // The scorer's order of a live state, or null when it carries none (an older scorer, a database
 // row). OpenVolley's relayPublisher.createLiveStateOrder stamps every relay push with `_seq`,
@@ -74,8 +77,11 @@ const SILENT_MS = PING_MS * 2.5
 const rlog = log.child('relay')
 
 export class RelaySubscriber extends EventEmitter {
-  constructor({ url, matchId, reconnectMs = 3000, pin = null } = {}) {
+  // announce: the board's announcement on every subscription (boardAnnounce.js); left out, the one the
+  // appliance set, if any.
+  constructor({ url, matchId, reconnectMs = 3000, pin = null, announce } = {}) {
     super()
+    this._announce = announce
     this.url = url
     this.matchId = matchId != null ? String(matchId) : null
     this.reconnectMs = reconnectMs
@@ -175,6 +181,12 @@ export class RelaySubscriber extends EventEmitter {
     this._scheduleRetry()
   }
 
+  // The subscribe-match this subscriber sends: the match, its PIN if one is offered, and the board's
+  // announcement.
+  subscription() {
+    return { type: 'subscribe-match', matchId: this.matchId, ...(this._pin ? { pin: this._pin } : {}), ...announcementFields(this._announce) }
+  }
+
   _scheduleRetry() {
     if (this._closing || !(this.reconnectMs > 0)) return
     clearTimeout(this._retryTimer)
@@ -183,7 +195,7 @@ export class RelaySubscriber extends EventEmitter {
 
   _subscribe() {
     if (!this.matchId) return
-    this._send(this._pin ? { type: 'subscribe-match', matchId: this.matchId, pin: this._pin } : { type: 'subscribe-match', matchId: this.matchId })
+    this._send(this.subscription())
   }
 
   // Offer a match PIN (or take it back with an empty one) on the running link: the relay is asked

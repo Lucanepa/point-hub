@@ -10,6 +10,8 @@
     <string name="dismiss">Dismiss</string>
     <string name="install">Install…</string>
     <string name="net_lost_pill">Scoreboard connection lost. Reconnecting…</string>
+    <string name="back_to_match">‹ Back to the match</string>
+    <string name="board_settings_note">Board settings · OpenVolley keeps running</string>
     <string name="setup_title">Point Hub setup</string>
     <string name="setup_intro">This tablet is the scoreboard\'s control screen. Enter the scoreboard Wi-Fi (printed on the hall card) and an admin PIN for the hidden admin menu (5 taps in the top-left corner).</string>
     <string name="setup_ssid">Scoreboard Wi-Fi name (SSID)</string>
