@@ -1,4 +1,4 @@
-# Point Hub board: as squeekboard 1.43.1's email/us_wide.yaml, with a ▼ key (F20: the app closes the keyboard)
+# Point Hub board: as squeekboard 1.43.1's email/us_wide.yaml, with a ▼ key (F20: labwc hides it)
 ---
 outlines:
     default:       { width: 53.76,  height: 42 }

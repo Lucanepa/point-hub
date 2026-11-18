@@ -188,6 +188,11 @@ esac
     <windowRule identifier="pointhub-admin"><action name="Execute" command="sh -c 'sleep 2; pkill -f -- --class=pointhub-splash'"/></windowRule>
     <windowRule identifier="*penvolley*"><action name="Execute" command="sh -c 'sleep 5; pkill -f -- --class=pointhub-splash'"/></windowRule>
   </windowRules>
+  <!-- The keyboard's ▼ key (our squeekboard layouts) sends F20: hidden here for every app, the
+       terminal too; it comes back with the next text field. -->
+  <keyboard>
+    <keybind key="F20"><action name="Execute" command="busctl --user call sm.puri.OSK0 /sm/puri/OSK0 sm.puri.OSK0 SetVisible b false"/></keybind>
+  </keyboard>
 XML
   [ -z "$touch_matrix" ] || printf '  <libinput>\n    <device category="touch"><calibrationMatrix>%s</calibrationMatrix></device>\n  </libinput>\n' "$touch_matrix"
   printf '</labwc_config>\n'
