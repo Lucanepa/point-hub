@@ -314,7 +314,9 @@ try {
   eq((await get('/api/settings')).orientation, 'behind', 'a new board: the scorer sits behind the board')
   // Facing the board first: OpenVolley's sides reach the panel as they come, so the checks below
   // read like the scoresheet. The mirror ('behind', the default) is switched to further down.
-  await post('/api/settings', { relayAddress: CLOUD, setIntervalSeconds: IV_S, orientation: 'front' })
+  // The substitution notice (WECHSEL, test/sub-notice-selftest.mjs) would hold the scoreboard for
+  // 3 s after each sub; these checks are about the counting, so it is off here.
+  await post('/api/settings', { relayAddress: CLOUD, setIntervalSeconds: IV_S, orientation: 'front', subNotice: 'off' })
   cur = { ...BASE }; viewers.clear()
   push({ last_event_type: 'lineup' })
   const listed = await get('/api/matches')

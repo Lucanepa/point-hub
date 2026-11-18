@@ -18,6 +18,11 @@
 //                           finished sets where it has them, else the last score it saw in each
 //                           set) and fills them in only when it knows EVERY finished set and they
 //                           agree with sets_won_a/_b. A set_results the state does carry wins.
+//
+// And what is NEW in each state, for the substitution notice on the panel (takeNewSubs, read by
+// LanSource after every state): the substitutions made since the previous state, with the shirt
+// numbers where the state has them.
+//
 //   game_n                  the match number, from the summary (match.game_n / gameN / gameNumber)
 //                           or the Link tab's list when the live state has none, so livePush can
 //                           find the game's own row (controlServer liveFixture).
@@ -64,6 +69,7 @@ export class LinkedView {
     this._summarySets = new Map() // set number -> { a, b }: finished sets from the summary
     this._summary = null     // { homeNames, sets, gameNumber }
     this._listedGame = cleanGameNumber(gameNumber)
+    this._newSubs = []       // substitutions the last state brought (newSubs)
   }
 
   // --- the summary (match-full-data / match-data-update `data`) -------------------------------
@@ -98,7 +104,8 @@ export class LinkedView {
     if (!s || typeof s !== 'object') return
     const prev = this._prev
     this._learnHome(s, prev)
-    this._countEvent(s, prev)
+    const fresh = this._countEvent(s, prev)
+    this._newSubs = this._subsSince(s, prev, fresh)
     // The last score seen in each set. A 0:0 says nothing (the set_end frame already shows the
     // NEXT set at 0:0), so it never overwrites a score.
     const set = setNo(s.current_set)
@@ -139,9 +146,10 @@ export class LinkedView {
   // the set it was made in; an 'undo' that takes back a substitution (the newest event still
   // standing, the score unchanged since) takes the count back too. libero_* is not a
   // substitution and is never counted.
+  // True when `s` names an event not seen before.
   _countEvent(s, prev) {
     const key = eventKey(s)
-    if (!key || this._keys.has(key)) return
+    if (!key || this._keys.has(key)) return false
     this._keys.add(key)
     if (this._keys.size > MAX_KEYS) this._keys.delete(this._keys.values().next().value)
     const type = s.last_event_type
@@ -154,7 +162,7 @@ export class LinkedView {
         const i = this._subs.indexOf(top.sub)
         if (i >= 0) this._subs.splice(i, 1)
       }
-      return
+      return true
     }
     const entry = { type, score, sub: null }
     if (type === 'substitution' && (s.last_event_team === 'home' || s.last_event_team === 'away')) {
@@ -163,6 +171,72 @@ export class LinkedView {
     }
     this._stack.push(entry)
     if (this._stack.length > 50) this._stack.shift()
+    return true
+  }
+
+  // The substitutions `s` brings over `prev`, as [{ team: 'a'|'b'|null, playerOut, playerIn }]
+  // (numbers null when the state has none). Never for the first state of a link (what is already on
+  // the match is no news) or across a set change.
+  //   * The full lists (a LAN relay, or a board that gave the match PIN): subs_a / subs_b carry every
+  //     substitution of the set with its numbers (null for none yet). What is new is what the list
+  //     has beyond the previous state's — so a double substitution, which OpenVolley sends as ONE
+  //     state named after its last event (mergeLiveStatePushes), shows both.
+  //   * Stripped (OpenVolley's cloud, no PIN): the public count subs_count_a/_b where both states
+  //     carry it, else one per new 'substitution' event. The numbers then come from last_event_data
+  //     ({ playerIn, playerOut }), which the cloud strips too: usually none.
+  // Libero replacements are never substitutions here (libero_* events, not in subs_a/_b). A sub
+  // taken back (undo) shrinks the list and brings nothing.
+  _subsSince(s, prev, fresh) {
+    if (!prev) return []
+    const set = setNo(s.current_set)
+    if (set == null || set !== setNo(prev.current_set)) return []
+    const home = this._home
+    const evTeam = s.last_event_team === 'home' || s.last_event_team === 'away'
+      ? (home ? ((s.last_event_team === 'home') === (home === 'a') ? 'a' : 'b') : null)
+      : null
+    const isSub = fresh && s.last_event_type === 'substitution'
+    const list = (st, k) => (k in st ? (Array.isArray(st[k]) ? st[k] : []) : null)
+    const now = { a: list(s, 'subs_a'), b: list(s, 'subs_b') }
+    if (now.a || now.b) {
+      const out = []
+      const entry = (t, x) => {
+        const o = x && typeof x === 'object' ? x : {}
+        out.push({ team: t, playerOut: o.playerOut ?? null, playerIn: o.playerIn ?? null })
+      }
+      for (const t of ['a', 'b']) {
+        const before = list(prev, `subs_${t}`)
+        if (!now[t]) continue
+        if (before) { for (const x of now[t].slice(before.length)) entry(t, x); continue }
+        // The first full state after stripped ones (the PIN accepted mid-match): no list to compare
+        // with, so the event says it — its team's newest entry.
+        if (isSub && evTeam === t && now[t].length) entry(t, now[t][now[t].length - 1])
+      }
+      return out
+    }
+    const data = isSub && s.last_event_data && typeof s.last_event_data === 'object' ? s.last_event_data : {}
+    const counted = isCount(s.subs_count_a) && isCount(s.subs_count_b) && isCount(prev.subs_count_a) && isCount(prev.subs_count_b)
+    const out = []
+    if (counted) {
+      for (const t of ['a', 'b']) {
+        const d = num(s[`subs_count_${t}`]) - num(prev[`subs_count_${t}`])
+        for (let i = 0; i < d && i < 6; i++) out.push({ team: t, playerOut: null, playerIn: null })
+      }
+      // The numbers, where the event has them, belong to the event's team's last one.
+      const mine = evTeam ? out.filter((x) => x.team === evTeam) : []
+      if (isSub && mine.length) Object.assign(mine[mine.length - 1], { playerOut: data.playerOut ?? null, playerIn: data.playerIn ?? null })
+      return out
+    }
+    if (isSub && (s.last_event_team === 'home' || s.last_event_team === 'away')) {
+      out.push({ team: evTeam, playerOut: data.playerOut ?? null, playerIn: data.playerIn ?? null })
+    }
+    return out
+  }
+
+  // What the last state brought (see _subsSince), handed over once.
+  takeNewSubs() {
+    const out = this._newSubs
+    this._newSubs = []
+    return out
   }
 
   // Counted substitutions of the set `set`, as A/B; null while A/B is not known yet.

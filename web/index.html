@@ -1609,6 +1609,16 @@
             <input type="checkbox" data-set="intervalHistory"></label>
           <p class="hint">During the set interval the panel shows each finished set (25-21, 23-25…) under the
             clock, left team first. Only for matches scored on this board — a linked match sends no set scores.</p>
+          <label class="row"><span>SATZBALL / MATCHBALL on the board</span>
+            <input type="checkbox" data-set="gamePointCallout"></label>
+          <p class="hint">At a set point or a match point the name of the team one point from the set takes turns
+            with SATZBALL or MATCHBALL (SET POINT / MATCH POINT in English), on the Point Hub board on the bench
+            modules too. The score stays where it is. Every match, scored here or linked.</p>
+          <label class="row"><span>Substitutions on the board</span>
+            <select data-set="subNotice"><option value="all">Numbers, else the team</option><option value="numbers">Only with the numbers</option><option value="off">Off</option></select></label>
+          <p class="hint">A linked OpenVolley match: after each substitution the panel shows WECHSEL 12 ⇄ 7 for
+            3 seconds, then the score again. The OpenVolley cloud sends the shirt numbers only to a board that has
+            the match PIN (Link tab); without them the panel names the team. Never for a libero.</p>
         </fieldset>
         <!-- The console's own colours, for THIS screen only: kept in the browser (localStorage.theme,
              applied by the boot script at the top), never in SETTINGS — the scorer's tablet in a dim

@@ -80,7 +80,11 @@ export function teamRgb(color, fallback = '255,255,255') {
 // repo agrees on small vs big. A fontsize in the same SetSections write wins; anything not listed
 // falls back to TEXT_PX_FALLBACK.
 export const LAYOUT_TEXT_PX = {
-  volleyball_matchscore_02: { team1: 18, team2: 18, score1: 55, score2: 55, set1: 26, set2: 26, sub1: 18, sub2: 18 },
+  // `callout` is openscore's own (the bench modules' SATZBALL, firmware/openscore/layout); the C0270's
+  // vendor layout has none and is never sent it.
+  volleyball_matchscore_02: { team1: 18, team2: 18, score1: 55, score2: 55, set1: 26, set2: 26, sub1: 18, sub2: 18, callout: 9 },
+  // The announcement screen, when it carries a team's colour (the substitution notice).
+  kscw_message: { msgbig: 40, msg1: 28, msg2: 28 },
   volleyball_matchscore_timeout_02: { score1: 22, score2: 22, set1: 14, set2: 14 },
   openvolley_timeout: { score1: 22, score2: 22, set1: 14, set2: 14 },
   kscw_break: { team: 15, score1: 55, score2: 55, set1: 16, set2: 16 },
@@ -96,7 +100,7 @@ const TEXT_PX_DEFAULT = 18
 
 // Which (section, attribute) pairs carry a team colour. Counters (timeouts, subs, fouls) carry
 // limit colours and labels carry white, so neither is ever touched here.
-const TEXT_SLOTS = new Set(['team1', 'team2', 'team', 'score1', 'score2', 'set1', 'set2', 'serveplr1', 'serveplr2', 'winner'])
+const TEXT_SLOTS = new Set(['team1', 'team2', 'team', 'score1', 'score2', 'set1', 'set2', 'serveplr1', 'serveplr2', 'winner', 'callout', 'msgbig', 'msg1', 'msg2'])
 const EDGE_SLOTS = { bordercolor: new Set(['bg_score1', 'bg_score2']), color: new Set(['serve1', 'serve2']) }
 
 // hzeller's luminance_cie1931: channel c (0-255) at brightness 1-100 -> 0..2047.

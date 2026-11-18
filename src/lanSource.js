@@ -18,6 +18,10 @@
 //   'timeout-end'    (liveState)            …and is over, ran out or stopped early
 //   'interval-start' (liveState)            a set ended and the interval before the next began
 //   'interval-end'   (liveState)            …and the scorer says it is over (see INTERVAL_ENDS)
+//   'substitution'   (liveState, { subs })  substitutions the state brought (linkedView.js
+//                                            takeNewSubs): [{ side, name, color, playerOut, playerIn }],
+//                                            side = the panel half of that team, numbers null when
+//                                            the state has none. Never for a match that is over.
 // Edges only, each once: a repeated frame, the relay's replay after a reconnect, or a state older
 // than the newest (RelaySubscriber drops those) never starts a break a second time. A match that
 // is over emits no break edge at all — 'match-ended' takes the panel, and ends any countdown.
@@ -208,6 +212,8 @@ export class LanSource extends EventEmitter {
       if (over && !this._over) { this._over = true; this.emit('match-ended', liveState) }
       else if (!over && this._over) { this._over = false; this.emit('match-resumed', liveState) }
       for (const [event, info] of breaks) this.emit(event, liveState, info)
+      const subs = this._view.takeNewSubs()
+      if (subs.length && !over) this.emit('substitution', liveState, { subs: subs.map((x) => this._subOnPanel(liveState, x)) })
     })
     this.sub.on('match-gone', (msg) => this.emit('match-gone', msg))
     this.sub.on('open', () => this.emit('status', 'open'))
@@ -216,6 +222,18 @@ export class LanSource extends EventEmitter {
     // left, and an unheard 'error' event throws.
     this.sub.on('error', (err) => { if (this.listenerCount('error')) this.emit('error', err) })
     this.sub.start()
+  }
+
+  // A substitution as the panel names it: the team's half (after the mirror), short name, colour.
+  _subOnPanel(state, x) {
+    const t = x.team === 'a' || x.team === 'b' ? x.team : null
+    const aLeft = (state.side_a || 'left') !== 'right'
+    return {
+      side: t ? ((t === 'a') === aLeft ? 'left' : 'right') : null,
+      name: t ? String(state[`team_${t}_short`] || state[`team_${t}_name`] || '') : '',
+      color: t ? state[`team_${t}_color`] || null : null,
+      playerOut: x.playerOut, playerIn: x.playerIn,
+    }
   }
 
   stop() {
