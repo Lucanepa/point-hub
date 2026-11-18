@@ -254,10 +254,10 @@ async function runAgainst(name) {
     console.log('\n[5] the live stream')
     push({ points_a: 5, points_b: 3 }); await sleep(300)
     ok(t('score1') === '5' && t('score2') === '3', `5:3 (${t('score1')}:${t('score2')})`)
-    ok(mock.screen.serve1?.color && mock.screen.serve1.color !== '30,30,30', 'serve on the left')
+    ok(mock.screen.serve1?.color && !['0,0,0', '30,30,30'].includes(mock.screen.serve1.color), 'serve on the left')
     push({ points_a: 5, points_b: 4, serving_team: 'right', timeouts_a: [{ team: 'home' }] }); await sleep(300)
     ok(t('timeout1') === '1', `timeout A 1 (${t('timeout1')})`)
-    ok(mock.screen.serve2?.color && mock.screen.serve2.color !== '30,30,30', 'serve moved right')
+    ok(mock.screen.serve2?.color && !['0,0,0', '30,30,30'].includes(mock.screen.serve2.color), 'serve moved right')
     // A double substitution the way OpenVolley sends it: ONE state, named after its last event, with
     // the full lists (a LAN relay passes them on): one WECHSEL screen each, then the score.
     const notices = []
