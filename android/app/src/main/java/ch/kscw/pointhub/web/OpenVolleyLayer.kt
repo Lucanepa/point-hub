@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.Message
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
@@ -52,11 +53,21 @@ import kotlin.concurrent.thread
  *   `<a download>` of a blob, which a WebView ignores. A script, given only to the OpenVolley
  *   origin, turns that click into a message on a channel only that origin can use; the app writes
  *   the file to Downloads/OpenVolley and says so.
+ * - **Board settings** (BRIDGE.md "Board settings from OpenVolley"). The bar's "Board settings"
+ *   button hands over to [onBoardSettings]: the activity hides this layer (OpenVolley keeps running,
+ *   nothing is reloaded) and shows the console's Settings, with a way back to the match. OpenVolley's
+ *   own menu row "Scoreboard settings" opens the console's `#settings` page in a new window (the
+ *   board announced it to the relay); that page is not OpenVolley's, so it is blocked here as any
+ *   other, and taken as the same button instead ([OriginPolicy.isBoardSettings]).
  */
 class OpenVolleyLayer(
     private val activity: Activity,
     private val userAgent: String,
     private val debug: Boolean,
+    /** The console's origins (the activity's allow-list): their `#settings` page is Board settings. */
+    private val consoleAllowlist: () -> OriginPolicy.Allowlist = { OriginPolicy.Allowlist(null) },
+    /** Board settings asked for; null: no button, and OpenVolley's request stays blocked. */
+    private val onBoardSettings: (() -> Unit)? = null,
 ) {
     private var layer: LinearLayout? = null
     private var holder: FrameLayout? = null
@@ -66,6 +77,7 @@ class OpenVolleyLayer(
     private var origin: String? = null
     /** OpenVolley's own second windows (the scoresheet), top last. */
     private val windows = ArrayList<WebView>()
+    private var lastSettingsAt = 0L
 
     val isShown: Boolean get() = layer?.visibility == View.VISIBLE
 
@@ -79,6 +91,22 @@ class OpenVolleyLayer(
     /** Back to the console. OpenVolley keeps running underneath. */
     fun hide() {
         layer?.visibility = View.GONE
+    }
+
+    /** OpenVolley in front again, as it was (after Board settings); false when it is gone. */
+    fun showAgain(): Boolean {
+        val l = layer ?: return false
+        l.visibility = View.VISIBLE
+        l.bringToFront()
+        return true
+    }
+
+    /** The bar's button, or OpenVolley asking: once, however many ways it came (see the class note). */
+    private fun boardSettings() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastSettingsAt < SETTINGS_DEBOUNCE_MS) return
+        lastSettingsAt = now
+        onBoardSettings?.invoke()
     }
 
     /** Back: inside the top window's pages, else close a second window; never out of OpenVolley. */
@@ -130,6 +158,15 @@ class OpenVolleyLayer(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             setPadding(dp(12), 0, 0, 0)
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        if (onBoardSettings != null) {
+            bar.addView(Button(activity).apply {
+                text = BOARD_SETTINGS_LABEL
+                contentDescription = "Board settings: brightness, orientation and the rest. OpenVolley keeps running."
+                isAllCaps = false
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                setOnClickListener { boardSettings() }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(44)))
+        }
 
         val h = FrameLayout(activity)
         holder = h
@@ -263,6 +300,13 @@ class OpenVolleyLayer(
         override val allowlist = OriginPolicy.Allowlist(null, only = origin)
         override val debug: Boolean get() = this@OpenVolleyLayer.debug
         override fun onMainFrameUrl(url: String?) {}
+        override fun onBlockedNavigation(view: WebView, url: String?) {
+            if (onBoardSettings == null || !OriginPolicy.isBoardSettings(url, consoleAllowlist())) return
+            Log.i(TAG, "OpenVolley asked for the board's settings")
+            // The window OpenVolley opened for it has nothing to show: gone, after this callback.
+            if (!main) holder?.post { closeWindow(view) }
+            boardSettings()
+        }
         override fun onMainFrameVisible(url: String?) {
             if (main) note?.visibility = View.GONE
         }
@@ -298,6 +342,9 @@ class OpenVolleyLayer(
     companion object {
         private const val TAG = "OpenVolleyLayer"
         private const val FILES = "PointHubFiles"
+        const val BOARD_SETTINGS_LABEL = "⚙ Board settings"
+        /** The button and OpenVolley's own request can both come for one tap. */
+        private const val SETTINGS_DEBOUNCE_MS = 1000L
         /** A data URL of at most ~30 MB of file: the scoresheet PDF is a few hundred KB, a match ZIP a few MB. */
         private const val MAX_DATA_URL = 40 * 1024 * 1024
 

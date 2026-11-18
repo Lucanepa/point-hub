@@ -37,6 +37,14 @@ export function loadConfig(env = process.env) {
     // provisioning/setup-openvolley-web.sh writes it). The board then follows the one live match on
     // its own relay (ws://127.0.0.1:8080) by itself, as the Point Hub board does for its screen.
     boardOpenVolley: /^(1|true|yes|on)$/i.test(String(env.BOARD_OPENVOLLEY ?? '').trim()),
+    // OpenVolley's server, for the Link tab's cloud list and a cloud link (controlServer.js
+    // cloudMatches). CLOUD_RELAY=0 turns the cloud list off; any other value must be a wss:// URL.
+    cloudRelay: /^(0|false|no|off)$/i.test(String(env.CLOUD_RELAY ?? '').trim()) ? null
+      : (/^wss:\/\/[a-z0-9.-]+(:\d+)?\/?$/i.test(String(env.CLOUD_RELAY || '').trim()) ? String(env.CLOUD_RELAY).trim().replace(/\/+$/, '') : 'wss://backend.openvolley.app'),
+    // The root switch behind Settings ▸ OpenVolley online (provisioning/setup-ov-online.sh installs
+    // it; the bridge runs it through sudo). OV_ONLINE=0 hides the switch on this board.
+    ovOnlineHelper: /^(0|false|no|off)$/i.test(String(env.OV_ONLINE ?? '').trim()) ? null
+      : (String(env.OV_ONLINE_HELPER || '').trim() || '/usr/local/sbin/ledbox-ov-online'),
     // Whether RELAY_URL was actually set, as opposed to the default above (which is the board itself).
     // (Spelling the default out in .env, as an old .env.example did, still counts as the default.)
     relayUrlExplicit: !!env.RELAY_URL && env.RELAY_URL !== 'ws://127.0.0.1:8080',
