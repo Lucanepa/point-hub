@@ -26,6 +26,10 @@ for deb in "$REPO"/openvolley-escoresheet_*_arm64.deb; do
   [ -e "$deb" ] && apt-get install -y "$deb"
 done
 
+echo "== time zone"
+# The installer leaves Europe/London; the board, OpenVolley's clock and its set start times are Swiss.
+timedatectl set-timezone "${BOARD_TZ:-Europe/Zurich}"
+
 echo "== boot config (managed block, replaced on every run)"
 CFG=/boot/firmware/config.txt
 sed -i '/^# >>> point-hub/,/^# <<< point-hub/d' "$CFG"
