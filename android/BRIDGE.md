@@ -284,3 +284,21 @@ eScoresheet** shows an **Open OpenVolley** button when `PointHubApp.openOpenVoll
   Android 10), through a document-start script and a web message channel (`PointHubFiles`) that only
   the OpenVolley origin gets. Plain links to files are refused with a toast.
 
+### Board settings from OpenVolley
+
+The scorer reaches the board's settings without leaving the match. The board side of this is in
+docs/board-settings-from-openvolley.md.
+
+- The layer's bar has **⚙ Board settings**. The layer is hidden, never closed or reloaded:
+  OpenVolley's page, its relay link and its second windows stay as they are.
+- In embed mode the app's own **Settings** tab is selected (`selectTab(SETTINGS)`). A console shown
+  whole gets the same click on its Settings button. The scorer PIN guards Settings as always.
+- A bar above everything (`returnBar`) says **‹ Back to the match**. It and the Back key bring the
+  layer back as it was. **Open OpenVolley** from the console does too, and hides that bar.
+- OpenVolley's own **Scoreboard settings** (its Match menu, when the board has announced itself to
+  the relay) opens `<console origin>/#settings` in a new window. That page is not the OpenVolley
+  origin, so the layer blocks it as any other. When the blocked main-frame URL is exactly a console
+  origin (`Allowlist`) with the fragment `settings` (`OriginPolicy.isBoardSettings`), the layer
+  takes it as the ⚙ button: the empty window goes and Board settings opens. Nothing else is opened
+  from OpenVolley.
+

@@ -209,6 +209,49 @@ To keep the board's Wi-Fi password off paper, print the hall card with
 `python3 docs/make-hall-guide.py --private-wifi --pdf` and turn off **Settings ▸ Show the connect QR codes**
 (the panel's QR carries the password): then only people who are told it can join.
 
+#### The one exception: OpenVolley online — `setup-ov-online.sh`, `ledbox-ov-online.sh`
+
+```bash
+sudo bash ledbox-bridge/provisioning/setup-ov-online.sh            # --check
+sudo bash ledbox-bridge/provisioning/setup-ov-online.sh --apply    # installs, turns NOTHING on
+sudo bash ledbox-bridge/provisioning/setup-ov-online.sh --rollback # off, then every file back out
+sudo ledbox-ov-online status                                       # one line of JSON
+```
+
+**Off by default.** The owner switches it in the console (Settings ▸ OpenVolley online, behind the
+scorer PIN), so a tablet on the board's Wi-Fi can score online in the OpenVolley app. ON:
+
+- **DNS** — `/etc/dnsmasq.d/zz-ledbox-ov-online.conf`: `server=/openvolley.app/<uplink DNS>` and the
+  same for `connectivitycheck.gstatic.com` (Android's check; without it the tablet may refuse the
+  Wi-Fi), `nftset=` for both, `filter-AAAA`. Every other name stays unresolved (`no-resolv`). The
+  uplink's DNS server comes from NetworkManager (`nmcli … IP4.DNS dev show wlan1`), or is pinned with
+  `OV_ONLINE_DNS=` in `/etc/default/ledbox-ov-online`; a NetworkManager dispatcher hook
+  (`90-ledbox-ov-online`) follows a new hall network. Written only when it changes, checked with
+  `dnsmasq --test`, the old file put back if dnsmasq refuses it.
+- **Forwarding** — nft table `inet ovonline`: set `ov4` (filled by dnsmasq, 3 h timeout) and a mark
+  for `wlan0 → wlan1`, TCP **443**, to an address in the set. Two accepts (comment `ledbox-ov-online`)
+  ahead of `LEDBOX-FWD`'s DROP — the marked packets out, the replies back — and a MASQUERADE for
+  `172.24.1.0/24` out of `wlan1`. `net.ipv4.ip_forward=1` last. IPv6 is never forwarded.
+- **Refused** unless the forward drop is in place (FORWARD policy DROP, `LEDBOX-FWD` first, ending in
+  DROP) and dnsmasq can fill an nft set: with forwarding on and no drop, the board would route
+  everything.
+
+OFF removes every piece (including the hand-applied opening of 17.11.2026, `zz-openvolley-online.conf`)
+and puts `ip_forward` back to what it was before. The state lives in `/var/lib/ledbox-ov-online`;
+`ledbox-ov-online.service` reapplies it at boot (and cleans up when OFF); `ledbox-firewall.sh` puts the
+two accepts back after every rebuild; `lock-control-network.sh --check` reports it as OpenVolley
+online's, and still flags any other `server=` line, forward accept or forwarding it cannot account for.
+The bridge (pi) may run exactly `ledbox-ov-online on|off|status` as root
+(`/etc/sudoers.d/030_ledbox-ov-online`) — the names, the port and the interfaces are fixed in the
+helper, so a PIN holder can switch it and never widen it.
+
+What it does not stop: the filter is by **address**, and `*.openvolley.app` is behind Cloudflare
+(its addresses are Cloudflare's, shared with other Cloudflare sites). A device that
+knows how can reach other Cloudflare-proxied sites on those addresses over HTTPS. Filtering by
+TLS name (SNI) instead would break as soon as the tablet uses Encrypted Client Hello, which
+Cloudflare offers. No other address, no other port, no DNS, no IPv6. `test/ov-online-helper-selftest.mjs` checks the decisions with
+stubbed tools and runs `test/ov-online-netns.sh` with the real iptables and nft in a network namespace.
+
 `test/control-network-selftest.mjs` proves layer 1 in a network namespace (a fake board with forwarding
 and NAT on: the phone is cut off, the board keeps its uplink). The Point Hub board's `setup-board.sh`
 runs layers 1–3 itself; its cable's dnsmasq answers no DNS at all (`port=0`).
