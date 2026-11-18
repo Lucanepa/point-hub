@@ -332,18 +332,16 @@ console.log('\n[4] it cannot strand the panel')
     } finally { await done() }
   }
 
-  // d) The idle ticker does not fight a test that IS running, with an operator watching.
+  // d) The idle ticker does not fight a test that IS running.
   {
     const { mock, client, done } = await rig({ idleTickMs: 50 })
     try {
-      client.noteViewer()
       await client.showIdle(true)
       await sleep(100)
-      eq(mock.currentLayout, 'kscw_clock', 'idle with a viewer: the clock')
+      eq(mock.currentLayout, 'kscw_clock', 'idle: the clock')
       await client.showTest({ ms: 700 })
       await sleep(400)
       eq(mock.currentLayout, 'kscw_test', 'the ticker leaves a running test alone')
-      client.noteViewer()
       await sleep(600)
       eq(mock.currentLayout, 'kscw_clock', 'and the test then goes back to the clock by itself')
     } finally { await done() }

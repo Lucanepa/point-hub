@@ -247,6 +247,23 @@ def main():
     check("its names and scores carry a width (shrink-to-fit)",
           vm and all(vm.get(n).width > 0 for n in ("team1", "team2", "score1", "score2")))
 
+    # The clock keeps one width: "11:11:11" (kerned "11" pairs) drew 6 px narrower than "10:00:00",
+    # so the centred time moved sideways every few seconds.
+    from PIL import Image, ImageDraw
+    import tempfile as _tf
+    _cfg = olb.build_config(HERE)
+    renderer = olb.Renderer(_cfg["width"], _cfg["height"], os.path.join(_tf.mkdtemp(), "b.png"), HERE)
+    def lit_box(text):
+        img = Image.new("RGB", (256, 40))
+        sec = olb.Section(name="time", type="text", x=128, y=2, fontsize=28, align="center", text=text)
+        renderer._draw_text(ImageDraw.Draw(img), sec)
+        return img.getbbox()
+    boxes = {t: lit_box(t) for t in ("10:00:00", "11:11:11", "20:08:08", "09:59:59")}
+    widths = {t: b[2] - b[0] for t, b in boxes.items()}
+    lefts = {b[0] for b in boxes.values()}
+    check("the clock keeps one width whatever the digits", max(widths.values()) - min(widths.values()) <= 3, widths)
+    check("...and starts at the same place", max(lefts) - min(lefts) <= 3, boxes)
+
     passed = sum(1 for _, ok in checks if ok)
     total = len(checks)
     print("\n%d/%d checks passed" % (passed, total))
