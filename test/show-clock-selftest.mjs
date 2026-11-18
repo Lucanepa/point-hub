@@ -43,7 +43,6 @@ function client({ missing = [], ...opts } = {}) {
 console.log('[1] a held clock, with team names set and nobody connected')
 {
   const c = client()
-  ok(!c.viewerPresent(), 'no viewer (the ordinary clock would not show)')
   await c.showIdle(true)
   ok(c.currentLayout === 'kscw_idle', 'today\'s idle with teams set: the names screen')
   await c.showIdle(true, { screen: 'clock' })
@@ -91,8 +90,6 @@ console.log('\n[2b] scoring while an idle showIdle is still falling back')
   // its paint. The stale call must stop there, not carry on to the crest.
   const c = client()
   c._lastState = null
-  c.noteViewer = () => {}
-  c._viewerAt = Date.now()
   let board = null
   c._sendNow = async (cmd, value) => {
     if (cmd === 'SetLayout') board = value

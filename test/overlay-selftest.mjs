@@ -213,7 +213,7 @@ console.log('\n[2] end to end: open, read-only, uncached, pushed on every change
   }
 }
 
-console.log('\n[3] not a viewer, capped, and never holds a shutdown')
+console.log('\n[3] capped, and never holds a shutdown')
 {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-overlay-'))
   let app
@@ -225,15 +225,11 @@ console.log('\n[3] not a viewer, capped, and never holds a shutdown')
     })
     const base = `http://127.0.0.1:${app.server.address().port}`
     await sleep(200)
-    ok(!app.ledbox.viewerPresent(), 'a fresh board has nobody at the console')
     await fetch(base + '/api/overlay.json')
     const s = await openStream(base + '/api/overlay/stream')
     streams.push(s)
     await until(() => s.frames.length >= 1)
     await fetch(base + '/overlay')
-    ok(!app.ledbox.viewerPresent(), 'the overlay page, its JSON and its stream do not count as one — the QR codes stay')
-    await fetch(base + '/api/status')
-    ok(app.ledbox.viewerPresent(), 'the console\'s own poll still does')
 
     // The cap: eight open at once (one is already), the ninth refused, room again once one closes.
     for (let i = 0; i < 7; i++) streams.push(await openStream(base + '/api/overlay/stream'))

@@ -138,9 +138,9 @@ CONF
 chown -R "$OWNER:$OWNER" "$BRIDGE"
 install -m 0644 "$REPO/systemd/ledbox-bridge.service" /etc/systemd/system/ledbox-bridge.service
 install -d -o "$OWNER" -g "$OWNER" "$STATE" /data/screen /data/backups /data/backups/openvolley
-# No board network to join, so no connect QR codes: the crest and the clock (BUILD.md section 10.1).
+# A fresh board asks what the screen shows (BUILD.md section 10.1).
 # The screen starts by asking: Point Hub or OpenVolley. Only on a new board: the C0270 has no screen.
-[ -e "$STATE/settings.json" ] || { echo '{"idleQr":false,"screenApp":"ask"}' > "$STATE/settings.json"; chown "$OWNER:$OWNER" "$STATE/settings.json"; }
+[ -e "$STATE/settings.json" ] || { echo '{"screenApp":"ask"}' > "$STATE/settings.json"; chown "$OWNER:$OWNER" "$STATE/settings.json"; }
 
 # What the screen's "Load from Wiedisync" needs: the club's board token and a scorer PIN, because the
 # roster holds birthdates. Asked once; empty skips it, and OpenVolley then says what is missing.
