@@ -339,7 +339,8 @@ try {
   eq(String(st0.state && st0.state.game_n), '405974', 'the game number from the match summary (the live state has none)')
 
   console.log('  — the scorer sits behind the board (the default): switched on the console mid-match')
-  const serveLit = (n) => mock.color(n) && mock.color(n) !== '30,30,30'
+  // A serve bar that is off: 0,0,0 since #61 (it was the dim grey 30,30,30 before).
+  const serveLit = (n) => { const c = mock.color(n); return !!c && c !== '0,0,0' && c !== '30,30,30' }
   ok(serveLit('serve1') && !serveLit('serve2'), 'KSC serving, on the left')
   await post('/api/settings', { orientation: 'behind' }); await sleep(300)
   ok(t('team1') === 'OTA' && t('team2') === 'KSC', `behind the board: the scorer's left (KSC) is the panel's right, at once, no rally needed (${t('team1')} | ${t('team2')})`)
