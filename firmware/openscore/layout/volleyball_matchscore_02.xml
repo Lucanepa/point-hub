@@ -18,6 +18,12 @@
        The real C0270 does not read this file; it runs the vendor's own layout from its disk. -->
   <section name="team1" type="text" x="1" y="7" width="86" visible="true" private="false" enable="true" fontsize="18" color="37, 99, 235" align="left" valign="middle"></section>
   <section name="team2" type="text" x="191" y="7" width="86" visible="true" private="false" enable="true" fontsize="18" color="239, 68, 68" align="right" valign="middle"></section>
+  <!-- Not drawn on the front (visible="false"): the Point Hub board's bench modules read it. The
+       bridge writes SATZ BALL / MATCH BALL (SET POINT / MATCH POINT) here in the colour of the team
+       at set point, taking turns with nothing, and openscore.py _bench_picture puts its two words in
+       place of the bench's two small lines. Only openscore is ever sent it (ledboxClient
+       _paintBenchCallout): the C0270's vendor layout has no such section. -->
+  <section name="callout" type="text" x="96" y="0" visible="false" private="true" enable="true" fontsize="9" color="255, 255, 255" align="center" valign="middle"></section>
   <!-- Score boxes: black fill, border in the team colour (the bridge writes bordercolor). -->
   <section name="bg_score1" type="rectangle" x="0" y="16" width="61" height="47" visible="true" private="true" enable="true" color="0, 0, 0" bordercolor="37, 99, 235"></section>
   <section name="bg_score2" type="rectangle" x="130" y="16" width="61" height="47" visible="true" private="true" enable="true" color="0, 0, 0" bordercolor="239, 68, 68"></section>
@@ -38,10 +44,4 @@
        bar is the colour. -->
   <section name="serve1" type="rectangle" x="66" y="60" width="20" height="3" visible="true" private="false" enable="true" color="30, 30, 30"></section>
   <section name="serve2" type="rectangle" x="106" y="60" width="20" height="3" visible="true" private="false" enable="true" color="30, 30, 30"></section>
-  <!-- Not drawn on the front (visible="false"): the Point Hub board's bench modules read it. The
-       bridge writes SATZ BALL / MATCH BALL (SET POINT / MATCH POINT) here in the colour of the team
-       at set point, taking turns with nothing, and openscore.py _bench_picture puts its two words in
-       place of the bench's two small lines. Only openscore is ever sent it (ledboxClient
-       _paintBenchCallout): the C0270's vendor layout has no such section. -->
-  <section name="callout" type="text" x="96" y="0" visible="false" private="true" enable="true" fontsize="9" color="255, 255, 255" align="center" valign="middle"></section>
 </layout>
