@@ -53,7 +53,23 @@ echo "== 3) bundle =="
 B="$WORK/openvolley-web-$VER"
 mkdir -p "$B/electron" "$B/node_modules"
 cp "$FE/server.js" "$FE/lanRelayCore.js" "$B/"
-cp "$FE/electron/lanRelayCore.cjs" "$FE/electron/signSessionCore.cjs" "$B/electron/"
+# Every file server.js needs, followed through its relative imports and requires: OpenVolley grows
+# new cores beside lanRelayCore.cjs (signSessionCore.cjs, pairSessionCore.cjs in 3.4.1, ...), and a
+# fixed list here broke the bundle each time one was added.
+queue="server.js lanRelayCore.js"
+while [ -n "$queue" ]; do
+  next=""
+  for f in $queue; do
+    dir=$(dirname "$f")
+    for imp in $(sed -n -e "s/^import .* from '\(\.[^']*\)'.*/\1/p" -e "s/.*require(['\"]\(\.[^'\"]*\)['\"]).*/\1/p" "$B/$f"); do
+      rel=$(realpath -m --relative-to=. "$dir/$imp")
+      [ -f "$B/$rel" ] && continue
+      [ -f "$FE/$rel" ] || continue   # left for the check below to report
+      mkdir -p "$B/$(dirname "$rel")"; cp "$FE/$rel" "$B/$rel"; next="$next $rel"
+    done
+  done
+  queue=$next
+done
 cp -a "$FE/dist" "$B/dist"
 cp -a "$FE/node_modules/ws" "$B/node_modules/ws"
 # server.js is ESM; the bundle's own package.json says so and nothing else.
@@ -61,9 +77,10 @@ printf '{ "name": "openvolley-web", "version": "%s", "private": true, "type": "m
 printf '{ "version": "%s", "tag": "%s", "commit": "%s", "built": "%s" }\n' \
   "$VER" "$TAG" "$COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$B/BUILD.json"
 # Every relative import server.js and lanRelayCore.js make must be in the bundle.
-for f in server.js lanRelayCore.js; do
-  for imp in $(sed -n "s/^import .* from '\(\.[^']*\)'.*/\1/p" "$B/$f"); do
-    [ -f "$B/$imp" ] || { echo "!! $f imports $imp, not in the bundle"; exit 1; }
+for f in $(cd "$B" && find . -path ./node_modules -prune -o -path ./dist -prune -o \( -name '*.js' -o -name '*.cjs' \) -print); do
+  dir=$(dirname "$f")
+  for imp in $(sed -n -e "s/^import .* from '\(\.[^']*\)'.*/\1/p" -e "s/.*require(['\"]\(\.[^'\"]*\)['\"]).*/\1/p" "$B/$f"); do
+    [ -f "$B/$dir/$imp" ] || { echo "!! $f imports $imp, not in the bundle"; exit 1; }
   done
 done
 
