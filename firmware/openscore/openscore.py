@@ -437,28 +437,47 @@ class Renderer:
             text = (sec.text or "") if sec else ""
             self._bench_text(draw, text, y, size, colour or (sec.color if sec else (255, 255, 255)))
 
-        # Own team on top, the way the bench reads it.
-        line("score%d" % own, 11, 22)
-        line("score%d" % other, 32, 22)
+        # Top to bottom, the way the bench reads it (owner 17.11.2026): the set score, both scores
+        # (own team first), then time-outs and substitutions (or the time-out clock).
+        line("score%d" % own, 22, 22)
+        line("score%d" % other, 43, 22)
         serve = sections.get("serve%d" % own), sections.get("serve%d" % other)
-        for sec, y in zip(serve, (2, 23)):
-            # The layout keeps the side not serving in a dim grey: on the benches it simply stays off.
+        for sec, y in zip(serve, (13, 34)):
+            # Only the serving side: an unlit serve bar on the front simply stays off here.
             if sec and max(sec.color) > 64:
                 draw.rectangle([0, y, 1, y + 17], fill=sec.color)
         # SATZBALL / MATCHBALL while the bridge says so (the layout's hidden `callout`, written in turns):
-        # its two words in place of the two small lines, the scores stay where they are.
-        if self._bench_callout(draw, sections.get("callout"), (48, 58)):
+        # its two words in place of the two small lines (set score on top, T/S at the bottom).
+        if self._bench_callout(draw, sections.get("callout"), (5, 59)):
             return pic
         set_own, set_other = sections.get("set%d" % own), sections.get("set%d" % other)
         if set_own and set_other:
-            self._bench_text(draw, "%s-%s" % (set_own.text or "0", set_other.text or "0"), 48, 9, (255, 255, 255))
+            self._bench_text(draw, "%s-%s" % (set_own.text or "0", set_other.text or "0"), 5, 9, (255, 255, 255))
         timer = sections.get("timer")
         if timer and timer.text:
-            self._bench_text(draw, timer.text, 58, 9, timer.color)
+            self._bench_text(draw, timer.text, 59, 9, timer.color)
         elif "timeout%d" % own in sections and "sub%d" % own in sections:
-            self._bench_text(draw, "T%s S%s" % (sections["timeout%d" % own].text or "0", sections["sub%d" % own].text or "0"),
-                             58, 9, (255, 255, 255))
+            self._bench_counts(draw, (("T", sections["timeout%d" % own].text or "0"),
+                                      ("S", sections["sub%d" % own].text or "0")), 59, 9, (255, 255, 255))
         return pic
+
+    def _bench_counts(self, draw, pairs, y, size, colour, gap=2, between=5):
+        # "T 0   S 0": a small gap between each letter and its number, a wider one between the two,
+        # centred as a whole. Narrowed only if it would not fit the 32 px slot.
+        font = self._font(size)
+        for _ in range(4):
+            widths = [(font.getlength(k), font.getlength(v)) for k, v in pairs]
+            total = sum(a + gap + b for a, b in widths) + between * (len(pairs) - 1)
+            if total <= BENCH_SLOT_H - 2 or (gap, between) == (1, 2):
+                break
+            gap, between = max(1, gap - 1), max(2, between - 1)
+        draw.fontmode = "1" if size <= SMALL_TEXT_PX else "L"
+        x = (BENCH_SLOT_H - total) / 2
+        for (k, v), (wk, wv) in zip(pairs, widths):
+            draw.text((round(x), y), k, fill=colour, font=font, anchor="lm")
+            x += wk + gap
+            draw.text((round(x), y), v, fill=colour, font=font, anchor="lm")
+            x += wv + between
 
     def _bench_callout(self, draw, sec, rows):
         """The callout's words on the bench's small rows (`rows`, top first): split at the first space
