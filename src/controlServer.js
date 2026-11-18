@@ -10,6 +10,7 @@ import { LanSource, resultFromLiveState } from './lanSource.js'
 import { parseRelayAddress, relayWsUrl, relayHttpCandidates, relayHostLabel, discoverRelays } from './relayAddress.js'
 import { toLeftRight, teamsCrossed, resultWinnerLine } from './volleyballMapper.js'
 import { teamRgb } from './ledColor.js'
+import { subNoticeLines } from './boardNotices.js'
 import { cleanPin } from './relaySubscriber.js'
 import { cleanGameNumber } from './linkedView.js'
 import { execFile } from 'node:child_process'
@@ -760,6 +761,36 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       startLinked('interval', 'countdownOnSetInterval', 'set ended on the eScoresheet',
         () => startCountdown(seconds, 'INTERVAL', 'sets', '', null, { link: 'interval' }))
     })
+    // A substitution on the eScoresheet: WECHSEL 12 ⇄ 7 on the announcement screen for a few
+    // seconds (Settings ▸ Display ▸ Substitutions on the board, boardNotices.js subNoticeLines). The
+    // full-panel announcement the change of ends already uses, rather than a corner of the
+    // scoreboard: the C0270's vendor layout has no free section for it, a substitution is made while
+    // play is stopped, and "12 ⇄ 7" has to read from the far end of the hall. Several at once (a
+    // double substitution) are one screen each, one after the other, and the board then goes back
+    // to the score. Not over a countdown, the idle screen, the result or a panel test, not for a match
+    // that is over, never for a libero replacement (LanSource never reports one).
+    lan.on('substitution', (state, { subs = [] } = {}) => {
+      if (!mine() || activeSport() !== 'volleyball') return
+      const mode = opt('subNotice') || 'all'
+      if (mode === 'off') return
+      const language = opt('language') || 'en'
+      const screens = subs.map((x) => ({ x, lines: subNoticeLines(x, { language, numbersOnly: mode === 'numbers' }) })).filter((y) => y.lines)
+      if (!screens.length) {
+        clog.info(`linked match ${matchId}: substitution — no notice (${mode === 'numbers' ? 'no shirt numbers' : 'no team to name'})`, { matchId, subs: subs.length })
+        return
+      }
+      // Each screen 3 s; a long batch shorter each, never past about 9 s in all.
+      const ms = Math.round(Math.max(2, Math.min(3, 9 / screens.length)) * 1000)
+      const free = () => mine() && !countdown && !(ledbox && (ledbox._idle || ledbox._test)) &&
+        !(ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout) && !(lan.over)
+      if (!free()) { clog.info(`linked match ${matchId}: substitution — no notice over the screen that is up`, { matchId, countdown: !!countdown }); return }
+      for (const { x, lines } of screens) {
+        clog.info(`linked match ${matchId}: substitution notice ${lines.join(' ')}`, { matchId, side: x.side, numbers: !!(x.playerOut && x.playerIn) })
+        if (ledbox && typeof ledbox.showMessage === 'function') {
+          ledbox.showMessage(lines.join(' '), { ms, lines, color: x.color ? teamRgb(x.color) : undefined, when: free }).catch(() => {})
+        }
+      }
+    })
     lan.on('pin-refused', ({ code } = {}) => { if (mine()) clog.warn(`linked match ${matchId}: the relay refused the match PIN (${code}) — following without it, substitutions counted by the board`, { matchId, code }) })
     const endLinked = (kind) => {
       const cd = linked
@@ -1374,6 +1405,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
           idleQr: updated.idleQr,
           intervalHistory: updated.intervalHistory,
           brightness: updated.brightness,
+          gamePointCallout: updated.gamePointCallout,
+          language: updated.language,
+          bestOf: updated.bestOf,
         })
       }
       // The linked match follows the orientation at once (lanSource.js mirror): the panel turns
@@ -2343,6 +2377,8 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
     return sectionsToScreen(ledbox.mapper.toSections(state, {
       totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs,
       ...ledbox.fontCeilings(state),
+      // SATZBALL / MATCHBALL while its turn is up, as on the panel.
+      callout: typeof ledbox.calloutNow === 'function' ? ledbox.calloutNow() : null,
     }))
   }
 

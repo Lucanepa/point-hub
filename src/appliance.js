@@ -210,6 +210,9 @@ export async function startAppliance(config = loadConfig()) {
     idleQr: settings.values.idleQr,
     intervalHistory: settings.values.intervalHistory,
     brightness: settings.values.brightness,
+    gamePointCallout: settings.values.gamePointCallout,
+    language: settings.values.language,
+    bestOf: settings.values.bestOf,
   })
   // Cable trust (see cableTrust.js): on unless the config says false — a hand-built test config
   // gets it too, which is harmless: nothing a test sends arrives on 192.168.5.1.
