@@ -9,7 +9,10 @@ import path from 'node:path'
 import { LanSource, resultFromLiveState } from './lanSource.js'
 import { parseRelayAddress, relayWsUrl, relayHttpCandidates, relayHostLabel, discoverRelays } from './relayAddress.js'
 import { toLeftRight, teamsCrossed, resultWinnerLine } from './volleyballMapper.js'
-import { hexToRgb } from './ledboxProtocol.js'
+import { teamRgb } from './ledColor.js'
+import { subNoticeLines } from './boardNotices.js'
+import { cleanPin } from './relaySubscriber.js'
+import { cleanGameNumber } from './linkedView.js'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { HistoryStore } from './historyStore.js'
@@ -36,6 +39,7 @@ import { applyBrightness, liveDriver, PANEL_PATHS } from './panelBrightness.js'
 import { toRow } from './livePush.js'
 import { toOverlay } from './overlay.js'
 import { EventEmitter } from 'node:events'
+import { REFUSAL as OV_REFUSAL } from './ovOnline.js'
 
 const clog = log.child('control')
 const alog = log.child('action')
@@ -150,7 +154,7 @@ const PROBE_BODIES = {
 // setting.ini's [DISPLAY] block: the board's panel geometry for /api/status.board.caps.
 const SETTING_INI = PANEL_PATHS.settingIni
 
-export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, adminPinFile = null, hostname = null, settingIni = SETTING_INI }) {
+export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, adminPinFile = null, hostname = null, settingIni = SETTING_INI, ovOnline = null, cloudRelay = null }) {
   // What the last look at the board's own OpenVolley found (BOARD_OPENVOLLEY=1 only; see
   // checkBoardOV). Up here because status() reads it.
   const boardOV = { running: null, live: 0, checkedAt: null }
@@ -676,6 +680,41 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   // How the linked match is doing, for the console's Live tag and Link button:
   // connecting (no score yet) | live | lost (the relay went away, retrying) | ended.
   let linkState = null
+  // Where the linked match comes from, for the console and the cloud follow below: 'lan' (a scorer
+  // laptop, linked on the Link tab), 'board' (the board's own OpenVolley, followed by itself) or
+  // 'cloud' (OpenVolley's server, linked on the Link tab or followed with OpenVolley online on).
+  let linkKind = null
+  // The match number each match was listed under (GET /api/matches), so a link to a match whose
+  // live state carries no game_n still finds its game's own live row (linkedView.js). Bounded.
+  const listedGames = new Map()
+  const rememberListedGame = (id, n) => {
+    const g = cleanGameNumber(n)
+    if (!id || !g) return
+    listedGames.delete(id)
+    listedGames.set(id, g)
+    if (listedGames.size > 50) listedGames.delete(listedGames.keys().next().value)
+  }
+  // A LanSource for a linked match, as every link path makes it: the panel mirrored by Settings ▸
+  // Scorer sits behind the board, asked on every state (see lanSource.js, so the console can switch
+  // it mid-match), the PIN offered with the subscription when the operator gave one, the listed
+  // match number.
+  const linkedSource = (relayUrl, matchId, { pin = null } = {}) => new LanSource({
+    relayUrl, matchId, reconnectMs, pin,
+    // OpenVolley's sides are the scorer's own (their left on the tablet is team A's side when
+    // side_a is 'left'). Behind the board — the default — the scorer's left is the panel's right,
+    // so the panel turns them round; facing the board, they are the panel's as they come.
+    mirror: () => (opt('orientation') || 'behind') !== 'front',
+    gameNumber: listedGames.get(matchId) || null,
+  })
+  // How long a break that was already running when the link began still has to go, from the
+  // match's own start of it (LanSource `late`). null = leave it off the panel: the start is not
+  // known, the board's own clock is not to be trusted, or the break is already over by it. A start
+  // a little in the future (the scorer device's clock ahead of the board's) counts as now.
+  const lateRemaining = (seconds, { startedAt = null } = {}) => {
+    if (startedAt == null || !clockTrusted()) return null
+    const left = seconds * 1000 - Math.max(0, Date.now() - startedAt)
+    return left >= 1000 ? left / 1000 : null
+  }
   const watchLinkedMatch = (lan, matchId) => {
     const mine = () => sourceManager.active === lan
     let scored = false
@@ -695,18 +734,64 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       clog.info(`linked match ${matchId}: ${what} — countdown on the board`, { matchId, kind })
       linked = start()
     }
-    lan.on('timeout-start', (state, { side = null } = {}) => {
+    // A break already running when the link began (`late`, see lanSource.js): resumed from the
+    // match's own start, or left off when that cannot be told. Never the full length again.
+    const lengthOf = (kind, full, info) => {
+      if (!info || !info.late) return full
+      const left = lateRemaining(full, info)
+      clog.info(`linked match ${matchId}: a ${kind} was already running when the link began — ${left == null ? (info.startedAt == null ? 'its start is not known' : clockTrusted() ? 'it is over by its own start' : 'the board\'s clock is not set') + ', so no countdown' : `${Math.round(left)} s of ${full} left by its own start`}`, { matchId, kind, startedAt: info.startedAt ?? null, left })
+      return left
+    }
+    lan.on('timeout-start', (state, info = {}) => {
+      const { side = null } = info
       // The team's name on the break screen, resolved against the state on the board exactly as
       // /api/countdown resolves a console tap's `side`.
       let team = ''
       if (side) { const v = toLeftRight(state); team = side === 'left' ? v.leftName : v.rightName }
+      const seconds = lengthOf('timeout', Number(opt('timeoutSeconds')) || 30, info)
+      if (seconds == null) return
       startLinked('timeout', 'countdownOnTimeout', `timeout${team ? ` ${team}` : ''} on the eScoresheet`,
-        () => startCountdown(Number(opt('timeoutSeconds')) || 30, 'TIME OUT', 'full', team, side, { link: 'timeout' }))
+        () => startCountdown(seconds, 'TIME OUT', 'full', team, side, { link: 'timeout' }))
     })
     // No swap first, unlike the console's interval: the set_end state already has the next set's
     // ends, so the break screen shows the set score the right way round.
-    lan.on('interval-start', () => startLinked('interval', 'countdownOnSetInterval', 'set ended on the eScoresheet',
-      () => startCountdown(Number(opt('setIntervalSeconds')) || 180, 'INTERVAL', 'sets', '', null, { link: 'interval' })))
+    lan.on('interval-start', (state, info = {}) => {
+      const seconds = lengthOf('set interval', Number(opt('setIntervalSeconds')) || 180, info)
+      if (seconds == null) return
+      startLinked('interval', 'countdownOnSetInterval', 'set ended on the eScoresheet',
+        () => startCountdown(seconds, 'INTERVAL', 'sets', '', null, { link: 'interval' }))
+    })
+    // A substitution on the eScoresheet: WECHSEL 12 ⇄ 7 on the announcement screen for a few
+    // seconds (Settings ▸ Display ▸ Substitutions on the board, boardNotices.js subNoticeLines). The
+    // full-panel announcement the change of ends already uses, rather than a corner of the
+    // scoreboard: the C0270's vendor layout has no free section for it, a substitution is made while
+    // play is stopped, and "12 ⇄ 7" has to read from the far end of the hall. Several at once (a
+    // double substitution) are one screen each, one after the other, and the board then goes back
+    // to the score. Not over a countdown, the idle screen, the result or a panel test, not for a match
+    // that is over, never for a libero replacement (LanSource never reports one).
+    lan.on('substitution', (state, { subs = [] } = {}) => {
+      if (!mine() || activeSport() !== 'volleyball') return
+      const mode = opt('subNotice') || 'all'
+      if (mode === 'off') return
+      const language = opt('language') || 'en'
+      const screens = subs.map((x) => ({ x, lines: subNoticeLines(x, { language, numbersOnly: mode === 'numbers' }) })).filter((y) => y.lines)
+      if (!screens.length) {
+        clog.info(`linked match ${matchId}: substitution — no notice (${mode === 'numbers' ? 'no shirt numbers' : 'no team to name'})`, { matchId, subs: subs.length })
+        return
+      }
+      // Each screen 3 s; a long batch shorter each, never past about 9 s in all.
+      const ms = Math.round(Math.max(2, Math.min(3, 9 / screens.length)) * 1000)
+      const free = () => mine() && !countdown && !(ledbox && (ledbox._idle || ledbox._test)) &&
+        !(ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout) && !(lan.over)
+      if (!free()) { clog.info(`linked match ${matchId}: substitution — no notice over the screen that is up`, { matchId, countdown: !!countdown }); return }
+      for (const { x, lines } of screens) {
+        clog.info(`linked match ${matchId}: substitution notice ${lines.join(' ')}`, { matchId, side: x.side, numbers: !!(x.playerOut && x.playerIn) })
+        if (ledbox && typeof ledbox.showMessage === 'function') {
+          ledbox.showMessage(lines.join(' '), { ms, lines, color: x.color ? teamRgb(x.color) : undefined, when: free }).catch(() => {})
+        }
+      }
+    })
+    lan.on('pin-refused', ({ code } = {}) => { if (mine()) clog.warn(`linked match ${matchId}: the relay refused the match PIN (${code}) — following without it, substitutions counted by the board`, { matchId, code }) })
     const endLinked = (kind) => {
       const cd = linked
       if (!mine() || !cd || cd.link !== kind) return
@@ -1045,6 +1130,27 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       alog.info('hall Wi-Fi login page opened', { ip: clientIp(req) })
       return sendJson(res, 200, { ok: true, ...r })
     }
+    // GET /api/ovonline — OpenVolley online for devices on the board's Wi-Fi, asked afresh:
+    // { available, enabled, active, reason, upstream, addresses, pieces, checkedAt }. Open like every read.
+    // POST /api/ovonline { on: true|false } — the owner's switch, behind the scorer PIN. Always 200
+    // when the board has the switch: a refusal is { ok:false, reason, error } in words the console
+    // shows as they are (ovOnline.js REFUSAL); nothing is opened when it refuses.
+    if (pathname === '/api/ovonline' && req.method === 'GET') {
+      if (!ovOnline) return sendJson(res, 404, { error: 'this board has no OpenVolley-online switch' })
+      await ovOnline.refresh()
+      return sendJson(res, 200, ovOnline.detail())
+    }
+    if (pathname === '/api/ovonline' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      if (!ovOnline) return sendJson(res, 404, { error: 'this board has no OpenVolley-online switch' })
+      const body = await readJson(req)
+      if (!body || typeof body.on !== 'boolean') return sendJson(res, 400, { error: 'on: true or false required' })
+      const r = await ovOnline.set(body.on)
+      alog.info(r.ok ? `OpenVolley online for the board's Wi-Fi turned ${body.on ? 'ON' : 'off'}${r.reason ? ` (not active yet: ${r.reason})` : ''}` : `OpenVolley online: turning it ${body.on ? 'on' : 'off'} was refused (${r.reason})`,
+        { ip: clientIp(req), on: body.on, ok: r.ok, reason: r.reason || null })
+      if (body.on && r.ok) cloudFollowSoon()
+      return sendJson(res, 200, { ok: r.ok, reason: r.reason || null, ...(r.ok ? {} : { error: OV_REFUSAL[r.reason] || OV_REFUSAL.failed }), ovOnline: { ...r.view, autoLink: !!cloudWs } })
+    }
     // POST /api/manual — score here. { takeOver: true } while the board follows the eScoresheet:
     // "Stop following and score here", carrying the score the board shows over, so the panel does
     // not jump back to whatever was last scored by hand.
@@ -1293,7 +1399,15 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
           clubName: updated.clubName,
           intervalHistory: updated.intervalHistory,
           brightness: updated.brightness,
+          gamePointCallout: updated.gamePointCallout,
+          language: updated.language,
+          bestOf: updated.bestOf,
         })
+      }
+      // The linked match follows the orientation at once (lanSource.js mirror): the panel turns
+      // round now, not at the scorer's next rally.
+      if (updated.orientation !== before.orientation && sourceManager.status.mode === 'lan' && sourceManager.active && typeof sourceManager.active.refresh === 'function') {
+        sourceManager.active.refresh()
       }
       if (updated.screenApp !== before.screenApp) screenNow = null
       if (typeof server.onScreenAppChange === 'function') server.onScreenAppChange(updated.screenApp !== before.screenApp)
@@ -1345,7 +1459,17 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       if (!pinOk(req)) return denyPin(res, req)
       const body = await readJson(req)
       const source = body && body.source
-      if (source === 'cloud') return sendJson(res, 501, { error: 'cloud not implemented' })
+      // A match on OpenVolley's server (the cloud list below, GET /api/matches): the board subscribes
+      // to it there over its own uplink, as it does to a scorer laptop on the hall network.
+      if (source === 'cloud') {
+        if (!cloudWs) return sendJson(res, 501, { error: 'This board does not link matches on OpenVolley\'s server' })
+        if (body.matchId == null || body.matchId === '') return sendJson(res, 400, { error: 'matchId required' })
+        // The optional match PIN, as for a laptop's match below (the cloud then sends the substitutions).
+        const cpin = cleanPin(body.pin)
+        if (body.pin != null && String(body.pin).trim() !== '' && !cpin) return sendJson(res, 400, { error: 'That PIN cannot be right — check it in OpenVolley' })
+        await linkCloudMatch(safeMatchId(body.matchId), { why: 'linked on the console', ip: clientIp(req), pin: cpin })
+        return sendJson(res, 200, { ...status(req), relay: { address: relayHostLabel(cloudWs), source: 'cloud' } })
+      }
       if (source !== 'lan') return sendJson(res, 400, { error: 'unknown source' })
       if (body.matchId == null) return sendJson(res, 400, { error: 'matchId required' })
       const target = linkRelay(body.relay)
@@ -1362,11 +1486,30 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       if (ledbox && (ledbox._idle || (ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout)) && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
       dropPrematch('linked a LAN match')
       const matchId = safeMatchId(body.matchId)
-      clog.info(`linking to LAN match ${matchId} at ${relayHostLabel(wsUrl)} (${target.source})`, { matchId, relayUrl: wsUrl, source: target.source, ip: clientIp(req) })
-      const lan = new LanSource({ relayUrl: wsUrl, matchId, reconnectMs })
+      // The match PIN, optional: offered to the relay with the subscription, so the cloud sends the
+      // full live state (the substitutions). Held by the link in memory only, never logged.
+      const pin = cleanPin(body.pin)
+      if (body.pin != null && String(body.pin).trim() !== '' && !pin) return sendJson(res, 400, { error: 'That PIN cannot be right — check it in OpenVolley' })
+      clog.info(`linking to LAN match ${matchId} at ${relayHostLabel(wsUrl)} (${target.source})${pin ? ', with the match PIN' : ''}`, { matchId, relayUrl: wsUrl, source: target.source, ip: clientIp(req) })
+      const lan = linkedSource(wsUrl, matchId, { pin })
       watchLinkedMatch(lan, matchId)
+      linkKind = 'lan'
       sourceManager.setSource(lan, { mode: 'lan', matchId })
       return sendJson(res, 200, { ...status(req), relay: { address: relayHostLabel(wsUrl), source: target.source } })
+    }
+    // POST /api/link/pin { pin } — offer the linked match's PIN on the running link (an empty one
+    // takes it back). The relay is asked again at once; nothing on the panel moves until it answers.
+    if (pathname === '/api/link/pin' && req.method === 'POST') {
+      if (!pinOk(req)) return denyPin(res, req)
+      const body = await readJson(req) || {}
+      const lan = sourceManager.status.mode === 'lan' ? sourceManager.active : null
+      if (!lan || typeof lan.setPin !== 'function') return sendJson(res, 409, { error: 'No OpenVolley match is linked' })
+      const wanted = body.pin == null ? '' : String(body.pin).trim()
+      const pin = cleanPin(wanted)
+      if (wanted && !pin) return sendJson(res, 400, { error: 'That PIN cannot be right — check it in OpenVolley' })
+      lan.setPin(pin)
+      clog.info(`linked match ${sourceManager.status.matchId}: match PIN ${pin ? 'offered' : 'taken back'}`, { matchId: sourceManager.status.matchId, ip: clientIp(req) })
+      return sendJson(res, 200, { ok: true, ...status(req) })
     }
     // POST /api/countdown { seconds, label, content, swapFirst } — start the shared timer.
     // swapFirst (the set interval) applies next-set FIRST — swap ends + reset points — with the
@@ -1699,7 +1842,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       // hall as "ZRICH WINS", and it only became reachable once team names started being
       // upper-cased for the board. Anything outside both sets is still dropped.
       const line = resultLine
-      const color = HEX_COLOR.test(String(body.color || '')) ? hexToRgb(body.color) : undefined
+      const color = HEX_COLOR.test(String(body.color || '')) ? teamRgb(body.color) : undefined
       const winner = line(resultWinnerLine(line(body.winner, 24), sourceManager.getState()), 60)
       const ok = ledbox && typeof ledbox.showResult === 'function'
         ? await ledbox.showResult({
@@ -2117,6 +2260,10 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       prematchGameId: prematch ? prematchGameId : null,
       timeMode: ledbox && ledbox.timeMode === 'countdown' ? 'countdown' : 'clock',
       link: sourceManager.status.mode === 'lan' ? linkState : null,
+      // Where the linked match comes from: 'lan' | 'board' | 'cloud' (see linkKind); null unlinked.
+      linkSource: sourceManager.status.mode === 'lan' ? linkKind : null,
+      // The linked match's PIN, never the PIN itself: 'none' | 'offered' | 'accepted' | 'refused'.
+      linkPin: sourceManager.status.mode === 'lan' && sourceManager.active && typeof sourceManager.active.pinState === 'string' ? sourceManager.active.pinState : null,
       kickoffAt: kickoffOfGame(),
       // Tonight's home game(s) the console offers to set up (autoPrepare.js): [] or
       // [{ id, date, time, home, away, homeShort, awayShort, hall, league }] — public schedule data.
@@ -2142,6 +2289,10 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       // OpenVolley on the board (BOARD_OPENVOLLEY=1, the C0270): whether its relay answers, and how
       // many matches it has live, for the Link tab's "Score with the OpenVolley eScoresheet" card. Null elsewhere.
       openvolley: boardOpenVolley ? { ...boardOV } : null,
+      // OpenVolley online for devices on the board's Wi-Fi (ovOnline.js): Settings' switch, and on
+      // the Link tab whether the board follows a live cloud match from this hall by itself. Null on a
+      // board that has no such switch (the Point Hub DIY board, a test config).
+      ovOnline: ovOnline && !(hardware && hardware.present) ? { ...ovOnline.view(), autoLink: !!cloudWs } : null,
       ledbox: {
         connected: ledbox.ready === true, host: ledbox.host, port: ledbox.port, layout: ledbox.currentLayout,
         // What the idle screen is doing, so the console can show 'Show clock' as the active choice.
@@ -2220,6 +2371,8 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
     return sectionsToScreen(ledbox.mapper.toSections(state, {
       totalTimeouts: ledbox.totalTimeouts, totalSubs: ledbox.totalSubs,
       ...ledbox.fontCeilings(state),
+      // SATZBALL / MATCHBALL while its turn is up, as on the panel.
+      callout: typeof ledbox.calloutNow === 'function' ? ledbox.calloutNow() : null,
     }))
   }
 
@@ -2263,6 +2416,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
     const errors = []
     const matches = []
     const tried = []
+    // OpenVolley's server, asked alongside the laptop search (it is the board's uplink either way, and
+    // a hall without internet answers fast): its rows come after the laptop's.
+    const cloudP = cloudWs ? cloudMatches() : null
     const conf = configuredRelay()
     const label = (wsUrl, http) => (wsUrl ? relayHostLabel(wsUrl) : relayHostLabel(http))
     const candidates = []
@@ -2299,6 +2455,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
         // say in what lands there. An id can only ever be word characters, a dot or a dash.
         // `relay` names the laptop that listed it; POST /api/link sends it back (see linkRelay).
         matches.push({ source: 'lan', id: safeMatchId(m.id), label: `${num}${teams}`, live: m.status === 'live', relay: relayHostLabel(hit.wsUrl) })
+        rememberListedGame(safeMatchId(m.id), m.gameNumber ?? m.game_n)
       }
       clog.debug(`relay ${label(hit.wsUrl, hit.httpUrl)} listed ${matches.length} match(es)`, { count: matches.length, httpUrl: hit.httpUrl, source: hit.source })
       if (hit.source === 'discovered' && conf && conf.source !== 'default') {
@@ -2320,9 +2477,13 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       }
       clog.warn(`could not list matches: ${errors[errors.length - 1].replace(/^lan: /, '')}`, { configured, tried, searched })
     }
+    const cloud = cloudP ? await cloudP : null
+    if (cloud && cloud.ok) matches.push(...cloud.rows)
     return {
       matches,
       errors,
+      // The cloud list: { ok, address, count, hall, error }; null on a board that does not ask it.
+      cloud: cloud ? { ok: cloud.ok, address: relayHostLabel(cloudWs), count: cloud.ok ? cloud.rows.length : 0, hall: cloud.ok ? cloud.rows.filter((m) => m.hall).length : 0, error: cloud.error || null } : null,
       relay: {
         ok: !!hit,
         address: hit ? label(hit.wsUrl, hit.httpUrl) : (configured && configured.address) || null,
@@ -2358,6 +2519,119 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       }
     }
     return null
+  }
+
+  // --- OpenVolley's server (the cloud) ---------------------------------------------------------
+  // GET https://backend.openvolley.app/api/match/list lists a match with the referee connection on to
+  // everyone, and any other match only to a caller on the same public address as its scorer — so the
+  // board, behind the hall's NAT with the scorer's tablet (OpenVolley online, ovOnline.js), sees the
+  // hall's own matches. A row is `hall` when that is provable: listed with the referee connection off
+  // (only the hall's address gets those), or its game number is one of this board's own games in the
+  // schedule. Only the board's sport (indoor for volleyball, beach for beach volleyball), never a test
+  // match, only scheduled or live. Clamped like the laptop's rows: they are rendered by the console
+  // and posted straight back to /api/link.
+  const cloudWs = cloudRelay ? String(cloudRelay) : ''
+  const cloudHttp = cloudWs ? (relayHttpCandidates(cloudWs)[0] || '') : ''
+  const CLOUD_LIST_TIMEOUT_MS = 4000
+  const CLOUD_OTHER_MAX = 30
+  const cloudText = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max)
+  async function cloudMatches() {
+    const sportType = activeSport() === 'volleyball' ? 'indoor' : activeSport() === 'beach' ? 'beach' : null
+    if (!sportType || !cloudHttp) return { ok: true, rows: [] }
+    let list
+    try {
+      const resp = await fetch(`${cloudHttp}/api/match/list`, { signal: AbortSignal.timeout(CLOUD_LIST_TIMEOUT_MS), headers: { accept: 'application/json' } })
+      if (!resp.ok) { try { await resp.body?.cancel() } catch { /* gone */ } throw new Error(`answered HTTP ${resp.status}`) }
+      const data = await resp.json().catch(() => null)
+      list = Array.isArray(data) ? data : (data && Array.isArray(data.matches) ? data.matches : null)
+      if (!list) throw new Error('answered, but not with a match list')
+    } catch (err) {
+      const why = err && err.name === 'TimeoutError' ? 'timed out'
+        : (err && err.cause && (err.cause.code || err.cause.message)) || (err && err.message) || String(err)
+      clog.debug(`no cloud match list at ${cloudHttp}: ${why}`, { url: cloudHttp, error: why })
+      return { ok: false, rows: [], error: `cloud: ${why}` }
+    }
+    const rows = []
+    for (const m of list) {
+      if (!m || typeof m !== 'object' || m.id == null || m.test === true) continue
+      if ((m.sportType === 'beach' ? 'beach' : 'indoor') !== sportType) continue
+      const st = m.status == null || m.status === '' ? 'scheduled' : String(m.status)
+      if (st !== 'live' && st !== 'scheduled') continue
+      const id = safeMatchId(m.id)
+      if (!id) continue
+      const num = cloudText(m.gameNumber || m.game_n || '', 24)
+      const home = cloudText(m.homeShort || m.homeTeam || m.home || '', 40)
+      const away = cloudText(m.awayShort || m.awayTeam || m.away || '', 40)
+      const referee = m.refereeConnectionEnabled === true
+      let ours = false
+      try { ours = !!(num && typeof schedule.gameByNumber === 'function' && schedule.gameByNumber(num, { sport: activeSport() })) } catch { ours = false }
+      const teams = home || away ? `${home}-${away}` : ''
+      rememberListedGame(id, num)
+      rows.push({ source: 'cloud', id, label: [num, teams].filter(Boolean).join(' ') || id, live: st === 'live', relay: relayHostLabel(cloudWs), hall: !referee || ours, referee })
+    }
+    // The hall's own first, live before scheduled; somebody else's (referee connection on, not in the
+    // schedule) after, and only so many — the cloud lists those for every hall in the country.
+    const rank = (m) => (m.hall ? 0 : 2) + (m.live ? 0 : 1)
+    rows.sort((a, b) => rank(a) - rank(b))
+    const hall = rows.filter((m) => m.hall)
+    return { ok: true, rows: [...hall, ...rows.filter((m) => !m.hall).slice(0, CLOUD_OTHER_MAX)] }
+  }
+
+  // Link a cloud match: the same steps as POST /api/link's LAN branch.
+  async function linkCloudMatch(matchId, { why = '', ip = null, pin = null } = {}) {
+    if (ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout && typeof ledbox.clearResult === 'function') await ledbox.clearResult().catch(() => {})
+    if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+    dropPrematch(`linked a match on OpenVolley's server (${why})`)
+    clog.info(`linking to match ${matchId} on OpenVolley's server ${relayHostLabel(cloudWs)} (${why})${pin ? ', with the match PIN' : ''}`, { matchId, relayUrl: cloudWs, why, ip })
+    const lan = linkedSource(cloudWs, matchId, { pin })
+    watchLinkedMatch(lan, matchId)
+    linkKind = 'cloud'
+    sourceManager.setSource(lan, { mode: 'lan', matchId })
+  }
+
+  // With OpenVolley online ON the scorer's tablet is on the cloud, so nobody is at the console to
+  // link the board: it follows the one live match from this hall by itself — the same rules as the
+  // board's own OpenVolley below (followLocalScorer): only when exactly one is live, never over a
+  // hand-scored game in play or a countdown, never over a laptop's or the board's own match, and
+  // never while the board's own OpenVolley has one live. A linked cloud match that is still going
+  // stays linked; once it has ended the next live one takes over. Every 10 s, and only while the
+  // switch is on — off, the board never asks the cloud by itself.
+  let cloudFollowTimer = null
+  let cloudLinking = false
+  const CLOUD_FOLLOW_MS = 10_000
+  async function followCloudScorer() {
+    if (!cloudWs || !ovOnline || cloudLinking) return
+    if (!ovOnline.view().enabled) return
+    if (!ledbox || ledbox.ready !== true || countdown) return
+    const { mode, matchId } = sourceManager.status
+    if (mode === 'lan' && linkKind !== 'cloud') return
+    if (mode === 'lan' && linkState !== 'ended') return
+    if (mode !== 'lan' && !ledbox._idle && matchInPlay(sourceManager.getState())) return
+    if (boardOpenVolley && boardOV.live > 0) return
+    cloudLinking = true
+    try {
+      const r = await cloudMatches()
+      if (!r.ok) return
+      const live = r.rows.filter((m) => m.live && m.hall)
+      if (live.length !== 1) return
+      if (mode === 'lan' && live[0].id === matchId) return
+      // Looked again after the wait: the operator may have started something meanwhile.
+      const now = sourceManager.status
+      if (countdown || (now.mode === 'lan' && (linkKind !== 'cloud' || linkState !== 'ended')) || (now.mode !== 'lan' && !ledbox._idle && matchInPlay(sourceManager.getState()))) return
+      await linkCloudMatch(live[0].id, { why: 'OpenVolley online: the one live match from this hall' })
+    } catch (err) {
+      clog.warn(`could not follow the cloud match: ${err.message}`, { error: err.message })
+    } finally {
+      cloudLinking = false
+    }
+  }
+  server.followCloudScorer = followCloudScorer
+  // Right after the switch goes on, rather than up to 10 s later.
+  const cloudFollowSoon = () => { if (cloudFollowTimer) setTimeout(() => { followCloudScorer().catch(() => {}) }, 1500).unref?.() }
+  server.startCloudFollow = () => {
+    if (!cloudWs || !ovOnline || cloudFollowTimer) return
+    cloudFollowTimer = setInterval(() => { followCloudScorer().catch(() => {}) }, CLOUD_FOLLOW_MS)
+    if (cloudFollowTimer.unref) cloudFollowTimer.unref()
   }
 
   // Boot recovery after a crash. The unit is Restart=always, and until this existed a bridge that
@@ -2453,8 +2727,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       if (ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
       dropPrematch('the board\'s own OpenVolley has a live match')
       clog.info(`following the live match ${live[0]} in the board's own OpenVolley`, { matchId: live[0] })
-      const lan = new LanSource({ relayUrl: LOCAL_RELAY, matchId: live[0], reconnectMs })
+      const lan = linkedSource(LOCAL_RELAY, live[0])
       watchLinkedMatch(lan, live[0])
+      linkKind = 'board'
       sourceManager.setSource(lan, { mode: 'lan', matchId: live[0] })
     } catch (err) {
       clog.warn(`could not follow the board's own OpenVolley: ${err.message}`, { error: err.message })
@@ -2510,6 +2785,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   server.stopBackground = () => {
     if (localRelayTimer) clearInterval(localRelayTimer)
     if (boardFollowTimer) clearInterval(boardFollowTimer)
+    if (cloudFollowTimer) clearInterval(cloudFollowTimer)
     if (hardware) hardware.stop()
     if (matchUpload) matchUpload.stop()
     gameSheet.stop()

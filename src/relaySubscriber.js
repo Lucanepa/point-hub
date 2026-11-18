@@ -11,8 +11,15 @@
 // share; the Tauri relay.rs follows the same rules). Rooms are keyed by the match's SEED KEY (the
 // `id` in GET /api/match/list); the scorer's local numeric id is not a room and receives nothing.
 // An anonymous subscriber gets the PIN-free summary, which still carries data.liveState, and
-// every live-state-update — so the board needs no PIN or token.
-//   -> { type: 'subscribe-match', matchId }
+// every live-state-update — so the board needs no PIN or token. The cloud relay
+// (wss://backend.openvolley.app) strips the line-ups, substitutions and sanctions from what such a
+// subscriber gets (LIVE_STATE_PRIVATE_COLUMNS); the match PIN, when the operator offers one, is
+// sent with the subscription (the backend's registerRelayAccess) and brings the full state. It is
+// held in memory only, never logged, and dropped the moment the relay refuses it (a wrong PIN is
+// counted against the board's address; sending it again on every reconnect would lock it out).
+//   -> { type: 'subscribe-match', matchId, pin?, device?: 'display', settingsUrl? }
+//      device/settingsUrl: the board's announcement (boardAnnounce.js), when the appliance set one: the
+//      relay tells the scorer a scoreboard follows and offers this board's Settings in its menu.
 //   <- { type: 'match-full-data',   matchId, data }   (initial, on subscribe)
 //   <- { type: 'match-data-update', matchId, data }   (on every scoreboard sync)
 //   <- { type: 'match-deleted',     matchId }
@@ -27,6 +34,7 @@
 
 import { EventEmitter } from 'node:events'
 import { log } from './logStore.js'
+import { announcementFields } from './boardAnnounce.js'
 
 // The scorer's order of a live state, or null when it carries none (an older scorer, a database
 // row). OpenVolley's relayPublisher.createLiveStateOrder stamps every relay push with `_seq`,
@@ -49,6 +57,15 @@ export function isStaleLiveState(state, last) {
   return !!(o && last && o.session === last.session && o.seq < last.seq)
 }
 
+// The backend's answers to a PIN it will not take (registerRelayAccess / hasRelayAccess).
+const PIN_REFUSALS = new Set(['pin-invalid', 'rate-limited', 'access-denied'])
+// A match PIN as the relays take it (trimmed, at most 32 characters), or null for none.
+export function cleanPin(pin) {
+  if (pin == null) return null
+  const s = String(pin).trim()
+  return s && s.length <= 32 && /^[\x21-\x7e]+$/.test(s) ? s : null
+}
+
 const PING_MS = 25000
 // Silence budget before we assume the socket is half-open. The relay answers every ping with a
 // pong, so two ping cycles with nothing arriving at all means the link is gone.
@@ -60,11 +77,19 @@ const SILENT_MS = PING_MS * 2.5
 const rlog = log.child('relay')
 
 export class RelaySubscriber extends EventEmitter {
-  constructor({ url, matchId, reconnectMs = 3000 } = {}) {
+  // announce: the board's announcement on every subscription (boardAnnounce.js); left out, the one the
+  // appliance set, if any.
+  constructor({ url, matchId, reconnectMs = 3000, pin = null, announce } = {}) {
     super()
+    this._announce = announce
     this.url = url
     this.matchId = matchId != null ? String(matchId) : null
     this.reconnectMs = reconnectMs
+    // The match PIN offered with the subscription (see the header), or null. `pinState` is what
+    // became of it: 'none' | 'offered' | 'accepted' (the relay sent more than the summary) |
+    // 'refused' (and it is gone).
+    this._pin = cleanPin(pin)
+    this.pinState = this._pin ? 'offered' : 'none'
     this.ws = null
     this._closing = false
     this._pingTimer = null
@@ -94,7 +119,7 @@ export class RelaySubscriber extends EventEmitter {
       rlog.info('connected', { url: this.url, matchId: this.matchId })
       this._lastRx = Date.now()
       this.emit('open')
-      if (this.matchId) this._send({ type: 'subscribe-match', matchId: this.matchId })
+      this._subscribe()
       clearInterval(this._pingTimer)
       this._pingTimer = setInterval(() => {
         if (Date.now() - this._lastRx > SILENT_MS) {
@@ -156,10 +181,32 @@ export class RelaySubscriber extends EventEmitter {
     this._scheduleRetry()
   }
 
+  // The subscribe-match this subscriber sends: the match, its PIN if one is offered, and the board's
+  // announcement.
+  subscription() {
+    return { type: 'subscribe-match', matchId: this.matchId, ...(this._pin ? { pin: this._pin } : {}), ...announcementFields(this._announce) }
+  }
+
   _scheduleRetry() {
     if (this._closing || !(this.reconnectMs > 0)) return
     clearTimeout(this._retryTimer)
     this._retryTimer = setTimeout(() => { this._retryTimer = null; this._open() }, this.reconnectMs)
+  }
+
+  _subscribe() {
+    if (!this.matchId) return
+    this._send(this.subscription())
+  }
+
+  // Offer a match PIN (or take it back with an empty one) on the running link: the relay is asked
+  // again at once, on the same socket (the backend re-registers the access and answers with the
+  // match's data again). Returns the new pinState.
+  setPin(pin) {
+    this._pin = cleanPin(pin)
+    this.pinState = this._pin ? 'offered' : 'none'
+    rlog.info(this._pin ? 'match PIN offered to the relay' : 'match PIN taken back', { matchId: this.matchId })
+    this._subscribe()
+    return this.pinState
   }
 
   _send(obj) {
@@ -184,6 +231,18 @@ export class RelaySubscriber extends EventEmitter {
       case 'match-full-data':
       case 'match-data-update': {
         if (this.matchId && String(msg.matchId) !== this.matchId) return
+        // What the relay let us see: 'summary' is the PIN-free view; anything else (the scorer's,
+        // a referee's) means the PIN was taken. A relay that does not say leaves it as it was.
+        if (this._pin && typeof msg.access === 'string') {
+          const was = this.pinState
+          this.pinState = msg.access === 'summary' ? 'offered' : 'accepted'
+          if (was !== this.pinState && this.pinState === 'accepted') rlog.info('the relay took the match PIN: full live state', { matchId: this.matchId })
+        }
+        // The match itself (number, teams, the sets' scores): the relays send the bundle FLAT on
+        // the message (lanRelayCore / backend matchDataMessage), with only the live state under
+        // `data`. Before the live state, so whoever builds the board's view from both has the
+        // newer summary when the state arrives.
+        if (msg.match || Array.isArray(msg.sets) || msg.homeTeam) this.emit('summary', { match: msg.match, homeTeam: msg.homeTeam, awayTeam: msg.awayTeam, sets: msg.sets })
         const liveState = msg.data?.liveState
         if (liveState) {
           rlog.debug(`${msg.type} → live-state`, { matchId: msg.matchId })
@@ -226,6 +285,14 @@ export class RelaySubscriber extends EventEmitter {
         const code = String(msg.code || '').slice(0, 60)
         const text = String(msg.message || msg.error || '').slice(0, 200)
         rlog.warn(`the relay answered with an error${code ? ` (${code})` : ''}${text && text !== code ? `: ${text}` : ''}`, { matchId: this.matchId, code: code || null })
+        // A refused PIN is dropped: the link carries on with the PIN-free view, and the next
+        // reconnect does not count another wrong PIN against the board.
+        if (this._pin && PIN_REFUSALS.has(code) && (!msg.matchId || String(msg.matchId) === this.matchId)) {
+          this._pin = null
+          this.pinState = 'refused'
+          rlog.warn('the match PIN was refused — following without it', { matchId: this.matchId, code })
+          this.emit('pin-refused', { code })
+        }
         this.emit('relay-error', { code, message: text })
         break
       }

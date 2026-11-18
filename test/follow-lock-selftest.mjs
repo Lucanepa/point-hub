@@ -10,6 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { WebSocketServer } from 'ws'
+import { Settings } from '../src/settings.js'
 import { startAppliance } from '../src/appliance.js'
 import { MockLedbox } from '../src/mockLedbox.js'
 
@@ -45,6 +46,10 @@ const RELAY = `127.0.0.1:${relay.address().port}`
 const mock = new MockLedbox()
 const addr = await mock.listen(0, '127.0.0.1')
 const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-lock-'))
+// The scorer FACES the board here (orientation 'front'): OpenVolley's sides reach the panel as they
+// come, so every expectation below reads like the scoresheet. The default ('behind') mirrors them —
+// test/linked-display-selftest.mjs is about that.
+new Settings(path.join(stateDir, 'settings.json')).update({ orientation: 'front' })
 const app = await startAppliance({
   stateDir, relayUrl: `ws://${RELAY}`, relayDiscovery: false,
   mock: false, ledboxHost: '127.0.0.1', ledboxPort: addr.port, controlPort: 0, reconnectMs: 100,

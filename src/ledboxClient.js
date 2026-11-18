@@ -10,6 +10,7 @@ import { encode, StreamDecoder } from './ledboxProtocol.js'
 import { teamsCrossed, toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight } from './volleyballMapper.js'
 import { log } from './logStore.js'
 import { ledSafeSections, textColor, sectionPx } from './ledColor.js'
+import { gamePoint, boardWords } from './boardNotices.js'
 
 const CONTROL_PORT = 8889
 const HOTSPOT_IP = '172.24.1.1'
@@ -81,6 +82,15 @@ export class LedboxClient extends EventEmitter {
     // The finished sets under the clock on the set-interval screen (Settings; off by default). See
     // _paintBreakHistory.
     intervalHistory = false,
+    // SATZBALL / MATCHBALL in the name slot of the team at set point (Settings ▸ Display; on by
+    // default there, off here so a bare client paints only what it is given). Indoor volleyball only.
+    // `language` picks the words (boardNotices.js), `bestOf` is the match format for a state that
+    // does not say (the board's own scoring says sets_to_win, OpenVolley best_of). See _trackCallout.
+    gamePointCallout = false,
+    language = 'en',
+    bestOf = 5,
+    // How long the word and the name each stay up while a team is at set point.
+    calloutMs = 1500,
     timerSection = 'timer',
     labelSection = 'lbl',
     // Text sections on clockLayout.
@@ -129,7 +139,7 @@ export class LedboxClient extends EventEmitter {
     mapper = null,
   } = {}) {
     super()
-    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, testModules, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, brightness, defaultIdle, bootMessage })
+    Object.assign(this, { port, alias, sport, apiVersion, layout, countdownLayout, breakLayout, idleLayout, crestLayout, clockLayout, resultLayout, messageLayout, testLayout, testModules, idleTickMs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, gamePointCallout, language, bestOf, calloutMs, timerSection, labelSection, clockTimeSection, clockDateSection, reconnectMs, connectTimeoutMs, layoutSettleMs, layoutGuardMs, pulseMs, pulseIntervalMs, totalTimeouts, totalSubs, brightness, defaultIdle, bootMessage })
     this.mapper = mapper || { toSections, toCountdownSections, toIdleSections, toClubIdleSections, toBreakSections, toBreakHistorySections, toResultSections, toMessageSections, toTestSections, toLeftRight }
     this._pulses = new Map()
     this._idle = false
@@ -161,6 +171,17 @@ export class LedboxClient extends EventEmitter {
     // whether this board's kscw_break turned out not to have them. See _paintBreakHistory.
     this._breakHistText = null
     this._breakHistMissing = false
+    // SATZBALL / MATCHBALL (see _trackCallout): the callout of the last state ({ kind, team, side,
+    // text, bench } or null), its key, whether the word (true) or the name is up now, the ticker that
+    // takes turns, and the bench modules' line as last written (openscore only; null = not yet).
+    this._callout = null
+    this._calloutKey = null
+    this._calloutShown = false
+    this._calloutTimer = null
+    this._benchCallout = null
+    this._benchCalloutMissing = false
+    // Announcements (showMessage) run one after another, never over each other.
+    this._messageChain = Promise.resolve()
     this.currentLayout = null
     this.hosts = (hosts && hosts.length ? hosts : String(host).split(',').map((h) => h.trim()))
       .filter(Boolean)
@@ -229,6 +250,8 @@ export class LedboxClient extends EventEmitter {
         // still holds in them from before.
         this._breakHistText = null
         this._breakHistMissing = false
+        this._benchCallout = null
+        this._benchCalloutMissing = false
         this._startLayoutGuard()
         this._startIdleTicker()
         // The board advertises `noresend` and stays silent when asked for the layout it
@@ -452,6 +475,9 @@ export class LedboxClient extends EventEmitter {
   // The one call the app drives on every score change.
   pushState(state) {
     this._lastState = state
+    // Before any of the early returns: a set point that came and went behind a countdown must not
+    // leave the ticker running into the next paint.
+    this._trackCallout(state)
     // Each early return below means "the score changed but the panel deliberately did not".
     // They were silent, which made a held paint indistinguishable from a broken one; `skipped`
     // at debug level is how you tell those apart after the fact.
@@ -471,7 +497,11 @@ export class LedboxClient extends EventEmitter {
     // Idle overrides scoring: while the idle screen is up, a stray state push (e.g. a poll)
     // must not repaint the scoreboard over it. showIdle(false) lifts this.
     if (this._idle) return this._skipPaint('idle screen is up')
-    const paint = () => this.sendSections(this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, ...this.fontCeilings(state) }))
+    const paint = async () => {
+      const r = await this.sendSections(this.mapper.toSections(state, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, ...this.fontCeilings(state), callout: this.calloutNow() }))
+      this._paintBenchCallout()
+      return r
+    }
     // Wrapped: reading the state for a log line must never be what breaks a paint.
     try {
       const v = this.mapper.toLeftRight(state)
@@ -509,9 +539,12 @@ export class LedboxClient extends EventEmitter {
 
   // Update the per-set allowances that drive the counter colours (from operator settings),
   // and repaint so the change shows immediately.
-  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, brightness } = {}) {
-    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, brightness })
+  setLimits({ totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, brightness, gamePointCallout, language, bestOf } = {}) {
+    blog.debug('limits updated', { totalTimeouts, totalSubs, idleFullNames, idleFontMax, matchFontMaxLeft, matchFontMaxRight, clubName, intervalHistory, brightness, gamePointCallout, language, bestOf })
     if (typeof intervalHistory === 'boolean') this.intervalHistory = intervalHistory
+    if (typeof gamePointCallout === 'boolean') this.gamePointCallout = gamePointCallout
+    if (typeof language === 'string' && language) this.language = language
+    if (Number.isFinite(Number(bestOf)) && bestOf != null) this.bestOf = Number(bestOf) === 3 ? 3 : 5
     if (Number.isFinite(totalTimeouts)) this.totalTimeouts = totalTimeouts
     if (Number.isFinite(totalSubs)) this.totalSubs = totalSubs
     if (typeof idleFullNames === 'boolean') this.idleFullNames = idleFullNames
@@ -910,9 +943,29 @@ export class LedboxClient extends EventEmitter {
   //
   // Blanked before returning, like the break and result screens: the board retains section values
   // per layout, so the text left here is what the NEXT announcement flashes before its own lands.
-  async showMessage(text, { ms = 3000, color } = {}) {
-    if (!this.ready || !this.messageLayout || !text) return false
+  //
+  // One announcement at a time: a second one (a double substitution, a change of ends right after a
+  // substitution notice) waits for the first instead of switching layouts under it. `when` is asked
+  // just before the panel is taken — a queued notice that would now cover a countdown or the result
+  // is dropped, resolving false. `lines` = the two lines exactly (toMessageSections).
+  //
+  // And whatever took the panel while the announcement was up (a countdown, the result, idle) keeps
+  // it: the way back to the scoreboard is only taken from the announcement screen itself.
+  showMessage(text, { ms = 3000, color, lines = null, when = null } = {}) {
+    const run = () => this._showMessageNow(text, { ms, color, lines, when })
+    const p = this._messageChain.then(run, run)
+    this._messageChain = p.catch(() => {})
+    return p
+  }
+
+  async _showMessageNow(text, { ms = 3000, color, lines = null, when = null } = {}) {
+    if (!this.ready || !this.messageLayout || !(text || (Array.isArray(lines) && lines.length))) return false
     if (!this._layoutAvailable(this.messageLayout)) return false
+    if (typeof when === 'function') {
+      let go = false
+      try { go = !!when() } catch { go = false }
+      if (!go) return false
+    }
     this._idle = false
     this._clockHeld = false
     this._confirming = null
@@ -921,9 +974,13 @@ export class LedboxClient extends EventEmitter {
     const back = this.layout
     try {
       await this.setLayoutIfNeeded(this.messageLayout)
-      await this.sendSections(this.mapper.toMessageSections(text, { color }))
-      blog.info(`message screen: ${text}`, { text, ms })
+      await this.sendSections(this.mapper.toMessageSections(text, { color, lines }))
+      blog.info(`message screen: ${lines ? lines.join(' / ') : text}`, { text, lines, ms })
       await new Promise((r) => setTimeout(r, ms))
+      if (!this.ready || this._layoutTarget || this.currentLayout !== this.messageLayout) {
+        blog.debug('another screen took the panel during the announcement — it keeps it', { currentLayout: this.currentLayout, pendingLayout: this._layoutTarget })
+        return true
+      }
       await this.sendSections(this.mapper.toMessageSections('', { color })).catch(() => {})
       await this.setLayoutIfNeeded(back)
       // Repaint from whatever the state is NOW, not from what it was when the message went up —
@@ -1183,6 +1240,93 @@ export class LedboxClient extends EventEmitter {
     }
   }
 
+  // --- SATZBALL / MATCHBALL ------------------------------------------------------------------------
+  //
+  // While a team is at set point (or match point, boardNotices.js gamePoint), its name slot takes
+  // turns: the word for `calloutMs`, then the name for as long, and so on until the score moves on.
+  // The word first, because the moment it starts is the moment the hall looks up. Only the name slot
+  // is written on a turn (one SetSections of three attributes), never the score, so a turn cannot
+  // hold up a point: the full paint of every new score carries the turn that is up at that moment.
+  //
+  // Why the name slot: the C0270's vendor layout has no free text section and refuses a section it
+  // does not have with error 6 — and SetSections stops at the first one, so the score after it would
+  // be lost. Everything here uses sections and attributes the board already takes on every paint.
+  //
+  // On openscore (the Point Hub board's firmware, Init `version` "openscore-…") the bench modules get
+  // the word too, from the `callout` section of openscore's own match layout: in a write of its own,
+  // so a layout without it costs that line and never the paint (see _paintBenchCallout).
+  _calloutFor(state) {
+    if (!this.gamePointCallout || this.sport !== 'volleyball' || !state) return null
+    const gp = gamePoint(state, { bestOf: this.bestOf })
+    if (!gp) return null
+    const words = boardWords(this.language)
+    return { ...gp, text: words[gp.kind], bench: gp.kind === 'match' ? words.benchMatch : words.benchSet }
+  }
+
+  // The callout to paint right now: the word while its turn is up, else null (the name).
+  calloutNow() {
+    return this._callout && this._calloutShown ? this._callout : null
+  }
+
+  _trackCallout(state) {
+    const c = this._calloutFor(state)
+    const key = c ? `${c.side}|${c.kind}|${c.text}` : null
+    if (key === this._calloutKey) return
+    this._calloutKey = key
+    this._callout = c
+    if (this._calloutTimer) { clearInterval(this._calloutTimer); this._calloutTimer = null }
+    this._calloutShown = !!c
+    if (c) blog.info(`${c.text} — ${c.side} team`, { kind: c.kind, side: c.side })
+    if (c && this.calloutMs > 0) {
+      this._calloutTimer = setInterval(() => this._calloutTick(), this.calloutMs)
+      if (this._calloutTimer.unref) this._calloutTimer.unref()
+    }
+  }
+
+  _calloutTick() {
+    const c = this._callout
+    if (!c) return
+    this._calloutShown = !this._calloutShown
+    // Only onto the scoreboard itself, known to be up: never over a break, idle, a test or a message.
+    if (!this.ready || this._suppressPaint || this._idle || this._test || !this._lastState) return
+    if (this._layoutTarget || this.currentLayout !== this.layout) return
+    const slot = c.side === 'right' ? 'team2' : 'team1'
+    const all = this.mapper.toSections(this._lastState, { totalTimeouts: this.totalTimeouts, totalSubs: this.totalSubs, ...this.fontCeilings(this._lastState), callout: this.calloutNow() })
+    const mine = all.filter((x) => x.name === slot)
+    if (mine.length) this.send('SetSections', this._forPanel(mine), {}, { timeoutMs: 1500 }).catch(() => {})
+    this._paintBenchCallout()
+  }
+
+  // The bench modules' line (openscore only): the bench word ("SATZ BALL", two lines on a 32 px wide
+  // module) in the colour of the team at set point while the word's turn is up, else empty. Written
+  // only when it changes (and once per connection), only onto the scoreboard.
+  _paintBenchCallout() {
+    if (this._benchCalloutMissing || !this.ready || this.currentLayout !== this.layout) return
+    const v = this.deviceInfo && this.deviceInfo.version
+    if (!(typeof v === 'string' && v.startsWith('openscore'))) return
+    const c = this.calloutNow()
+    let text = '', color = '255,255,255'
+    if (c && this._lastState) {
+      const lr = this.mapper.toLeftRight(this._lastState)
+      text = c.bench || c.text
+      color = c.side === 'right' ? lr.rightColor : lr.leftColor
+    }
+    // Also the empty line once per connection: openscore keeps what a bridge before this one wrote.
+    const key = `${text}|${color}`
+    if (key === this._benchCallout) return
+    this._benchCallout = key
+    const sections = [{ name: 'callout', value: { attrib: 'text', value: text } }]
+    if (text) sections.push({ name: 'callout', value: { attrib: 'color', value: color } })
+    this.send('SetSections', this._forPanel(sections), {}, { timeoutMs: 1500 }).catch((err) => {
+      if (/not found \(6\)/.test(err.message)) {
+        this._benchCalloutMissing = true
+        blog.warn('the match layout has no bench callout section: deploy firmware/openscore/layout/volleyball_matchscore_02.xml', { error: err.message })
+      } else {
+        this._benchCallout = null
+      }
+    })
+  }
+
   // Blink a section for a moment, then stop — the board's acknowledgement that a point or a
   // substitution registered. `animation` is a per-section LAYOUT attribute (it appears in the
   // layout XML alongside fontsize/color/align) and the firmware accepts it live over
@@ -1397,6 +1541,7 @@ export class LedboxClient extends EventEmitter {
     this._cancelTest('disconnecting')
     clearInterval(this._layoutGuard)
     clearInterval(this._idleTicker)
+    if (this._calloutTimer) { clearInterval(this._calloutTimer); this._calloutTimer = null }
     if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null }
     this.clearPulses() // stop any blink timers so they can't fire after we close
     if (this.socket) {

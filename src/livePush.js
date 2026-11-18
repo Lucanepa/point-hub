@@ -51,7 +51,12 @@ const plog = logStore.child('livePush')
 
 const DEFAULTS = {
   channel: DEFAULT_CHANNEL, collection: 'live_scores', historyCollection: 'live_history', sport: 'volleyball',
-  timeoutMs: 2000, debounceMs: 150,
+  // A live write's budget. Was 2 s: on a school Wi-Fi from the C0270 about one write in twenty
+  // minutes ran past it ("This operation was aborted", 17.11.2026) — a TLS handshake to Directus
+  // after an idle keep-alive closed, on armhf. Waiting longer costs nothing: newer states wait in
+  // `pending` meanwhile and the next write carries the latest one (push), and a write that still
+  // fails is sent again after retryBaseMs.
+  timeoutMs: 8000, debounceMs: 150,
   // How long a fixture row Directus refused (see writeFixture) is left alone before the next try.
   refusedMs: 30 * 60 * 1000,
   // The history POST gets far longer than the live PATCH. A live write that times out is simply
@@ -258,6 +263,15 @@ export function createLivePush(opts = {}) {
   // writes any more kept saying "live 1:0" all evening: one stray point in the warm-up, taken back.
   let openFixture = null
 
+  // A failed write, worded for the log. undici's abort says "This operation was aborted", which
+  // reads like something stopped the board; it is our own timeout.
+  const failure = (err, ms) => (err && (err.name === 'AbortError' || err.name === 'TimeoutError')
+    ? `no answer within ${ms < 1000 ? (ms / 1000).toFixed(1) : Math.round(ms / 1000)} s`
+    : (err && err.message) || String(err))
+  // The first failure of a round is retried a second later with the latest state, and on hall
+  // Wi-Fi it is routine: info. Only a failure that repeats is a warning (failing() is the same).
+  const failLevel = () => (failures === 0 ? 'info' : 'warn')
+
   // Kept for the incidental call sites; the interesting ones log structured data directly.
   function log(...a) { plog.debug(a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')) }
 
@@ -380,7 +394,7 @@ export function createLivePush(opts = {}) {
       })
       return false
     } catch (err) {
-      plog.warn(`publish failed: ${err && err.message}`, { error: err && err.message, channel })
+      plog[failLevel()](`publish failed: ${failure(err, cfg.timeoutMs)}${failures === 0 ? ' — sending again' : ''}`, { error: failure(err, cfg.timeoutMs), channel, attempt: failures + 1 })
       return true
     } finally {
       clearTimeout(t)
@@ -453,7 +467,7 @@ export function createLivePush(opts = {}) {
       } catch (err) {
         // Swallowed — scoring must not care — but no longer invisible, and sent again: the last
         // point of a match is followed by silence, so nothing else would ever correct the row.
-        plog.warn(`publish failed: ${err && err.message}`, { error: err && err.message, channel: cfg.channel })
+        plog[failLevel()](`publish failed: ${failure(err, cfg.timeoutMs)}${failures === 0 ? ' — sending again' : ''}`, { error: failure(err, cfg.timeoutMs), channel: cfg.channel, attempt: failures + 1 })
         retry = true
       }
 
