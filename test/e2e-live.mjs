@@ -225,7 +225,9 @@ async function runAgainst(name) {
 
     console.log('\n[3] Settings ▸ Scorer laptop address; the list from the relay port, else the desktop port')
     {
-      const r = await post('/api/settings', { relayAddress: `127.0.0.1:${relay.wsPort}` })
+      // The scorer faces the board ('front'): OpenVolley's sides as they come, so the checks read
+      // like the scoresheet (the default 'behind' mirrors them: test/linked-display-selftest.mjs).
+      const r = await post('/api/settings', { relayAddress: `127.0.0.1:${relay.wsPort}`, orientation: 'front' })
       ok(r.status === 200 && r.json.relayAddress === `127.0.0.1:${relay.wsPort}`, `saved (${r.json?.relayAddress})`)
     }
     const list = await get('/api/matches')

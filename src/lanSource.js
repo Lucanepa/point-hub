@@ -28,13 +28,15 @@
 // listener — the panel, livePush, the result screen, the break edges above — gets that view.
 //
 // Mirror (`mirror`, asked on every state, so the console can switch it mid-match): OpenVolley's
-// side_a / serving_team are passed through as they are when the scorer sits BEHIND the board
-// (Settings ▸ Scorer sits behind the board on, orientation 'behind', the default: the usual table,
-// and how every linked match was shown before), and turned round when the scorer FACES the board
-// (that box off, orientation 'front'; owner decision 17.11.2026, after the C0270 faced the scorer
-// across the court). The console's own team cards follow the same setting the other way round
-// (web/index.html applyOrientation), so in both cases the tablet and the panel agree with what the
-// person at each of them sees.
+// side_a / serving_team are the SCORER's sides, as their tablet shows the court. When the scorer
+// sits BEHIND the board (Settings ▸ Scorer sits behind the board on, orientation 'behind', the
+// default: the usual table, facing the court with the board at their back) their left is the
+// panel's right, so the panel turns them round. When the scorer FACES the board (that box off,
+// orientation 'front') the sides are 1:1 and pass through as they come. Confirmed by the owner on
+// 17.11.2026: he sat behind the C0270 and the panel had to be mirrored. The console's own team
+// cards use the same rule (web/index.html applyOrientation): behind the board they show the
+// scorer's sides, so the console's cards and OpenVolley's tablet agree, and the panel shows the
+// court's view.
 
 import { EventEmitter } from 'node:events'
 import { RelaySubscriber } from './relaySubscriber.js'

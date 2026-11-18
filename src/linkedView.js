@@ -5,7 +5,7 @@
 // keeps reading the one shape it already knows:
 //
 //   side_a / serving_team   mirrored when the hall needs it (`mirror`, from Settings ▸ Scorer sits
-//                           behind the board — see LanSource). Both together, so who serves stays
+//                           behind the board, the default — see LanSource). Both together, so who serves stays
 //                           the same team; the time-out, sub and serve indicators follow the sides.
 //   subs_a / subs_b         the cloud strips them for a viewer without the match PIN
 //                           (OpenVolley LIVE_STATE_PRIVATE_COLUMNS: the keys are simply absent).

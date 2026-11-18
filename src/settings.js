@@ -61,11 +61,11 @@ export const GLOBAL_DEFAULTS = {
   // Where the scorer sits: 'behind' the panel (the usual table, facing the court with the board at
   // their back — their left is the panel's right) or 'front' (facing the panel, sides 1:1). The
   // console reads it to put each team card on the scorer's own side. And a LINKED OpenVolley match
-  // follows it too (lanSource.js): 'behind' passes OpenVolley's sides through as they come, 'front'
-  // turns the panel round (side_a and serving_team, with the time-out, sub and serve indicators),
-  // asked on every state, so a switch on the console mid-match turns the panel at once. The
-  // board's own sources and the mappers keep PANEL sides whatever it says. Shared like branding:
-  // it is about the hall.
+  // follows the same rule (lanSource.js): OpenVolley's sides are the scorer's, so 'behind' turns
+  // the panel round (side_a and serving_team, with the time-out, sub and serve indicators) and
+  // 'front' passes them through. Asked on every state, so a switch on the console mid-match turns
+  // the panel at once. The board's own sources (hand scoring) and the mappers keep PANEL sides
+  // whatever it says. Shared like branding: it is about the hall.
   orientation: 'behind',
   // The board's own 10-inch touchscreen, where it has one, at power-up: 'ask' (the start screen, the
   // new-board default from setup-board.sh), 'console' (this console), 'openvolley' (the OpenVolley

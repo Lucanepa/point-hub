@@ -695,7 +695,7 @@
   "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.": "OpenVolley hät d PIN abglehnt. D Tafle folgt ohni si und zellt d Wächsel sälber.",
   "PIN sent to OpenVolley": "PIN a OpenVolley gschickt",
   "PIN taken back": "PIN zruggno",
-  "A linked OpenVolley match follows this too: with the box off (the scorer faces the board), the panel's sides are turned round. It can be switched during the match.": "Es verchnüpfts OpenVolley-Spiel folgt däm au: Isch s Chäschtli us (de Schriiber luegt zur Tafle), wärded d Siite uf de Aazeig tuscht. Das gaht au während em Spiel."
+  "A linked OpenVolley match follows this too: with the box on, the panel shows OpenVolley's sides mirrored (the scorer's left is the panel's right); with it off (the scorer faces the board), as they come. It can be switched during the match.": "Es verchnüpfts OpenVolley-Spiel folgt däm au: Isch s Chäschtli aa, zeigt d Aazeig d Siite us OpenVolley gspieglet (links vom Schriiber isch uf de Aazeig rächts); isch es us (de Schriiber luegt zur Tafle), so wie si chömed. Das gaht au während em Spiel."
  },
  "patterns": [
   [

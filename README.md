@@ -253,10 +253,12 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   Indoor volleyball only (`sports.js` `linkBreaks`); beach, basketball and simple links are as
   before.
 - **What a linked match shows** (`src/linkedView.js`, test/linked-display-selftest.mjs) —
-  - *Sides*: **Settings ▸ Scorer sits behind the board** (`orientation`) also turns a linked
-    match: on (`behind`, the default) passes OpenVolley's `side_a` / `serving_team` through as
-    before; off (`front`, the scorer faces the board) mirrors them, with the time-out, sub and serve
-    indicators. Read on every state and applied at once when it is saved, mid-match too.
+  - *Sides*: OpenVolley's `side_a` / `serving_team` are the scorer's sides. **Settings ▸ Scorer
+    sits behind the board** (`orientation`) on (`behind`, the default) mirrors them on the panel
+    (the scorer's left is the panel's right), with the time-out, sub and serve indicators; off
+    (`front`, the scorer faces the board) passes them through. Every link path (Link tab, the
+    board's own OpenVolley, the cloud). Read on every state and applied at once when it is saved,
+    mid-match too. Hand scoring on the console is not affected (its panel sides are the panel's).
   - *Substitutions*: the cloud (`wss://backend.openvolley.app`) strips `subs_a` / `subs_b` for a
     viewer without the match PIN. The board then counts them from the public events
     (`last_event_type: 'substitution'` + `last_event_team` home/away, per set, once per
