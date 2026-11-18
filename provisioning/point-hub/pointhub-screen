@@ -128,7 +128,34 @@ case "$choice" in
     # The Admin button on the start screen (after its PIN): a terminal, with the on-screen keyboard.
     # Closing it (exit, or Ctrl-D) goes back to the start screen.
     force_osk=1
-    app=(/usr/bin/foot --app-id=pointhub-admin --font=monospace:size=16) ;;
+    # No PageUp on the on-screen keyboard and no mouse wheel on the screen, so scrolling back
+    # moves to the arrows: with Ctrl a page at a time, with Ctrl and Shift a line at a time.
+    mkdir -p "$SCREEN_HOME/.config/foot"
+    cat > "$SCREEN_HOME/.config/foot/foot.ini" <<'INI'
+[main]
+font=monospace:size=14
+[scrollback]
+lines=5000
+[key-bindings]
+scrollback-up-page=Control+Up
+scrollback-down-page=Control+Down
+scrollback-up-line=Control+Shift+Up
+scrollback-down-line=Control+Shift+Down
+INI
+    # The terminal logs in as `admin` (sudo rights; pi has none in the hall): su asks admin's
+    # password, again after a typo; exit goes back to the start screen. Not automatic on purpose:
+    # anything running as pi could otherwise become root the same way.
+    # First time (admin has no password yet, and pi still has the bench's sudo): choose it here.
+    login=(/bin/bash -c 'if sudo -n passwd -S admin 2>/dev/null | grep -q " L "; then echo "First time: choose the admin password."; sudo -n passwd admin; fi; while :; do su -l admin && exit 0; [ $? -eq 1 ] || exit 0; echo "Try again, or close this window."; done')
+    app=(/usr/bin/foot --app-id=pointhub-admin --config="$SCREEN_HOME/.config/foot/foot.ini" "${login[@]}")
+    # GNOME Console when installed (apt install gnome-console): made for phones, so a finger
+    # drag scrolls, and it asks for the on-screen keyboard by itself. foot stays the fallback.
+    if [ -x /usr/bin/kgx ]; then
+      force_osk=
+      # Its own D-Bus session: kgx hands itself to a D-Bus-activated copy and exits at once
+      # (its --wait is a TODO), which would end labwc; with a private bus it stays in front.
+      app=(dbus-run-session -- /usr/bin/kgx -- "${login[@]}")
+    fi ;;
   off)
     # Nothing to show: keep the unit alive without a compositor, so the backlight stays off.
     exec sleep infinity ;;
@@ -157,6 +184,7 @@ esac
     <!-- The starting picture (splash below) closes a few seconds after the app's window appears:
          the console's Chromium or the eScoresheet. It sits under the app, so this only frees it. -->
     <windowRule identifier="chromium"><action name="Execute" command="sh -c 'sleep 5; pkill -f -- --class=pointhub-splash'"/></windowRule>
+    <windowRule identifier="org.gnome.Console"><action name="Execute" command="sh -c 'sleep 2; pkill -f -- --class=pointhub-splash'"/></windowRule>
     <windowRule identifier="pointhub-admin"><action name="Execute" command="sh -c 'sleep 2; pkill -f -- --class=pointhub-splash'"/></windowRule>
     <windowRule identifier="*penvolley*"><action name="Execute" command="sh -c 'sleep 5; pkill -f -- --class=pointhub-splash'"/></windowRule>
   </windowRules>
