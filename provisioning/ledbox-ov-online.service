@@ -1,0 +1,25 @@
+# "OpenVolley online for devices on the board's Wi-Fi" at every boot: puts the opening back when the
+# owner left it ON (console ▸ Settings ▸ OpenVolley online), and removes any trace of one when it is
+# OFF — the default. Installed and enabled by setup-ov-online.sh; the switch itself is
+# /usr/local/sbin/ledbox-ov-online (provisioning/ledbox-ov-online.sh), which never routes anything
+# unless the firewall's forward drop (ledbox-lan-guard.service) is in place.
+#
+# After dnsmasq (the helper restarts it when its file changes) and after systemd-sysctl (which puts
+# lock-control-network.sh's ip_forward=0 back at boot; ON turns it on again). The uplink's DNS server
+# is usually not known yet this early: the NetworkManager dispatcher hook (90-ledbox-ov-online) calls
+# `ledbox-ov-online refresh` once wlan1 is up.
+
+[Unit]
+Description=OpenVolley online for devices on the board's Wi-Fi (off unless the owner turned it on)
+Documentation=https://github.com/Lucanepa/point-hub
+After=ledbox-lan-guard.service systemd-sysctl.service dnsmasq.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/ledbox-ov-online apply
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

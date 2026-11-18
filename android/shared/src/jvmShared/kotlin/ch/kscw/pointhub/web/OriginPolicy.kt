@@ -38,6 +38,23 @@ object OriginPolicy {
     }
 
     /**
+     * True when [url] is the console's Settings tab (`<board origin>/…#settings`) on one of the
+     * [console] origins. OpenVolley's "Scoreboard settings" opens exactly that page (the board
+     * announces it to the relay, src/boardAnnounce.js); in the app's OpenVolley layer it becomes
+     * the native Board settings instead of a blocked page (BRIDGE.md "Board settings from
+     * OpenVolley").
+     */
+    fun isBoardSettings(url: String?, console: Allowlist): Boolean {
+        if (!console.isAllowed(url)) return false
+        val fragment = try {
+            URI(url!!.trim()).rawFragment
+        } catch (_: Exception) {
+            return false
+        }
+        return fragment == "settings"
+    }
+
+    /**
      * The canonical origin of an absolute http(s) URL, or null for anything else (null, blank,
      * about:, data:, file:, javascript:, URLs with userinfo, URLs without a host).
      */

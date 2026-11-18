@@ -34,6 +34,11 @@ interface ConsoleHost {
     fun onPageStarted(url: String?) {}
     /** A main-frame load finished: the console's script has run. */
     fun onPageFinished(url: String?) {}
+    /**
+     * A main-frame navigation or load of [view] to [url] was blocked (not on [allowlist]). Called on
+     * the main thread, possibly twice for one navigation (the navigation and its request).
+     */
+    fun onBlockedNavigation(view: WebView, url: String?) {}
     val debug: Boolean
 }
 
@@ -90,6 +95,7 @@ object ConsoleWebView {
             val url = request.url?.toString()
             if (permitted(url)) return false
             Log.w(TAG, "blocked navigation to $url")
+            if (request.isForMainFrame) host.onBlockedNavigation(view, url)
             return true
         }
 
@@ -97,6 +103,8 @@ object ConsoleWebView {
             val url = request.url?.toString()
             if (permitted(url)) return null
             Log.w(TAG, "blocked request to $url")
+            // A new window's first page does not always pass shouldOverrideUrlLoading: its request does.
+            if (request.isForMainFrame) view.post { host.onBlockedNavigation(view, url) }
             return WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(EMPTY))
         }
 
