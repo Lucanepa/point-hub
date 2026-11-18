@@ -137,6 +137,13 @@ scp "${J[@]}" "$REPO"/layouts/*_kscw_*.xml \
   "$REPO"/layouts/*_basketball_matchscore.xml \
   "$BOARD:$LAYOUT_DIR/"
 
+# The C0270's live hot-fixes of 17.11.2026 read three flag files beside src/ (the mirror, the home
+# team's name, a match PIN). src/ now does all of that itself (Settings ▸ Scorer sits behind the
+# board, the board's own sub counting, the Link tab's match PIN) and reads none of them: they go,
+# so nothing on the board's disk still looks like it means something. The hot-fix backups stay
+# until someone has checked the new code on the glass.
+ssh "${J[@]}" "$BOARD" "rm -f $DEST/.link-mirror $DEST/.link-home $DEST/.link-pin"
+
 echo "== 4) restart bridge =="
 ssh "${J[@]}" "$BOARD" 'sudo systemctl restart ledbox-bridge'
 sleep 6
@@ -164,6 +171,8 @@ ssh "${J[@]}" "$BOARD" "
   # The tablet app, as the board actually serves it (informational: a board without one is fine).
   \$N -e 'fetch(\"http://127.0.0.1:8890/app/version.json\").then(async r=>{if(r.status===404){console.log(\"  tablet app: none on the board\");return}if(!r.ok)throw new Error(\"HTTP \"+r.status);const v=await r.json();const a=await fetch(\"http://127.0.0.1:8890/app/pointhub.apk\",{method:\"HEAD\"});if(!a.ok||a.headers.get(\"content-type\")!==\"application/vnd.android.package-archive\")throw new Error(\"apk \"+a.status);console.log(\"  tablet app: \"+v.versionName+\" (\"+v.versionCode+\"), \"+a.headers.get(\"content-length\")+\" bytes\")}).catch(e=>{console.log(\"  tablet app ERR\",e.message);process.exit(1)})' || rc=1
   grep -q logStore         $DEST/src/appliance.js;    chk \$? 'structured logging'
+  grep -q LinkedView       $DEST/src/lanSource.js;    chk \$? 'linked match view (mirror, subs, sets)'
+  ! ls $DEST/.link-mirror $DEST/.link-home $DEST/.link-pin >/dev/null 2>&1; chk \$? 'no hot-fix flag files'
   exit \$rc"
 VERIFY=$?
 set -e

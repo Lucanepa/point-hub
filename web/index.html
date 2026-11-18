@@ -369,6 +369,10 @@
   #matches .sub{font-size:12px;color:var(--muted)}
   .live{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--on-accent);background:var(--ok);padding:3px 8px;border-radius:20px}
   #matches li.linked .linkbtn{color:var(--on-accent);background:var(--blue);border-color:var(--blue)}
+  .linkpin{display:flex;align-items:flex-end;gap:10px;margin-top:14px}
+  .linkpinrow{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700}
+  .linkpinrow input{min-height:var(--tap);padding:8px 12px;font-size:16px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:inherit}
+  #linkPinBtn{min-height:var(--tap);padding:11px 18px;font-size:14px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:var(--r);cursor:pointer}
   /* A schedule row is ONE big button: time · HOME vs AWAY · league. The whole row is the target —
      read and tapped at arm's length, often with the teams already on court. */
   .schedlist{list-style:none;padding:0;margin:0 0 4px;display:flex;flex-direction:column;gap:10px}
@@ -645,6 +649,10 @@
     font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer}
   .uplink .uperr{margin:8px 0 0;padding:8px 10px;font-size:13px;font-weight:700;color:var(--bad);
     border:1.5px solid var(--bad);border-radius:var(--r);background:color-mix(in srgb,var(--bad) 6%,var(--card))}
+  .ovonline .upstat[data-state="on"] .updot{background:var(--ok)}
+  .ovonline .upstat[data-state="on"]{color:var(--ok)}
+  .ovonline .upstat[data-state="warn"] .updot{background:var(--gold)}
+  .ovonline .upstat[data-state="warn"]{color:var(--gold)}
   .uplink .upactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .uplink .upactions .upbtn{flex:1 1 0}
   #uplinkCard.flash{animation:upflash 1.2s ease-out 1}
@@ -1457,6 +1465,20 @@
       <div id="linkErrs"></div>
       <ul id="matches"></ul>
       <p class="note" id="matchesNote">Tap “Find eScoresheet matches” to find a match an OpenVolley eScoresheet laptop is scoring on this network.</p>
+      <!-- Where OpenVolley's server (the cloud) stands, under its rows: they are listed with the
+           laptop's, marked "OpenVolley cloud". And, with Settings ▸ OpenVolley online on, that the board
+           follows a live cloud match from this hall by itself. -->
+      <p class="note" id="cloudLine" hidden></p>
+      <p class="note" id="cloudFollowNote" hidden>OpenVolley online is on: when one OpenVolley match from this hall is live and nothing else is on the board, the board shows it by itself.</p>
+      <!-- The match PIN, optional: sent with the link (or to the running link) so OpenVolley's cloud
+           sends the full live state, substitutions included. Never kept on this tablet or the board's
+           disk; the board holds it for the link only. -->
+      <div class="linkpin">
+        <label class="linkpinrow"><span>Match PIN (optional)</span>
+          <input id="linkPin" type="text" inputmode="numeric" autocomplete="off" maxlength="32" spellcheck="false"></label>
+        <button id="linkPinBtn" type="button" hidden>Send PIN</button>
+      </div>
+      <p class="note" id="linkPinNote">The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.</p>
     </section>
 
     <!-- SETTINGS (Phase 2 placeholder) -->
@@ -1497,6 +1519,28 @@
             with a code by SMS, and the login lasts about a day. Live scoring, the club schedule and
             the board's clock need it; the scoreboard itself does not. Type your own mobile number —
             it is used for this login only and is not saved on the board.</p>
+        </fieldset>
+        <!-- OpenVolley online for devices on the board's Wi-Fi (src/ovOnline.js,
+             provisioning/ledbox-ov-online.sh). The board's Wi-Fi has no internet; this one switch lets a
+             tablet there reach OpenVolley's servers and nothing else, so the OpenVolley app can score
+             online (the cloud) while the board shows the match. OFF by default, behind the scorer PIN
+             like every write. No data-set: the switch is the board's (root's), not a setting, so it has
+             its own button and no Save row. Shown only where /api/status carries `ovOnline`. -->
+        <fieldset id="ovOnlineCard" class="uplink ovonline" hidden>
+          <legend><svg class="licon l-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg> OpenVolley online</legend>
+          <div class="upstat" id="ovoStat" data-state="checking">
+            <span class="updot" aria-hidden="true"></span><span id="ovoStatTxt">Checking…</span>
+          </div>
+          <p class="upsub" id="ovoSub" hidden></p>
+          <p class="uperr" id="ovoErr" role="alert" hidden></p>
+          <div class="upactions">
+            <button type="button" id="ovoToggle" class="upbtn primary" hidden>Turn on</button>
+          </div>
+          <p class="hint">For scoring in the OpenVolley app with OpenVolley's cloud: a tablet or phone on
+            the board's Wi-Fi then reaches OpenVolley's servers (openvolley.app, and Android's internet
+            check) through the board's hall internet — nothing else, no other site, app or name. The
+            board shows the match by itself once it is live. Off, the board's Wi-Fi has no internet at
+            all, as always. Stays as set across a restart.</p>
         </fieldset>
         <!-- Where the scorer laptop is. Saved with the other settings (data-set); Check asks the board
              to look there right away, the same lookup as Refresh on the Link tab. -->
@@ -1565,6 +1609,16 @@
             <input type="checkbox" data-set="intervalHistory"></label>
           <p class="hint">During the set interval the panel shows each finished set (25-21, 23-25…) under the
             clock, left team first. Only for matches scored on this board — a linked match sends no set scores.</p>
+          <label class="row"><span>SATZBALL / MATCHBALL on the board</span>
+            <input type="checkbox" data-set="gamePointCallout"></label>
+          <p class="hint">At a set point or a match point the name of the team one point from the set takes turns
+            with SATZBALL or MATCHBALL (SET POINT / MATCH POINT in English), on the Point Hub board on the bench
+            modules too. The score stays where it is. Every match, scored here or linked.</p>
+          <label class="row"><span>Substitutions on the board</span>
+            <select data-set="subNotice"><option value="all">Numbers, else the team</option><option value="numbers">Only with the numbers</option><option value="off">Off</option></select></label>
+          <p class="hint">A linked OpenVolley match: after each substitution the panel shows WECHSEL 12 ⇄ 7 for
+            3 seconds, then the score again. The OpenVolley cloud sends the shirt numbers only to a board that has
+            the match PIN (Link tab); without them the panel names the team. Never for a libero.</p>
         </fieldset>
         <!-- The console's own colours, for THIS screen only: kept in the browser (localStorage.theme,
              applied by the boot script at the top), never in SETTINGS — the scorer's tablet in a dim
@@ -1609,11 +1663,6 @@
           <p class="hint">The pre-match screen beside the crest. Long names are shrunk
             automatically to fit the panel, so this size is the ceiling — what a short
             name like KSCW gets. Turn the switch off to show short codes instead.</p>
-          <label class="row"><span>Show the connect QR codes when nobody is on the controller</span>
-            <input type="checkbox" data-set="idleQr" checked></label>
-          <p class="hint">"Join WiFi" and "Open UI" beside the crest, for the next person to get
-            connected. The Wi-Fi one hands the board's Wi-Fi password to anyone in the hall. Off:
-            the crest and the clock instead. The codes still show while the board starts up.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg> Board identity</legend>
@@ -1630,6 +1679,9 @@
             public /live page. With the scorer behind the board, the Game tab's team cards are
             swapped to match what the scorer sees — the team on your left is the one on the panel's
             right. The preview under them always shows the panel as the court sees it.</p>
+          <p class="hint">A linked OpenVolley match follows this too: with the box on, the panel shows
+            OpenVolley's sides mirrored (the scorer's left is the panel's right); with it off (the
+            scorer faces the board), as they come. It can be switched during the match.</p>
         </fieldset>
         <fieldset>
           <legend><svg class="licon l-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /></svg> Schedule</legend>
@@ -2817,10 +2869,12 @@
     renderPrematch(st);
     renderSuggest(st);
     renderUplinkBrief(st.uplink);
+    renderOvOnline(st.ovOnline);
     renderHardwareBrief(st.hardware);
     renderBoard(sides(st.state));
     renderSetStrip(st.state);
     markLinked();
+    renderLinkPin(st);
     maybePromptServeOrder(st.state);
     syncSetEndPrompt(st.state);
     maybeAskEndMatch(st.state);
@@ -3361,6 +3415,9 @@
   function colorAdvice(left, right, brightness, presets, prefer) {
     const ok = (h) => /^#[0-9a-fA-F]{6}$/.test(String(h || ""));
     if (!ok(left) || !ok(right)) return null;
+    // Pure black is painted WHITE on the board (src/ledColor.js teamRgb), so it is judged as white.
+    const onBoard = (h) => (/^#000000$/.test(String(h)) ? "#ffffff" : h);
+    left = onBoard(left); right = onBoard(right);
     const dark = [ledDark(left, brightness), ledDark(right, brightness)];
     const shown = (h, isDark) => (isDark ? DARK_TEAM_INK : h);
     const gap = colorGap(shown(left, dark[0]), shown(right, dark[1]));
@@ -3975,7 +4032,7 @@
   // Settings ▸ Scorer laptop ▸ Check. tone: ok | bad | "" (a plain note).
   function relayView(r) {
     const rl = r && r.relay;
-    const n = ((r && r.matches) || []).length;
+    const n = ((r && r.matches) || []).filter((m) => (m.source || "lan") === "lan").length;
     if (!rl) return { tone: "", text: "" };
     if (rl.ok) {
       const how = rl.source === "discovered" ? " (found on the network)" : rl.source === "env" ? " (from the board's setup)" : rl.source === "default" ? " (on the board itself)" : "";
@@ -3990,9 +4047,17 @@
     const errs = (r && r.errors) || [];
     return { tone: rl.configured && rl.configured.source !== "default" ? "bad" : "", text: errs.length ? linkErrorText(errs[0]) : "No scorer laptop answered." };
   }
+  // One line on OpenVolley's server (GET /api/matches `cloud`): null when there is nothing to say.
+  function cloudView(c) {
+    if (!c || typeof c !== "object") return null;
+    if (!c.ok) return "OpenVolley's server (" + (c.address || "the cloud") + ") didn't answer — the board may have no hall internet. Matches scored online show here once it has.";
+    if (!c.count) return "No match on OpenVolley's server from this hall right now.";
+    return null;
+  }
   async function refreshMatches() {
     const list = $("#matches"), note = $("#matchesNote"), errs = $("#linkErrs"), line = $("#relayLine");
     errs.innerHTML = ""; note.textContent = "Loading…"; line.hidden = true;
+    const cl = $("#cloudLine"); if (cl) cl.hidden = true;
     try {
       // Longer than a plain read: when the saved address does not answer, the board looks for the
       // laptop on its own Wi-Fi before it replies (a few seconds, bounded on the board).
@@ -4005,6 +4070,8 @@
       }
       const matches = (r && r.matches) || [];
       const errors = (r && r.errors) || [];
+      const cv = cloudView(r && r.cloud);
+      if (cl) { cl.hidden = !cv; cl.textContent = cv || ""; }
       errors.forEach((m) => {
         const p = document.createElement("div");
         const text = linkErrorText(m);
@@ -4027,7 +4094,10 @@
         const label = document.createElement("div"); label.className = "label";
         label.textContent = m.label || String(m.id);
         const sub = document.createElement("div"); sub.className = "sub";
-        sub.textContent = (m.source || "lan").toUpperCase() + (m.relay ? " · " + m.relay : "") + " · id " + m.id;
+        sub.textContent = m.source === "cloud"
+          ? "OpenVolley cloud · " + (m.hall ? "this hall" : "referee connection on, not in this board's schedule") + " · id " + m.id
+          : (m.source || "lan").toUpperCase() + (m.relay ? " · " + m.relay : "") + " · id " + m.id;
+        if (m.source === "cloud") li.classList.add("cloud");
         info.append(label, sub);
         li.appendChild(info);
         if (m.live) { const lv = document.createElement("span"); lv.className = "live"; lv.textContent = "LIVE"; li.appendChild(lv); }
@@ -4437,11 +4507,35 @@
     try {
       // `relay` binds the link to the laptop that listed this row, not to whatever the board
       // found last (the list is open to anyone on the Wi-Fi; the link needs the PIN).
-      const r = await postJSON("/api/link", { source: m.source || "lan", matchId: m.id, relay: m.relay || undefined });
+      const pin = ($("#linkPin").value || "").trim();
+      const r = await postJSON("/api/link", { source: m.source || "lan", matchId: m.id, relay: m.relay || undefined, pin: pin || undefined });
       const at = r && r.relay && r.relay.address;
-      toast("Linked to " + (m.label || m.id) + (at ? " on " + at + (r.relay.source === "discovered" ? " (found on the network)" : "") : ""));
+      toast("Linked to " + (m.label || m.id) + (m.source === "cloud" ? " on OpenVolley's server" : at ? " on " + at + (r.relay.source === "discovered" ? " (found on the network)" : "") : ""));
       refreshStatus();
     } catch (e) { toast(e.message); }
+  }
+
+  // The match PIN on the running link (POST /api/link/pin), and what became of it (/api/status
+  // linkPin: none | offered | accepted | refused — never the PIN itself).
+  async function sendLinkPin() {
+    const pin = ($("#linkPin").value || "").trim();
+    try {
+      await postJSON("/api/link/pin", { pin });
+      toast(pin ? "PIN sent to OpenVolley" : "PIN taken back");
+      refreshStatus();
+    } catch (e) { toast(e.message); }
+  }
+  function renderLinkPin(st) {
+    const linked = !!st && st.mode === "lan";
+    const btn = $("#linkPinBtn"), note = $("#linkPinNote");
+    if (!btn || !note) return;
+    btn.hidden = !linked;
+    const said = {
+      offered: "PIN sent, waiting for OpenVolley.",
+      accepted: "PIN accepted: the board gets the full live state, substitutions included.",
+      refused: "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.",
+    }[linked ? st.linkPin : ""];
+    note.textContent = said || "The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.";
   }
 
   // --- diagnostics --------------------------------------------------------
@@ -5662,6 +5756,7 @@
     }
   });
   $("#refreshBtn").addEventListener("click", refreshMatches);
+  $("#linkPinBtn").addEventListener("click", sendLinkPin);
 
   // Anything on the scoreboard worth losing: a point or a set on either side.
   function hasScore(state) {
@@ -6075,6 +6170,88 @@
     startPolling();
   });
 
+  // --- openvolley online ----------------------------------------------------
+  // Settings ▸ OpenVolley online (src/ovOnline.js): the one switch that lets a tablet on the board's
+  // Wi-Fi reach OpenVolley's servers — and nothing else — so the OpenVolley app can score online while
+  // the board shows the match. The board's state comes with every status poll (st.ovOnline; null =
+  // this board has no such switch, and the card stays hidden); the switch is a PIN-gated POST.
+  let OVO = null;          // the last st.ovOnline / POST reply
+  let ovoBusy = false;
+  const OVO_TIMEOUT_MS = 40000;   // the board restarts its DNS server on the way: give it time
+  const OVO_WHY = {
+    "no-uplink-dns": "The board has no hall internet right now — OpenVolley opens by itself as soon as it has (Hall internet above).",
+    "no-firewall": "The board's firewall is not set up for this, so nothing was opened (provisioning/install-firewall.sh).",
+    "no-nftset": "The board's DNS server cannot do this, so nothing was opened.",
+    "not-applied": "Not all of it is in place — turn it off and on again.",
+    "bad-config": "The board's settings for this are not valid, so nothing was opened.",
+  };
+  // Everything the card says, from the board's state alone (checked without a page by the selftest).
+  function ovOnlineView(o) {
+    if (!o || typeof o !== "object") return null;
+    if (o.available === false) return { state: "none", line: "Not set up on this board", sub: "provisioning/setup-ov-online.sh installs the switch on the board.", button: null, want: null };
+    if (o.checking && !o.enabled) return { state: "checking", line: "Checking…", sub: "", button: null, want: null };
+    if (o.enabled && o.active) return {
+      state: "on", line: "On — devices on the board's Wi-Fi reach OpenVolley",
+      sub: o.autoLink ? "Only OpenVolley's servers, nothing else. The board shows a live OpenVolley match from this hall by itself." : "Only OpenVolley's servers, nothing else.",
+      button: "Turn off", want: false,
+    };
+    if (o.enabled) return { state: "warn", line: "On — but not working yet", sub: OVO_WHY[o.reason] || OVO_WHY["not-applied"], button: "Turn off", want: false };
+    if (o.reason === "leftover") return { state: "warn", line: "Off — but parts of an opening are still on the board", sub: "Remove them, and the board's Wi-Fi has no internet again.", button: "Remove them", want: false };
+    return { state: "off", line: "Off — the board's Wi-Fi has no internet", sub: "", button: "Turn on", want: true };
+  }
+  function renderOvOnline(o) {
+    if (o !== undefined && !ovoBusy) OVO = o && typeof o === "object" ? o : null;
+    const fn = $("#cloudFollowNote");
+    if (fn) fn.hidden = !(OVO && OVO.enabled && OVO.autoLink);
+    const card = $("#ovOnlineCard");
+    if (!card) return;
+    const v = ovOnlineView(OVO);
+    card.hidden = !v;
+    if (!v) return;
+    $("#ovoStat").dataset.state = v.state;
+    $("#ovoStatTxt").textContent = v.line;
+    const sub = $("#ovoSub");
+    sub.hidden = !v.sub; sub.textContent = v.sub || "";
+    const btn = $("#ovoToggle");
+    if (!ovoBusy) {
+      btn.hidden = !v.button;
+      btn.textContent = v.button || "";
+      btn.classList.toggle("primary", v.want === true);
+    }
+    btn.disabled = ovoBusy;
+  }
+  function ovoError(msg) { const e = $("#ovoErr"); e.hidden = !msg; e.textContent = msg || ""; }
+  async function ovOnlineToggle() {
+    if (ovoBusy) return;
+    const v = ovOnlineView(OVO);
+    if (!v || v.want == null) return;
+    const want = v.want;
+    ovoError("");
+    ovoBusy = true;
+    const btn = $("#ovoToggle");
+    btn.textContent = want ? "Turning on…" : "Turning off…";
+    renderOvOnline();
+    try {
+      const r = await api("/api/ovonline", {
+        method: "POST",
+        headers: { "content-type": "application/json", "X-Scorer-Pin": pinNow() },
+        body: JSON.stringify({ on: want }),
+        signal: deadline(OVO_TIMEOUT_MS),
+      });
+      if (r && r.ovOnline && typeof r.ovOnline === "object") OVO = r.ovOnline;
+      if (!r || r.ok === false) ovoError((r && r.error) || "The board could not switch it — try again.");
+      else toast(want ? (OVO && OVO.active ? "OpenVolley online is on" : "On — waiting for the hall internet") : "OpenVolley online is off");
+      refreshStatus();
+    } catch (e) {
+      ovoError(e && e.status === 403 ? "Unlock scoring first (the padlock at the top), then try again."
+        : e && e.status === 404 ? "This board has no such switch — it needs an update." : (e && e.message) || "Couldn't reach the board — try again.");
+    } finally {
+      ovoBusy = false;
+      renderOvOnline();
+    }
+  }
+  $("#ovoToggle").addEventListener("click", ovOnlineToggle);
+
   // --- hall internet --------------------------------------------------------
   // The board's uplink (its second radio). At the KWI hall that is Swisscom's free Wi-Fi: a
   // captive portal that lets a device out only after an SMS login and forgets it about a day later.
@@ -6373,19 +6550,34 @@
   $("#upCheck").addEventListener("click", uplinkCheck);
   // The hall's own login page, through the board (portalProxy.js). Same tab: the tablet app has no
   // second window, and the page's bar leads back here — to Settings, via #settings below.
-  $("#upPortal").addEventListener("click", async () => {
+  //
+  // The board fetches the page from the hall's portal before the tablet sees anything (up to half a
+  // minute on a slow portal), so the button keeps saying "Opening…" until the page is there: it used
+  // to spring back the moment the navigation started, which looked like a tap that did nothing.
+  const UPLINK_PORTAL_WAIT_MS = 40000;
+  async function uplinkOpenPortal() {
     if (upBusy) return;
     uplinkError("");
     const btn = $("#upPortal");
     uplinkBusy(true, btn, "Opening…");
+    let leaving = false;
     try {
       const r = await uplinkPost("/api/uplink/portal", {}, UPLINK_CHECK_TIMEOUT_MS);
       if (!r || !r.url) { uplinkError("The board could not open the login page — try again."); return; }
+      leaving = true;
+      toast("Opening the hall's login page — the board fetches it, this can take a few seconds");
       location.assign(r.url);
+      // Still on the console long after: the page never came (the portal did not answer the board).
+      setTimeout(() => {
+        if (!upBusy) return;
+        uplinkBusy(false, btn);
+        uplinkError("The hall's login page didn't open — the hall Wi-Fi may not be answering the board. Try again, or Check again.");
+      }, UPLINK_PORTAL_WAIT_MS);
     } catch (e) {
       uplinkError(e && e.status === 404 ? "This board cannot open the login page yet — it needs an update." : uplinkFail(e));
-    } finally { uplinkBusy(false, btn); }
-  });
+    } finally { if (!leaving) uplinkBusy(false, btn); }
+  }
+  $("#upPortal").addEventListener("click", uplinkOpenPortal);
   // Back from the login page: land on Settings, where the card says whether it worked. Through
   // goToTab, which is the same click on the Settings button — and in embed mode also tells the app,
   // whose tab bar would otherwise still show the tab the scorer left from.

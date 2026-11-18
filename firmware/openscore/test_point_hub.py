@@ -64,8 +64,11 @@ class Canvas(unittest.TestCase):
         self.assertEqual(left.size, (32, 64))
         reds = lambda pic, box: sum(1 for p in pic.crop(box).getdata() if p[0] > 200 and p[2] < 60)
         blues = lambda pic, box: sum(1 for p in pic.crop(box).getdata() if p[2] > 200 and p[0] < 60)
-        # The two small rows at the bottom must not run into each other: a dark line between them.
-        self.assertTrue(any(all(left.getpixel((x, y)) == (0, 0, 0) for x in range(32)) for y in range(50, 56)))
+        # Set score on top (white), and a dark line between the lower score and the T/S row.
+        whites = lambda pic, box: sum(1 for p in pic.crop(box).getdata() if min(p) > 200)
+        self.assertGreater(whites(left, (0, 0, 32, 11)), 5)
+        self.assertTrue(any(all(left.getpixel((x, y)) == (0, 0, 0) for x in range(32)) for y in range(51, 56)))
+        self.assertGreater(whites(left, (0, 54, 32, 64)), 5)
         self.assertGreater(reds(left, (0, 0, 32, 24)), 20)    # left bench: red team on top
         self.assertGreater(blues(left, (0, 24, 32, 48)), 5)
         self.assertGreater(blues(right, (0, 0, 32, 24)), 5)   # right bench: blue team on top
@@ -105,6 +108,55 @@ class TestScreen(unittest.TestCase):
             self.assertEqual(img.getpixel((x, y)), (255, 255, 255), (x, y))
             self.assertEqual(img.getpixel((x + 63, y + 31)), (255, 255, 255), (x, y))
         self.assertFalse(lit(img, (0, 64, 64, 96)))
+
+
+class BenchCallout(unittest.TestCase):
+    """SATZBALL / MATCHBALL on the bench modules: the bridge writes the hidden `callout` section."""
+
+    def pictures(self, callout=None):
+        renderer = os_.Renderer(192, 96, os.path.join(tempfile.mkdtemp(), "b.png"), HERE)
+        layout = os_.load_layouts(os.path.join(HERE, "layout"))["volleyball_matchscore_02"]
+        values = MATCH + ([("callout", callout[0], callout[1])] if callout else [])
+        for name, text, colour in values:
+            for s in layout.sections:
+                if s.name == name:
+                    s.text = text
+                    if colour:
+                        s.color = colour
+        sections = {s.name: s for s in layout.sections}
+        return renderer._bench_picture(sections, 1, 2), renderer._bench_picture(sections, 2, 1), layout
+
+    def test_the_section_is_never_drawn_on_the_front(self):
+        plain = render("volleyball_matchscore_02", 96, MATCH)
+        with_it = render("volleyball_matchscore_02", 96, MATCH + [("callout", "SATZ BALL", (0, 255, 0))])
+        self.assertEqual(plain.crop((0, 0, 192, 64)).tobytes(), with_it.crop((0, 0, 192, 64)).tobytes())
+
+    def test_its_two_words_take_the_two_small_rows_and_the_scores_stay(self):
+        green = (0, 255, 0)
+        plain_l, plain_r, _ = self.pictures()
+        left, right, _ = self.pictures(("SATZ BALL", green))
+        greens = lambda pic, box: sum(1 for p in pic.crop(box).getdata() if p[1] > 200 and p[0] < 60 and p[2] < 60)
+        for pic, before in ((left, plain_l), (right, plain_r)):
+            # bench order (owner 17.11): set score on top, both scores, T / S at the bottom
+            self.assertEqual(pic.crop((0, 11, 32, 54)).tobytes(), before.crop((0, 11, 32, 54)).tobytes())  # both scores as they were
+            self.assertGreater(greens(pic, (0, 0, 32, 11)), 10)    # SATZ where the set score was
+            self.assertGreater(greens(pic, (0, 54, 32, 64)), 10)   # BALL where T / S was
+            self.assertTrue(any(all(pic.getpixel((x, y)) == (0, 0, 0) for x in range(32)) for y in range(51, 56)))
+        self.assertNotEqual(left.tobytes(), plain_l.tobytes())
+
+    def test_empty_is_the_normal_bench(self):
+        plain_l, _, _ = self.pictures()
+        empty_l, _, _ = self.pictures(("", (0, 255, 0)))
+        self.assertEqual(plain_l.tobytes(), empty_l.tobytes())
+
+
+class Glyphs(unittest.TestCase):
+    def test_the_exchange_arrow_is_drawn_as_one_the_font_has(self):
+        sec = os_.Section(name="msg2", type="text")
+        os_.Device._apply_attrib(sec, "text", "12 \u21c4 7")
+        self.assertEqual(sec.text, "12 \u2194 7")
+        font = os_.Renderer(192, 64, os.path.join(tempfile.mkdtemp(), "b.png"), HERE)._font(20)
+        self.assertTrue(font.getmask("\u2194").getbbox())
 
 
 class Config(unittest.TestCase):

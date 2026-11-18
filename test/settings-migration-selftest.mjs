@@ -95,15 +95,11 @@ ok(back.sport === sportBefore, `sport ignored without allowSport (still ${sportB
 ok(s.values.sport === sportBefore, 'and it did not land in memory either')
 ok(s.values.brightness === 42, 'the rest of the same patch still applies')
 
-// The connect QR codes on the crest screen (idleQr): a global, on unless switched off, so a board
-// migrated or upgraded keeps showing them exactly as before.
-console.log('\nthe connect QR codes setting:')
-ok(new Settings(path.join(dir, 'none.json')).values.idleQr === true, 'a board with no settings file shows them')
-ok(s.values.idleQr === true, 'and so does the migrated old board')
-s.update({ idleQr: 0 })
-ok(s.values.idleQr === false && JSON.parse(fs.readFileSync(file, 'utf8')).idleQr === false, 'switched off (coerced to false), stored at the top level')
-ok(s.forSport('beach').idleQr === false, 'shared by every sport')
-s.update({ idleQr: true })
+// The connect QR codes setting (idleQr) is gone (owner 17.11.2026): an old file that still has it
+// loads, and the key is dropped rather than carried along.
+console.log('\nthe removed connect QR codes setting:')
+s.update({ idleQr: false })
+ok(!('idleQr' in s.values) && !('idleQr' in JSON.parse(fs.readFileSync(file, 'utf8'))), 'an old idleQr is dropped, not stored')
 
 fs.rmSync(dir, { recursive: true, force: true })
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)

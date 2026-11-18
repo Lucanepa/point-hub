@@ -26,6 +26,10 @@ for deb in "$REPO"/openvolley-escoresheet_*_arm64.deb; do
   [ -e "$deb" ] && apt-get install -y "$deb"
 done
 
+echo "== time zone"
+# The installer leaves Europe/London; the board, OpenVolley's clock and its set start times are Swiss.
+timedatectl set-timezone "${BOARD_TZ:-Europe/Zurich}"
+
 echo "== boot config (managed block, replaced on every run)"
 CFG=/boot/firmware/config.txt
 sed -i '/^# >>> point-hub/,/^# <<< point-hub/d' "$CFG"
@@ -94,6 +98,7 @@ install -m 0755 "$HERE/pointhub-screen" /opt/pointhub/pointhub-screen
 rsync -a --delete "$HERE/squeekboard/" /opt/pointhub/squeekboard/
 install -m 0755 "$HERE/pointhub-backup-stick" /opt/pointhub/pointhub-backup-stick
 install -m 0644 "$HERE/99-pointhub-backup-stick.rules" /etc/udev/rules.d/99-pointhub-backup-stick.rules
+install -m 0644 "$HERE/90-pointhub-touch-dup.rules" /etc/udev/rules.d/90-pointhub-touch-dup.rules
 [ -e /etc/default/pointhubd ] || cat > /etc/default/pointhubd <<'CONF'
 # PH_I2C_BUS=0            found by itself; set it only if the probe picks the wrong bus
 # PH_BENCH_SUPPLY_W=60    a bench supply instead of a USB-PD charger
@@ -137,9 +142,9 @@ CONF
 chown -R "$OWNER:$OWNER" "$BRIDGE"
 install -m 0644 "$REPO/systemd/ledbox-bridge.service" /etc/systemd/system/ledbox-bridge.service
 install -d -o "$OWNER" -g "$OWNER" "$STATE" /data/screen /data/backups /data/backups/openvolley
-# No board network to join, so no connect QR codes: the crest and the clock (BUILD.md section 10.1).
+# A fresh board asks what the screen shows (BUILD.md section 10.1).
 # The screen starts by asking: Point Hub or OpenVolley. Only on a new board: the C0270 has no screen.
-[ -e "$STATE/settings.json" ] || { echo '{"idleQr":false,"screenApp":"ask"}' > "$STATE/settings.json"; chown "$OWNER:$OWNER" "$STATE/settings.json"; }
+[ -e "$STATE/settings.json" ] || { echo '{"screenApp":"ask"}' > "$STATE/settings.json"; chown "$OWNER:$OWNER" "$STATE/settings.json"; }
 
 # What the screen's "Load from Wiedisync" needs: the club's board token and a scorer PIN, because the
 # roster holds birthdates. Asked once; empty skips it, and OpenVolley then says what is missing.

@@ -6,6 +6,9 @@
 //   [3] GET /app: the install page (button, the one-time "unknown apps" step, the version)
 //   [4] the console, from source: it detects the bridge, skips the gate / wake lock / https move
 //       in the app, keeps backups and the schedule on the tablet, and wraps every bridge call
+//   [5] Board settings from OpenVolley (BRIDGE.md, docs/board-settings-from-openvolley.md): the
+//       appliance announces the console's #settings to the relays it follows, the console opens
+//       Settings for that link, and the app's OpenVolley layer has the button and the way back
 //
 // Plain node, no framework; exits non-zero on any failure.
 
@@ -14,6 +17,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { startAppliance } from '../src/appliance.js'
 import { loadConfig } from '../src/config.js'
+import { boardAnnouncement } from '../src/boardAnnounce.js'
 
 let pass = 0, fail = 0
 const ok = (cond, label) => { if (cond) { pass++; console.log(`  ✅ ${label}`) } else { fail++; console.log(`  ❌ ${label}`) } }
@@ -126,6 +130,19 @@ try {
   ok(/appJson\("getInfo", \{\}\)/.test(js) && /appCall\("exportBackups"\)/.test(js), 'showing getInfo\'s version, exporting with exportBackups')
   ok(/window\.addEventListener\("pointhubapp"/.test(js), 'the export\'s outcome is read from the app\'s event')
   ok(/<a class="setlink" id="getAppLink" href="\/app">[\s\S]{0,600}Get the tablet app<\/a>/.test(html) && /if \(link\) link\.hidden = IN_APP;/.test(js), 'in a browser, Settings links to /app ("Get the tablet app")')
+
+  console.log('\n[5] Board settings from OpenVolley')
+  const port = app.server.address().port
+  ok(boardAnnouncement() && /^http:\/\/172\.24\.1\.1(:\d+)?\/#settings$/.test(boardAnnouncement().settingsUrl), `the appliance announces its Settings on the board's Wi-Fi (${boardAnnouncement() && boardAnnouncement().settingsUrl}, port ${port} here)`)
+  ok(/location\.hash === "#settings"\) setTimeout\(\(\) => \{\s*try \{ goToTab\("settings"\);/.test(js), 'the console opens Settings for /#settings (what the scorer\'s "Scoreboard settings" opens)')
+  const kt = (f) => fs.readFileSync(new URL('../android/app/src/main/java/ch/kscw/pointhub/' + f, import.meta.url), 'utf8')
+  const layer = kt('web/OpenVolleyLayer.kt'), main = kt('MainActivity.kt')
+  const policy = fs.readFileSync(new URL('../android/shared/src/jvmShared/kotlin/ch/kscw/pointhub/web/OriginPolicy.kt', import.meta.url), 'utf8')
+  const xml = fs.readFileSync(new URL('../android/app/src/main/res/layout/activity_main.xml', import.meta.url), 'utf8')
+  ok(/BOARD_SETTINGS_LABEL = "⚙ Board settings"/.test(layer) && /setOnClickListener \{ boardSettings\(\) \}/.test(layer), 'the OpenVolley layer\'s bar has "⚙ Board settings"')
+  ok(/OriginPolicy\.isBoardSettings\(url, consoleAllowlist\(\)\)/.test(layer) && /fragment == "settings"/.test(policy), 'OpenVolley\'s own request for the console\'s #settings is taken as that button')
+  ok(/layer\.hide\(\)\s+returnBar\.visibility = View\.VISIBLE/.test(main) && /selectTab\(Tab\.SETTINGS, null\)/.test(main), 'the layer is hidden, not closed or reloaded, and Settings comes up')
+  ok(/android:id="@\+id\/returnBar"/.test(xml) && /openVolley\?\.showAgain\(\)/.test(main) && /if \(returnBar\.visibility == View\.VISIBLE\) \{ returnToMatch\(\)/.test(main), '"‹ Back to the match" and Back return to the match')
 } catch (e) {
   fail++
   console.log('  ❌ threw:', e && e.stack || e)

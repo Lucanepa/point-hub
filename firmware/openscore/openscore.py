@@ -46,6 +46,7 @@ import io
 import json
 import logging
 import os
+import re
 import socket
 import subprocess
 import threading
@@ -187,6 +188,13 @@ class Section:
     fontsize: int = 0
     visible: bool = True
     private: bool = False
+    # tabular="true": every digit in a cell of the same width and no kerning between characters,
+    # so a clock keeps one width ("11:11:11" was 6 px narrower than "10:00:00" and the centred
+    # time moved sideways every few seconds).
+    tabular: bool = False
+
+
+_CLOCKLIKE = re.compile(r"[0-9:. T-]+")
 
 
 @dataclass
@@ -220,6 +228,7 @@ def _parse_layout(path) -> Layout:
             bordercolor=_to_rgb(a.get("bordercolor")) if "bordercolor" in a else None,
             src=a.get("src", ""),
             fontsize=_to_int(a.get("fontsize")),
+            tabular=a.get("tabular", "").lower() in ("1", "true", "yes"),
             visible=_to_bool(a.get("visible")),
             private=_to_bool(a.get("private"), default=False),
             text=(child.text or "").strip(),
@@ -278,6 +287,11 @@ _BOLD_FONT_CANDIDATES = [
 # pixels. Above this size (the 40-55 px score digits) the strokes are thick enough that
 # anti-aliasing smooths the curves without eating them, so big text keeps it, in Regular.
 SMALL_TEXT_PX = 26
+
+# Characters the bundled Liberation Sans does not have, drawn as the nearest one it does. The bridge's
+# substitution notice says "12 ⇄ 7" (the C0270's Arial has U+21C4); here it becomes "12 ↔ 7", not a
+# missing-glyph box.
+GLYPH_FALLBACK = {0x21C4: "\u2194"}
 
 
 # The Point Hub board's bench slots: rows 64-95, 64 x 32 each (BUILD.md section 4.1). The canvas
@@ -423,24 +437,60 @@ class Renderer:
             text = (sec.text or "") if sec else ""
             self._bench_text(draw, text, y, size, colour or (sec.color if sec else (255, 255, 255)))
 
-        # Own team on top, the way the bench reads it.
-        line("score%d" % own, 11, 22)
-        line("score%d" % other, 32, 22)
+        # Top to bottom, the way the bench reads it (owner 17.11.2026): the set score, both scores
+        # (own team first), then time-outs and substitutions (or the time-out clock).
+        line("score%d" % own, 22, 22)
+        line("score%d" % other, 43, 22)
         serve = sections.get("serve%d" % own), sections.get("serve%d" % other)
-        for sec, y in zip(serve, (2, 23)):
-            # The layout keeps the side not serving in a dim grey: on the benches it simply stays off.
+        for sec, y in zip(serve, (13, 34)):
+            # Only the serving side: an unlit serve bar on the front simply stays off here.
             if sec and max(sec.color) > 64:
                 draw.rectangle([0, y, 1, y + 17], fill=sec.color)
+        # SATZBALL / MATCHBALL while the bridge says so (the layout's hidden `callout`, written in turns):
+        # its two words in place of the two small lines (set score on top, T/S at the bottom).
+        if self._bench_callout(draw, sections.get("callout"), (5, 59)):
+            return pic
         set_own, set_other = sections.get("set%d" % own), sections.get("set%d" % other)
         if set_own and set_other:
-            self._bench_text(draw, "%s-%s" % (set_own.text or "0", set_other.text or "0"), 48, 9, (255, 255, 255))
+            self._bench_text(draw, "%s-%s" % (set_own.text or "0", set_other.text or "0"), 5, 9, (255, 255, 255))
         timer = sections.get("timer")
         if timer and timer.text:
-            self._bench_text(draw, timer.text, 58, 9, timer.color)
+            self._bench_text(draw, timer.text, 59, 9, timer.color)
         elif "timeout%d" % own in sections and "sub%d" % own in sections:
-            self._bench_text(draw, "T%s S%s" % (sections["timeout%d" % own].text or "0", sections["sub%d" % own].text or "0"),
-                             58, 9, (255, 255, 255))
+            self._bench_counts(draw, (("T", sections["timeout%d" % own].text or "0"),
+                                      ("S", sections["sub%d" % own].text or "0")), 59, 9, (255, 255, 255))
         return pic
+
+    def _bench_counts(self, draw, pairs, y, size, colour, gap=2, between=5):
+        # "T 0   S 0": a small gap between each letter and its number, a wider one between the two,
+        # centred as a whole. Narrowed only if it would not fit the 32 px slot.
+        font = self._font(size)
+        for _ in range(4):
+            widths = [(font.getlength(k), font.getlength(v)) for k, v in pairs]
+            total = sum(a + gap + b for a, b in widths) + between * (len(pairs) - 1)
+            if total <= BENCH_SLOT_H - 2 or (gap, between) == (1, 2):
+                break
+            gap, between = max(1, gap - 1), max(2, between - 1)
+        draw.fontmode = "1" if size <= SMALL_TEXT_PX else "L"
+        x = (BENCH_SLOT_H - total) / 2
+        for (k, v), (wk, wv) in zip(pairs, widths):
+            draw.text((round(x), y), k, fill=colour, font=font, anchor="lm")
+            x += wk + gap
+            draw.text((round(x), y), v, fill=colour, font=font, anchor="lm")
+            x += wv + between
+
+    def _bench_callout(self, draw, sec, rows):
+        """The callout's words on the bench's small rows (`rows`, top first): split at the first space
+        ("SATZ BALL", "MATCH POINT"), one word a row, each fitted to the 32 px. False when there is none."""
+        text = (sec.text or "").strip() if sec else ""
+        if not text:
+            return False
+        words = text.split(None, 1)
+        if len(words) == 1:
+            words = [text, ""]
+        for word, y in zip(words, rows):
+            self._bench_text(draw, word, y, 9, sec.color)
+        return True
 
     def _bench_text(self, draw, text, y, size, colour):
         if not text:
@@ -464,7 +514,23 @@ class Renderer:
         font, size = self._fit_font(draw, s.text, s.fontsize or 12, s.width)
         # "1" = no anti-aliasing: every pixel is the exact colour or untouched (see SMALL_TEXT_PX).
         draw.fontmode = "1" if size <= SMALL_TEXT_PX else "L"
-        draw.text((s.x, s.y), s.text, fill=s.color, font=font, anchor=self._anchor(s.align, s.valign))
+        anchor = self._anchor(s.align, s.valign)
+        # Clock-like text (digits with colons: 20:08:08, 0:30, T - 12:30) always: the layouts also
+        # go to the C0270, whose vendor firmware should not meet an attribute it does not know.
+        if s.tabular or (":" in s.text and _CLOCKLIKE.fullmatch(s.text)):
+            self._draw_tabular(draw, s, font, anchor)
+            return
+        draw.text((s.x, s.y), s.text, fill=s.color, font=font, anchor=anchor)
+
+    def _draw_tabular(self, draw, s, font, anchor):
+        cell = max(font.getlength(d) for d in "0123456789")
+        widths = [cell if ch.isdigit() else font.getlength(ch) for ch in s.text]
+        total = sum(widths)
+        x = s.x - {"l": 0, "m": total / 2, "r": total}[anchor[0]]
+        for ch, w in zip(s.text, widths):
+            # each character centred in its own cell: a narrow digit does not pull the rest along
+            draw.text((round(x + w / 2), s.y), ch, fill=s.color, font=font, anchor="m" + anchor[1])
+            x += w
 
     def _draw_image(self, img, s):
         if not s.src:
@@ -746,7 +812,7 @@ class Device:
     @staticmethod
     def _apply_attrib(sec, attrib, val):
         if attrib == "text":
-            sec.text = "" if val is None else str(val)
+            sec.text = "" if val is None else str(val).translate(GLYPH_FALLBACK)
         elif attrib == "color":
             sec.color = _to_rgb(val)
         elif attrib == "bordercolor":

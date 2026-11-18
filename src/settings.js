@@ -27,6 +27,7 @@ const LANGUAGES = ['en', 'de', 'de-CH']
 const BRANDINGS = ['kscw', 'plain']
 const LIVE_SYSTEMS = ['off', 'kscw']
 const ORIENTATIONS = ['behind', 'front']
+const SUB_NOTICES = ['all', 'numbers', 'off']
 // What the Point Hub board's own touchscreen runs (provisioning/point-hub/pointhub-screen).
 export const SCREEN_APPS = ['ask', 'console', 'openvolley', 'off']
 
@@ -39,13 +40,6 @@ export const GLOBAL_DEFAULTS = {
   // 125px name column, the scoreboard only ~86px, so one number cannot serve both.
   idleFullNames: true,
   idleFontMax: 24,
-  // The "Join WiFi" + "Open UI" QR codes on the crest screen while nobody is on the console. The
-  // Join-WiFi one IS the AP passphrase, shown to the whole hall. Off = the crest and the wall clock
-  // instead (the same screen an operator on the console already gets). The QRs are fixed images in
-  // the board's own layout (firmware/idle-crest-qr), so this only chooses whether the appliance puts
-  // that layout up: the firmware's own `waiting` screen — at boot, and whenever the bridge is not
-  // running — still carries them. On by default: the printed hall guide tells people to scan it.
-  idleQr: true,
   // Shown on the set-interval and warm-up countdowns. Short — it lands in a narrow label box.
   clubName: 'KSC WIEDIKON',
   // Scorer PIN. Set = the board rejects scoring/control without it. Empty = open. Digits, max 8.
@@ -59,9 +53,13 @@ export const GLOBAL_DEFAULTS = {
   // Live-scoring publish target: 'off' | 'kscw' (Directus → wiedisync /live; see livePush).
   liveScoring: 'off',
   // Where the scorer sits: 'behind' the panel (the usual table, facing the court with the board at
-  // their back — their left is the panel's right) or 'front' (facing the panel, sides 1:1). Only the
-  // console reads it, to put each team card on the scorer's own side; the server, the sources and
-  // the mappers keep PANEL sides whatever it says. Shared like branding: it is about the hall.
+  // their back — their left is the panel's right) or 'front' (facing the panel, sides 1:1). The
+  // console reads it to put each team card on the scorer's own side. And a LINKED OpenVolley match
+  // follows the same rule (lanSource.js): OpenVolley's sides are the scorer's, so 'behind' turns
+  // the panel round (side_a and serving_team, with the time-out, sub and serve indicators) and
+  // 'front' passes them through. Asked on every state, so a switch on the console mid-match turns
+  // the panel at once. The board's own sources (hand scoring) and the mappers keep PANEL sides
+  // whatever it says. Shared like branding: it is about the hall.
   orientation: 'behind',
   // The board's own 10-inch touchscreen, where it has one, at power-up: 'ask' (the start screen, the
   // new-board default from setup-board.sh), 'console' (this console), 'openvolley' (the OpenVolley
@@ -75,6 +73,15 @@ export const GLOBAL_DEFAULTS = {
   // own scoring (a linked OpenVolley match sends none). Off by default: it needs the kscw_break
   // layout that carries `hist1`/`hist2`, and it is new on the glass. Shared: it is about the panel.
   intervalHistory: false,
+  // SATZBALL / MATCHBALL (SET POINT / MATCH POINT in English) in the name row of the team one point
+  // from the set or the match, taking turns with its name; on the Point Hub board on the bench
+  // modules too (ledboxClient _trackCallout, boardNotices.js). Indoor volleyball, every source. On.
+  gamePointCallout: true,
+  // A linked OpenVolley match's substitutions on the announcement screen for a few seconds:
+  // 'all' = WECHSEL 12 ⇄ 7, or WECHSEL and the team's short name when the board has no shirt
+  // numbers (OpenVolley's cloud sends them only to a board that gave the match PIN); 'numbers' =
+  // only with the numbers; 'off'. Libero replacements never. See controlServer watchLinkedMatch.
+  subNotice: 'all',
   // The scorer laptop's OpenVolley relay, as host[:port] (port 8080 when left out), or wss://host
   // for a relay on the internet. Empty = RELAY_URL from .env if set, else look for the laptop on
   // the board's own networks (see relayAddress.js). Shared: it is about the hall, not the sport.
@@ -135,7 +142,7 @@ export const DEFAULTS = { ...GLOBAL_DEFAULTS, ...PER_SPORT_DEFAULTS.volleyball }
 // about what a valid PIN is.
 export const PIN_RE = /^\d{1,8}$/
 
-const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare', 'idleQr', 'intervalHistory']
+const BOOLS = ['blinkPoint', 'blinkSub', 'countdownOnTimeout', 'countdownOnSetInterval', 'hornOnCountdownEnd', 'idleFullNames', 'autoPrepare', 'intervalHistory', 'gamePointCallout']
 const NUMS = {
   idleFontMax: [10, 30], matchFontMaxLeft: [10, 30], matchFontMaxRight: [10, 30],
   brightness: [0, 100], blinkMs: [200, 10000],
@@ -185,6 +192,7 @@ function sanitizeInto(out, keys, patch = {}) {
     if (k === 'liveScoring') { out[k] = LIVE_SYSTEMS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'screenApp') { out[k] = SCREEN_APPS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
     if (k === 'orientation') { out[k] = ORIENTATIONS.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
+    if (k === 'subNotice') { out[k] = SUB_NOTICES.includes(String(patch[k])) ? String(patch[k]) : out[k]; continue }
   }
   return out
 }
