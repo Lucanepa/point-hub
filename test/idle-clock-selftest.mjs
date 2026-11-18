@@ -1,8 +1,6 @@
-// Idle wall clock — the crest screen swaps its QR codes for a clock once someone is connected.
-//
-// The QR pair ("Join WiFi" / "Open UI") exists purely to GET an operator onto the control UI.
-// Once they are on it those two thirds of the panel are dead space, so the board shows the wall
-// clock there instead, and puts the QRs back when the last device goes away.
+// Idle wall clock: the "no teams known yet" idle screen is the crest with the wall clock.
+// The old "Join WiFi" / "Open UI" QR crest (and the "is anyone on the console" check that swapped
+// it for the clock) is gone, owner 17.11.2026: the scorer has the tablet.
 //
 // The clock is deliberately confined to the "no teams known yet" screen: once teams are set,
 // kscw_idle already spends that side of the panel on their names.
@@ -29,31 +27,17 @@ function client(opts = {}) {
   return c
 }
 
-console.log('nobody connected:')
+console.log('idle with no teams:')
 const a = client()
 await a.showIdle(true)
-ok(a.currentLayout === 'kscw_crest', 'boots to the QR crest — the screen that tells you how to connect')
-ok(!a.seq.some((s) => s.startsWith('time:')), 'no clock pushed')
-
-console.log('\noperator opens the control UI:')
-const b = client()
-await b.showIdle(true)
-ok(b.currentLayout === 'kscw_crest', 'starts on the QR crest')
-b.noteViewer()                       // what controlServer does on every API request
-await b._idleTick()
-ok(b.currentLayout === 'kscw_clock', 'swaps to the clock screen')
-ok(/^\d\d:\d\d:\d\d$/.test(b.sections.time), `time section is HH:MM:SS (${b.sections.time})`)
-ok(/^[A-Z][a-z]{2} \d\d\.\d\d\.\d{4}$/.test(b.sections.date), `date section is Ddd DD.MM.YYYY (${b.sections.date})`)
-
-console.log('\nviewer goes away:')
-// noteViewer() reacts to an ARRIVAL immediately; a departure is noticed by the ticker.
-b._viewerAt = Date.now() - (b.viewerTimeoutMs + 1)
-await b._idleTick()
-ok(b.currentLayout === 'kscw_crest', 'QR codes come back for the next person')
+ok(a.currentLayout === 'kscw_clock', 'boots to the clock screen, with nobody on the console')
+ok(/^\d\d:\d\d:\d\d$/.test(a.sections.time), `time section is HH:MM:SS (${a.sections.time})`)
+ok(/^[A-Z][a-z]{2} \d\d\.\d\d\.\d{4}$/.test(a.sections.date), `date section is Ddd DD.MM.YYYY (${a.sections.date})`)
+await a._idleTick()
+ok(a.currentLayout === 'kscw_clock' && !a.seq.includes('layout:kscw_crest'), 'the ticker never puts the crest-only screen up')
 
 console.log('\nclock only writes when the displayed text actually changes:')
 const c = client()
-c.noteViewer()
 // Freeze the clock so the assertion can't straddle a real second boundary and flake.
 let fake = { time: '12:00:00', date: 'Tue 04.08.2026' }
 c.formatClock = () => fake
@@ -69,7 +53,6 @@ ok(writes() === first + 1, 'a ticked second pushes exactly once')
 
 console.log('\nteams known — named idle screen keeps its names:')
 const d = client()
-d.noteViewer()
 d._lastState = { leftName: 'KSCW', rightName: 'GAST' }
 await d.showIdle(true)
 ok(d.currentLayout === 'kscw_idle', 'uses the team-name idle screen, not the clock')
@@ -102,7 +85,6 @@ d.kickoffAt = () => 1_000_000_000_000 + 60_000
 ok(d._timeText() === fake.time, 'back to the clock on the button')
 Date.now = realNow
 const oldLayout = client()
-oldLayout.noteViewer()
 oldLayout._lastState = { leftName: 'KSCW', rightName: 'GAST' }
 oldLayout._paintIdleTime = LedboxClient.prototype._paintIdleTime
 const send = oldLayout.sendSections.bind(oldLayout)
@@ -112,7 +94,6 @@ ok(oldLayout._idleTimeRefused === true, 'and is not asked for the time again')
 
 console.log('\nboard without the clock layout falls back:')
 const e = client()
-e.noteViewer()
 e._sendNow = async (cmd, value) => {
   // The board answers code 5 for a layout it does not have.
   if (cmd === 'SetLayout' && value === 'kscw_clock') {
@@ -123,14 +104,13 @@ e._sendNow = async (cmd, value) => {
 }
 e.on('error', () => {})
 await e.showIdle(true)
-ok(e.currentLayout === 'kscw_crest', 'falls back to the QR crest rather than a blank panel')
+ok(e.currentLayout === 'kscw_crest', 'falls back to the crest rather than a blank panel')
 
 // A board that never had the KSCW layouts (a stock C0270, or one just reflashed) refuses ALL of
 // them. The idle ticker runs every second, so without remembering a code-5 refusal it re-asks
 // and re-logs forever — 77 errors in 25s when this was first wired up.
 console.log('\nboard with no KSCW layouts at all stops asking:')
 const g2 = client()
-g2.noteViewer()
 let setLayoutCalls = 0
 g2._sendNow = async (cmd, value) => {
   if (cmd === 'SetLayout') {
@@ -149,13 +129,12 @@ for (let i = 0; i < 5; i++) await g2._idleTick()
 ok(setLayoutCalls === afterFirst, `five further ticks ask the board nothing (${setLayoutCalls} calls, was ${afterFirst})`)
 ok(g2._missingLayouts.has('kscw_clock') && g2._missingLayouts.has('kscw_crest'), 'the refusals are remembered')
 
-// Board that has the clock layout but NOT the QR crest. The clock attempt used to be nested
+// Board that has the clock layout but NOT the crest. The clock attempt used to be nested
 // inside the crest's availability check, so the clock was never tried — while _idleTick went on
 // wanting it, re-entering showIdle once a second forever. Silently: the layout it wanted was
 // never asked for, so nothing errored and nothing was logged.
 console.log('\nclock present, crest missing — must not spin:')
 const g3 = client()
-g3.noteViewer()
 let showIdleLayouts = []
 g3._sendNow = async (cmd, value) => {
   if (cmd === 'SetLayout') {
@@ -194,48 +173,6 @@ ok(mid.time === '00:00:00', 'midnight is 00:00:00, not 24:00:00')
 // time or date can ever outgrow it.
 ok(mid.time.length === 8, 'time string is a fixed 8 characters')
 ok(mid.date.length === 14, 'date string is a fixed 14 characters, so it cannot outgrow the column')
-
-// Settings ▸ Crest screen ▸ the connect QR codes (settings.js idleQr). The Join-WiFi code is the
-// AP passphrase, so a board can be told never to put the QR crest up: the clock screen instead,
-// with nobody connected. Where the board lacks the clock layout it still falls back to the QRs.
-console.log('\nconnect QR codes switched off (idleQr):')
-const q1 = client({ idleQr: false })
-await q1.showIdle(true)
-ok(q1.currentLayout === 'kscw_clock', 'nobody connected: the clock screen, not the QR crest')
-ok(/^\d\d:\d\d:\d\d$/.test(q1.sections.time || ''), 'and the clock is painted')
-await q1._idleTick()
-ok(q1.currentLayout === 'kscw_clock' && !q1.seq.includes('layout:kscw_crest'), 'the ticker never puts the QR crest back')
-q1.noteViewer(); q1._viewerAt = Date.now() - (q1.viewerTimeoutMs + 1)
-await q1._idleTick()
-ok(q1.currentLayout === 'kscw_clock', 'not even after a viewer comes and goes')
-const q2 = client()
-await q2.showIdle(true)
-ok(q2.currentLayout === 'kscw_crest', 'on by default: the QR crest, as before')
-q2.setLimits({ idleQr: false })
-for (let i = 0; i < 5 && q2.currentLayout !== 'kscw_clock'; i++) await new Promise((r) => setImmediate(r))
-ok(q2.idleQr === false && q2.currentLayout === 'kscw_clock', 'switched off from Settings while the crest is up: the clock replaces it at once (setLimits repaints)')
-q2.setLimits({ idleQr: true })
-for (let i = 0; i < 5 && q2.currentLayout !== 'kscw_crest'; i++) await new Promise((r) => setImmediate(r))
-ok(q2.currentLayout === 'kscw_crest', 'and back on, the QR crest returns')
-q2.setLimits({ totalTimeouts: 2 })
-ok(q2.idleQr === true, 'a save that does not mention it leaves it alone')
-const q3 = client({ idleQr: false })
-q3._sendNow = async (cmd, value) => {
-  if (cmd === 'SetLayout' && value === 'kscw_clock') { const err = new Error('SetLayout: layout not present in device (5)'); err.code = 5; throw err }
-  if (cmd === 'SetLayout') q3.seq.push(`layout:${value}`)
-  return 'ok'
-}
-q3.on('error', () => {})
-await q3.showIdle(true)
-ok(q3.currentLayout === 'kscw_crest', 'a board without the clock layout still shows the QR crest rather than a blank panel')
-
-console.log('\nviewerPresent:')
-const g = client()
-ok(g.viewerPresent() === false, 'false before anyone has ever connected')
-g.noteViewer()
-ok(g.viewerPresent() === true, 'true right after a request')
-g._viewerAt = Date.now() - (g.viewerTimeoutMs + 1)
-ok(g.viewerPresent() === false, 'false once the window lapses')
 
 console.log(`\n${fail === 0 ? '✅ PASS' : '❌ FAIL'} — ${pass} passed, ${fail} failed`)
 process.exit(fail === 0 ? 0 : 1)

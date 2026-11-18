@@ -46,6 +46,7 @@ import io
 import json
 import logging
 import os
+import re
 import socket
 import subprocess
 import threading
@@ -187,6 +188,13 @@ class Section:
     fontsize: int = 0
     visible: bool = True
     private: bool = False
+    # tabular="true": every digit in a cell of the same width and no kerning between characters,
+    # so a clock keeps one width ("11:11:11" was 6 px narrower than "10:00:00" and the centred
+    # time moved sideways every few seconds).
+    tabular: bool = False
+
+
+_CLOCKLIKE = re.compile(r"[0-9:. T-]+")
 
 
 @dataclass
@@ -220,6 +228,7 @@ def _parse_layout(path) -> Layout:
             bordercolor=_to_rgb(a.get("bordercolor")) if "bordercolor" in a else None,
             src=a.get("src", ""),
             fontsize=_to_int(a.get("fontsize")),
+            tabular=a.get("tabular", "").lower() in ("1", "true", "yes"),
             visible=_to_bool(a.get("visible")),
             private=_to_bool(a.get("private"), default=False),
             text=(child.text or "").strip(),
@@ -505,7 +514,23 @@ class Renderer:
         font, size = self._fit_font(draw, s.text, s.fontsize or 12, s.width)
         # "1" = no anti-aliasing: every pixel is the exact colour or untouched (see SMALL_TEXT_PX).
         draw.fontmode = "1" if size <= SMALL_TEXT_PX else "L"
-        draw.text((s.x, s.y), s.text, fill=s.color, font=font, anchor=self._anchor(s.align, s.valign))
+        anchor = self._anchor(s.align, s.valign)
+        # Clock-like text (digits with colons: 20:08:08, 0:30, T - 12:30) always: the layouts also
+        # go to the C0270, whose vendor firmware should not meet an attribute it does not know.
+        if s.tabular or (":" in s.text and _CLOCKLIKE.fullmatch(s.text)):
+            self._draw_tabular(draw, s, font, anchor)
+            return
+        draw.text((s.x, s.y), s.text, fill=s.color, font=font, anchor=anchor)
+
+    def _draw_tabular(self, draw, s, font, anchor):
+        cell = max(font.getlength(d) for d in "0123456789")
+        widths = [cell if ch.isdigit() else font.getlength(ch) for ch in s.text]
+        total = sum(widths)
+        x = s.x - {"l": 0, "m": total / 2, "r": total}[anchor[0]]
+        for ch, w in zip(s.text, widths):
+            # each character centred in its own cell: a narrow digit does not pull the rest along
+            draw.text((round(x + w / 2), s.y), ch, fill=s.color, font=font, anchor="m" + anchor[1])
+            x += w
 
     def _draw_image(self, img, s):
         if not s.src:
