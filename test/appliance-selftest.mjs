@@ -100,8 +100,8 @@ try {
   eq(mock.text('timeout1'), '1', 'mock timeout1 == 1')
   eq(mock.text('sub2'), '2', 'mock sub2 == 2')
   const serve1 = mock.screen.serve1?.color
-  ok(serve1 && serve1 !== '30,30,30', `mock serve1 lit (color ${JSON.stringify(serve1)})`)
-  ok(mock.screen.serve2?.color === '30,30,30', 'mock serve2 off')
+  ok(serve1 && serve1 !== '0,0,0', `mock serve1 lit (color ${JSON.stringify(serve1)})`)
+  ok(mock.screen.serve2?.color === '0,0,0', 'mock serve2 off')
 
   // ── swap sides ──
   await action({ type: 'swap' })
@@ -121,9 +121,9 @@ try {
   eq(mock.text('score1'), '9', 'after swap mock score1 == 9')
   eq(mock.text('score2'), '12', 'after swap mock score2 == 12')
   eq(mock.text('sub2'), '0', 'after swap mock sub2 == 0')
-  ok(mock.screen.serve1?.color === '30,30,30', 'after swap mock serve1 off')
+  ok(mock.screen.serve1?.color === '0,0,0', 'after swap mock serve1 off')
   const serve2b = mock.screen.serve2?.color
-  ok(serve2b && serve2b !== '30,30,30', `after swap mock serve2 lit (color ${JSON.stringify(serve2b)})`)
+  ok(serve2b && serve2b !== '0,0,0', `after swap mock serve2 lit (color ${JSON.stringify(serve2b)})`)
 } catch (err) {
   fail++
   console.log(`  ❌ threw: ${err?.stack || err}`)
