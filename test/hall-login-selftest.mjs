@@ -520,6 +520,29 @@ try {
     ok(res.status === 302 && res.headers.get('location') === '/hall-login/Partner/Somewhere?x=1', 'a stray /Partner/… from a proxied page is sent back under /hall-login')
     ok((await fetch(`${base}/Partner/Somewhere`, { redirect: 'manual' })).status === 404, 'without that referer it is just a missing page')
     portal.loggedIn = false
+
+    // "Open the login page" did nothing (owner, 17.11.2026): with no portal redirect to start from —
+    // the probe saw nothing, or a redirect to another host — the start redirected to the portal's front
+    // page, whose local path is the start itself: 302 to /hall-login/, forever. Now the front page is
+    // fetched right there.
+    for (const [why, d] of [['the probe saw no portal', { status: 'offline', portal: null, entryUrl: null }],
+      ['the portal redirect names another host', { status: 'portal', portal: 'pwlan', entryUrl: 'https://controller.elsewhere.example/?x=1' }],
+      ['the portal redirect is the bare front page', { status: 'portal', portal: 'pwlan', entryUrl: `${portalBase}/` }]]) {
+      const asked = []
+      const front = new PortalProxy({
+        portalUrl: portalBase,
+        uplink: { login: { detect: async () => d } },
+        fetchImpl: async (u) => { asked.push(u); return new Response('<html><head></head><body><form action="/Partner/Start"></form></body></html>', { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }) },
+      })
+      front.open('127.0.0.1')
+      const srv = http.createServer((req, res) => front.handle(req, res, new URL(req.url, 'http://x'), '127.0.0.1'))
+      await new Promise((r) => srv.listen(0, '127.0.0.1', r))
+      const r1 = await fetch(`http://127.0.0.1:${srv.address().port}/hall-login/`, { redirect: 'manual' })
+      const body = await r1.text()
+      ok(r1.status === 200 && body.includes('action="/hall-login/Partner/Start"') && asked[0] === `${portalBase}/`,
+        `${why}: the start serves the portal's front page itself, no redirect to itself (${r1.status} ${r1.headers.get('location') || ''})`)
+      srv.close()
+    }
   }
 } catch (err) {
   fail++

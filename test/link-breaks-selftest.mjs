@@ -178,6 +178,10 @@ const BOARD_LAYOUTS = {
 }
 async function boot({ sport = 'volleyball', layouts = {} } = {}) {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-linkbreaks-'))
+  // The scorer FACES the board here (orientation 'front'): OpenVolley's sides reach the panel as they
+  // come, so every expectation below reads like the scoresheet. The default ('behind') mirrors them —
+  // test/linked-display-selftest.mjs is about that.
+  new Settings(path.join(stateDir, 'settings.json')).update({ orientation: 'front' })
   if (sport !== 'volleyball') new Settings(path.join(stateDir, 'settings.json')).update({ sport }, { allowSport: true })
   const mock = new MockLedbox({ layouts: { ...BOARD_LAYOUTS, ...layouts } })
   const addr = await mock.listen(0, '127.0.0.1')

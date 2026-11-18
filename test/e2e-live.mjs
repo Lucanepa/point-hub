@@ -225,7 +225,10 @@ async function runAgainst(name) {
 
     console.log('\n[3] Settings ▸ Scorer laptop address; the list from the relay port, else the desktop port')
     {
-      const r = await post('/api/settings', { relayAddress: `127.0.0.1:${relay.wsPort}` })
+      // The scorer faces the board ('front'): OpenVolley's sides as they come, so the checks read
+      // like the scoresheet (the default 'behind' mirrors them: test/linked-display-selftest.mjs).
+      // German: the substitution notice and SATZBALL / MATCHBALL in [5] and [7] read WECHSEL / MATCHBALL.
+      const r = await post('/api/settings', { relayAddress: `127.0.0.1:${relay.wsPort}`, orientation: 'front', language: 'de' })
       ok(r.status === 200 && r.json.relayAddress === `127.0.0.1:${relay.wsPort}`, `saved (${r.json?.relayAddress})`)
     }
     const list = await get('/api/matches')
@@ -255,8 +258,21 @@ async function runAgainst(name) {
     push({ points_a: 5, points_b: 4, serving_team: 'right', timeouts_a: [{ team: 'home' }] }); await sleep(300)
     ok(t('timeout1') === '1', `timeout A 1 (${t('timeout1')})`)
     ok(mock.screen.serve2?.color && mock.screen.serve2.color !== '30,30,30', 'serve moved right')
-    push({ points_a: 5, points_b: 6, serving_team: 'right', timeouts_a: [{}], subs_b: [{ in: 7, out: 9 }, { in: 3, out: 4 }] }); await sleep(300)
-    ok(t('sub2') === '2', `subs B 2 (${t('sub2')})`)
+    // A double substitution the way OpenVolley sends it: ONE state, named after its last event, with
+    // the full lists (a LAN relay passes them on): one WECHSEL screen each, then the score.
+    const notices = []
+    const onCmd = (m) => {
+      if (m.cmd !== 'SetSections' || mock.currentLayout !== 'kscw_message') return
+      const l = (n) => (m.value.find((x) => x.name === n && x.value.attrib === 'text') || {}).value?.value
+      if (l('msg1')) notices.push(`${l('msg1')} ${l('msg2')}`)
+    }
+    mock.on('command', onCmd)
+    push({ points_a: 5, points_b: 6, serving_team: 'right', timeouts_a: [{}], last_event_type: 'substitution', last_event_team: 'away', last_event_data: { playerIn: 3, playerOut: 4 }, subs_b: [{ playerIn: 7, playerOut: 9 }, { playerIn: 3, playerOut: 4 }] }); await sleep(400)
+    ok(mock.currentLayout === 'kscw_message', `the substitution notice is up (${mock.currentLayout})`)
+    for (let i = 0; i < 90 && mock.currentLayout !== 'volleyball_matchscore_02'; i++) await sleep(100)
+    mock.off('command', onCmd)
+    ok(JSON.stringify(notices) === JSON.stringify(['WECHSEL 9 ⇄ 7', 'WECHSEL 4 ⇄ 3']), `WECHSEL 9 ⇄ 7, then WECHSEL 4 ⇄ 3 (${JSON.stringify(notices)})`)
+    ok(t('sub2') === '2', `back to the score, subs B 2 (${t('sub2')})`)
     sync(); await sleep(300)
     ok(t('score2') === '6', 'a scorer sync after the push does not blank the board')
     push({ current_set: 2, sets_won_a: 1, points_a: 0, points_b: 0, side_a: 'right', serving_team: 'left', timeouts_a: [], subs_b: null }); await sleep(300)
@@ -274,7 +290,11 @@ async function runAgainst(name) {
       ok(got >= 1, `a subscriber on the seed key gets live state (${got} frames)`)
     }
 
-    console.log('\n[7] the scorer ends the match -> the result screen')
+    console.log('\n[7] match point, then the scorer ends the match -> the result screen')
+    push({ current_set: 4, sets_won_a: 2, sets_won_b: 1, points_a: 24, points_b: 21, side_a: 'right' }); await sleep(300)
+    let mp = false
+    for (let i = 0; i < 25 && !mp; i++) { mp = t('team2') === 'MATCHBALL'; if (!mp) await sleep(100) }
+    ok(mp && t('team1') === 'VBC' && t('score2') === '24', `24:21 at 2:1 up: MATCHBALL takes turns with KSC on the right (${panel()})`)
     push({ current_set: 4, sets_won_a: 3, sets_won_b: 1, points_a: 25, points_b: 21, side_a: 'right', match_status: 'ended', last_event_type: 'match_end' }); await sleep(500)
     console.log(`   panel: ${t('winner')} | ${t('sets')} | ${mock.currentLayout}`)
     ok(mock.currentLayout === 'kscw_result' && /KSC( WIEDIKON)? WINS/.test(t('winner') || ''), 'result screen with the winner')

@@ -9,7 +9,7 @@
 //   timeout1/timeout2 (T), sub1/sub2 (S, substitution counts),
 //   serve1/serve2 (rectangles lit in the serving team colour).
 
-import { hexToRgb } from './ledboxProtocol.js'
+import { teamRgb } from './ledColor.js'
 
 // timeouts_a / subs_a arrive as an array (full detail, for the referee) or a
 // plain number depending on the source — count either shape.
@@ -49,8 +49,10 @@ export function toLeftRight(state) {
     leftFull: upper(pick(state.team_a_name || state.team_a_short, state.team_b_name || state.team_b_short) || 'TEAM A'),
     rightFull: upper(pick(state.team_b_name || state.team_b_short, state.team_a_name || state.team_a_short) || 'TEAM B'),
     rightName: upper(pick(state.team_b_short || state.team_b_name, state.team_a_short || state.team_a_name) || 'TEAM B'),
-    leftColor: hexToRgb(pick(state.team_a_color, state.team_b_color)),
-    rightColor: hexToRgb(pick(state.team_b_color, state.team_a_color)),
+    // teamRgb, not hexToRgb: pure black is shown white, and no team colour can pass for the
+    // panel's own "off" (ledColor.js).
+    leftColor: teamRgb(pick(state.team_a_color, state.team_b_color)),
+    rightColor: teamRgb(pick(state.team_b_color, state.team_a_color)),
     leftPoints: pick(state.points_a, state.points_b) || 0,
     rightPoints: pick(state.points_b, state.points_a) || 0,
     leftSets: pick(state.sets_won_a, state.sets_won_b) || 0,
@@ -276,8 +278,8 @@ export function toIdleSections(state, { off = '30,30,30' } = {}) {
   ]
 }
 
-const ARIAL_CHARS = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00e9\u00e8\u00e0\u00e7\u00f1\u00c9\u00c8\u00c0"
-const ARIAL_W = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,500,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,556,556,556,667,778,722,556,556,556,500,556,667,667,667]
+const ARIAL_CHARS = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00e9\u00e8\u00e0\u00e7\u00f1\u00c9\u00c8\u00c0\u21c4"
+const ARIAL_W = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,500,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,556,556,556,667,778,722,556,556,556,500,556,667,667,667,713]
 // The panel's font is fonts/ARIAL.TTF; these are its advance widths per 1000 units, so we
 // can size text to fit without guessing. A crude average either overflows (VBC Kuesnacht)
 // or wastes half the panel (Volley Zuerich) -- the spread between names is that wide.
@@ -414,9 +416,12 @@ function splitLines(text) {
   return best
 }
 
-export function toMessageSections(text, { color = CLUB_GOLD } = {}) {
-  const phrase = String(text || '').toUpperCase().trim()
-  const split = splitLines(phrase)
+// `lines` = [first, second] puts exactly those two lines up (the substitution notice: WECHSEL over
+// "12 ⇄ 7", or over the team's name, which must never be split in the middle of a club name).
+export function toMessageSections(text, { color = CLUB_GOLD, lines = null } = {}) {
+  const given = Array.isArray(lines) ? lines.map((l) => String(l || '').toUpperCase().trim()).filter(Boolean) : []
+  const phrase = given.length ? given.join(' ') : String(text || '').toUpperCase().trim()
+  const split = given.length === 2 ? { a: given[0], b: given[1] } : splitLines(phrase)
   // Only split if two lines actually buy size. A short word pair like "TIME OUT" fits one line at
   // 40px and would LOSE height by being stacked at 28.
   const oneSize = fitFontSize(phrase, MESSAGE_WIDTH, { max: MESSAGE_ONE_MAX, min: 8 })
@@ -426,7 +431,7 @@ export function toMessageSections(text, { color = CLUB_GOLD } = {}) {
       fitFontSize(split.b, MESSAGE_WIDTH, { max: MESSAGE_TWO_MAX, min: 8 }),
     )
     : 0
-  const stacked = !!split && twoSize > oneSize
+  const stacked = !!split && (given.length === 2 || twoSize > oneSize)
   const out = []
   const put = (name, value, size) => {
     out.push(attr(name, 'text', value), attr(name, 'color', color))
@@ -505,17 +510,26 @@ export function toSelfTestSections(lit = null, modules = TEST_MODULES) {
 //
 // These are physical sides, and toLeftRight() has already resolved side_a, so left always means
 // the left half of the panel whichever team is on it.
-export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX, matchFontMaxLeft = 18, matchFontMaxRight = 18 } = {}) {
+//
+// `callout` = { side: 'left' | 'right', text } puts that text (SATZBALL / MATCHBALL, boardNotices.js)
+// in the name slot of that side instead of the team's name, in the team's colour, fitted to the
+// same 86px column. The vendor layout on the C0270 has no free text section, and a section it does
+// not have aborts the whole paint (error 6), so the name row is where it goes: the scores, sets and
+// counters never move. ledboxClient alternates name and word (see its callout ticker).
+export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX, matchFontMaxLeft = 18, matchFontMaxRight = 18, callout = null } = {}) {
   const v = toLeftRight(state)
   // Timeouts: red at the total, no amber (there are only a couple). Subs: amber one short,
   // red at the total.
   const toColor = (n) => limitColor(n, totalTimeouts, totalTimeouts)
   const subColor = (n) => limitColor(n, totalSubs - 1, totalSubs)
+  const word = callout && callout.text ? upper(callout.text) : ''
+  const leftName = word && callout.side === 'left' ? word : v.leftName
+  const rightName = word && callout.side === 'right' ? word : v.rightName
   return [
-    ...text('team1', v.leftName, v.leftColor),
-    attr('team1', 'fontsize', fitFontSize(v.leftName, MATCH_NAME_WIDTH, { max: matchFontMaxLeft })),
-    ...text('team2', v.rightName, v.rightColor),
-    attr('team2', 'fontsize', fitFontSize(v.rightName, MATCH_NAME_WIDTH, { max: matchFontMaxRight })),
+    ...text('team1', leftName, v.leftColor),
+    attr('team1', 'fontsize', fitFontSize(leftName, MATCH_NAME_WIDTH, { max: matchFontMaxLeft })),
+    ...text('team2', rightName, v.rightColor),
+    attr('team2', 'fontsize', fitFontSize(rightName, MATCH_NAME_WIDTH, { max: matchFontMaxRight })),
     ...text('score1', v.leftPoints, v.leftColor),
     ...text('score2', v.rightPoints, v.rightColor),
     ...box('bg_score1', v.leftColor),
