@@ -288,6 +288,11 @@ _BOLD_FONT_CANDIDATES = [
 # anti-aliasing smooths the curves without eating them, so big text keeps it, in Regular.
 SMALL_TEXT_PX = 26
 
+# Characters the bundled Liberation Sans does not have, drawn as the nearest one it does. The bridge's
+# substitution notice says "12 ⇄ 7" (the C0270's Arial has U+21C4); here it becomes "12 ↔ 7", not a
+# missing-glyph box.
+GLYPH_FALLBACK = {0x21C4: "\u2194"}
+
 
 # The Point Hub board's bench slots: rows 64-95, 64 x 32 each (BUILD.md section 4.1). The canvas
 # keeps the layout it had with three chains of three; flushBuffer2 moves these two slots onto the
@@ -440,6 +445,10 @@ class Renderer:
             # The layout keeps the side not serving in a dim grey: on the benches it simply stays off.
             if sec and max(sec.color) > 64:
                 draw.rectangle([0, y, 1, y + 17], fill=sec.color)
+        # SATZBALL / MATCHBALL while the bridge says so (the layout's hidden `callout`, written in turns):
+        # its two words in place of the two small lines, the scores stay where they are.
+        if self._bench_callout(draw, sections.get("callout"), (48, 58)):
+            return pic
         set_own, set_other = sections.get("set%d" % own), sections.get("set%d" % other)
         if set_own and set_other:
             self._bench_text(draw, "%s-%s" % (set_own.text or "0", set_other.text or "0"), 48, 9, (255, 255, 255))
@@ -450,6 +459,19 @@ class Renderer:
             self._bench_text(draw, "T%s S%s" % (sections["timeout%d" % own].text or "0", sections["sub%d" % own].text or "0"),
                              58, 9, (255, 255, 255))
         return pic
+
+    def _bench_callout(self, draw, sec, rows):
+        """The callout's words on the bench's small rows (`rows`, top first): split at the first space
+        ("SATZ BALL", "MATCH POINT"), one word a row, each fitted to the 32 px. False when there is none."""
+        text = (sec.text or "").strip() if sec else ""
+        if not text:
+            return False
+        words = text.split(None, 1)
+        if len(words) == 1:
+            words = [text, ""]
+        for word, y in zip(words, rows):
+            self._bench_text(draw, word, y, 9, sec.color)
+        return True
 
     def _bench_text(self, draw, text, y, size, colour):
         if not text:
@@ -771,7 +793,7 @@ class Device:
     @staticmethod
     def _apply_attrib(sec, attrib, val):
         if attrib == "text":
-            sec.text = "" if val is None else str(val)
+            sec.text = "" if val is None else str(val).translate(GLYPH_FALLBACK)
         elif attrib == "color":
             sec.color = _to_rgb(val)
         elif attrib == "bordercolor":

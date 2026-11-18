@@ -28,4 +28,8 @@ class OpenVolleyLayerTest {
         assertTrue(s.contains("/^(blob|data):/"))
         assertTrue(!s.contains("PointHubApp"))
     }
+
+    @Test fun theBoardSettingsButtonSaysWhatItOpens() {
+        assertEquals("⚙ Board settings", OpenVolleyLayer.BOARD_SETTINGS_LABEL)
+    }
 }

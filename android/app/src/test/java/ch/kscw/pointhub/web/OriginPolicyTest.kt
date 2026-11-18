@@ -87,4 +87,29 @@ class OriginPolicyTest {
         assertFalse(a.isInertLocal("file:///x"))
         assertFalse(a.isInertLocal(null))
     }
+
+    // OpenVolley's "Scoreboard settings" opens the console's #settings (src/boardAnnounce.js); the
+    // OpenVolley layer takes exactly that, on a board origin, as its Board settings button.
+    @Test fun boardSettingsIsTheConsolesSettingsPageOnly() {
+        assertTrue(OriginPolicy.isBoardSettings("http://172.24.1.1:8890/#settings", a))
+        assertTrue(OriginPolicy.isBoardSettings("http://192.168.5.1:8890/#settings", a))
+        assertTrue(OriginPolicy.isBoardSettings("https://ledbox-c0270.noodlefish-pence.ts.net:8891/#settings", a))
+        assertTrue(OriginPolicy.isBoardSettings("http://172.24.1.1:8890/?app=1#settings", a))
+        listOf(
+            "http://172.24.1.1:8890/",
+            "http://172.24.1.1:8890/#link",
+            "http://172.24.1.1:8890/#settings-x",
+            "http://172.24.1.1:5173/#settings",
+            "http://172.24.1.1/#settings",
+            "http://evil.example/#settings",
+            "http://172.24.1.1:8890@evil.example/#settings",
+            "javascript:alert(1)//#settings",
+            "",
+            null,
+        ).forEach { assertFalse(it.toString(), OriginPolicy.isBoardSettings(it, a)) }
+        // the admin override is a console origin too
+        val o = OriginPolicy.Allowlist("https://10.0.2.2:18891")
+        assertTrue(OriginPolicy.isBoardSettings("https://10.0.2.2:18891/#settings", o))
+        assertFalse(OriginPolicy.isBoardSettings("https://10.0.2.2:18891/#settings", a))
+    }
 }
