@@ -191,6 +191,28 @@ Each OpenVolley release: build its bundle and deploy again (the last 3 stay on t
 back by pointing `current` at the old one and `sudo systemctl restart pointhub-openvolley`).
 Tested by `OPENVOLLEY_WEB_DIR=<unpacked bundle> E2E_RELAYS=board npm run test:e2e`.
 
+### Scoring online from the board's Wi-Fi — Settings ▸ OpenVolley online
+The board's own Wi-Fi has no internet. To score **online** (OpenVolley's cloud) in the OpenVolley
+app on a tablet that is on `ledbox_C0270`, the owner turns on **Settings ▸ OpenVolley online**
+(behind the scorer PIN): devices on the board's Wi-Fi then reach `*.openvolley.app` (and Android's
+connectivity check) on port 443 through the board's hall internet, and nothing else. **Off by
+default**, remembered across reboots, removed completely when switched off. The tablet shares the
+board's public address, so OpenVolley's server lists the hall's own match to the board: the **Link**
+tab shows it under the laptop's ("OpenVolley cloud · this hall"), one tap links it, and with the
+switch on the board links the one live match from this hall by itself (never over a hand-scored game
+in play, a countdown, or a laptop's match). How it works and what is checked: the header of
+[`provisioning/ledbox-ov-online.sh`](provisioning/ledbox-ov-online.sh).
+
+```bash
+# once, on the board (after install-firewall.sh, which it builds on):
+sudo bash ledbox-bridge/provisioning/setup-ov-online.sh            # --check
+sudo bash ledbox-bridge/provisioning/setup-ov-online.sh --apply    # the switch, its boot unit, sudo for the bridge
+sudo bash ledbox-bridge/provisioning/install-firewall.sh           # only if --apply says the firewall predates it
+sudo bash ledbox-bridge/provisioning/install-firewall.sh --commit
+# then the console, or by hand:  sudo ledbox-ov-online on | off | status
+```
+`CLOUD_RELAY=0` in `.env` turns the Link tab's cloud list off; `OV_ONLINE=0` hides the switch.
+
 ## Appliance — web control UI (manual + link)
 Instead of the headless bridge, run the **appliance**: a phone-friendly control page
 served by the Pi (`CONTROL_PORT`, default 8890) with two modes — **Manual** (drive the
@@ -216,7 +238,11 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   breaks itself, on the same break screen, clock and horn as a console tap: the scorer's timeout
   puts up **TIME OUT** with the calling team (the one whose timeout count went up), a set end the
   **INTERVAL** with the set score, each for the length in Settings ▸ Countdowns. Each is timed from
-  the moment the board sees it, never from the laptop's `*_started_at`. The laptop's end takes it
+  the moment the board sees it, not from the laptop's `*_started_at` — except a break that was
+  already running when the link began (a bridge restart in a set break, a link made mid-timeout):
+  that one resumes from the match's own `set_interval_started_at` / `timeout_started_at` when the
+  board's clock is believed, and stays off the panel when the start is unknown or already more than
+  the break's length ago (never the full 3 minutes again). The laptop's end takes it
   down — silently when the scorer stopped it early, with the horn when it lands within 3 s of the
   board's zero — and when that end never comes (a link drop), the board's own zero ends it. A
   timeout is on while `timeout_active` is; OpenVolley sets `set_interval_active` on the set_end
@@ -226,6 +252,36 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   timeout / Show on set interval off. A match end ends any break before the result goes up.
   Indoor volleyball only (`sports.js` `linkBreaks`); beach, basketball and simple links are as
   before.
+- **What a linked match shows** (`src/linkedView.js`, test/linked-display-selftest.mjs) —
+  - *Sides*: OpenVolley's `side_a` / `serving_team` are the scorer's sides. **Settings ▸ Scorer
+    sits behind the board** (`orientation`) on (`behind`, the default) mirrors them on the panel
+    (the scorer's left is the panel's right), with the time-out, sub and serve indicators; off
+    (`front`, the scorer faces the board) passes them through. Every link path (Link tab, the
+    board's own OpenVolley, the cloud). Read on every state and applied at once when it is saved,
+    mid-match too. Hand scoring on the console is not affected (its panel sides are the panel's).
+  - *Substitutions*: the cloud (`wss://backend.openvolley.app`) strips `subs_a` / `subs_b` for a
+    viewer without the match PIN. The board then counts them from the public events
+    (`last_event_type: 'substitution'` + `last_event_team` home/away, per set, once per
+    type + `last_event_ts`; an `undo` right after a sub with the score unchanged takes it back;
+    `libero_*` is no sub), home/away to A/B learned from `point` events (whose points rose) and,
+    before the first one, from the summary's team names. Real counts win: `subs_count_a/_b`
+    (openvolley#241), then `subs_a/subs_b` whenever the state carries the keys.
+  - *Match PIN*: optional. Link tab ▸ **Match PIN (optional)** goes with the link
+    (`POST /api/link { …, pin }`), **Send PIN** offers it to the running link
+    (`POST /api/link/pin { pin }`, empty takes it back). Sent with `subscribe-match` (the backend's
+    `registerRelayAccess`), held in memory only, never logged or saved; a refusal (`pin-invalid`,
+    `rate-limited`, `access-denied`) drops it so no reconnect counts another wrong PIN.
+    `/api/status.linkPin`: `none` | `offered` | `accepted` | `refused`.
+  - *Per-set result line*: a non-empty `set_results` in the state wins; else the board records each
+    finished set itself (the summary's finished sets, else the last score it saw in each set) and
+    fills `set_results` only when it knows every finished set and they add up to `sets_won_a/_b`.
+    The result screen then reads "27-25  25-12  25-16", /live gets the sets, and the interval
+    history screen (Settings) works for a linked match too.
+  - *Game number*: `game_n` from the match summary (`match.game_n` / `gameN` / `gameNumber`) or the
+    Link tab's list when the live state has none, so livePush finds the game's own `game-<id>` row.
+- **Team colours** — a team in pure black (`#000000`) is painted **white**, whatever the source
+  (`src/ledColor.js` `teamRgb`): black is also the mappers' "no box" value, and a black team lost
+  its score box. No team colour can equal one of the panel's "off" values any more.
 - **Live-state order** — OpenVolley numbers every live state it pushes (`_seq`, within the
   `_session` of one scoring page; a reload starts again at 1). A state older than the newest one
   the board has taken is dropped (`src/relaySubscriber.js`), so the relay's replay after a
@@ -302,6 +358,36 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   warm-up show none. A deliberately static line rather than a rotating carousel: the hall and the
   referees read the interval clock, and frames that change underneath it are motion for the camera.
   `npm run test:interval`.
+- **SATZBALL / MATCHBALL** — **Settings ▸ Display ▸ SATZBALL / MATCHBALL on the board** (on by
+  default). While a team is one point from the set — 25 in sets 1–4, 15 in the deciding set, and only
+  when that point would win it (24:23 yes, 24:24 no, 25:24 yes) — the name slot of that team takes
+  turns: the word for 1.5 s, then the name, until the score moves on; MATCHBALL when the set would
+  also win the match (`best_of` from OpenVolley, `sets_to_win` from the board's own scoring, else
+  Settings ▸ Match format). German and Swiss German SATZBALL / MATCHBALL, English SET POINT /
+  MATCH POINT (Settings ▸ Language). Every source: the console's own scoring, a schedule start, a
+  linked match. Indoor volleyball only. The score, sets and counters never move: on the C0270 the
+  vendor match layout has no free text section, and a section it lacks stops the whole paint
+  (error 6), so the name row is the only place it can go without a new layout. A turn writes the
+  name slot only; the paint of a new score carries the turn that is up. On the Point Hub board
+  (openscore firmware) the two bench modules show it too — SATZ / BALL in place of their set score and
+  T / S lines, in that team's colour, flashing with the front — from openscore's own hidden `callout`
+  section, written apart from the score (only to an `openscore-…` firmware; a layout without the
+  section costs that line once, never the paint). Pictures: `docs/img/board-notices/`
+  (`node tools/render-board-notices.mjs` redraws them with the real bridge and openscore).
+  `npm run test:gamepoint`.
+- **Substitutions of a linked match** — **Settings ▸ Display ▸ Substitutions on the board**: after a
+  substitution on the OpenVolley eScoresheet the announcement screen (`kscw_message`, the change of
+  ends' screen) shows **WECHSEL** over **12 ⇄ 7** (off, then on; SUBSTITUTION in English) for 3 s,
+  in the team's colour, then the score again. A double substitution — OpenVolley sends it as one
+  state — is one screen each, in turn (a batch never past about 9 s). The numbers come from
+  `subs_a`/`subs_b`, which a LAN relay sends and OpenVolley's cloud sends only to a board that gave
+  the match PIN (Link tab); without them `all` (the default) shows WECHSEL and the team's short name
+  (the team from the public events or `subs_count_*`), `numbers` shows nothing, `off` never anything.
+  Libero replacements never; an exceptional substitution like any other. Not over a countdown, the
+  idle screen, the result or a panel test, not for the link's first state (what is already on the
+  match is no news). Announcements now run one at a time, and whatever takes the panel during one
+  (a countdown, the result) keeps it. ⇄ is in the C0270's Arial; openscore draws ↔ for it.
+  `npm run test:subnotice`.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
 - **Theme** — **Settings ▸ Theme**: Light (the default), Dark, or E-ink — greyscale, paper white

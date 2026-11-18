@@ -14,6 +14,9 @@
 # them reaches the board and never the internet, the hall LAN or the tailnet through it. FORWARD is
 # DROP with our own drop-all chain first (see build()); lock-control-network.sh also turns kernel
 # forwarding off and stops the board's DNS answering internet names. test/control-network-selftest.mjs
+# The one exception is the owner's, OFF unless switched on in the console: OpenVolley online
+# (ledbox-ov-online.sh) — two accepts for *.openvolley.app on 443 ahead of the forward DROP, put back
+# here after every rebuild while it is on. test/ov-online-helper-selftest.mjs
 #
 # Everything is built in a private LEDBOX-IN chain. INPUT itself is only ever *appended* to,
 # never flushed, because tailscale owns `-j ts-input` there and re-adds it on its own schedule —
@@ -35,6 +38,8 @@ IPT='/usr/sbin/iptables -w 5'
 IP6='/usr/sbin/ip6tables -w 5'
 CHAIN=LEDBOX-IN
 FWD=LEDBOX-FWD
+# OpenVolley online (see build()); installed by setup-ov-online.sh, absent on most boards.
+OV_ONLINE_HELPER=${OV_ONLINE_HELPER:-/usr/local/sbin/ledbox-ov-online}
 
 # A COUNTER, not a 0/1 flag: build() decides whether to apply the DROP policy by comparing the
 # count before and after its own rules, and with a flag the v6 pass could not tell "v4 already
@@ -199,6 +204,14 @@ build() { # $1 = iptables or ip6tables
     a $B -I FORWARD 1 -j $FWD
   fi
   a $B -P FORWARD DROP
+  # The one exception, OFF unless the owner turned it on (console ▸ Settings ▸ OpenVolley online,
+  # provisioning/ledbox-ov-online.sh): devices on the board's Wi-Fi reach *.openvolley.app on 443 and
+  # nothing else. The flush above took its two accepts out of LEDBOX-FWD; when it is on they go back
+  # ahead of the DROP, when it is off (or not installed) this does nothing. IPv4 only — it never
+  # forwards IPv6. Not counted in RC: it can only ever add accepts, never cost the drop.
+  if [ "$v6" = 0 ] && [ -x "$OV_ONLINE_HELPER" ]; then
+    "$OV_ONLINE_HELPER" forward-rules || echo "  !! OpenVolley online is on, but its forward accepts did not go back in: sudo $OV_ONLINE_HELPER apply"
+  fi
 
   # Default-deny goes on LAST, and only if every allow above actually landed. The chain was
   # flushed at the top of this function, so a DROP policy over a half-built chain is a board with
