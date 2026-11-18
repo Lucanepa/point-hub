@@ -358,6 +358,36 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   warm-up show none. A deliberately static line rather than a rotating carousel: the hall and the
   referees read the interval clock, and frames that change underneath it are motion for the camera.
   `npm run test:interval`.
+- **SATZBALL / MATCHBALL** — **Settings ▸ Display ▸ SATZBALL / MATCHBALL on the board** (on by
+  default). While a team is one point from the set — 25 in sets 1–4, 15 in the deciding set, and only
+  when that point would win it (24:23 yes, 24:24 no, 25:24 yes) — the name slot of that team takes
+  turns: the word for 1.5 s, then the name, until the score moves on; MATCHBALL when the set would
+  also win the match (`best_of` from OpenVolley, `sets_to_win` from the board's own scoring, else
+  Settings ▸ Match format). German and Swiss German SATZBALL / MATCHBALL, English SET POINT /
+  MATCH POINT (Settings ▸ Language). Every source: the console's own scoring, a schedule start, a
+  linked match. Indoor volleyball only. The score, sets and counters never move: on the C0270 the
+  vendor match layout has no free text section, and a section it lacks stops the whole paint
+  (error 6), so the name row is the only place it can go without a new layout. A turn writes the
+  name slot only; the paint of a new score carries the turn that is up. On the Point Hub board
+  (openscore firmware) the two bench modules show it too — SATZ / BALL in place of their set score and
+  T / S lines, in that team's colour, flashing with the front — from openscore's own hidden `callout`
+  section, written apart from the score (only to an `openscore-…` firmware; a layout without the
+  section costs that line once, never the paint). Pictures: `docs/img/board-notices/`
+  (`node tools/render-board-notices.mjs` redraws them with the real bridge and openscore).
+  `npm run test:gamepoint`.
+- **Substitutions of a linked match** — **Settings ▸ Display ▸ Substitutions on the board**: after a
+  substitution on the OpenVolley eScoresheet the announcement screen (`kscw_message`, the change of
+  ends' screen) shows **WECHSEL** over **12 ⇄ 7** (off, then on; SUBSTITUTION in English) for 3 s,
+  in the team's colour, then the score again. A double substitution — OpenVolley sends it as one
+  state — is one screen each, in turn (a batch never past about 9 s). The numbers come from
+  `subs_a`/`subs_b`, which a LAN relay sends and OpenVolley's cloud sends only to a board that gave
+  the match PIN (Link tab); without them `all` (the default) shows WECHSEL and the team's short name
+  (the team from the public events or `subs_count_*`), `numbers` shows nothing, `off` never anything.
+  Libero replacements never; an exceptional substitution like any other. Not over a countdown, the
+  idle screen, the result or a panel test, not for the link's first state (what is already on the
+  match is no news). Announcements now run one at a time, and whatever takes the panel during one
+  (a countdown, the result) keeps it. ⇄ is in the C0270's Arial; openscore draws ↔ for it.
+  `npm run test:subnotice`.
 - **Portrait works** — a phone held upright gets a stacked layout (left team on top) instead
   of a "rotate" wall; a dismissible tip still suggests landscape.
 - **Theme** — **Settings ▸ Theme**: Light (the default), Dark, or E-ink — greyscale, paper white
