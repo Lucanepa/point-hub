@@ -10,8 +10,9 @@
 //       (src/relaySubscriber.js)
 //   [4] a break already running when the link began carries the match's own start (lanSource.js)
 //   [5] livePush on a slow uplink: a longer budget, a readable failure, sent again with the latest
-//   [6] end to end, the real appliance and a MockLedbox against a fake cloud relay: mirror switched
-//       on the console mid-match, sub counting, a "bridge restart" in a set break (the interval
+//   [6] end to end, the real appliance and a MockLedbox against a fake cloud relay: the default
+//       (scorer behind the board) mirrors OpenVolley's sides, the scorer facing the board does not,
+//       switched on the console mid-match; hand scoring on the console is not mirrored either way; sub counting, a "bridge restart" in a set break (the interval
 //       resumes from its own start, or stays off), the summary's set 1 + the board's own sets 2-3
 //       on the result screen, the PIN, the game number, black shirts
 // Needs the `ws` devDependency (npm install).
@@ -310,7 +311,10 @@ const MATCH = 'volleyball_matchscore_02'
 try {
   await sleep(250)
   await post('/api/clock', { epochMs: Date.now() }) // the board's clock is believed (NTP or the console's)
-  await post('/api/settings', { relayAddress: CLOUD, setIntervalSeconds: IV_S, orientation: 'behind' })
+  eq((await get('/api/settings')).orientation, 'behind', 'a new board: the scorer sits behind the board')
+  // Facing the board first: OpenVolley's sides reach the panel as they come, so the checks below
+  // read like the scoresheet. The mirror ('behind', the default) is switched to further down.
+  await post('/api/settings', { relayAddress: CLOUD, setIntervalSeconds: IV_S, orientation: 'front' })
   cur = { ...BASE }; viewers.clear()
   push({ last_event_type: 'lineup' })
   const listed = await get('/api/matches')
@@ -332,17 +336,17 @@ try {
   const st0 = await get('/api/status')
   eq(String(st0.state && st0.state.game_n), '405974', 'the game number from the match summary (the live state has none)')
 
-  console.log('  — the scorer faces the board: switched on the console mid-match')
+  console.log('  — the scorer sits behind the board (the default): switched on the console mid-match')
   const serveLit = (n) => mock.color(n) && mock.color(n) !== '30,30,30'
   ok(serveLit('serve1') && !serveLit('serve2'), 'KSC serving, on the left')
-  await post('/api/settings', { orientation: 'front' }); await sleep(300)
-  ok(t('team1') === 'OTA' && t('team2') === 'KSC', `the panel turned round at once, no rally needed (${t('team1')} | ${t('team2')})`)
+  await post('/api/settings', { orientation: 'behind' }); await sleep(300)
+  ok(t('team1') === 'OTA' && t('team2') === 'KSC', `behind the board: the scorer's left (KSC) is the panel's right, at once, no rally needed (${t('team1')} | ${t('team2')})`)
   ok(t('score1') === '0' && t('score2') === '1' && t('sub1') === '0' && t('sub2') === '1', `scores and subs went with the teams (${t('score1')}:${t('score2')}, subs ${t('sub1')} | ${t('sub2')})`)
   ok(serveLit('serve2') && !serveLit('serve1'), 'and so did the serve')
   push({ last_event_type: 'point', last_event_team: 'away', points_b: 1, serving_team: 'right' }); await sleep(200)
   ok(t('score1') === '1' && serveLit('serve1'), `the next rally stays mirrored: OTA 1 on the left, serving (${t('score1')})`)
-  await post('/api/settings', { orientation: 'behind' }); await sleep(300)
-  ok(t('team1') === 'KSC' && t('score2') === '1', `and back (${t('team1')} ${t('score1')}:${t('score2')})`)
+  await post('/api/settings', { orientation: 'front' }); await sleep(300)
+  ok(t('team1') === 'KSC' && t('score2') === '1', `facing the board again: as OpenVolley sends them (${t('team1')} ${t('score1')}:${t('score2')})`)
 
   console.log('  — set 1 ends 27-25; the bridge restarts in the break')
   push({ last_event_type: 'point', last_event_team: 'home', points_a: 27, points_b: 25 }); await sleep(150)
@@ -394,6 +398,20 @@ try {
   ok(r1.status === 200 && (await get('/api/status')).linkPin === 'refused', 'a wrong PIN on the running link: refused, and the link carries on')
   const logs = JSON.stringify(logStore.entries || [])
   ok(!logs.includes(PIN) && !logs.includes('wrong9q'), 'neither PIN is anywhere in the log')
+
+  console.log('  — hand scoring on the console: never mirrored')
+  const m = await post('/api/manual', { takeOver: true }); await sleep(200)
+  ok(m.status === 200 && (await get('/api/status')).mode === 'manual', `the console scores now (${m.status})`)
+  await post('/api/action', { action: { type: 'reset' } }); await sleep(150)
+  await post('/api/action', { action: { type: 'team', side: 'left', short: 'HOM' } })
+  await post('/api/action', { action: { type: 'team', side: 'right', short: 'GST' } })
+  await post('/api/action', { action: { type: 'point', side: 'left', delta: 1 } }); await sleep(250)
+  const panel = () => `${t('team1')} ${t('score1')}:${t('score2')} ${t('team2')}`
+  for (const o of ['behind', 'front', 'behind']) {
+    await post('/api/settings', { orientation: o }); await sleep(250)
+    await post('/api/action', { action: { type: 'point', side: 'left', delta: 1 } }); await sleep(250)
+    ok(t('team1') === 'HOM' && t('team2') === 'GST' && Number(t('score1')) > 0 && t('score2') === '0', `${o}: the left team stays on the panel's left (${panel()})`)
+  }
 } finally {
   await app.close(); await mock.close(); fs.rmSync(stateDir, { recursive: true, force: true })
   for (const ws of wss.clients) ws.terminate()

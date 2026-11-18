@@ -101,9 +101,10 @@ The C0270 followed its first real match through the cloud (`relayAddress` =
 through). What that showed, and what the board does about it now (README, "What a linked match
 shows"):
 
-- The board faced the scorer across the court: the panel's sides were the wrong way round.
-  Settings ▸ Scorer sits behind the board off (`orientation: 'front'`) now mirrors a linked match,
-  live.
+- The scorer sat behind the board and the panel's sides were the wrong way round: OpenVolley's
+  sides are the scorer's. Settings ▸ Scorer sits behind the board (`orientation: 'behind'`, the
+  default) now mirrors a linked match, live; off (`'front'`, the scorer faces the board) passes the
+  sides through.
 - A viewer without the match PIN gets no substitutions from the cloud (`LIVE_STATE_PRIVATE_COLUMNS`):
   the board counts them from the public events, takes the PIN when offered, and prefers OpenVolley's
   public `subs_count_a/_b` (openvolley#241) once a release sends them.

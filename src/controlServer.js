@@ -699,7 +699,10 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   // match number.
   const linkedSource = (relayUrl, matchId, { pin = null } = {}) => new LanSource({
     relayUrl, matchId, reconnectMs, pin,
-    mirror: () => opt('orientation') === 'front',
+    // OpenVolley's sides are the scorer's own (their left on the tablet is team A's side when
+    // side_a is 'left'). Behind the board — the default — the scorer's left is the panel's right,
+    // so the panel turns them round; facing the board, they are the panel's as they come.
+    mirror: () => (opt('orientation') || 'behind') !== 'front',
     gameNumber: listedGames.get(matchId) || null,
   })
   // How long a break that was already running when the link began still has to go, from the
