@@ -50,9 +50,9 @@ export const SMALL_TEXT_LUMA = 0.2
 // What a dark team's text and digits become. Light grey rather than white, so a dark team and a
 // white team still differ a little, and the white labels stay the brightest thing on the panel.
 export const DARK_INK = '220,220,220'
-// A dark team's border and serve bar keep the hue, scaled until the brightest channel is this:
-// #111827 becomes 70,98,160, which drives 1/2/5 at brightness 40 instead of nothing.
-export const EDGE_LIFT = 160
+// A dark team's border and serve bar: the same light grey as its digits (DARK_INK). Owner
+// 18.11.2026: a black shirt is shown white, box included — keeping the hue lifted #111827 (the
+// console's black preset) to a navy 70,98,160 that read as blue on the glass.
 // The mappers' own "off" for a border or a serve bar (box() in the warm-up, the simple
 // scoreboard's invisible boxes, SERVE_OFF). These are meant to be dark and are never lifted. They
 // are recognised by value, so no TEAM colour may ever arrive as one of them: every team colour
@@ -166,18 +166,13 @@ export function textColor(value, px, { brightness, pwmBits = PANEL_PWM_BITS } = 
   return '255,255,255'
 }
 
-// A team colour used as a BORDER or serve bar: the same hue, scaled up only when dark.
+// A team colour used as a BORDER or serve bar: its exact colour when it lights, the same light grey
+// as a dark team's digits (DARK_INK) when it is dark — a black team is white on the glass.
 export function edgeColor(value, { brightness, pwmBits = PANEL_PWM_BITS } = {}) {
   const rgb = parseRgb(value)
   if (!rgb || !(Number(brightness) > 0) || PANEL_OFF.has(fmt(rgb))) return value
   if (!isDark(rgb, brightness, pwmBits)) return value
-  const top = Math.max(...rgb)
-  if (top === 0) return value
-  const scaled = rgb.map((v) => Math.round((v * EDGE_LIFT) / top))
-  // EDGE_LIFT clears the floor at every brightness; this is only a guard should it ever not.
-  let c = scaled
-  for (let t = 0.05; isDark(c, brightness, pwmBits) && t <= 1.0001; t += 0.05) c = towardsWhite(scaled, t)
-  return fmt(c)
+  return DARK_INK
 }
 
 // The text size a section is drawn at on `layout`, absent a fontsize in the same write.
