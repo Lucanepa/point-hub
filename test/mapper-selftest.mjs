@@ -57,7 +57,7 @@ panel(mock)
 assert(mock.text('team1') === 'VZH' && mock.text('team2') === 'GEN', 'team short names on correct sides')
 assert(mock.text('score1') === '0' && mock.text('score2') === '0', 'scores 0-0')
 assert(mock.screen.serve1.color === '239,68,68', 'serve1 lit red (Volero serving)')
-assert(mock.screen.serve2.color === '30,30,30', 'serve2 off')
+assert(mock.screen.serve2.color === '0,0,0', 'serve2 off')
 assert(mock.text('sub1') === '0' && mock.text('sub2') === '0', 'substitutions 0-0')
 
 console.log('\n[3] Volero -> 3-1, Genève wins the serve')

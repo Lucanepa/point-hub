@@ -606,8 +606,6 @@
   "Show full club names": "Volle Vereinsnamen zeigen",
   "Largest name size": "Grösste Namensgrösse",
   "The pre-match screen beside the crest. Long names are shrunk automatically to fit the panel, so this size is the ceiling — what a short name like KSCW gets. Turn the switch off to show short codes instead.": "Der Bildschirm vor dem Spiel neben dem Wappen. Lange Namen werden automatisch verkleinert, damit sie auf die Anzeige passen; diese Grösse ist also die Obergrenze — so gross wird ein kurzer Name wie KSCW. Schalte den Schalter aus, um stattdessen Kurzcodes zu zeigen.",
-  "Show the connect QR codes when nobody is on the controller": "QR-Codes zum Verbinden zeigen, wenn niemand an der Steuerung ist",
-  "\"Join WiFi\" and \"Open UI\" beside the crest, for the next person to get connected. The Wi-Fi one hands the board's Wi-Fi password to anyone in the hall. Off: the crest and the clock instead. The codes still show while the board starts up.": "«Join WiFi» und «Open UI» neben dem Wappen, damit sich die nächste Person verbinden kann. Der Wi-Fi-Code gibt allen in der Halle das Wi-Fi-Passwort der Tafel. Aus: stattdessen Wappen und Uhr. Beim Start der Tafel erscheinen die Codes trotzdem.",
   "Board identity": "Tafel",
   "Crest / branding": "Wappen / Branding",
   "KSC Wiedikon": "KSC Wiedikon",

@@ -260,7 +260,7 @@ export function toBreakHistorySections(state) {
 // will accept a media upload; until then this replaces the bare "HOME 0 AWAY 0" idle look.
 // Indoor layout ONLY: it writes sub/set/serve sections the beach and basketball layouts do not
 // have, so those sports carry their own (toBeachIdleSections, toBasketballIdleSections).
-export function toIdleSections(state, { off = '30,30,30' } = {}) {
+export function toIdleSections(state, { off = '0,0,0' } = {}) {
   const v = state ? toLeftRight(state) : null
   const left = v?.leftName || 'HOME'
   const right = v?.rightName || 'AWAY'
@@ -516,7 +516,7 @@ export function toSelfTestSections(lit = null, modules = TEST_MODULES) {
 // same 86px column. The vendor layout on the C0270 has no free text section, and a section it does
 // not have aborts the whole paint (error 6), so the name row is where it goes: the scores, sets and
 // counters never move. ledboxClient alternates name and word (see its callout ticker).
-export function toSections(state, { off = '30,30,30', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX, matchFontMaxLeft = 18, matchFontMaxRight = 18, callout = null } = {}) {
+export function toSections(state, { off = '0,0,0', totalTimeouts = TIMEOUT_MAX, totalSubs = SUB_MAX, matchFontMaxLeft = 18, matchFontMaxRight = 18, callout = null } = {}) {
   const v = toLeftRight(state)
   // Timeouts: red at the total, no amber (there are only a couple). Subs: amber one short,
   // red at the total.
