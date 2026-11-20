@@ -1,5 +1,11 @@
 # Crest + QR idle screen (board firmware layouts)
 
+> **QR codes removed (owner 17.11 / 20.11.2026).** The scorer has the tablet, so the "Join WiFi" /
+> "Open UI" codes are gone everywhere: the bridge shows `kscw_clock` (#60), and `waiting.xml` and
+> `32_kscw_crest.xml` here are the crest alone. The "Join WiFi" code was the AP passphrase on the
+> panel. On the C0270 the files were replaced on 20.11 and `media/wifi_qr.png` / `ui_qr.png` moved to
+> `media/.removed-qr-20261120/`. The rest of this page describes the old QR design.
+
 The board's idle/resting screen: the KSC Wiedikon crest, flanked by a **"Join WiFi"** QR
 (left) and an **"Open UI"** QR (right). These live on the **board firmware**, not the bridge.
 
