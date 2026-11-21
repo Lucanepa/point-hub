@@ -4,7 +4,7 @@
 //
 // No network: a stub `fetch` records every request; RelaySubscriber is fed frames directly.
 
-import { createLivePush, toRow } from '../src/livePush.js'
+import { createLivePush, toRow, toTeamRow } from '../src/livePush.js'
 import { ManualSource } from '../src/manualSource.js'
 import { SourceManager } from '../src/sourceManager.js'
 import { LanSource } from '../src/lanSource.js'
@@ -141,11 +141,17 @@ console.log('\nretry after a failed publish')
 console.log('\nOpenVolley liveState (team A on the right)')
 {
   const ov = { team_a_short: 'KSCW', team_b_short: 'VZH', side_a: 'right', serving_team: 'left', current_set: 2, sets_won_a: 1, points_a: 3, points_b: 5 }
-  const row = toRow(ov, null, 'volleyball')
+  // toTeamRow keeps the state's team A on A (the base the fixture row is turned from), so the
+  // serve is re-projected onto the teams.
+  const row = toTeamRow(ov, null, 'volleyball')
   assert(row.side_a === 'left', 'the row stays A-left')
   assert(row.serving_team === 'right', 'serve on the LEFT side with A on the right is team B → "right"')
-  assert(toRow({ ...ov, serving_team: 'right' }).serving_team === 'left', 'and the other way round')
-  assert(toRow({ ...ov, side_a: 'left' }).serving_team === 'left', 'A on the left passes through unchanged')
+  assert(toTeamRow({ ...ov, serving_team: 'right' }).serving_team === 'left', 'and the other way round')
+  assert(toTeamRow({ ...ov, side_a: 'left' }).serving_team === 'left', 'A on the left passes through unchanged')
+  // The board row (toRow) is the scorer's view (livePush.js header): facing the board, A on the
+  // right means team B is the row's A — and the left side's serve is the row's left.
+  const board = toRow(ov, null, 'volleyball')
+  assert(board.team_a_short === 'VZH' && board.points_a === 5 && board.serving_team === 'left', 'the board row has the scorer\'s left team (B) on A, serving left')
   assert(row.period === 2, `period follows current_set when set_results is absent (got ${row.period})`)
   const vb = new ManualSource()
   vb.apply({ type: 'serve', side: 'right' })

@@ -86,7 +86,14 @@ Leave either blank and the publisher is a **no-op** — the board behaves exactl
 it does without it.
 
 **Two rows when the game is known.** Every match goes to the board's own row, team A =
-the LEFT side, exactly as before. When the board knows *which game* it is showing — started
+the team on the LEFT **as the scorer sees the court** (kscw.ch/live draws A on the left).
+With *Settings ▸ Scorer sits behind the board* on (orientation `behind`, the default) the panel
+faces the court and its left is the scorer's right, so the row is the panel turned round; facing
+the board (`front`) it is the panel's sides as they are. The same rule for a linked OpenVolley
+match, whose sides are the scorer's tablet. Once the match is **final** the row is the result:
+the **home** team on A (sets, set scores and points with it) whenever the board knows who is
+home (the schedule game, or a linked match's own home team), else the scorer's view stays.
+Switching the setting republishes at once. When the board knows *which game* it is showing — started
 from the schedule (the console's tap or the automatic pre-match), or a linked OpenVolley
 match whose match number (`game_n`) is in the season copy — it also writes wiedisync's
 per-game row `game-<games.id>`, the row the game modal's *Watch live* and the result
@@ -94,8 +101,8 @@ entry's prefill read (`src/liveFixture.js`):
 
 | | board row (`LIVE_CHANNEL`) | game row (`game-<id>`) |
 |---|---|---|
-| team A | whoever stands on the left (swaps at every change of ends) | the schedule's **home** team, all match |
-| `set_results` | by side, swapped with the ends | by team, home first |
+| team A | whoever stands on the scorer's left (swaps at every change of ends); home once final | the schedule's **home** team, all match |
+| `set_results` | by side, swapped with the ends; home first once final | by team, home first |
 | written | every change | from the first point (not the 0-0 pre-match), when the names on the board tell home from away |
 | extra columns | — | `game_id`, `source: 'board:<channel>'` |
 

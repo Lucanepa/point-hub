@@ -1409,6 +1409,9 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       if (updated.orientation !== before.orientation && sourceManager.status.mode === 'lan' && sourceManager.active && typeof sourceManager.active.refresh === 'function') {
         sourceManager.active.refresh()
       }
+      // …and so does the live page (livePush.js: its board row is the scorer's view), for the board's
+      // own sources too, whose state does not change with it.
+      if (updated.orientation !== before.orientation && typeof server.onOrientationChange === 'function') server.onOrientationChange()
       if (updated.screenApp !== before.screenApp) screenNow = null
       if (typeof server.onScreenAppChange === 'function') server.onScreenAppChange(updated.screenApp !== before.screenApp)
       return sendJson(res, 200, { ...panelFontView(updated), scorerPin: '', ...pinSettingsView(req) })

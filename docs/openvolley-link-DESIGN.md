@@ -115,6 +115,12 @@ shows"):
 - livePush timed out about once per 20 minutes on the school Wi-Fi: 8 s budget, the first failure
   of a round is info, the retry carries the latest state.
 - The board did not know the match's game number: it now comes from the match summary.
+- (20.11.2026, a hand-scored game) the panel was right and kscw.ch/live showed the teams mirrored.
+  livePush's board row is now the court as the SCORER sees it, for every source: the state's
+  `side_a` / `serving_team` are panel sides (a linked state arrives after the panel mirror), so
+  behind the board they are turned back — for a linked match that is OpenVolley's own sides, so the
+  tablet, a console game and /live agree. Once final, home is on A (the fixture, else the view's
+  `home_ab`). See the livePush.js header.
 
 ## Phases
 

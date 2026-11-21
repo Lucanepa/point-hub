@@ -5,7 +5,7 @@
 //   SourceManager state + the countdown --toOverlay--> one flat object --> /api/overlay.json
 //                                                                     \--> /api/overlay/stream --> /overlay
 //
-// Built on livePush's toRow, the row the club's public /live page already shows — so the overlay
+// Built on livePush's toTeamRow, the fields the club's public /live page already shows — so the overlay
 // can never carry more than that page does: team names, colours and the score. No player, no
 // referee, no roster, no serving player's number, nothing from the match log. On top of the row it
 // adds only the countdown the hall can already read off the panel (a timeout, the set interval, the
@@ -16,11 +16,13 @@
 // one ready-made string. EVERY key is present in every answer, blank when it does not apply, so a
 // title bound to a column never shows a missing-field error between matches.
 //
-// Teams are A and B as the row has them. On the board's own sources team A is whoever is on the
+// Teams are A and B as the state has them. On the board's own sources team A is whoever is on the
 // LEFT of the panel (a change of ends swaps them, as on the panel); a linked OpenVolley match keeps
-// A fixed. Either way the overlay agrees with /live.
+// A fixed. Deliberately NOT /live's board row (toRow), which is turned to the scorer's view and
+// to home-left at the final: a title bound to team_a must not change team under a broadcast when
+// someone flips Settings ▸ Scorer sits behind the board.
 
-import { toRow } from './livePush.js'
+import { toTeamRow } from './livePush.js'
 
 const HEX = /^#[0-9a-fA-F]{6}$/
 // The board's own neutral colours (lanSource WAITING), for a team with none or a malformed one.
@@ -58,7 +60,7 @@ function periodLabel(sport, status, period) {
 
 // `countdown` = { label, team, remainingMs } while one runs on the panel (controlServer's), else null.
 export function toOverlay(state, { sport = 'volleyball', countdown = null } = {}) {
-  const row = state ? toRow(state, null, sport) : null
+  const row = state ? toTeamRow(state, null, sport) : null
   const out = {
     v: 1,
     sport: String(sport),
