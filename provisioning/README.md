@@ -322,11 +322,17 @@ probed with ONVIF, RTSP and Log4Shell JNDI payloads — from the router itself, 
 consumer security suite auto-scanning a new device, but it makes the point.
 
 ```bash
-sudo ./install-firewall.sh              # applies, with a 240s auto-rollback armed
+sudo ./install-firewall.sh --check      # read-only: committed vs staged, unit, timer, rules, tailscale
+sudo ./install-firewall.sh              # applies (staged), with a 240s auto-rollback armed
 # ... verify from another machine ...
-sudo ./install-firewall.sh --commit     # disarms the rollback AND enables the boot unit
+sudo ./install-firewall.sh --commit     # disarms the rollback, installs the staged script, enables the unit
 sudo ./install-firewall.sh --rollback-now   # or undo immediately
 ```
+
+Every step is written to `/var/tmp/ledbox-fw-install.log` (and the journal, tag `ledbox-fw`) and
+synced to the card as it happens, so a board that resets or hangs mid-install still says how far it
+got. `test/firewall-install-netns.sh` runs the whole cycle against the real iptables in a network
+namespace, with tailscale's chains, a DERP connection and SSH sessions kept alive throughout.
 
 Run it **from this checkout** — it installs `ledbox-firewall.sh` from its own directory. Override
 with `SRC=`. (It used to install from a hardcoded `/tmp/ledbox-firewall.sh` that nothing in this
@@ -341,9 +347,21 @@ If the new rules cut your own access, the board recovers by itself. The rollback
   It replaced a `setsid nohup … sleep 240`, which a **reboot destroyed while the ruleset lived
   on** — so rebooting inside the grace window was an unrecoverable lockout, the exact outcome the
   rollback exists to prevent.
-- **reboot leg** — the unit is installed *disabled*, and `--commit` is what enables it. An
-  uncommitted ruleset simply does not come back after a reboot, and the kernel's INPUT policy
-  resets to ACCEPT on boot, so the board reboots into a reachable state.
+- **reboot leg** — the new ruleset is only *staged* (`ledbox-lan-guard.sh.new`) and run from there;
+  the committed `/usr/local/sbin/ledbox-lan-guard.sh` and the unit's enabled state stay exactly as
+  they were until `--commit`. A reboot inside the grace window therefore comes back with what was
+  committed before (reachable, since that is what you logged in through), or with no firewall on a
+  first install. Until 21.11.2026 the apply overwrote the committed script and *disabled* the unit
+  at once: a reboot inside the window came up with no firewall at all, and a rollback that fired
+  left the board unfirewalled from its next boot on.
+
+The apply ignores `SIGHUP`/`SIGPIPE` (a dropped SSH session cannot kill the rebuild half way, which
+would leave `LEDBOX-IN` flushed under `-P INPUT DROP` — no ESTABLISHED accept, so tailscale's DERP
+replies are dropped and the tailnet goes), bounds every call into systemd, skips `daemon-reload`
+when the unit file is unchanged, and checks the live rules afterwards (the hook, ESTABLISHED,
+`tailscale0`, `udp/41641`, the AP console, SSH on the cable, tailscale's own hooks): a miss rolls
+back at once instead of after 240 s. A restore that fails forces `-P INPUT ACCEPT` rather than
+leaving DROP over a half state.
 
 `--commit` fails loudly if it cannot enable the unit, rather than printing "committed" over a
 board that would revert at the next boot.
@@ -352,9 +370,7 @@ The restore is a **function**, not a re-exec of `$0`. Run as `bash install-firew
 natural fallback when the checkout arrived without the exec bit — `$0` is a bare filename with no
 path, so the apply path's emergency rollback died with `command not found` immediately after
 printing "rolling back now". The operator read that as "the board was restored" and nothing had
-been. The boot unit is also disabled only *after* the rollback is armed: the arming can fail, and
-that path touches netfilter not at all, but it used to leave an already-committed board's unit
-disabled — so the next reboot came up unfirewalled with nothing anywhere saying so.
+been. The apply no longer touches the boot unit's enabled state at all (see the reboot leg).
 
 ### Choices that matter
 
