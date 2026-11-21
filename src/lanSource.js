@@ -22,6 +22,10 @@
 //                                            takeNewSubs): [{ side, name, color, playerOut, playerIn }],
 //                                            side = the panel half of that team, numbers null when
 //                                            the state has none. Never for a match that is over.
+//   'code'           ({ ok, matchId?, endsAt?, reason?, retryAfter?, final? })  following by a scoreboard
+//                                            code (relaySubscriber.js): the relay's answer; `final` means
+//                                            the code is over for this board (ended, not found, an older
+//                                            relay) and the subscriber has stopped
 // Edges only, each once: a repeated frame, the relay's replay after a reconnect, or a state older
 // than the newest (RelaySubscriber drops those) never starts a break a second time. A match that
 // is over emits no break edge at all — 'match-ended' takes the panel, and ends any countdown.
@@ -134,10 +138,15 @@ export class LanSource extends EventEmitter {
   // mirror: boolean or () => boolean, asked per state (see the header). pin: the match PIN to offer
   // the relay (relaySubscriber.js), or null. gameNumber: the match number the Link tab listed it
   // under, for a live state that carries none.
-  constructor({ relayUrl, matchId, reconnectMs, mirror = false, pin = null, gameNumber = null } = {}) {
+  // code / codeConfirmed / codeOptions: follow by a scoreboard code (relaySubscriber.js); matchId is
+  // then what an HTTP lookup said, or null, and becomes the room the relay names.
+  constructor({ relayUrl, matchId, reconnectMs, mirror = false, pin = null, gameNumber = null, code = null, codeConfirmed = false, codeOptions = {} } = {}) {
     super()
     this.relayUrl = relayUrl
     this.matchId = matchId != null ? String(matchId) : null
+    this._code = code
+    this._codeConfirmed = codeConfirmed
+    this._codeOptions = codeOptions
     this.reconnectMs = reconnectMs
     this.sub = null
     this._mirror = typeof mirror === 'function' ? mirror : () => !!mirror
@@ -166,6 +175,12 @@ export class LanSource extends EventEmitter {
   // The match PIN: what became of it ('none' | 'offered' | 'accepted' | 'refused'), and offering
   // one (or none) on the running link.
   get pinState() { return this.sub ? this.sub.pinState : (this._pin ? 'offered' : 'none') }
+  // Following by a scoreboard code: whether, and what became of it (relaySubscriber.js codeState).
+  get byCode() { return !!this._code }
+  get codeState() { return this.sub ? this.sub.codeState : (this._code ? 'looking' : null) }
+  get codeRef() { return this.sub ? this.sub.codeRef : null }
+  get codeEndsAt() { return this.sub ? this.sub.codeEndsAt : null }
+  get codeRetryAt() { return this.sub ? this.sub.codeRetryAt : null }
   setPin(pin) {
     this._pin = pin
     return this.sub ? this.sub.setPin(pin) : this.pinState
@@ -191,7 +206,14 @@ export class LanSource extends EventEmitter {
   }
 
   start() {
-    this.sub = new RelaySubscriber({ url: this.relayUrl, matchId: this.matchId, reconnectMs: this.reconnectMs, pin: this._pin })
+    this.sub = new RelaySubscriber({
+      url: this.relayUrl, matchId: this.matchId, reconnectMs: this.reconnectMs, pin: this._pin,
+      ...(this._code ? { code: this._code, codeConfirmed: this._codeConfirmed, ...this._codeOptions } : {}),
+    })
+    this.sub.on('code', (info) => {
+      if (info && info.ok) this.matchId = info.matchId
+      this.emit('code', info)
+    })
     this.sub.on('summary', (data) => {
       this._view.takeSummary(data)
       this.refresh({ onlyIfChanged: true })

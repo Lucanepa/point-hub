@@ -55,6 +55,7 @@ export class SourceManager extends EventEmitter {
       throw err // the caller (POST /api/link) still owes the operator a failure, not a silent no-op
     }
 
+    this.emit('source', source, this.status)
     // Some sources (manual) expose a current state synchronously — surface it now.
     if (typeof source.getState === 'function') {
       const s = source.getState()
@@ -72,6 +73,14 @@ export class SourceManager extends EventEmitter {
     this._onError = null
     this._last = null
     this._meta = { mode: 'idle', matchId: null }
+    this.emit('source', null, this.status)
+  }
+
+  // The match the active source follows, once it is known: a link by scoreboard code learns its room
+  // from the relay's answer.
+  setMatchId(source, matchId) {
+    if (this.active !== source || matchId == null) return
+    this._meta = { ...this._meta, matchId: String(matchId) }
   }
 
   get status() {

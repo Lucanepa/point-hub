@@ -413,6 +413,21 @@
      Offizielle. The scorer reads it off the tablet and types it into the eScoresheet. */
   .matchinfobtn{margin-top:14px}
   .ovcard{margin-top:14px}
+  /* Follow by scoreboard code: the code field, where the scorer scores, and what became of it. */
+  .codecard{margin:14px 0}
+  .codeform{display:flex;flex-direction:column;gap:8px}
+  .codelbl{font-size:13px;font-weight:700}
+  .coderow{display:flex;gap:10px}
+  #codeInput{flex:1;min-width:0;min-height:var(--tap);padding:8px 12px;font-size:22px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-family:var(--mono);border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);color:inherit}
+  #codeInput::placeholder{color:var(--muted);font-weight:600}
+  #codeLinkBtn{min-height:var(--tap);padding:11px 18px;font-size:14px;font-weight:800;border:1.5px solid var(--blue);background:var(--blue);color:var(--on-accent);border-radius:var(--r);cursor:pointer}
+  #codeLinkBtn:disabled{opacity:.6;cursor:default}
+  .coderelay{display:flex;flex-wrap:wrap;gap:8px}
+  .coderelay label{display:flex;align-items:center;gap:6px;min-height:40px;padding:6px 12px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--card);font-size:14px;font-weight:700;cursor:pointer}
+  .coderelay label[hidden]{display:none}
+  .coderelay label:has(input:checked){border-color:var(--blue);color:var(--blue)}
+  .codestat{margin:8px 0 0;font-size:14px;font-weight:800;color:var(--muted)}
+  .codestat[data-tone="ok"]{color:var(--ok)} .codestat[data-tone="warn"]{color:var(--warn)} .codestat[data-tone="bad"]{color:var(--bad)}
   .ovstat{display:flex;align-items:center;gap:9px;padding:0 2px 8px;font-size:15px;font-weight:800;line-height:1.25}
   .ovdot{flex:0 0 auto;width:12px;height:12px;border-radius:50%;background:var(--muted)}
   .ovstat[data-state="ok"]{color:var(--ok)} .ovstat[data-state="ok"] .ovdot{background:var(--ok)}
@@ -1456,6 +1471,30 @@
           <dd>Options ▸ Server ▸ Change server ▸ Local ▸ <b id="ovHost">172.24.1.1</b></dd>
         </dl>
         <p class="note">Join the board's Wi-Fi first; no internet needed. If the phone asks whether to stay on a Wi-Fi without internet, answer Yes. The board shows the match by itself once it is live.</p>
+      </div>
+      <!-- Follow by scoreboard code: the scorer's Match ▸ Show on a scoreboard gives a short read-only
+           code; with it the board follows the match on the relay the scorer uses, from any network (the
+           cloud needs only the board's own internet, not the tablet's). The code as typed or the board
+           link from the scorer's QR code; behind the scorer PIN like every link. Never kept on this
+           tablet: the board keeps it while it follows, and only the board. -->
+      <div id="codeCard" class="codecard">
+        <div class="linkhead">
+          <h2 class="linkh">Follow by scoreboard code</h2>
+        </div>
+        <form id="codeForm" class="codeform" autocomplete="off" novalidate>
+          <label class="codelbl" for="codeInput">The code from OpenVolley: Match ▸ Show on a scoreboard</label>
+          <div class="coderow">
+            <input id="codeInput" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="300" placeholder="ABCD-2345" aria-describedby="codeStat">
+            <button id="codeLinkBtn" type="submit">Link</button>
+          </div>
+          <div class="coderelay" role="radiogroup" aria-label="Where the scorer scores">
+            <label data-relay="cloud"><input type="radio" name="codeRelay" value="cloud" checked> <span>OpenVolley cloud</span></label>
+            <label data-relay="board"><input type="radio" name="codeRelay" value="board"> <span>OpenVolley on this board</span></label>
+            <label data-relay="laptop"><input type="radio" name="codeRelay" value="laptop"> <span>Scorer laptop</span></label>
+          </div>
+        </form>
+        <p class="codestat" id="codeStat" role="status" aria-live="polite" hidden></p>
+        <p class="note">Works from any network: the scorer's tablet does not have to be on the board's Wi-Fi. The board gets the public score only. The board link from the scorer's QR code can be pasted too.</p>
       </div>
       <div class="linkhead">
         <h2 class="linkh">OpenVolley eScoresheet: live matches</h2>
@@ -2875,6 +2914,7 @@
     renderSetStrip(st.state);
     markLinked();
     renderLinkPin(st);
+    renderFollowCode(st);
     maybePromptServeOrder(st.state);
     syncSetEndPrompt(st.state);
     maybeAskEndMatch(st.state);
@@ -4529,7 +4569,8 @@
     const linked = !!st && st.mode === "lan";
     const btn = $("#linkPinBtn"), note = $("#linkPinNote");
     if (!btn || !note) return;
-    btn.hidden = !linked;
+    // A board following by scoreboard code gets the public state only: no PIN to send.
+    btn.hidden = !linked || !!(st.followCode && st.followCode.linked);
     const said = {
       offered: "PIN sent, waiting for OpenVolley.",
       accepted: "PIN accepted: the board gets the full live state, substitutions included.",
@@ -4537,6 +4578,80 @@
     }[linked ? st.linkPin : ""];
     note.textContent = said || "The game PIN from OpenVolley. Over the internet the board then gets the substitutions too; without it, the board counts them itself.";
   }
+
+  // --- follow by scoreboard code -------------------------------------------
+  // POST /api/link { source: 'code', code, relay }; /api/status followCode says how it goes. The field
+  // takes the code in any case, with spaces or dashes, or the scorer's board link (…/board#ABCD2345):
+  // the board finds the code in either, and the field shows it as the scorer's screen does, ABCD-2345.
+  const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const codeOnly = (v) => {
+    const s = String(v || "").toUpperCase().replace(/[\s-]/g, "");
+    return s.length === 8 && [...s].every((c) => CODE_ALPHABET.includes(c)) ? s : null;
+  };
+  // The code in a pasted board link (#CODE or ?code=CODE), else null.
+  function codeFromLink(v) {
+    const raw = String(v || "").trim();
+    if (!/[#?/]/.test(raw)) return null;
+    const hash = raw.includes("#") ? raw.slice(raw.indexOf("#") + 1).replace(/^code=/i, "") : "";
+    const q = (raw.match(/[?&]code=([^&#]+)/i) || [])[1] || "";
+    try { return codeOnly(decodeURIComponent(hash)) || codeOnly(decodeURIComponent(q)); } catch { return null; }
+  }
+  function formatCodeField() {
+    const el = $("#codeInput");
+    const v = el.value;
+    const linked = codeFromLink(v);
+    if (linked) { el.value = linked.slice(0, 4) + "-" + linked.slice(4); return; }
+    if (/[#?/:.]/.test(v)) return; // a link still being pasted or typed: left as it is
+    const s = v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    const out = s.length > 4 ? s.slice(0, 4) + "-" + s.slice(4) : s;
+    if (out !== v) el.value = out;
+  }
+  async function linkByCode(e) {
+    if (e) e.preventDefault();
+    const raw = $("#codeInput").value.trim();
+    const code = codeOnly(raw) || codeFromLink(raw);
+    if (!code) { toast("That is not a scoreboard code: 8 letters and digits, like ABCD-2345"); $("#codeInput").focus(); return; }
+    const relay = ($("input[name=codeRelay]:checked") || {}).value || "cloud";
+    const btn = $("#codeLinkBtn");
+    btn.disabled = true;
+    try {
+      await postJSON("/api/link", { source: "code", code, relay });
+      toast("Following the match by its scoreboard code");
+    } catch (err) { toast(err.message); }
+    finally { btn.disabled = false; refreshStatus(); }
+  }
+  const hhmm = (ms) => { const d = new Date(ms); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+  const secsTo = (ms) => Math.max(1, Math.ceil((ms - Date.now()) / 1000));
+  function renderFollowCode(st) {
+    const fc = st && st.followCode;
+    const card = $("#codeCard");
+    if (!card) return;
+    card.hidden = !fc;
+    if (!fc) return;
+    const relays = Array.isArray(fc.relays) && fc.relays.length ? fc.relays : ["laptop"];
+    $$("#codeCard .coderelay label").forEach((l) => { l.hidden = !relays.includes(l.dataset.relay); });
+    const checked = $("input[name=codeRelay]:checked");
+    if (!checked || !relays.includes(checked.value)) {
+      const first = $("#codeCard input[name=codeRelay][value=" + relays[0] + "]");
+      if (first) first.checked = true;
+    }
+    const line = $("#codeStat");
+    let text = "", tone = "";
+    if (fc.linked) {
+      if (fc.state === "following") { text = fc.endsAt ? "Following the match by its code, until " + hhmm(fc.endsAt) : "Following the match by its code"; tone = "ok"; }
+      else if (fc.state === "lost") { text = fc.retryAt ? "The code is not found right now — trying again in " + secsTo(fc.retryAt) + " s" : "The code is not found right now — trying again"; tone = "warn"; }
+      else if (fc.state === "rate-limited") { text = fc.retryAt ? "Too many tries — trying again in " + secsTo(fc.retryAt) + " s" : "Too many tries — trying again later"; tone = "warn"; }
+      else { text = "Looking for the code…"; tone = "warn"; }
+    } else if (fc.state === "ended") { text = "The code has ended. Ask the scorer for the new one."; tone = "bad"; }
+    else if (fc.state === "not-found") { text = "Code not found. Check it, and where the scorer scores."; tone = "bad"; }
+    else if (fc.state === "rate-limited") { text = fc.retryAt ? "Too many tries — try again in " + secsTo(fc.retryAt) + " s" : "Too many tries — try again later"; tone = "bad"; }
+    else if (fc.state === "unsupported") { text = "This OpenVolley does not know scoreboard codes yet."; tone = "bad"; }
+    line.hidden = !text;
+    if (line.textContent !== text) line.textContent = text;
+    line.dataset.tone = tone;
+  }
+  $("#codeInput").addEventListener("input", formatCodeField);
+  $("#codeForm").addEventListener("submit", linkByCode);
 
   // --- diagnostics --------------------------------------------------------
   // The board's enclosure has no micro-HDMI cutout, so the Pi's HDMI ports cannot be reached

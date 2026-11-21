@@ -699,7 +699,30 @@
   "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.": "OpenVolley hät d PIN abglehnt. D Tafle folgt ohni si und zellt d Wächsel sälber.",
   "PIN sent to OpenVolley": "PIN a OpenVolley gschickt",
   "PIN taken back": "PIN zruggno",
-  "A linked OpenVolley match follows this too: with the box on, the panel shows OpenVolley's sides mirrored (the scorer's left is the panel's right); with it off (the scorer faces the board), as they come. It can be switched during the match.": "Es verchnüpfts OpenVolley-Spiel folgt däm au: Isch s Chäschtli aa, zeigt d Aazeig d Siite us OpenVolley gspieglet (links vom Schriiber isch uf de Aazeig rächts); isch es us (de Schriiber luegt zur Tafle), so wie si chömed. Das gaht au während em Spiel."
+  "A linked OpenVolley match follows this too: with the box on, the panel shows OpenVolley's sides mirrored (the scorer's left is the panel's right); with it off (the scorer faces the board), as they come. It can be switched during the match.": "Es verchnüpfts OpenVolley-Spiel folgt däm au: Isch s Chäschtli aa, zeigt d Aazeig d Siite us OpenVolley gspieglet (links vom Schriiber isch uf de Aazeig rächts); isch es us (de Schriiber luegt zur Tafle), so wie si chömed. Das gaht au während em Spiel.",
+  "Follow by scoreboard code": "Per Tafle-Code folge",
+  "The code from OpenVolley: Match ▸ Show on a scoreboard": "De Code us OpenVolley: Spiil ▸ Uf ere Aazeigetafle zeige",
+  "Where the scorer scores": "Wo de Schriiber schriibt",
+  "OpenVolley cloud": "OpenVolley-Cloud",
+  "OpenVolley on this board": "OpenVolley uf dere Tafle",
+  "Works from any network: the scorer's tablet does not have to be on the board's Wi-Fi. The board gets the public score only. The board link from the scorer's QR code can be pasted too.": "Gaht us jedem Netz: S Tablet vom Schriiber mues nöd im WLAN vo de Tafle sii. D Tafle überchunnt nur de öffentlich Spiilstand. De Tafle-Link us em QR-Code vom Schriiber chasch au iifüege.",
+  "That is not a scoreboard code: 8 letters and digits, like ABCD-2345": "Das isch kei Tafle-Code: 8 Buechstabe und Ziffere, z. B. ABCD-2345",
+  "Following the match by its scoreboard code": "D Tafle folgt em Spiil per Tafle-Code",
+  "Following the match by its code": "Folgt em Spiil per Code",
+  "The code is not found right now — trying again": "De Code isch grad nöd z finde — es wird nomal probiert",
+  "Too many tries — trying again later": "Z vill Versüech — spöter nomal",
+  "Looking for the code…": "De Code wird gsuecht…",
+  "The code has ended. Ask the scorer for the new one.": "De Code isch abglaufe. Frog de Schriiber nach em neue.",
+  "Code not found. Check it, and where the scorer scores.": "Code nöd gfunde. Prüef en und wo de Schriiber schriibt.",
+  "Too many tries — try again later": "Z vill Versüech — probier s spöter nomal",
+  "This OpenVolley does not know scoreboard codes yet.": "Das OpenVolley kennt no kei Tafle-Codes.",
+  "OpenVolley does not know this scoreboard code. Check it, and the relay: the code works on the relay the scorer uses": "OpenVolley kennt dä Tafle-Code nöd. Prüef en und de Server: De Code gilt uf em Server, wo de Schriiber bruucht",
+  "This scoreboard code has ended. Ask the scorer for the new one (Match ▸ Show on a scoreboard)": "Dä Tafle-Code isch abglaufe. Frog de Schriiber nach em neue (Spiil ▸ Uf ere Aazeigetafle zeige)",
+  "Too many tries with wrong codes from this board. Wait, then try again": "Z vill Versüech mit falsche Codes vo dere Tafle. Wart und probier s denn nomal",
+  "This OpenVolley does not know scoreboard codes yet": "Das OpenVolley kennt no kei Tafle-Codes",
+  "This board does not use OpenVolley's server — choose the scorer laptop or the board's own OpenVolley": "Die Tafle bruucht de OpenVolley-Server nöd — wähl de Schriiber-Laptop oder s OpenVolley vo de Tafle",
+  "This board does not run OpenVolley itself": "Uf dere Tafle lauft kei eiges OpenVolley",
+  "Following by scoreboard code: the board gets the public live state, no PIN needed": "Per Tafle-Code: D Tafle überchunnt de öffentlich Spiilstand, kei PIN nötig"
  },
  "patterns": [
   [
@@ -1565,6 +1588,22 @@
   [
    "^Couldn't stop following: (.+)$",
    "Folge het nöd chönne beendet werde: $1"
+  ],
+  [
+   "^Following the match by its code, until (\\d\\d:\\d\\d)$",
+   "Folgt em Spiil per Code, bis $1"
+  ],
+  [
+   "^The code is not found right now — trying again in (\\d+) s$",
+   "De Code isch grad nöd z finde — nomal i $1 s"
+  ],
+  [
+   "^Too many tries — trying again in (\\d+) s$",
+   "Z vill Versüech — nomal i $1 s"
+  ],
+  [
+   "^Too many tries — try again in (\\d+) s$",
+   "Z vill Versüech — probier s i $1 s nomal"
   ]
  ]
 }
