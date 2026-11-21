@@ -23,6 +23,8 @@
 // LanSource after every state): the substitutions made since the previous state, with the shirt
 // numbers where the state has them.
 //
+//   home_ab                 'a' | 'b': which of team A / B is the match's home team, once learned
+//                           (below). livePush puts home on the left of a finished match's row.
 //   game_n                  the match number, from the summary (match.game_n / gameN / gameNumber)
 //                           or the Link tab's list when the live state has none, so livePush can
 //                           find the game's own row (controlServer liveFixture).
@@ -290,6 +292,10 @@ export class LinkedView {
       const n = (this._summary && this._summary.gameNumber) || this._listedGame
       if (n) out.game_n = n
     }
+    // Which of A / B is OpenVolley's home team, once learned (see the header) — for livePush, which
+    // puts home on the left of a FINISHED match's row. Absent while unknown.
+    if (this._home) out.home_ab = this._home
+    else delete out.home_ab
     if (mirror) {
       out.side_a = other(s.side_a || 'left')
       if (s.serving_team === 'left' || s.serving_team === 'right') out.serving_team = other(s.serving_team)

@@ -13,8 +13,30 @@
 // liveFixture.js for the two rows and why the second one is turned around.
 //
 //   Manual/Beach/Basketball Source --state--> SourceManager --> livePush --PATCH--> Directus
-//                                                                  board row   <channel>   A = left
+//                                                                  board row   <channel>   A = the scorer's left
+//                                                                                          (A = home once final)
 //                                                                  fixture row game-<id>   A = home
+//
+// ── Which team is A on the board row ─────────────────────────────────────────
+// kscw.ch/live (public/js/live.js) draws A on the left, so the board row is the court as the
+// SCORER sees it — the crew at the table and the spectators around them — not as the panel shows it.
+// Every state livePush receives says where its team A stands ON THE PANEL (`side_a`; the board's own
+// sources always 'left', a linked match's view after the panel mirror — linkedView.js), and
+// `serving_team` is a panel side. Settings ▸ Scorer sits behind the board (orientation 'behind', the
+// default) means the panel faces the court and its left is the scorer's right, so:
+//
+//   orientation 'behind'   scorer's side = the OTHER panel side
+//   orientation 'front'    scorer's side = the panel side
+//
+// One rule for every source, because a linked state arrives already mirrored for the panel when
+// 'behind' (lanSource.js): turning it back gives OpenVolley's own side_a, which IS the scorer's — the
+// tablet and the live page then agree. Team A of the row is whichever team the scorer has on the
+// left; serve / possession, set_results and every team column follow (liveFixture.js toHomeAway).
+//
+// Once the match is FINAL the row is the result, not a picture of the court: home on the left
+// (A = home), whatever the ends or the orientation, when the board knows who is home — the fixture
+// (homeSide), else a linked match's own home team (linkedView.js `home_ab`). Unknown → the scorer's
+// view stays. The history row is that final row (home/away, with game_id when the fixture is known).
 //
 // Collection, permissions and token: wiedisync/src/modules/live/DIRECTUS-SETUP.md
 //
@@ -106,7 +128,8 @@ function isBlank(s) {
 
 /**
  * Map a source's getState() (+ the transient lastEvent) onto a flat `live_scores`
- * row for `sport`.
+ * row for `sport`, with team A = the STATE's team A and `serving_team` 'left' = team A serves.
+ * The board row turns this round for the scorer (toRow); the fixture row for home (toHomeAway).
  *
  * ⚠ The three sources share ONE a/b liveState shape and reuse fields differently —
  * BasketballSource carries **team fouls in `subs_a`/`subs_b`** and always reports
@@ -119,7 +142,7 @@ function isBlank(s) {
  * show "Final" for one push and then fall back to "live" while the board still
  * sits on a finished match.
  */
-export function toRow(state, event, sport = DEFAULTS.sport) {
+export function toTeamRow(state, event, sport = DEFAULTS.sport) {
   const isBasketball = sport === 'basketball'
   // Filtered, not just type-checked: a relay-supplied liveState can carry a null in here, and the
   // map() at the bottom used to throw on it — one level up that throw wedged publishing for the
@@ -129,9 +152,9 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
   const over = isOver(state, sport)
   // The board's own sources always report team A on the left, but a LINKED OpenVolley liveState
   // keeps A as a fixed team and says where it stands in `side_a` ('right' in sets 2 and 4), with
-  // `serving_team` as the PHYSICAL side. The row below is always A-left (the app reads 'left' as
-  // team A), so serve/possession has to be re-projected onto A/B or the dot sits on the wrong team
-  // for every rally of an even set.
+  // `serving_team` as the PHYSICAL side. The row below reads 'left' as its team A, so serve /
+  // possession has to be re-projected onto A/B or the dot sits on the wrong team for every rally of
+  // an even set.
   const aOnRight = state.side_a === 'right'
   const status = over || event === 'match-end' ? 'final' : isBlank(state) ? 'idle' : 'live'
 
@@ -177,6 +200,30 @@ export function toRow(state, event, sport = DEFAULTS.sport) {
     // when every set has one, so a guessed value here would be worse than none.
     set_results: setResults.map((r) => ({ a: num(r.a), b: num(r.b), ...durField(setDur(r)) })),
   }
+}
+
+// Which of the state's two teams the SCORER has on their left: 'a' or 'b'. See the header: the
+// state's side_a is a panel side, and behind the board the scorer's left is the panel's right.
+export function scorerLeft(state, { behind = false } = {}) {
+  const panelA = state && state.side_a === 'right' ? 'right' : 'left'
+  return (behind ? otherSide(panelA) : panelA) === 'left' ? 'a' : 'b'
+}
+
+// A linked match's home team as linkedView.js learned it ('a' | 'b'), else null.
+const stateHome = (state) => (state && (state.home_ab === 'a' || state.home_ab === 'b') ? state.home_ab : null)
+
+/**
+ * The board row: toTeamRow() with team A = the team on the scorer's left (`behind` = Settings ▸
+ * Scorer sits behind the board), or = `home` ('a' | 'b', which of the state's teams is home) once
+ * the row is final. `home` null → a linked state's own `home_ab`, else the scorer's view stays.
+ * Team columns, serve, set results (each keeping its `dur`) all follow; side_a stays 'left' (A).
+ */
+export function toRow(state, event, sport = DEFAULTS.sport, { behind = false, home = null } = {}) {
+  const row = toTeamRow(state, event, sport)
+  const homeIs = home === 'a' || home === 'b' ? home : stateHome(state)
+  const first = row.status === 'final' && homeIs ? homeIs : scorerLeft(state, { behind })
+  // toHomeAway(row, x) puts the state's team x on A — home there, whichever team belongs left here.
+  return toHomeAway(row, first)
 }
 
 // Nothing has been scored yet: no points, no sets, no recorded set results. Names may already be
@@ -258,6 +305,14 @@ export function createLivePush(opts = {}) {
   // = unscheduled: the board row only. A throw in there is a bug, never a reason to lose the board
   // row, so it reads as unscheduled.
   const fixtureFor = typeof opts.fixture === 'function' ? opts.fixture : () => null
+  // Settings ▸ Scorer sits behind the board, read with every state (see the header): the board row
+  // is the scorer's view of the court. Unset or 'front' = the panel's own sides, unturned — a bare
+  // createLivePush (the selftests) and a scorer facing the board. The appliance passes the setting,
+  // whose default is 'behind'.
+  const orientationOf = typeof opts.orientation === 'function' ? opts.orientation : () => 'front'
+  const scorerBehind = () => {
+    try { return (orientationOf() || 'behind') !== 'front' } catch { return false }
+  }
   const refused = new Map() // fixture channel -> ms epoch until which it is left alone (writeFixture)
   // The game row this board last left 'live', until it is final or cleared (flush). A row nobody
   // writes any more kept saying "live 1:0" all evening: one stray point in the warm-up, taken back.
@@ -318,7 +373,7 @@ export function createLivePush(opts = {}) {
     // debounce fires, the board may already be set up for the next game.
     let fixture = null
     try { fixture = fixtureFor(state) || null } catch (err) { plog.debug(`fixture lookup failed: ${err && err.message}`, { error: err && err.message }) }
-    pending = { state, event, match: matchInstance, fixture }
+    pending = { state, event, match: matchInstance, fixture, behind: scorerBehind() }
     if (inFlight) return // settle() sends it when the running flush ends
     // A newer state cuts a retry backoff short. The backoff exists to stop hammering a Directus
     // that keeps failing with the SAME payload; a new point is new information, and waiting out up
@@ -419,13 +474,19 @@ export function createLivePush(opts = {}) {
       // finally that resets inFlight, and every later push() then returned at the overlap guard —
       // /live froze on the last published score for the rest of the process, with nothing said.
       // A throw here is a bug in the state, not the network, so it is never retried.
-      const row = toRow(payload.state, payload.event, sport)
+      // A = the state's team A; every row below is this one turned round (toHomeAway).
+      const teams = toTeamRow(payload.state, payload.event, sport)
       // The fixture's row, when the board knows the game AND can tell which team is home (see
       // liveFixture.js homeSide). A row that names its game is always home/away — the fixture row,
       // and the history row below — so one that cannot be turned around safely names none.
       const side = payload.fixture ? homeSide(payload.state, payload.fixture) : null
       const fixture = side ? { id: payload.fixture.id, channel: fixtureChannel(payload.fixture.id), side } : null
-      const historyRow = fixture ? { ...toHomeAway(row, side), game_id: fixture.id } : row
+      // The board row: the scorer's view while it is played, home on A once it is final (header).
+      // The fixture's home wins over a linked match's own idea of it (toRow reads that when this is null).
+      const row = toRow(payload.state, payload.event, sport, { behind: !!payload.behind, home: side })
+      // The finished match as history keeps it: the final board row — home on A where the board
+      // knows home — naming its game when the fixture is known.
+      const historyRow = fixture ? { ...toHomeAway(teams, side), game_id: fixture.id } : row
 
       // Queued BEFORE the live write and independently of it: whether the result reaches history
       // must not depend on whether one PATCH got through. The latest final row of the instance
@@ -490,7 +551,7 @@ export function createLivePush(opts = {}) {
         else openFixture = null
       }
       if (playing) {
-        const body = { ...toHomeAway(row, fixture.side), game_id: fixture.id, source: `board:${cfg.channel}` }
+        const body = { ...toHomeAway(teams, fixture.side), game_id: fixture.id, source: `board:${cfg.channel}` }
         if (await writeFixture(fixture.channel, body)) retry = true
         openFixture = row.status === 'final' ? null : fixture.channel
       }
@@ -668,6 +729,16 @@ export function createLivePush(opts = {}) {
     })
   }
 
+  // Publish the board again as it is — after a setting that changes the row but not the board (the
+  // orientation): /live turns round now, not at the next rally. A linked match needs none of this
+  // (its refresh() emits a state), but a second push inside the debounce is one write anyway.
+  function republish() {
+    if (!attached || typeof attached.source.getState !== 'function') return
+    let s = null
+    try { s = attached.source.getState() } catch { s = null }
+    if (s) push(s, null)
+  }
+
   function detach() {
     if (attached) { attached.source.off('state', attached.handler); attached = null }
     if (timer) { clearTimeout(timer); timer = null }
@@ -679,7 +750,7 @@ export function createLivePush(opts = {}) {
 
   // Whether live results are being refused or not getting through right now (the LINK light).
   const failing = () => enabled && isLive() && failures >= 2
-  return { enabled, sport, channel: cfg.channel, push, attach, detach, isLive, failing }
+  return { enabled, sport, channel: cfg.channel, push, attach, detach, republish, isLive, failing }
 }
 
 /**
@@ -687,7 +758,7 @@ export function createLivePush(opts = {}) {
  * DIRECTUS_URL or LIVE_PUBLISH_TOKEN is unset, so wiring it in is always safe —
  * a board with no cloud config behaves exactly as it does today.
  */
-export function livePushFromEnv(env = process.env, sport = DEFAULTS.sport, isLive, { fixture, hostname } = {}) {
+export function livePushFromEnv(env = process.env, sport = DEFAULTS.sport, isLive, { fixture, hostname, orientation } = {}) {
   return createLivePush({
     url: env.DIRECTUS_URL,
     token: env.LIVE_PUBLISH_TOKEN,
@@ -699,6 +770,7 @@ export function livePushFromEnv(env = process.env, sport = DEFAULTS.sport, isLiv
     sport,
     isLive,
     fixture,
+    orientation,
     debug: /^(1|true|yes|on)$/i.test(String(env.DEBUG || '')),
   })
 }

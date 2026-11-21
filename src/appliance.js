@@ -180,6 +180,9 @@ export async function startAppliance(config = loadConfig()) {
   let liveFixture = () => null
   const livePush = livePushFromEnv(process.env, sport.key, () => publishes && settings.values.liveScoring === 'kscw', {
     fixture: (state) => liveFixture(state),
+    // The board row is the court as the scorer sees it (livePush.js header): behind the board, the
+    // panel's sides turned round. Read with every state, so the console can switch it mid-match.
+    orientation: () => settings.values.orientation,
   })
   livePush.attach(sourceManager)
   logStore.info('livePush', livePush.enabled
@@ -329,6 +332,8 @@ export async function startAppliance(config = loadConfig()) {
     } catch (err) { log.warn(`could not write the screen choice: ${err.message}`, { error: err.message }) }
   }
   server.onScreenAppChange = writeScreenApp
+  // Settings ▸ Scorer sits behind the board changed: /live turns round now, not at the next rally.
+  server.onOrientationChange = () => livePush.republish()
   // The start screen's choice lasts until the next power-up, so it carries the boot id (the launcher
   // ignores an older one). Rewriting screen-app as it was is what makes the path unit fire.
   server.onScreenChoice = (app) => {

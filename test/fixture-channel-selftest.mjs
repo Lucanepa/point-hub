@@ -174,8 +174,10 @@ console.log('\n[4] set_results re-sided over a whole match, and the history row'
     `every set home-first on the fixture row (${JSON.stringify(game?.set_results.map((r) => [r.a, r.b]))})`)
   ok(game && game.sets_won_a === 3 && game.sets_won_b === 1, 'home won 3:1 on the fixture row')
   const board = lastTo('kscw')
-  ok(board && JSON.stringify(board.set_results.map((r) => [r.a, r.b])) !== JSON.stringify(sets),
-    'while the board row keeps them by side — which is why the fixture row must not be the board row')
+  // The board row is by side while the match is played; once it is FINAL it is the result, home on
+  // the left (livePush.js header) — the fixture told the board who is home.
+  ok(board && board.status === 'final' && same(board.team_a_name, HOME) && JSON.stringify(board.set_results.map((r) => [r.a, r.b])) === JSON.stringify(sets),
+    `the FINAL board row is home-first too (${JSON.stringify(board?.set_results.map((r) => [r.a, r.b]))})`)
   const hist = history()
   ok(hist.length === 1, `archived once (${hist.length})`)
   const h = hist[0]?.body
@@ -486,7 +488,9 @@ console.log('\n[10] end to end on a booted appliance')
   const mock = new MockLedbox()
   const addr = await mock.listen(0, '127.0.0.1')
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledbox-fixture-'))
-  fs.writeFileSync(path.join(stateDir, 'settings.json'), JSON.stringify({ sport: 'volleyball', autoPrepare: false, liveScoring: 'kscw' }))
+  // The scorer FACES the board here (orientation 'front'), so the board row is the panel's sides as
+  // they are; 'behind' (the default) is switched on further down and turns it round.
+  fs.writeFileSync(path.join(stateDir, 'settings.json'), JSON.stringify({ sport: 'volleyball', autoPrepare: false, liveScoring: 'kscw', orientation: 'front' }))
   const saved = { url: process.env.DIRECTUS_URL, tok: process.env.LIVE_PUBLISH_TOKEN, ch: process.env.LIVE_CHANNEL }
   let app = null
   try {
@@ -522,6 +526,16 @@ console.log('\n[10] end to end on a booted appliance')
     ok(to('game-9').map((w) => w.method).join(',') === 'PATCH,POST', `the first point creates game-9 (${to('game-9').map((w) => w.method)})`)
     ok(same(last('game-9')?.team_a_name, HOME) && last('game-9')?.points_a === 1 && last('game-9')?.game_id === 9 && last('game-9')?.source === 'board:kscw', 'home 1-0, game_id 9, from board:kscw')
     ok(last('kscw')?.points_a === 1 && last('kscw')?.game_id === undefined, 'the board row as always — no game_id on it')
+    // Settings ▸ Scorer sits behind the board, switched on mid-match: /live turns round at once, with
+    // no rally in between; the game row (home/away) is not touched by it.
+    const gameWrites = to('game-9').length
+    await post('/api/settings', { orientation: 'behind' }); await wait()
+    ok(same(last('kscw')?.team_a_name, AWAY) && last('kscw')?.points_a === 0 && last('kscw')?.points_b === 1,
+      `behind the board: the board row is the scorer's view at once — away on A, 0-1 (${last('kscw')?.team_a_name} ${last('kscw')?.points_a}-${last('kscw')?.points_b})`)
+    ok(same(last('game-9')?.team_a_name, HOME) && last('game-9')?.points_a === 1, 'the game row still has home on A, 1-0')
+    await post('/api/settings', { orientation: 'front' }); await wait()
+    ok(same(last('kscw')?.team_a_name, HOME) && last('kscw')?.points_a === 1, 'and back to front: the panel\'s sides again')
+    ok(to('game-9').length - gameWrites <= 2, `the switch writes the game row no more than the board's republish does (${to('game-9').length - gameWrites})`)
     await act({ type: 'swap' }); await act({ type: 'point', side: 'left', delta: 1 }); await act({ type: 'point', side: 'left', delta: 1 }); await wait()
     ok(same(last('kscw')?.team_a_name, AWAY) && last('kscw')?.points_a === 2, 'after the swap the board row has the away team on A (2-1)')
     ok(same(last('game-9')?.team_a_name, HOME) && last('game-9')?.points_a === 1 && last('game-9')?.points_b === 2, 'the game row still has home on A (1-2)')
@@ -550,7 +564,9 @@ console.log('\n[10] end to end on a booted appliance')
     ok(last('game-9')?.team_a_name === HOME && last('game-9')?.points_a === 6 && last('game-9')?.points_b === 3 && last('game-9')?.sets_won_a === 1,
       `linked by match number: home on A, 6-3, sets 1-0 (${last('game-9')?.team_a_name} ${last('game-9')?.points_a}-${last('game-9')?.points_b})`)
     ok(last('game-9')?.serving_team === 'right', 'OpenVolley team A (away) serving from the right → the away dot')
-    ok(last('kscw')?.team_a_name === AWAY && last('kscw')?.points_a === 3, 'the board row mirrors OpenVolley as before (A = its team A)')
+    // Facing the board, the scorer's side is OpenVolley's own: its team A (away) stands right, so
+    // the board row has home (its team B) on A, as the scorer's tablet shows it.
+    ok(last('kscw')?.team_a_name === HOME && last('kscw')?.points_a === 6 && last('kscw')?.points_b === 3, `the board row is the scorer's view of OpenVolley (home left, 6-3) (${last('kscw')?.team_a_name} ${last('kscw')?.points_a}-${last('kscw')?.points_b})`)
     const perFlush = to('game-9').slice(before)
     ok(perFlush.every((w) => w.method === 'PATCH'), 'one PATCH per change — no second writer, no re-create')
 

@@ -1,8 +1,9 @@
 // Which `live_scores` rows the board writes, and how a match is turned around for its fixture's row.
 //
 // The board has always written ONE row, its own channel ('kscw' for the club's first board), with
-// team A = whoever stands on the LEFT. That row carries every match, scheduled or not, and stays
-// exactly as it was: /live, kscw.ch's "Live now" pill and the recent-matches list all read it.
+// team A = whoever stands on the LEFT as the scorer sees the court (livePush.js header: behind the
+// board that is the panel's right), and home on A once the match is final. That row carries every
+// match, scheduled or not: /live, kscw.ch's "Live now" pill and the recent-matches list all read it.
 //
 // wiedisync reads a game's live score from a SECOND kind of row, `game-<games.id>`, which phone
 // live scoring writes (wiedisync live-scoring.js): the game modal's "Watch live" and the result
@@ -10,11 +11,11 @@
 // board never reached either. When the board knows the fixture it now writes that row too. Its
 // contract is the phone's, not the board's: team A = HOME, team B = AWAY, for the whole match —
 // game-result.js maps a → home when it prefills the result that goes to Volleymanager. The board
-// row's A is the LEFT side and swaps at every change of ends (set_results with it), so the fixture
-// row is the board row turned around whenever home stands on the right (toHomeAway). Written as-is
-// it would file every even set with home and away swapped.
+// row's A is a SIDE and swaps at every change of ends (set_results with it), so the fixture row is
+// built from the state's teams turned so that home is A (toHomeAway). Written as the board row it
+// would file every even set with home and away swapped.
 //
-//   board row   channel = boardChannel()     A = left        every match
+//   board row   channel = boardChannel()     A = scorer's left (home once final)   every match
 //   fixture row channel = game-<games.id>    A = home        only while the fixture is known
 //
 // Who is home is read from the NAMES on the board against the schedule's (homeSide). The schedule
@@ -118,9 +119,10 @@ const PAIRS = ['name', 'short', 'color'].map((k) => [`team_a_${k}`, `team_b_${k}
 const otherSide = (s) => (s === 'left' ? 'right' : s === 'right' ? 'left' : s)
 
 /**
- * A live row (livePush toRow: A = left) turned so that team A is the fixture's HOME team. `side` is
- * homeSide()'s answer: 'a' returns the row as it is, 'b' swaps every team column, the serve (the
- * row's 'left' means team A) and every set result — keeping each set's `dur`.
+ * A live row (livePush toTeamRow: A = the state's team A) turned so that team A is the fixture's
+ * HOME team. `side` is homeSide()'s answer: 'a' returns the row as it is, 'b' swaps every team
+ * column, the serve (the row's 'left' means team A) and every set result — keeping each set's
+ * `dur`. livePush toRow uses it the same way to put the scorer's left team on A.
  */
 export function toHomeAway(row, side) {
   if (side !== 'b') return { ...row }
