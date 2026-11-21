@@ -122,6 +122,53 @@ shows"):
   tablet, a console game and /live agree. Once final, home is on A (the fixture, else the view's
   `home_ab`). See the livePush.js header.
 
+## Follow by scoreboard code (22.11.2026)
+
+OpenVolley's scorer can now show a short read-only **scoreboard code** (Match ▸ Show on a
+scoreboard, openvolley#317; spec: openvolley `escoresheet/docs/scoreboard-code-spec.md`, contract for
+boards: `docs/scoreboard-feed.md`). A board that knows the code finds the match on the relay the
+scorer uses and gets the PIN-free public live state, whatever network either side is on. For the
+C0270 that removes the cloud link's catch: the board no longer needs the tablet on its Wi-Fi
+(OpenVolley online) to see a cloud match, and nothing depends on `cloudListsMatch` showing the match
+to the board's public address.
+
+- **Console**: Link tab ▸ *Follow by scoreboard code*: the code (typed, or the board link of the
+  scorer's QR code pasted: `…/board#CODE`), the relay (OpenVolley cloud by default; the board's own
+  OpenVolley where it runs one; a scorer laptop), **Link**, and a status line (following, until when /
+  not found right now, trying again in N s / too many tries / ended / not found / an older OpenVolley).
+  Behind the scorer PIN.
+- **API**: `POST /api/link { source: 'code', code, relay? }`. The code is normalised as the relays do
+  (8 symbols of `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, case, spaces and dashes ignored, `followCode.js`).
+  First `POST /api/display/lookup { code }` on the relay's HTTP side, so a wrong, ended or rate-limited
+  code is answered (404 / 410 / 429) before the panel is touched; a relay whose HTTP side does not
+  answer as one leaves it to the WebSocket.
+- **Link**: the same `LanSource` → `LinkedView` → `RelaySubscriber` as every link (mirror, sub count,
+  set history, SATZBALL / WECHSEL, result screen, livePush unchanged). `RelaySubscriber` sends
+  `subscribe-match { code, device: 'display', settingsUrl? }` (no matchId, no PIN), learns the room
+  from `display-code { ok, matchId, endsAt }` and takes only that room's messages from then on.
+  - `ended`: final, the subscriber stops (no reconnect), the board unlinks: the result stays if it is
+    up, else the clock — the rule of a deleted match.
+  - `not-found` for a code this board never followed: final (a typo, or the scorer is on another
+    relay). For one it followed before, or restored after a restart: the relay or the scorer is
+    reconnecting, so it is asked again after 15, 30, then every 60 s on the open socket, and given up
+    after 30 min (`CODE_RETRY_MS`, `CODE_GIVE_UP_MS`).
+  - `rate-limited`: nothing is sent before `retryAfter` (5 s … 1 h), on this socket or a new one.
+  - An older relay answers `Match ID required`: final, "this OpenVolley does not know codes yet".
+  - A reconnect sends the code again (a restarted relay learns it back from the scorer).
+- **Kept**: `data/follow-code.json` (0600, atomic) while the code is followed, so a bridge restart
+  follows it again by itself (before an interrupted hand-scored game: it was what the board showed);
+  cleared on any other source (a link by match, Stop following, the console) and when the code ends.
+  Never logged: log lines carry `ref=` + 8 hex of sha256("d:" + code), the ref OpenVolley's relays log.
+  `/api/status.followCode` never carries the code.
+- Not with a match PIN (`POST /api/link/pin` → 409): a code gives the public state only, and the
+  relays ignore a PIN next to one. Substitutions come from `subs_count_*` (or the board's count).
+- The board's own follows leave it alone: `followCloudScorer` never takes over a code link,
+  `followLocalScorer` only once its match has ended.
+- Tests: `test/follow-code-selftest.mjs` (in `npm test`); `test/e2e-live.mjs` [9] against the real
+  relays of an OpenVolley checkout that has scoreboard codes (`OPENVOLLEY_DIR=…`).
+- Not done: scanning the QR code with the console's camera (the console is plain http on the board,
+  so the browser gives it no camera); a scanner app's result or the link itself can be pasted.
+
 ## Phases
 
 1. **Board hosts OpenVolley** (built) —
