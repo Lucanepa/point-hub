@@ -699,7 +699,30 @@
   "OpenVolley refused the PIN. The board follows without it and counts the substitutions itself.": "OpenVolley hat die PIN abgelehnt. Die Tafel folgt ohne sie und zählt die Wechsel selbst.",
   "PIN sent to OpenVolley": "PIN an OpenVolley gesendet",
   "PIN taken back": "PIN zurückgenommen",
-  "A linked OpenVolley match follows this too: with the box on, the panel shows OpenVolley's sides mirrored (the scorer's left is the panel's right); with it off (the scorer faces the board), as they come. It can be switched during the match.": "Ein verknüpftes OpenVolley-Spiel folgt dem auch: Ist das Kästchen an, zeigt die Anzeige die Seiten aus OpenVolley gespiegelt (links vom Schreiber ist auf der Anzeige rechts); ist es aus (der Schreiber schaut zur Tafel), so wie sie kommen. Das geht auch während des Spiels."
+  "A linked OpenVolley match follows this too: with the box on, the panel shows OpenVolley's sides mirrored (the scorer's left is the panel's right); with it off (the scorer faces the board), as they come. It can be switched during the match.": "Ein verknüpftes OpenVolley-Spiel folgt dem auch: Ist das Kästchen an, zeigt die Anzeige die Seiten aus OpenVolley gespiegelt (links vom Schreiber ist auf der Anzeige rechts); ist es aus (der Schreiber schaut zur Tafel), so wie sie kommen. Das geht auch während des Spiels.",
+  "Follow by scoreboard code": "Per Tafel-Code folgen",
+  "The code from OpenVolley: Match ▸ Show on a scoreboard": "Der Code aus OpenVolley: Spiel ▸ Auf einer Anzeigetafel zeigen",
+  "Where the scorer scores": "Wo der Schreiber schreibt",
+  "OpenVolley cloud": "OpenVolley-Cloud",
+  "OpenVolley on this board": "OpenVolley auf dieser Tafel",
+  "Works from any network: the scorer's tablet does not have to be on the board's Wi-Fi. The board gets the public score only. The board link from the scorer's QR code can be pasted too.": "Geht aus jedem Netz: Das Tablet des Schreibers muss nicht im WLAN der Tafel sein. Die Tafel bekommt nur den öffentlichen Spielstand. Den Tafel-Link aus dem QR-Code des Schreibers kannst du auch einfügen.",
+  "That is not a scoreboard code: 8 letters and digits, like ABCD-2345": "Das ist kein Tafel-Code: 8 Buchstaben und Ziffern, z. B. ABCD-2345",
+  "Following the match by its scoreboard code": "Die Tafel folgt dem Spiel per Tafel-Code",
+  "Following the match by its code": "Folgt dem Spiel per Code",
+  "The code is not found right now — trying again": "Der Code ist gerade nicht zu finden — neuer Versuch folgt",
+  "Too many tries — trying again later": "Zu viele Versuche — neuer Versuch später",
+  "Looking for the code…": "Code wird gesucht…",
+  "The code has ended. Ask the scorer for the new one.": "Der Code ist abgelaufen. Frag den Schreiber nach dem neuen.",
+  "Code not found. Check it, and where the scorer scores.": "Code nicht gefunden. Prüfe ihn und wo der Schreiber schreibt.",
+  "Too many tries — try again later": "Zu viele Versuche — versuche es später nochmals",
+  "This OpenVolley does not know scoreboard codes yet.": "Dieses OpenVolley kennt noch keine Tafel-Codes.",
+  "OpenVolley does not know this scoreboard code. Check it, and the relay: the code works on the relay the scorer uses": "OpenVolley kennt diesen Tafel-Code nicht. Prüfe ihn und den Server: Der Code gilt auf dem Server, den der Schreiber benutzt",
+  "This scoreboard code has ended. Ask the scorer for the new one (Match ▸ Show on a scoreboard)": "Dieser Tafel-Code ist abgelaufen. Frag den Schreiber nach dem neuen (Spiel ▸ Auf einer Anzeigetafel zeigen)",
+  "Too many tries with wrong codes from this board. Wait, then try again": "Zu viele Versuche mit falschen Codes von dieser Tafel. Warte und versuche es dann nochmals",
+  "This OpenVolley does not know scoreboard codes yet": "Dieses OpenVolley kennt noch keine Tafel-Codes",
+  "This board does not use OpenVolley's server — choose the scorer laptop or the board's own OpenVolley": "Diese Tafel nutzt den OpenVolley-Server nicht — wähle den Schreiber-Laptop oder das OpenVolley der Tafel",
+  "This board does not run OpenVolley itself": "Auf dieser Tafel läuft kein eigenes OpenVolley",
+  "Following by scoreboard code: the board gets the public live state, no PIN needed": "Per Tafel-Code: Die Tafel bekommt den öffentlichen Spielstand, keine PIN nötig"
  },
  "patterns": [
   [
@@ -1565,6 +1588,22 @@
   [
    "^Couldn't stop following: (.+)$",
    "Folgen konnte nicht beendet werden: $1"
+  ],
+  [
+   "^Following the match by its code, until (\\d\\d:\\d\\d)$",
+   "Folgt dem Spiel per Code, bis $1"
+  ],
+  [
+   "^The code is not found right now — trying again in (\\d+) s$",
+   "Der Code ist gerade nicht zu finden — neuer Versuch in $1 s"
+  ],
+  [
+   "^Too many tries — trying again in (\\d+) s$",
+   "Zu viele Versuche — neuer Versuch in $1 s"
+  ],
+  [
+   "^Too many tries — try again in (\\d+) s$",
+   "Zu viele Versuche — versuche es in $1 s nochmals"
   ]
  ]
 }

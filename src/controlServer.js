@@ -12,6 +12,7 @@ import { toLeftRight, teamsCrossed, resultWinnerLine } from './volleyballMapper.
 import { teamRgb } from './ledColor.js'
 import { subNoticeLines } from './boardNotices.js'
 import { cleanPin } from './relaySubscriber.js'
+import { extractCode, codeRef, FollowCodeStore, CODE_MAX_LIFE_MS } from './followCode.js'
 import { cleanGameNumber } from './linkedView.js'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -154,7 +155,7 @@ const PROBE_BODIES = {
 // setting.ini's [DISPLAY] block: the board's panel geometry for /api/status.board.caps.
 const SETTING_INI = PANEL_PATHS.settingIni
 
-export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, adminPinFile = null, hostname = null, settingIni = SETTING_INI, ovOnline = null, cloudRelay = null }) {
+export function createControlServer({ hardware = null, localRelayUrl = null, boardOpenVolley = false, sourceManager, manualSource, ledbox, relayHttpUrl, relayUrl, relayUrlExplicit = !!relayUrl, relayDiscovery = false, relayDiscover = null, relayDesktopPort = undefined, webDir, dataDir, reconnectMs, settings, clockSync: clockSyncIn = null, schedule: scheduleIn = null, autoPrepare: autoIn = null, background = false, uplink: uplinkIn = null, uplinkOptions = {}, uplinkWatch = false, matchUpload = null, appDistDir = null, gameSheet: gameSheetIn = null, cableTrust = null, pinMandatory = false, adminPinFile = null, hostname = null, settingIni = SETTING_INI, ovOnline = null, cloudRelay = null, followCodeOptions = {} }) {
   // What the last look at the board's own OpenVolley found (BOARD_OPENVOLLEY=1 only; see
   // checkBoardOV). Up here because status() reads it.
   const boardOV = { running: null, live: 0, checkedAt: null }
@@ -698,8 +699,10 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
   // Scorer sits behind the board, asked on every state (see lanSource.js, so the console can switch
   // it mid-match), the PIN offered with the subscription when the operator gave one, the listed
   // match number.
-  const linkedSource = (relayUrl, matchId, { pin = null } = {}) => new LanSource({
+  // code / codeConfirmed: a link by scoreboard code (linkByCode below).
+  const linkedSource = (relayUrl, matchId, { pin = null, code = null, codeConfirmed = false } = {}) => new LanSource({
     relayUrl, matchId, reconnectMs, pin,
+    ...(code ? { code, codeConfirmed, codeOptions: followCodeOptions } : {}),
     // OpenVolley's sides are the scorer's own (their left on the tablet is team A's side when
     // side_a is 'left'). Behind the board — the default — the scorer's left is the panel's right,
     // so the panel turns them round; facing the board, they are the panel's as they come.
@@ -835,6 +838,151 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       overlayChanged() // clear() emits no state: the scorebug would keep the deleted match
       if (!resultUp) { try { await holdClock() } catch { /* the log has it */ } }
     })
+  }
+
+  // --- following a match by its scoreboard code (followCode.js) --------------------------------------
+  // The scorer's Match ▸ Show on a scoreboard gives a short read-only code. With it the board finds the
+  // match on the relay its scorer uses — OpenVolley's cloud from any network (so the tablet no longer
+  // has to share the board's internet), the board's own OpenVolley, or a scorer laptop — and follows it
+  // through the same LanSource as every other link: mirror, the substitution count, the set history,
+  // SATZBALL / WECHSEL, the result screen and livePush all work as for a link by match. The code is
+  // kept on disk (0600) for a reconnect or a bridge restart until it ends, and never logged: a line
+  // names it by its ref (followCode.js codeRef), as OpenVolley's relays do.
+  const followCodeStore = new FollowCodeStore({ file: path.resolve(stateHome, 'follow-code.json') })
+  // Anything else driving the board (a match linked by hand, the console, an unlink) ends the follow.
+  sourceManager.on('source', (src) => { if (!(src && src.byCode)) followCodeStore.clear() })
+  // What became of the last code link once it is over, for the console's status line:
+  // { state: 'ended' | 'not-found' | 'rate-limited' | 'unsupported', relay, at, retryAt }.
+  let codeOutcome = null
+  const CODE_OUTCOME_SHOWN_MS = 30 * 60 * 1000
+  let codeRelayNow = null // the relay kind of the running code link
+  const boardRunsOpenVolley = () => boardOpenVolley || !!(hardware && hardware.present) || !!localRelayUrl
+  const codeRelays = () => [cloudWs ? 'cloud' : null, boardRunsOpenVolley() ? 'board' : null, 'laptop'].filter(Boolean)
+  // Where a code is looked up: { relay, wsUrl, httpBases } or { status, error }.
+  const codeRelayTarget = (relay, laptop) => {
+    const r = relay == null || relay === '' ? 'cloud' : String(relay)
+    if (r === 'cloud') {
+      return cloudWs ? { relay: 'cloud', wsUrl: cloudWs, httpBases: cloudHttp ? [cloudHttp] : [] }
+        : { status: 501, error: 'This board does not use OpenVolley\'s server — choose the scorer laptop or the board\'s own OpenVolley' }
+    }
+    if (r === 'board') {
+      return boardRunsOpenVolley() ? { relay: 'board', wsUrl: LOCAL_RELAY, httpBases: relayHttpCandidates(LOCAL_RELAY, '', httpOpts) }
+        : { status: 409, error: 'This board does not run OpenVolley itself' }
+    }
+    if (r === 'laptop') {
+      const t = linkRelay(laptop)
+      if (t.error) return { status: 409, error: t.error }
+      const conf = configuredRelay()
+      return { relay: 'laptop', wsUrl: t.wsUrl, httpBases: relayHttpCandidates(t.wsUrl, conf && conf.wsUrl === t.wsUrl ? conf.httpOverride : '', httpOpts) }
+    }
+    return { status: 400, error: 'unknown relay' }
+  }
+  // POST /api/display/lookup on the relay's HTTP side, before the panel is touched: a wrong or ended
+  // code is answered at once and the board stays as it is. { ok, matchId, endsAt } | { ok: false,
+  // reason, retryAfter? } | null when no HTTP side answered as one (an older relay, a WebSocket-only
+  // port, no network): then the WebSocket decides.
+  async function lookupCode(bases, code) {
+    for (const base of bases) {
+      let resp
+      try {
+        resp = await fetch(`${base}/api/display/lookup`, {
+          method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify({ code }), signal: AbortSignal.timeout(5000),
+        })
+      } catch { continue }
+      let body = null
+      try { body = await resp.json() } catch { body = null }
+      const ov = body && typeof body.code === 'string' ? body.code : ''
+      if (resp.status === 200 && body && body.ok === true && body.matchId != null) {
+        return { ok: true, matchId: safeMatchId(body.matchId), endsAt: Number(body.endsAt) > 0 ? Number(body.endsAt) : null }
+      }
+      if (resp.status === 404 && ov === 'OV_DISPLAY_NOT_FOUND') return { ok: false, reason: 'not-found' }
+      if (resp.status === 410 && ov === 'OV_DISPLAY_ENDED') return { ok: false, reason: 'ended' }
+      if (resp.status === 429) {
+        const wait = Number(resp.headers.get('retry-after')) || Number(body && body.retryAfter) || 60
+        return { ok: false, reason: 'rate-limited', retryAfter: Math.min(3600, Math.max(5, Math.round(wait))) }
+      }
+    }
+    return null
+  }
+  const CODE_REFUSAL = {
+    'not-found': 'OpenVolley does not know this scoreboard code. Check it, and the relay: the code works on the relay the scorer uses',
+    ended: 'This scoreboard code has ended. Ask the scorer for the new one (Match ▸ Show on a scoreboard)',
+    'rate-limited': 'Too many tries with wrong codes from this board. Wait, then try again',
+    unsupported: 'This OpenVolley does not know scoreboard codes yet',
+  }
+  // Follow `code` on `target`: the same steps as a link by match.
+  async function linkByCode(code, target, { matchId = null, endsAt = null, confirmed = false, savedAt = Date.now(), why = '', ip = null } = {}) {
+    const ref = codeRef(code)
+    if (ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout && typeof ledbox.clearResult === 'function') await ledbox.clearResult().catch(() => {})
+    if (ledbox && ledbox._idle && typeof ledbox.showIdle === 'function') await ledbox.showIdle(false)
+    dropPrematch(`followed a match by its scoreboard code (${why})`)
+    clog.info(`following by scoreboard code ref=${ref} on ${relayHostLabel(target.wsUrl)} (${target.relay}, ${why})`, { ref, relay: target.relay, relayUrl: target.wsUrl, matchId, ip })
+    const known = confirmed || !!matchId
+    const lan = linkedSource(target.wsUrl, matchId, { code, codeConfirmed: known })
+    watchLinkedMatch(lan, matchId || `ref=${ref}`)
+    watchCode(lan, { ref, relay: target.relay })
+    linkKind = 'code'
+    codeRelayNow = target.relay
+    codeOutcome = null
+    sourceManager.setSource(lan, { mode: 'lan', matchId })
+    followCodeStore.save({ code, relay: target.relay, wsUrl: target.wsUrl, endsAt, confirmed: known, savedAt })
+    return lan
+  }
+  // The relay's answers to the code: ok → the room is known (and remembered); final → unlinked, the
+  // board on the result if it is up, else the clock (as for a deleted match). Not final (not found
+  // for a while, rate-limited): the subscriber waits, the console's status line says so.
+  const watchCode = (lan, { ref, relay }) => {
+    lan.on('code', async (info = {}) => {
+      if (sourceManager.active !== lan) return
+      if (info.ok) {
+        sourceManager.setMatchId(lan, info.matchId)
+        followCodeStore.update({ endsAt: info.endsAt, confirmed: true })
+        return
+      }
+      if (!info.final) return
+      codeOutcome = { state: info.reason, relay, at: Date.now(), retryAt: null }
+      const resultUp = !!(ledbox && ledbox.resultLayout && ledbox.currentLayout === ledbox.resultLayout)
+      clog[info.reason === 'ended' ? 'info' : 'warn'](`scoreboard code ref=${ref}: ${info.reason} — unlinked, board ${resultUp ? 'keeps the result' : 'on the clock'}`, { ref, relay, reason: info.reason, resultUp })
+      followCodeStore.clear()
+      sourceManager.clear(`the scoreboard code: ${info.reason}`)
+      overlayChanged()
+      if (!resultUp) { try { await holdClock() } catch { /* the log has it */ } }
+    })
+  }
+  // For /api/status: the running code link, else how the last one ended. Never the code itself.
+  const followCodeView = () => {
+    const lan = sourceManager.status.mode === 'lan' && sourceManager.active && sourceManager.active.byCode ? sourceManager.active : null
+    if (lan) return { relays: codeRelays(), linked: true, state: lan.codeState, ref: lan.codeRef, relay: codeRelayNow, endsAt: lan.codeEndsAt, retryAt: lan.codeRetryAt }
+    const o = codeOutcome && Date.now() - codeOutcome.at < CODE_OUTCOME_SHOWN_MS ? codeOutcome : null
+    return { relays: codeRelays(), linked: false, state: o ? o.state : null, ref: null, relay: o ? o.relay : null, endsAt: null, retryAt: o && o.retryAt && o.retryAt > Date.now() ? o.retryAt : null }
+  }
+  // A bridge restart: the code that was followed is followed again, until it ends. Not when it has
+  // run out by the board's clock (when the clock can be trusted), nor over anything else on the board.
+  // (Put on `server` below, once it exists.)
+  const savedFollowCode = () => !!followCodeStore.get()
+  const resumeFollowCode = async () => {
+    const saved = followCodeStore.get()
+    if (!saved) return null
+    const ref = codeRef(saved.code)
+    const endsAt = saved.endsAt || (saved.savedAt ? saved.savedAt + CODE_MAX_LIFE_MS : null)
+    if (endsAt && clockTrusted() && Date.now() >= endsAt) {
+      clog.info(`the saved scoreboard code ref=${ref} has run out — not followed again`, { ref })
+      followCodeStore.clear()
+      return null
+    }
+    if (sourceManager.status.mode !== 'idle') {
+      clog.info(`the saved scoreboard code ref=${ref} is not followed again: something else is on the board`, { ref, mode: sourceManager.status.mode })
+      followCodeStore.clear()
+      return null
+    }
+    let target
+    if (saved.relay === 'cloud') target = cloudWs ? { relay: 'cloud', wsUrl: cloudWs } : null
+    else if (saved.relay === 'board') target = boardRunsOpenVolley() ? { relay: 'board', wsUrl: LOCAL_RELAY } : null
+    else target = { relay: 'laptop', wsUrl: saved.wsUrl }
+    if (!target) { followCodeStore.clear(); return null }
+    await linkByCode(saved.code, target, { endsAt: saved.endsAt, confirmed: saved.confirmed, savedAt: saved.savedAt, why: 'restored after a restart' })
+    return { ref, relay: target.relay }
   }
 
   // Named rather than inline so the appliance can hand the SAME handler to an https.Server and
@@ -1473,6 +1621,25 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
         await linkCloudMatch(safeMatchId(body.matchId), { why: 'linked on the console', ip: clientIp(req), pin: cpin })
         return sendJson(res, 200, { ...status(req), relay: { address: relayHostLabel(cloudWs), source: 'cloud' } })
       }
+      // By the scorer's scoreboard code (followCode.js): { code, relay?: 'cloud' | 'board' | 'laptop',
+      // laptop?: the host:port the Link tab listed }. The code as typed, or the board page's address
+      // from the scorer's QR code. Never logged.
+      if (source === 'code') {
+        const code = extractCode(typeof body.code === 'string' ? body.code : '')
+        if (!code) return sendJson(res, 400, { error: 'That is not a scoreboard code: 8 letters and digits, like ABCD-2345', reason: 'bad-code' })
+        const target = codeRelayTarget(body.relay, body.laptop)
+        if (target.error) return sendJson(res, target.status, { error: target.error })
+        const ref = codeRef(code)
+        const look = await lookupCode(target.httpBases, code)
+        if (look && !look.ok) {
+          clog.warn(`scoreboard code ref=${ref} on ${relayHostLabel(target.wsUrl)}: ${look.reason} — not linked`, { ref, relay: target.relay, reason: look.reason, retryAfter: look.retryAfter ?? null, ip: clientIp(req) })
+          codeOutcome = { state: look.reason, relay: target.relay, at: Date.now(), retryAt: look.retryAfter ? Date.now() + look.retryAfter * 1000 : null }
+          const httpStatus = look.reason === 'rate-limited' ? 429 : look.reason === 'ended' ? 410 : 404
+          return sendJson(res, httpStatus, { ...status(req), error: CODE_REFUSAL[look.reason] || CODE_REFUSAL['not-found'], reason: look.reason, retryAfter: look.retryAfter ?? null })
+        }
+        await linkByCode(code, target, { matchId: look ? look.matchId : null, endsAt: look ? look.endsAt : null, why: 'linked on the console', ip: clientIp(req) })
+        return sendJson(res, 200, { ...status(req), relay: { address: relayHostLabel(target.wsUrl), source: target.relay } })
+      }
       if (source !== 'lan') return sendJson(res, 400, { error: 'unknown source' })
       if (body.matchId == null) return sendJson(res, 400, { error: 'matchId required' })
       const target = linkRelay(body.relay)
@@ -1507,6 +1674,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       const body = await readJson(req) || {}
       const lan = sourceManager.status.mode === 'lan' ? sourceManager.active : null
       if (!lan || typeof lan.setPin !== 'function') return sendJson(res, 409, { error: 'No OpenVolley match is linked' })
+      if (lan.byCode) return sendJson(res, 409, { error: 'Following by scoreboard code: the board gets the public live state, no PIN needed' })
       const wanted = body.pin == null ? '' : String(body.pin).trim()
       const pin = cleanPin(wanted)
       if (wanted && !pin) return sendJson(res, 400, { error: 'That PIN cannot be right — check it in OpenVolley' })
@@ -2267,6 +2435,10 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       linkSource: sourceManager.status.mode === 'lan' ? linkKind : null,
       // The linked match's PIN, never the PIN itself: 'none' | 'offered' | 'accepted' | 'refused'.
       linkPin: sourceManager.status.mode === 'lan' && sourceManager.active && typeof sourceManager.active.pinState === 'string' ? sourceManager.active.pinState : null,
+      // Following by scoreboard code (followCode.js): the relays this board can look one up on, and the
+      // running code link's state ('looking' | 'following' | 'lost' | 'rate-limited'), or how the last
+      // one ended ('ended' | 'not-found' | 'rate-limited' | 'unsupported'). Never the code.
+      followCode: followCodeView(),
       kickoffAt: kickoffOfGame(),
       // Tonight's home game(s) the console offers to set up (autoPrepare.js): [] or
       // [{ id, date, time, home, away, homeShort, awayShort, hall, league }] — public schedule data.
@@ -2629,6 +2801,8 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
     }
   }
   server.followCloudScorer = followCloudScorer
+  server.savedFollowCode = savedFollowCode
+  server.resumeFollowCode = resumeFollowCode
   // Right after the switch goes on, rather than up to 10 s later.
   const cloudFollowSoon = () => { if (cloudFollowTimer) setTimeout(() => { followCloudScorer().catch(() => {}) }, 1500).unref?.() }
   server.startCloudFollow = () => {
@@ -2719,6 +2893,8 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
     if (localLinking || (!boardOpenVolley && (screenNow || opt('screenApp')) === 'console') || !ledbox || ledbox.ready !== true || countdown) return
     const { mode, matchId } = sourceManager.status
     if (mode !== 'lan' && !ledbox._idle && matchInPlay(sourceManager.getState())) return
+    // A match followed by its scoreboard code was chosen on the console: it stays until it has ended.
+    if (mode === 'lan' && linkKind === 'code' && linkState !== 'ended') return
     localLinking = true
     try {
       const r = await listFrom(relayHttpCandidates(LOCAL_RELAY, '', httpOpts), [])

@@ -245,6 +245,8 @@ export async function startAppliance(config = loadConfig()) {
     // OpenVolley's server for the Link tab's cloud list: a real boot only (loadConfig), so no
     // selftest asks the internet; a test points it at a fake.
     cloudRelay: config.cloudRelay || null,
+    // Test hook: the waits of a link by scoreboard code (relaySubscriber.js codeRetryMs / codeGiveUpMs).
+    followCodeOptions: config.followCodeOptions || {},
     adminPinFile: path.resolve(stateDir, 'admin-pin'),
     localRelayUrl: config.localRelayUrl || null, // test hook: the board's own OpenVolley relay
     boardOpenVolley: config.boardOpenVolley === true, // the C0270 serves OpenVolley itself
@@ -305,8 +307,17 @@ export async function startAppliance(config = loadConfig()) {
   // "Ready" banner back. See controlServer's `prematch`. Done BEFORE connect(), not on 'ready':
   // with the panel not up yet the held clock is recorded as intent, so the handshake's own default
   // screen IS the clock — restoring on 'ready' raced that default screen, and the crest won.
+  // A match followed by its scoreboard code when the bridge went down (a deploy, a crash) is followed
+  // again, until the code ends (controlServer resumeFollowCode). It was what the board showed, so it
+  // comes before an interrupted hand-scored game.
   if (server.savedPrematch()) {
     try { await server.resumeInterruptedGame() } catch (e) { log.error(`could not restore the pre-match: ${e.message}`, { error: e.message }) }
+  } else if (server.savedFollowCode()) {
+    ledbox.once('ready', () => {
+      Promise.resolve(server.resumeFollowCode())
+        .then((info) => { if (info) log.info(`following the scoreboard code ref=${info.ref} again (${info.relay})`, { ref: info.ref, relay: info.relay }) })
+        .catch((e) => log.error(`could not follow the saved scoreboard code: ${e.message}`, { error: e.message }))
+    })
   } else if (uncleanShutdown) {
     ledbox.once('ready', () => {
       Promise.resolve(server.resumeInterruptedGame())

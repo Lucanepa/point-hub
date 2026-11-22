@@ -17,6 +17,9 @@
 //        the relay's real /api/server/status), Settings ▸ Scorer laptop address, GET /api/matches,
 //        POST /api/link — the path an operator takes on the tablet
 //     -> a MockLedbox speaking the real C0270 protocol (API version 2, volleyball_matchscore_02)
+//     and, on a relay that knows scoreboard codes (OpenVolley's display-code-set, openvolley#317): the
+//     scorer shows a code, the board follows the match by it (POST /api/link { source: 'code' }), the
+//     score reaches the panel, the scorer stops sharing and the board unlinks; the code never logged
 //
 // Every step is ASSERTED against the panel, and any failure exits 1. The old version of this file
 // printed "END-TO-END OK" unconditionally — it kept doing so after the repo split broke its path
@@ -42,6 +45,8 @@ import { startAppliance } from '../src/appliance.js'
 import { MockLedbox } from '../src/mockLedbox.js'
 import { RelaySubscriber } from '../src/relaySubscriber.js'
 import { probeRelay } from '../src/relayAddress.js'
+import { log as logStore } from '../src/logStore.js'
+import crypto from 'node:crypto'
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const OV = path.resolve(process.env.OPENVOLLEY_DIR || path.join(REPO, '..', 'openvolley', 'escoresheet'))
@@ -303,7 +308,53 @@ async function runAgainst(name) {
     push({ current_set: 4, sets_won_a: 2, sets_won_b: 1, points_a: 24, points_b: 21, side_a: 'right', match_status: 'in_progress' }); await sleep(500)
     ok(mock.currentLayout === 'volleyball_matchscore_02' && t('score2') === '24', `back to the score (${panel()})`)
 
-    console.log('\n[9] the scorer deletes the match -> the board unlinks and leaves the score')
+    console.log('\n[9] follow by scoreboard code: the scorer shows a code, the board follows it, the code ends -> unlinked')
+    if (!sc.inbox.some((m) => m.type === 'display-presence')) {
+      console.log('   this relay knows no scoreboard codes yet (no display-presence for the scorer) — skipped')
+    } else {
+      const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      const CODE = Array.from(crypto.randomBytes(8), (x) => ALPHA[x % 32]).join('')
+      const entries = []
+      const onEntry = (e) => entries.push(JSON.stringify(e))
+      logStore.on('entry', onEntry)
+      const codeFile = path.join(stateDir, 'data', 'follow-code.json')
+      const states = () => sc.inbox.filter((m) => m.type === 'display-code-state' && m.matchId === SEED)
+      const n0 = states().length
+      sc.send({ type: 'display-code-set', matchId: SEED, code: CODE, issuedAt: Date.now() })
+      for (let i = 0; i < 50 && states().length === n0; i++) await sleep(100)
+      const set = states().at(-1)
+      ok(set && set.active === true && !JSON.stringify(set).includes(CODE), `the relay took the scorer's code (${JSON.stringify(set)})`)
+      push({ current_set: 4, sets_won_a: 2, sets_won_b: 1, points_a: 10, points_b: 12, side_a: 'right' }); await sleep(200)
+      // As the operator types it: lower case, with the dash; the scorer's own relay (Settings ▸ Scorer laptop address).
+      const r = await post('/api/link', { source: 'code', code: `${CODE.slice(0, 4)}-${CODE.slice(4)}`.toLowerCase(), relay: 'laptop' })
+      ok(r.status === 200 && r.json?.mode === 'lan' && r.json?.linkSource === 'code' && r.json?.matchId === SEED,
+        `linked by the code -> ${r.status} ${r.json?.mode} ${r.json?.linkSource} ${r.json?.matchId === SEED ? 'the seed key' : r.json?.matchId} (${r.json?.error || ''})`)
+      let fc = null
+      for (let i = 0; i < 50 && !(fc && fc.state === 'following'); i++) { fc = (await get('/api/status')).followCode; if (fc.state !== 'following') await sleep(100) }
+      ok(fc && fc.state === 'following' && fc.relay === 'laptop' && fc.endsAt > Date.now(), `following, until the code ends (${JSON.stringify(fc)})`)
+      for (let i = 0; i < 30 && t('score1') !== '12'; i++) await sleep(100)
+      console.log(`   panel: ${panel()}`)
+      ok(t('team1') === 'VBC' && t('score1') === '12' && t('score2') === '10', 'the score reached the panel (VBC 12:10 KSC, the scorer faces the board)')
+      push({ current_set: 4, sets_won_a: 2, sets_won_b: 1, points_a: 11, points_b: 12, side_a: 'right' }); await sleep(400)
+      ok(t('score2') === '11', `the next rally too (${panel()})`)
+      ok(fs.existsSync(codeFile) && (fs.statSync(codeFile).mode & 0o777) === 0o600, 'the code kept on the board for a reconnect, 0600')
+      // The scorer stops sharing (Match ▸ Show on a scoreboard ▸ Stop sharing): display-code ended.
+      sc.send({ type: 'display-code-set', matchId: SEED, code: null })
+      let st = null
+      for (let i = 0; i < 50 && !(st && st.mode === 'idle'); i++) { st = await get('/api/status'); if (st.mode !== 'idle') await sleep(100) }
+      ok(st.mode === 'idle' && st.followCode.state === 'ended', `the code ended: unlinked (${st.mode}, ${st.followCode.state})`)
+      ok(st.ledbox.idle === true && t('score2') !== '11', `back to the clock, the 12:11 off the panel (${panel()})`)
+      ok(!fs.existsSync(codeFile), 'the kept code is gone')
+      logStore.off('entry', onEntry)
+      const leak = entries.filter((l) => l.toUpperCase().includes(CODE) || l.toUpperCase().includes(`${CODE.slice(0, 4)}-${CODE.slice(4)}`))
+      ok(entries.length > 5 && leak.length === 0, `the code is in none of the board's ${entries.length} log lines${leak.length ? `: ${leak[0].slice(0, 160)}` : ''}`)
+      // Back on the match by its key for [10].
+      const back = await post('/api/link', { source: 'lan', matchId: SEED, relay: row && row.relay })
+      ok(back.status === 200 && back.json?.mode === 'lan', 'linked by the match again')
+      await sleep(400)
+    }
+
+    console.log('\n[10] the scorer deletes the match -> the board unlinks and leaves the score')
     sc.send({ type: 'delete-match', matchId: SEED }); await sleep(500)
     const st = await get('/api/status')
     ok(st.mode === 'idle', `mode ${st.mode}`)

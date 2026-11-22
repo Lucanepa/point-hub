@@ -161,7 +161,8 @@ npm install && npm run test:relay
 # backend/server.js --local, frontend/server.js (the desktop Node relay, same core as Electron) and
 # the Tauri relay (--server-only, when a build exists; skipped otherwise) — and drives the real
 # appliance through the network search (the real /api/server/status), Settings, /api/matches and
-# /api/link, asserts the panel at every step, exits 1 on any miss
+# /api/link, asserts the panel at every step, exits 1 on any miss; on a relay that knows scoreboard
+# codes also the follow by code (the scorer sets a code, the board follows it, the code ends)
 npm run test:e2e                                   # OPENVOLLEY_DIR defaults to ../openvolley/escoresheet
 E2E_RELAYS=backend,desktop npm run test:e2e        # a subset; OPENVOLLEY_TAURI_BIN = a Tauri build
 
@@ -236,6 +237,30 @@ matches from the relay and mirror one live). Cloud/Supabase source is a stub.
   names the laptop that answered — or the address it tried and why it failed — and a link
   subscribes to the relay that listed the match. A match is listed by the relay only once the
   scorer has synced it (today's relays also want the referee connection on).
+- **Follow by scoreboard code** — Link tab ▸ *Follow by scoreboard code* (behind the scorer PIN).
+  The scorer opens OpenVolley's **Match ▸ Show on a scoreboard** (openvolley#317) and reads out or
+  shows a code like `ABCD-2345`; type it (any case, spaces or dashes) or paste the board link from
+  the scorer's QR code (`…/board#ABCD2345`, `?code=` too), pick where the scorer scores —
+  **OpenVolley cloud** (the default, `wss://backend.openvolley.app`), **OpenVolley on this board**
+  (the C0270 with `BOARD_OPENVOLLEY=1`, the DIY board), **Scorer laptop** (Settings ▸ Scorer laptop
+  address, else the laptop the search found) — and **Link**. On the cloud this works from any
+  network: the board needs its own internet only, the tablet does not have to be on the board's
+  Wi-Fi or share its address. `POST /api/link { source: 'code', code, relay?: 'cloud' | 'board' |
+  'laptop' }`: the code is checked with the relay's `POST /api/display/lookup` first, so a wrong
+  (404), ended (410) or rate-limited (429, `retryAfter`) code is answered without touching the
+  panel; then the board subscribes with `subscribe-match { code, device: 'display' }` (and the
+  settings announcement) and follows the match through the same path as every link: the mirror,
+  the substitution count (`subs_count_*`), the set history, SATZBALL / WECHSEL, the result screen,
+  livePush. `/api/status.followCode`: `{ relays, linked, state, relay, endsAt, retryAt, ref }`,
+  state `looking` | `following` | `lost` (the relay does not know the code right now: asked again
+  after 15, 30, then every 60 s, given up after 30 min) | `rate-limited` (nothing sent before the
+  relay's wait) while linked, and `ended` | `not-found` | `rate-limited` | `unsupported` (an older
+  OpenVolley) for the last one once over. When the code ends (a new code, Stop sharing, the match
+  closed) the board unlinks: the result stays if it is up, else the clock. The code is kept in
+  `data/follow-code.json` (0600) for reconnects and a bridge restart, which follows it again by
+  itself, and removed on unlink and when it ends; never logged (a line names it `ref=<8 hex>`, the
+  same ref OpenVolley's relays log) and never in `/api/status`. A board linked by code gets the
+  public live state only (no match PIN).
 - **End of a linked match** — when the scorer ends the match (`match_status: 'ended'` in the live
   state), the panel shows the result screen (winner, sets; the clock on a board without
   `kscw_result`); an undo of the end brings the score back. When the scorer deletes the match

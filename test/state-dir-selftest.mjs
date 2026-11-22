@@ -60,6 +60,7 @@ const WRITES = {
   'gameSheet.js': [4, 'data/gamesheet.json (controlServer, from dataDir)'],
   'hallLogin.js': [3, 'data/uplink.json (controlServer, from dataDir)'],
   'matchUpload.js': [3, 'data/match-uploads.json (appliance, from dataDir)'],
+  'followCode.js': [5, 'data/follow-code.json, the scoreboard code being followed (controlServer, from dataDir)'],
   'controlServer.js': [1, '.sport-switch beside settings.json'],
   // NOT appliance state: PANEL_OFF and setting.ini belong to the panel firmware and are read by it
   // (and by ledbox-watchdog.sh) at those fixed paths, and /run/ledbox-panel/brightness is the live

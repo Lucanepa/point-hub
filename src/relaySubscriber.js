@@ -25,6 +25,22 @@
 //   <- { type: 'match-deleted',     matchId }
 //   keepalive: -> { type: 'ping' }  <- { type: 'pong' }
 //
+// Or by a SCOREBOARD CODE instead of a room key (followCode.js, OpenVolley's scoreboard-code-spec.md):
+//   -> { type: 'subscribe-match', code, device: 'display', settingsUrl? }   (no matchId, no PIN)
+//   <- { type: 'display-code', ok: true, matchId, endsAt }   then the room's messages, as above
+//   <- { type: 'display-code', ok: false, reason: 'not-found' | 'rate-limited', retryAfter? }
+//   <- { type: 'display-code', ok: false, reason: 'ended' }  the code ended: the relay took us out
+// The code is never logged (its `ref` is). What the answers do, without a storm of lookups:
+//   ok            the room is followed; `matchId` is now the room key; every reconnect sends the code
+//                 again (a relay that restarted learns it back from the scorer within seconds)
+//   ended         final: the subscriber stops, and says so ('code' { final: true })
+//   not-found     a code never seen on this relay is a typo or the wrong relay: final. One that was
+//                 followed before (or restored after a restart, `codeConfirmed`) is the relay or the
+//                 scorer reconnecting: asked again after 15, 30, then every 60 s on the open socket,
+//                 and given up after CODE_GIVE_UP_MS
+//   rate-limited  nothing is sent before `retryAfter` seconds, on this socket or a new one
+//   an older relay that knows no codes answers `Match ID required`: final, 'unsupported'
+//
 // A live state can reach us after a newer one: the relay replays its stored copy to every
 // (re)subscribe — after a link drop, that copy is whatever it last kept — and the match-data
 // path can carry a copy of its own. The scorer numbers each state it pushes (see liveStateOrder;
@@ -34,7 +50,8 @@
 
 import { EventEmitter } from 'node:events'
 import { log } from './logStore.js'
-import { announcementFields } from './boardAnnounce.js'
+import { announcementFields, DISPLAY_DEVICE } from './boardAnnounce.js'
+import { normalizeCode, codeRef } from './followCode.js'
 
 // The scorer's order of a live state, or null when it carries none (an older scorer, a database
 // row). OpenVolley's relayPublisher.createLiveStateOrder stamps every relay push with `_seq`,
@@ -76,19 +93,44 @@ const SILENT_MS = PING_MS * 2.5
 // every message shape that arrived but carried no usable live-state.
 const rlog = log.child('relay')
 
+// Scoreboard codes: the waits after a 'not-found' for a code that was followed before, and how long
+// such a code may stay lost before the board gives up on it. The relay's own wait for 'rate-limited'
+// is clamped to these bounds.
+export const CODE_RETRY_MS = Object.freeze([15000, 30000, 60000])
+export const CODE_GIVE_UP_MS = 30 * 60 * 1000
+const RATE_WAIT_MIN_S = 5, RATE_WAIT_MAX_S = 3600
+
 export class RelaySubscriber extends EventEmitter {
   // announce: the board's announcement on every subscription (boardAnnounce.js); left out, the one the
   // appliance set, if any.
-  constructor({ url, matchId, reconnectMs = 3000, pin = null, announce } = {}) {
+  // code: follow by a scoreboard code instead of matchId (see the header); codeConfirmed: the code was
+  // followed before (a restored one), so a 'not-found' is waited out rather than final. codeRetryMs /
+  // codeGiveUpMs: for the tests.
+  constructor({ url, matchId, reconnectMs = 3000, pin = null, announce, code = null, codeConfirmed = false, codeRetryMs = CODE_RETRY_MS, codeGiveUpMs = CODE_GIVE_UP_MS } = {}) {
     super()
     this._announce = announce
     this.url = url
     this.matchId = matchId != null ? String(matchId) : null
     this.reconnectMs = reconnectMs
+    this.code = normalizeCode(code)
+    this.codeRef = this.code ? codeRef(this.code) : null
+    this._codeConfirmed = !!(this.code && codeConfirmed)
+    this._codeRetryMs = codeRetryMs
+    this._codeGiveUpMs = codeGiveUpMs
+    this._codeHoldUntil = 0 // nothing is sent before this (rate-limited, or the wait after a not-found)
+    this._codeTimer = null
+    this._codeMisses = 0
+    this._codeMissSince = 0
+    this._codeDead = false
+    // What became of the code: null (no code) | 'looking' | 'following' | 'lost' (not found right now,
+    // asking again) | 'rate-limited' | 'ended' | 'not-found' | 'unsupported'. And when it ends / the next try.
+    this.codeState = this.code ? 'looking' : null
+    this.codeEndsAt = null
+    this.codeRetryAt = null
     // The match PIN offered with the subscription (see the header), or null. `pinState` is what
     // became of it: 'none' | 'offered' | 'accepted' (the relay sent more than the summary) |
-    // 'refused' (and it is gone).
-    this._pin = cleanPin(pin)
+    // 'refused' (and it is gone). Never with a code: the relays ignore a PIN next to one.
+    this._pin = this.code ? null : cleanPin(pin)
     this.pinState = this._pin ? 'offered' : 'none'
     this.ws = null
     this._closing = false
@@ -100,6 +142,11 @@ export class RelaySubscriber extends EventEmitter {
     this._order = null
   }
 
+  // What every log line names: the relay, the room, and the code by its ref only.
+  _ctx() {
+    return this.code ? { url: this.url, matchId: this.matchId, ref: this.codeRef } : { url: this.url, matchId: this.matchId }
+  }
+
   start() {
     this._closing = false
     this._open()
@@ -107,7 +154,7 @@ export class RelaySubscriber extends EventEmitter {
 
   _open() {
     if (this._closing) return // a retry that was already in flight when stop() ran
-    rlog.info('connecting', { url: this.url, matchId: this.matchId })
+    rlog.info('connecting', this._ctx())
     const ws = new WebSocket(this.url)
     this.ws = ws
 
@@ -116,7 +163,7 @@ export class RelaySubscriber extends EventEmitter {
     // and neither must touch the connection that replaced it.
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return
-      rlog.info('connected', { url: this.url, matchId: this.matchId })
+      rlog.info('connected', this._ctx())
       this._lastRx = Date.now()
       this.emit('open')
       this._subscribe()
@@ -145,7 +192,7 @@ export class RelaySubscriber extends EventEmitter {
       // which is the fact an operator can actually act on ("is the scoring laptop up?").
       const detail = (ev && ev.error && ev.error.message) || (ev && ev.message) || `cannot reach ${this.url}`
       const err = ev && ev.error && ev.error.message ? ev.error : new Error(detail)
-      rlog.error(`socket error: ${detail}`, { url: this.url, matchId: this.matchId })
+      rlog.error(`socket error: ${detail}`, this._ctx())
       this.emit('error', err)
     })
     ws.addEventListener('close', () => {
@@ -154,7 +201,7 @@ export class RelaySubscriber extends EventEmitter {
       clearInterval(this._pingTimer)
       const retry = !this._closing && this.reconnectMs > 0
       rlog[retry ? 'warn' : 'info'](retry ? `disconnected — retrying in ${this.reconnectMs}ms` : 'disconnected', {
-        url: this.url, matchId: this.matchId, retrying: retry,
+        ...this._ctx(), retrying: retry,
       })
       this.emit('close')
       this._scheduleRetry()
@@ -175,7 +222,7 @@ export class RelaySubscriber extends EventEmitter {
     if (this.ws !== ws) return
     this.ws = null
     clearInterval(this._pingTimer)
-    rlog.warn(`${reason} — assuming a half-open socket and reconnecting`, { url: this.url, matchId: this.matchId })
+    rlog.warn(`${reason} — assuming a half-open socket and reconnecting`, this._ctx())
     try { ws.close() } catch { /* ignore */ }
     this.emit('close')
     this._scheduleRetry()
@@ -184,6 +231,7 @@ export class RelaySubscriber extends EventEmitter {
   // The subscribe-match this subscriber sends: the match, its PIN if one is offered, and the board's
   // announcement.
   subscription() {
+    if (this.code) return { type: 'subscribe-match', code: this.code, device: DISPLAY_DEVICE, ...announcementFields(this._announce) }
     return { type: 'subscribe-match', matchId: this.matchId, ...(this._pin ? { pin: this._pin } : {}), ...announcementFields(this._announce) }
   }
 
@@ -194,8 +242,85 @@ export class RelaySubscriber extends EventEmitter {
   }
 
   _subscribe() {
+    if (this.code) {
+      if (this._codeDead || this._closing) return
+      const wait = this._codeHoldUntil - Date.now()
+      if (wait > 0) { this._codeLater(wait); return }
+      this._send(this.subscription())
+      return
+    }
     if (!this.matchId) return
     this._send(this.subscription())
+  }
+
+  // Ask for the code again in `ms`, on whatever socket is open then (a new one subscribes by itself).
+  _codeLater(ms) {
+    clearTimeout(this._codeTimer)
+    this._codeTimer = setTimeout(() => { this._codeTimer = null; this._subscribe() }, ms)
+    if (this._codeTimer.unref) this._codeTimer.unref()
+  }
+
+  // The relay's answer to the code (see the header).
+  _onCode(msg) {
+    if (!this.code || this._codeDead) return
+    const now = Date.now()
+    if (msg.ok === true) {
+      const room = msg.matchId != null ? String(msg.matchId).slice(0, 200) : ''
+      if (!room) { rlog.warn('the relay took the scoreboard code but named no match', this._ctx()); return }
+      if (this.matchId && this.matchId !== room) {
+        rlog.warn('the scoreboard code names another match now — following that one', { ...this._ctx(), now: room })
+        this._order = null
+      }
+      const first = this.codeState !== 'following'
+      this.matchId = room
+      this._codeConfirmed = true
+      this._codeMisses = 0
+      this._codeMissSince = 0
+      this._codeHoldUntil = 0
+      this.codeRetryAt = null
+      this.codeState = 'following'
+      this.codeEndsAt = Number(msg.endsAt) > 0 ? Number(msg.endsAt) : null
+      if (first) rlog.info('following the match by its scoreboard code', { ...this._ctx(), endsAt: this.codeEndsAt })
+      this.emit('code', { ok: true, matchId: room, endsAt: this.codeEndsAt })
+      return
+    }
+    const reason = String(msg.reason || 'not-found')
+    if (reason === 'ended') { this._endCode('ended', 'the scoreboard code ended (a new code, sharing stopped, or the match closed)'); return }
+    if (reason === 'rate-limited') {
+      const s = Math.min(RATE_WAIT_MAX_S, Math.max(RATE_WAIT_MIN_S, Number(msg.retryAfter) || 60))
+      this._codeHoldUntil = now + s * 1000
+      this.codeState = 'rate-limited'
+      this.codeRetryAt = this._codeHoldUntil
+      rlog.warn(`the relay says too many code lookups from this board — asking again in ${s} s`, { ...this._ctx(), retryAfter: s })
+      this._codeLater(s * 1000)
+      this.emit('code', { ok: false, reason, retryAfter: s, final: false })
+      return
+    }
+    // not-found (or a reason this board does not know)
+    if (!this._codeConfirmed) { this._endCode('not-found', 'the relay does not know this scoreboard code (a typo, or the scorer is on another relay)'); return }
+    if (!this._codeMissSince) this._codeMissSince = now
+    if (now - this._codeMissSince >= this._codeGiveUpMs) { this._endCode('not-found', `the scoreboard code has not been found for ${Math.round((now - this._codeMissSince) / 60000)} min — giving up`); return }
+    const steps = this._codeRetryMs
+    const wait = steps[Math.min(this._codeMisses, steps.length - 1)]
+    this._codeMisses++
+    this._codeHoldUntil = now + wait
+    this.codeState = 'lost'
+    this.codeRetryAt = this._codeHoldUntil
+    rlog.warn(`the relay does not know the scoreboard code right now (the scorer reconnecting?) — asking again in ${Math.round(wait / 1000)} s`, { ...this._ctx(), misses: this._codeMisses })
+    this._codeLater(wait)
+    this.emit('code', { ok: false, reason: 'not-found', retryAfter: Math.round(wait / 1000), final: false })
+  }
+
+  // The code is over for this board: no more lookups, no reconnects. The owner unlinks.
+  _endCode(reason, why) {
+    this._codeDead = true
+    clearTimeout(this._codeTimer)
+    this._codeTimer = null
+    this.codeState = reason
+    this.codeRetryAt = null
+    rlog[reason === 'ended' ? 'info' : 'warn'](why, { ...this._ctx(), reason })
+    this.stop()
+    this.emit('code', { ok: false, reason, final: true })
   }
 
   // Offer a match PIN (or take it back with an empty one) on the running link: the relay is asked
@@ -228,9 +353,13 @@ export class RelaySubscriber extends EventEmitter {
         rlog.info('relay acknowledged the subscription', { matchId: this.matchId })
         this.emit('connected', msg)
         break
+      case 'display-code':
+        this._onCode(msg)
+        break
       case 'match-full-data':
       case 'match-data-update': {
-        if (this.matchId && String(msg.matchId) !== this.matchId) return
+        // By code, nothing counts before the relay named the room.
+        if ((this.matchId || this.code) && String(msg.matchId) !== this.matchId) return
         // What the relay let us see: 'summary' is the PIN-free view; anything else (the scorer's,
         // a referee's) means the PIN was taken. A relay that does not say leaves it as it was.
         if (this._pin && typeof msg.access === 'string') {
@@ -265,7 +394,7 @@ export class RelaySubscriber extends EventEmitter {
       }
       case 'live-state-update': {
         // Dedicated, fresh live-state push (see server.js). This is the normal path.
-        if (this.matchId && String(msg.matchId) !== this.matchId) return
+        if ((this.matchId || this.code) && String(msg.matchId) !== this.matchId) return
         if (msg.liveState) {
           rlog.debug('live-state-update', { matchId: msg.matchId })
           this._take(msg.liveState, msg.type)
@@ -273,7 +402,7 @@ export class RelaySubscriber extends EventEmitter {
         break
       }
       case 'match-deleted':
-        if (!this.matchId || String(msg.matchId) === this.matchId) {
+        if ((!this.matchId && !this.code) || String(msg.matchId) === this.matchId) {
           rlog.warn('the linked match was deleted on the relay', { matchId: msg.matchId })
           this.emit('match-gone', msg)
         }
@@ -294,6 +423,8 @@ export class RelaySubscriber extends EventEmitter {
           this.emit('pin-refused', { code })
         }
         this.emit('relay-error', { code, message: text })
+        // A relay from before scoreboard codes reads the subscription as one without a matchId.
+        if (this.code && !this.matchId && /match id required/i.test(text)) this._endCode('unsupported', 'this relay does not know scoreboard codes yet (an older OpenVolley)')
         break
       }
       default:
@@ -315,9 +446,11 @@ export class RelaySubscriber extends EventEmitter {
   }
 
   stop() {
-    rlog.info('unsubscribing', { url: this.url, matchId: this.matchId })
+    if (!this._closing) rlog.info('unsubscribing', this._ctx())
     this._closing = true
     clearInterval(this._pingTimer)
+    clearTimeout(this._codeTimer)
+    this._codeTimer = null
     // Without this, a stop() landing inside the reconnect window let the subscriber come back from
     // the dead: 3s later _open() reconnected, re-subscribed to the abandoned match and installed a
     // 25s interval nothing could ever clear, once per source switch during a relay outage.
