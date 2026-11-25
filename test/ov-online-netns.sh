@@ -51,7 +51,13 @@ def serve(port):
     s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(("0.0.0.0", port)); s.listen(16)
     while True:
         c, a = s.accept(); log.write("%s %d\n" % (a[0], port)); c.close()
+def serve_udp(addr, port):  # one socket per address: from 0.0.0.0 the reply would leave from 10.9.9.2
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind((addr, port))
+    while True:
+        d, a = s.recvfrom(512); s.sendto(d, a)
 for p in (443, 80): threading.Thread(target=serve, args=(p,), daemon=True).start()
+for h in ("8.8.8.8", "9.9.9.9"):
+    for p in (123, 53): threading.Thread(target=serve_udp, args=(h, p), daemon=True).start()
 threading.Event().wait()
 ' "$T/peers" >/dev/null 2>&1 & SRV=$!
 echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -59,10 +65,12 @@ $I -t nat -A POSTROUTING -o wlan1 -j MASQUERADE         # the vendor's worst cas
 sleep 0.5
 
 tcp() { inns $PC timeout 2 bash -c "exec 3<>/dev/tcp/$1/$2" >/dev/null 2>&1; }
+udp() { inns $PC python3 -c 'import socket,sys; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.settimeout(1); s.sendto(b"x",(sys.argv[1],int(sys.argv[2]))); s.recv(16)' "$1" "$2" >/dev/null 2>&1; }
 chk() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; fi; }
 st() { "$OV" status 2>/dev/null; }
 
 chk "the test is real: with no firewall the phone reaches any site" 'tcp 9.9.9.9 443'
+chk "...and any UDP port (the UDP checks below are not empty)" 'udp 9.9.9.9 123 && udp 9.9.9.9 53'
 # From here on the only NAT is ours (the MASQUERADE check below would pass on the vendor's otherwise).
 $I -t nat -F POSTROUTING; : > "$T/peers"
 
@@ -81,8 +89,8 @@ echo 0 > /proc/sys/net/ipv4/ip_forward      # what lock-control-network.sh leave
 out=$("$OV" on 2>/dev/null); rc=$?
 chk "on: exit 0 and active ($out)" '[ $rc = 0 ] && echo "$out" | grep -q "\"enabled\":true,\"active\":true"'
 chk "kernel forwarding is on while ON" '[ "$(cat /proc/sys/net/ipv4/ip_forward)" = 1 ]'
-chk "the dnsmasq file names only OpenVolley and the Android check, upstream 10.9.9.2" \
-  '[ "$(grep -c "^server=" $T/dns/zz-ledbox-ov-online.conf)" = 2 ] && grep -q "^server=/openvolley.app/10.9.9.2$" $T/dns/zz-ledbox-ov-online.conf && grep -q "^nftset=/openvolley.app/4#inet#ovonline#ov4$" $T/dns/zz-ledbox-ov-online.conf && grep -q "^filter-AAAA$" $T/dns/zz-ledbox-ov-online.conf'
+chk "the dnsmasq file names only OpenVolley, the Android check and four time servers, upstream 10.9.9.2" \
+  '[ "$(grep -c "^server=" $T/dns/zz-ledbox-ov-online.conf)" = 6 ] && grep -q "^server=/openvolley.app/10.9.9.2$" $T/dns/zz-ledbox-ov-online.conf && grep -q "^nftset=/openvolley.app/4#inet#ovonline#ov4$" $T/dns/zz-ledbox-ov-online.conf && grep -q "^filter-AAAA$" $T/dns/zz-ledbox-ov-online.conf'
 chk "an address nobody resolved stays blocked" '! tcp 8.8.8.8 443'
 $N add element inet ovonline ov4 '{ 8.8.8.8 }'     # what dnsmasq does for an OpenVolley answer
 chk "an OpenVolley address gets through on 443" 'tcp 8.8.8.8 443'
@@ -90,6 +98,18 @@ chk "...NATed: the server sees the board's uplink address" '[ "$(cat $T/peers)" 
 chk "...but not on 80" '! tcp 8.8.8.8 80'
 chk "...and no ping" '! inns $PC ping -c1 -W1 8.8.8.8 >/dev/null 2>&1'
 chk "any other site stays blocked" '! tcp 9.9.9.9 443'
+chk "a time server nobody resolved stays blocked" '! udp 9.9.9.9 123'
+$N add element inet ovonline ntp4 '{ 9.9.9.9 }'   # what dnsmasq does for a time-server answer
+chk "a time-server address gets through on UDP 123" 'udp 9.9.9.9 123'
+chk "...but not on another UDP port, nor on 443" '! udp 9.9.9.9 53 && ! tcp 9.9.9.9 443'
+chk "an OpenVolley address is not let out on UDP 123" '! udp 8.8.8.8 123'
+$N delete element inet ovonline ntp4 '{ 9.9.9.9 }'
+# tailscaled starting after us puts its chain first in FORWARD (one that accepts out of tailscale0).
+$I -N ts-forward; $I -A ts-forward -o tailscale0 -j ACCEPT; $I -I FORWARD 1 -j ts-forward
+chk "tailscale's chain first: status says not active" '! st | grep -q "\"active\":true"'
+"$OV" refresh >/dev/null 2>&1
+chk "...a refresh puts LEDBOX-FWD back first, active, OpenVolley still reachable" '[ "$($I -S FORWARD | sed -n 2p)" = "-A FORWARD -j LEDBOX-FWD" ] && [ "$($I -S FORWARD | grep -c -- "-j LEDBOX-FWD")" = 1 ] && st | grep -q "\"active\":true" && tcp 8.8.8.8 443'
+$I -D FORWARD -j ts-forward; $I -F ts-forward; $I -X ts-forward
 chk "the phone still reaches the board" 'inns $PC ping -c1 -W1 172.24.1.1 >/dev/null 2>&1'
 chk "IPv6 forwarding untouched: policy DROP, LEDBOX-FWD a lone DROP" '[ "$(/usr/sbin/ip6tables -S FORWARD | head -1)" = "-P FORWARD DROP" ] && [ "$(/usr/sbin/ip6tables -S LEDBOX-FWD | grep -c "^-A")" = 1 ]'
 "$OV" on >/dev/null 2>&1

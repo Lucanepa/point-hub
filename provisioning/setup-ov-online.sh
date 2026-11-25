@@ -51,8 +51,10 @@ hook_text() {
 #!/bin/sh
 # setup-ov-online.sh: when the hall uplink (wlan1) comes up or gets a new DNS server, OpenVolley online
 # follows it (ledbox-ov-online refresh). Does nothing at all while the option is OFF.
+# tailscale0 up: tailscaled has just put its chain first in FORWARD, the refresh puts ours back in front.
 case "$2" in
-  up|dhcp4-change) [ "$1" = "wlan1" ] || exit 0 ;;
+  up) [ "$1" = "wlan1" ] || [ "$1" = "tailscale0" ] || exit 0 ;;
+  dhcp4-change) [ "$1" = "wlan1" ] || exit 0 ;;
   dns-change) ;;
   *) exit 0 ;;
 esac
