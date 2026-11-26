@@ -123,8 +123,15 @@ console.log('\n[2] never on without the firewall\'s forward drop, or a dnsmasq t
   ok(r.rc === 3 && r.json && r.json.enabled === false, `no forward drop: refused (exit ${r.rc}), still off`)
   ok(rd('ip_forward').trim() === '0' && !rd('nft.table') && !ours().length && conf() === null, '...forwarding untouched, no table, no rule, no dnsmasq file')
   // A forward drop that is not first, or a chain that does not end in DROP, is no forward drop either.
+  // tailscaled puts ts-forward first each time it starts: with a real drop, ours goes back in front.
   board(); fs.writeFileSync(path.join(F, 'rules'), 'filter FORWARD -j ts-forward\nfilter FORWARD -j LEDBOX-FWD\nfilter LEDBOX-FWD -j DROP\n')
-  ok(run('on').rc === 3, 'LEDBOX-FWD behind tailscale\'s chain: refused')
+  r = run('on')
+  const fwdRules = rd('rules').split('\n').filter((l) => l.startsWith('filter FORWARD '))
+  ok(r.rc === 0 && r.json && r.json.active === true && fwdRules[0] === 'filter FORWARD -j LEDBOX-FWD' && fwdRules.length === 2,
+    `LEDBOX-FWD behind tailscale's chain: put back first, then on (${fwdRules.join(' | ')})`)
+  // ...but never without a drop: the chain not ending in DROP is not moved, and refused.
+  board(); fs.writeFileSync(path.join(F, 'rules'), 'filter FORWARD -j ts-forward\nfilter FORWARD -j LEDBOX-FWD\nfilter LEDBOX-FWD -j ACCEPT\n')
+  ok(run('on').rc === 3 && rd('rules').startsWith('filter FORWARD -j ts-forward\n'), 'behind tailscale\'s chain with no DROP at the end: refused, FORWARD untouched')
   board(); fs.writeFileSync(path.join(F, 'policy.FORWARD'), 'ACCEPT\n')
   ok(run('on').rc === 3, 'FORWARD policy ACCEPT: refused')
   board({ nftset: false })
@@ -153,7 +160,10 @@ console.log('\n[3] on: every piece, kernel forwarding last')
   ok(/iifname "wlan0" oifname "wlan1" ip saddr 172\.24\.1\.0\/24 ip daddr @ov4 tcp dport 443 meta mark set 0x77/.test(table), 'the mark: wlan0 → wlan1, TCP 443, an address in the set')
   const c = conf() || ''
   ok(/^server=\/openvolley\.app\/192\.168\.1\.1$/m.test(c) && /^server=\/connectivitycheck\.gstatic\.com\/192\.168\.1\.1$/m.test(c), 'dnsmasq asks the uplink\'s DNS for openvolley.app and the Android check')
-  ok((c.match(/^server=/gm) || []).length === 2 && !/^server=[0-9]/m.test(c), '...and for nothing else (no plain server= line)')
+  ok((c.match(/^server=/gm) || []).length === 6 && !/^server=[0-9]/m.test(c), '...and the four time servers, nothing else (no plain server= line)')
+  ok(/^server=\/time\.android\.com\/192\.168\.1\.1$/m.test(c) && /^nftset=\/pool\.ntp\.org\/4#inet#ovonline#ntp4$/m.test(c) && !/^nftset=\/[^/]*ntp[^/]*\/4#inet#ovonline#ov4$/m.test(c),
+    '...time-server answers go into their own set, not the HTTPS one')
+  ok(/ip daddr @ntp4 udp dport 123 meta mark set 0x77/.test(table) && !/@ntp4 tcp/.test(table), 'the time servers: UDP 123 only')
   ok(/^nftset=\/openvolley\.app\/4#inet#ovonline#ov4$/m.test(c) && /^filter-AAAA$/m.test(c), '...answers go into the set, and no IPv6 answers')
   const order = calls().split('\n')
   const at = (re) => order.findIndex((l) => re.test(l))
@@ -214,6 +224,11 @@ console.log('\n[5] the firewall rebuilt, a reboot')
   fs.writeFileSync(path.join(F, 'ip_forward'), '0\n')
   run('forward-rules') // ledbox-lan-guard at boot
   ok(run('apply').rc === 0 && run('status').json.active === true, 'the boot apply puts everything back')
+  // tailscaled starts after that and takes the first place in FORWARD: its tailscale0-up refresh puts ours back.
+  fs.writeFileSync(path.join(F, 'rules'), 'filter FORWARD -j ts-forward\n' + rd('rules'))
+  ok(run('status').json.active === false, 'tailscale\'s chain first: status no longer active')
+  ok(run('refresh').rc === 0 && run('status').json.active === true && rd('rules').split('\n').filter((l) => l.startsWith('filter FORWARD '))[0] === 'filter FORWARD -j LEDBOX-FWD',
+    '...a refresh puts LEDBOX-FWD back first, active again')
   // forward-rules while off does nothing, and never on a board without the drop.
   run('off')
   fs.writeFileSync(path.join(F, 'rules'), 'filter FORWARD -j LEDBOX-FWD\nfilter LEDBOX-FWD -j DROP\n')
@@ -245,10 +260,11 @@ console.log('\n[6] off: nothing left, forwarding as it was')
   // The hand-applied opening of 17.11.2026: its file and its uncommented rules go too.
   board()
   fs.writeFileSync(path.join(DNSD, 'zz-openvolley-online.conf'), 'server=/openvolley.app/1.1.1.1\n')
+  fs.writeFileSync(path.join(DNSD, 'zz-openvolley-ntp.conf'), 'server=/time.android.com/1.1.1.1\n')
   fs.appendFileSync(path.join(F, 'rules'), 'filter LEDBOX-FWD -i wlan0 -o wlan1 -m mark --mark 0x77 -j ACCEPT\nnat POSTROUTING -s 172.24.1.0/24 -o wlan1 -j MASQUERADE\n')
   fs.writeFileSync(path.join(F, 'nft.table'), 'table inet ovonline {}')
   run('off')
-  ok(!fs.existsSync(path.join(DNSD, 'zz-openvolley-online.conf')) && !rd('rules').includes('--mark 0x77 -j ACCEPT') && !rd('rules').includes('MASQUERADE') && !rd('nft.table'),
+  ok(!fs.existsSync(path.join(DNSD, 'zz-openvolley-online.conf')) && !fs.existsSync(path.join(DNSD, 'zz-openvolley-ntp.conf')) && !rd('rules').includes('--mark 0x77 -j ACCEPT') && !rd('rules').includes('MASQUERADE') && !rd('nft.table'),
     'off also removes the hand-applied opening (its file, rules, NAT and table)')
   // Without that file, a MASQUERADE of the same shape is the vendor's and is left alone.
   board()

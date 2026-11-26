@@ -28,8 +28,8 @@
 #
 # One exception, OFF unless the owner turns it on in the console (Settings ▸ OpenVolley online,
 # ledbox-ov-online.sh / setup-ov-online.sh): devices on the board's Wi-Fi then reach *.openvolley.app on
-# 443 and nothing more. It needs v4 forwarding on and two `server=/<domain>/` lines in its own dnsmasq
-# file; --check names both as OpenVolley online's, and still flags every other server= line and any
+# 443 (and four time servers on UDP 123) and nothing more. It needs v4 forwarding on and its own
+# `server=/<domain>/` lines in its own dnsmasq file; --check names both as OpenVolley online's, and still flags every other server= line and any
 # forwarding it cannot account for. --apply leaves it as the owner set it.
 LP_NAME=lock-control-network
 . "$(dirname "$(readlink -f "$0")")/lib-provision.sh" || { echo "!! lib-provision.sh missing"; exit 1; }
@@ -79,7 +79,7 @@ ovs=$(ov_status || true)
 if [ -z "$ovs" ]; then
   echo "  OpenVolley online: not installed (setup-ov-online.sh)"
 elif ov_on; then
-  echo "  OpenVolley online: ON — devices on the board's Wi-Fi reach *.openvolley.app on 443 and nothing else;"
+  echo "  OpenVolley online: ON — devices on the board's Wi-Fi reach *.openvolley.app on 443 and time servers on UDP 123, nothing else;"
   echo "    v4 forwarding is on for it, and its dnsmasq file is $OVCONF. Off: console ▸ Settings, or $OV_ONLINE_HELPER off"
   echo "    $ovs"
 else

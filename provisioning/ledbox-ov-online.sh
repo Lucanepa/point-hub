@@ -10,6 +10,7 @@
 #   - an nft table marks wlan0 -> wlan1 TCP/443 to an address in that set, and LEDBOX-FWD (the
 #     firewall's forward drop) accepts that mark and the replies, ahead of its DROP; nothing else is
 #     forwarded, IPv6 not at all (dnsmasq filters AAAA, the v6 forward drop is untouched);
+#   - time sync the same way: four NTP names fill a second set, marked on UDP/123 only;
 #   - the board NATs those connections out of its uplink, so the tablet shares the board's public
 #     address — which is what the cloud's /api/match/list keys a hall's own matches by.
 # The filter is by address: openvolley.app is behind Cloudflare, whose addresses other Cloudflare sites
@@ -30,7 +31,8 @@
 #
 # Refuses to turn on — and never turns kernel forwarding on — unless the firewall's forward drop is in
 # place (FORWARD policy DROP, LEDBOX-FWD first and ending in DROP): with forwarding on and no drop,
-# the board would route everything. OFF puts kernel forwarding back to what it was before.
+# the board would route everything. When tailscale's chain took the first place, ours goes back in
+# front (fw_first). OFF puts kernel forwarding back to what it was before.
 #
 # The commands it runs, and where it keeps things, can be moved for the tests (NFT, IPT, NMCLI, SYSCTL,
 # SYSTEMCTL, DNSMASQ, LOGGER, OV_ONLINE_STATE_DIR, OV_ONLINE_DNS_DIR); interfaces and the subnet are
@@ -59,13 +61,17 @@ SUBNET=${OV_ONLINE_SUBNET:-172.24.1.0/24}
 
 # Fixed on purpose: what "OpenVolley online" lets through is decided here, not by a caller.
 DOMAINS="openvolley.app connectivitycheck.gstatic.com"
+# Time sync, UDP 123 only (22.11.2026: with no NTP the tablet's clock ran 6 min slow on match day).
+NTP_DOMAINS="time.android.com time.google.com pool.ntp.org time.samsungcloudsolution.com"
 TABLE=ovonline            # the same names the first, hand-applied opening used, so this takes it over
 SET=ov4
+NTP_SET=ntp4
 MARK=0x77
 TAG=ledbox-ov-online      # iptables comment on every rule of ours
 FWD=LEDBOX-FWD
 CONF="$DNS_DIR/zz-ledbox-ov-online.conf"
 LEGACY_CONF="$DNS_DIR/zz-openvolley-online.conf"   # the hand-applied opening of 17.11.2026
+LEGACY_NTP_CONF="$DNS_DIR/zz-openvolley-ntp.conf"  # ...and its time-sync file of 22.11.2026
 STATE="$STATE_DIR/state"
 FWD_BEFORE="$STATE_DIR/ip_forward.before"
 
@@ -87,6 +93,17 @@ fw_ready() {
   [ "$($IPT -S FORWARD 2>/dev/null | head -1)" = "-P FORWARD DROP" ] || return 1
   [ "$($IPT -S FORWARD 2>/dev/null | sed -n 2p)" = "-A FORWARD -j $FWD" ] || return 1
   [ "$($IPT -S $FWD 2>/dev/null | tail -1)" = "-A $FWD -j DROP" ]
+}
+# tailscaled puts its ts-forward first in FORWARD each time it starts, at boot after the firewall
+# and after our boot apply, so fw_ready would refuse after every reboot. When a real drop is in
+# place (policy DROP, our chain ending in DROP), put our chain back in front, as ledbox-firewall.sh
+# does: that only ever drops more. Without a drop, change nothing and let fw_ready refuse.
+fw_first() {
+  [ "$($IPT -S FORWARD 2>/dev/null | head -1)" = "-P FORWARD DROP" ] || return 0
+  [ "$($IPT -S $FWD 2>/dev/null | tail -1)" = "-A $FWD -j DROP" ] || return 0
+  [ "$($IPT -S FORWARD 2>/dev/null | sed -n 2p)" = "-A FORWARD -j $FWD" ] && return 0
+  while $IPT -D FORWARD -j $FWD 2>/dev/null; do :; done
+  $IPT -I FORWARD 1 -j $FWD || note "!! could not put $FWD first in FORWARD"
 }
 
 # dnsmasq has to fill the nft set itself (nftset=, dnsmasq 2.87+ built with it).
@@ -142,9 +159,11 @@ nft_on() { # $1 = fresh: drop an existing table first (its set included)
   $NFT -f - <<NFT
 table inet $TABLE {
   set $SET { type ipv4_addr; flags timeout; timeout 3h; }
+  set $NTP_SET { type ipv4_addr; flags timeout; timeout 3h; }
   chain ovfw {
     type filter hook forward priority -10; policy accept;
     iifname "$AP_IF" oifname "$UP_IF" ip saddr $SUBNET ip daddr @$SET tcp dport 443 meta mark set $MARK
+    iifname "$AP_IF" oifname "$UP_IF" ip saddr $SUBNET ip daddr @$NTP_SET udp dport 123 meta mark set $MARK
   }
 }
 NFT
@@ -177,6 +196,11 @@ dns_text() { # $1 = upstream DNS server, may be empty
     [ -n "$1" ] && echo "server=/$d/$1"
     echo "nftset=/$d/4#inet#$TABLE#$SET"
   done
+  echo "# Time sync: these names go into their own set, which the forward rule allows on UDP 123 only."
+  for d in $NTP_DOMAINS; do
+    [ -n "$1" ] && echo "server=/$d/$1"
+    echo "nftset=/$d/4#inet#$TABLE#$NTP_SET"
+  done
   echo "filter-AAAA"
 }
 has_dns() { [ -f "$CONF" ] && grep -q '^server=/openvolley.app/' "$CONF"; }
@@ -194,6 +218,7 @@ dns_on() {
   fi
   rm -f "$tmp"
   [ -f "$LEGACY_CONF" ] && rm -f "$LEGACY_CONF" && changed=1
+  [ -f "$LEGACY_NTP_CONF" ] && rm -f "$LEGACY_NTP_CONF" && changed=1
   [ "$changed" = 1 ] || return 0
   if ! $DNSMASQ --test >/dev/null 2>&1; then
     note "!! dnsmasq refused the OpenVolley-online file — put back what was there"
@@ -207,7 +232,7 @@ dns_on() {
 }
 dns_off() {
   local changed=0 f
-  for f in "$CONF" "$LEGACY_CONF"; do [ -f "$f" ] && rm -f "$f" && changed=1; done
+  for f in "$CONF" "$LEGACY_CONF" "$LEGACY_NTP_CONF"; do [ -f "$f" ] && rm -f "$f" && changed=1; done
   [ "$changed" = 0 ] || restart_dnsmasq
 }
 
@@ -216,6 +241,7 @@ REASON=""
 # Order: everything that only ACCEPTS marked packets first, kernel forwarding last.
 apply_on() { # $1 = fresh (on) or "" (apply/refresh)
   valid_cfg || { REASON=bad-config; return 1; }
+  fw_first
   fw_ready || { REASON=no-firewall; return 1; }
   nftset_ok || { REASON=no-nftset; return 1; }
   local up rc=0
@@ -239,7 +265,7 @@ apply_off() {
   fwd_off
   nat_off
 }
-leftovers() { has_fwd || has_nat || has_nft || [ -f "$CONF" ] || [ -f "$LEGACY_CONF" ] || [ -f "$FWD_BEFORE" ]; }
+leftovers() { has_fwd || has_nat || has_nft || [ -f "$CONF" ] || [ -f "$LEGACY_CONF" ] || [ -f "$LEGACY_NTP_CONF" ] || [ -f "$FWD_BEFORE" ]; }
 
 status_json() {
   local en=false fw=false ns=false nft=false fwd=false nat=false dns=false ipf=false up n=0 active=false reason=""
@@ -277,6 +303,7 @@ command -v flock >/dev/null 2>&1 && flock -w 30 9
 case "$CMD" in
   on)
     if ! valid_cfg; then say "!! refused: bad interface or subnet in $DEFAULTS"; status_json; exit 3; fi
+    fw_first
     if ! fw_ready; then
       note "refused to turn on: the firewall's forward drop is not in place (run install-firewall.sh, then --commit)"
       status_json; exit 3
@@ -305,6 +332,7 @@ case "$CMD" in
     exit 0 ;;
   forward-rules)
     enabled || exit 0
+    fw_first
     fw_ready || exit 0
     fwd_on || { note "!! could not put the OpenVolley-online accepts back into $FWD"; exit 1; }
     exit 0 ;;
