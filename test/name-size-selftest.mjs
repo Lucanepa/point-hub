@@ -41,9 +41,10 @@ const fontOf = (sections, name) => {
 }
 
 const SHORT = { side_a: 'left', team_a_short: 'KSCW', team_b_short: 'VZH', points_a: 3, points_b: 1 }
-// Real club names, and the reason any of this exists — "Volley Zuerich" at 18px overruns the
-// name column and lands on top of the set counter.
-const LONG = { side_a: 'left', team_a_short: 'WIEDIKON', team_b_short: 'VOLLEY ZUERICH' }
+// Real club names, and the reason any of this exists — "Volley Zuerich" at 18px overran the
+// name column and landed on top of the set counter. That one is now shortened to ZUERICH instead
+// (boardName, board-name-selftest.mjs); KLOSTERAU D2 fits only by shrinking, so it stands in here.
+const LONG = { side_a: 'left', team_a_short: 'WIEDIKON', team_b_short: 'KLOSTERAU D2' }
 
 console.log('[1] the default is exactly what the layout XML already painted')
 {
@@ -74,10 +75,10 @@ console.log('\n[2] a long name shrinks instead of running into the set counter')
 {
   const s = toSections(LONG)
   const right = fontOf(s, 'team2')
-  ok(right < 18, `"VOLLEY ZUERICH" steps down below the ceiling (got ${right})`)
+  ok(right < 18, `"KLOSTERAU D2" steps down below the ceiling (got ${right})`)
   ok(right >= 9, `but never below the floor fitFontSize enforces (got ${right})`)
   // Sized per side: the short name must NOT be dragged down with the long one.
-  ok(fontOf(s, 'team1') > right, `"WIEDIKON" stays larger than "VOLLEY ZUERICH" (${fontOf(s, 'team1')} > ${right})`)
+  ok(fontOf(s, 'team1') > right, `"WIEDIKON" stays larger than "KLOSTERAU D2" (${fontOf(s, 'team1')} > ${right})`)
 }
 
 console.log('\n[3] the setting is a ceiling, and it moves both ways')

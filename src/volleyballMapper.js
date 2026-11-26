@@ -44,11 +44,12 @@ export function toLeftRight(state) {
   const isALeft = (state.side_a || 'left') === 'left'
   const pick = (a, b) => (isALeft ? a : b)
   return {
-    leftName: upper(pick(state.team_a_short || state.team_a_name, state.team_b_short || state.team_b_name) || 'TEAM A'),
+    // Shortened to the scoreboard's 86px name box (boardName); every sport's mapper reads these.
+    leftName: boardName(upper(pick(state.team_a_short || state.team_a_name, state.team_b_short || state.team_b_name) || 'TEAM A')),
     // Full names, for screens with room for them (the crest idle screen auto-fits).
     leftFull: upper(pick(state.team_a_name || state.team_a_short, state.team_b_name || state.team_b_short) || 'TEAM A'),
     rightFull: upper(pick(state.team_b_name || state.team_b_short, state.team_a_name || state.team_a_short) || 'TEAM B'),
-    rightName: upper(pick(state.team_b_short || state.team_b_name, state.team_a_short || state.team_a_name) || 'TEAM B'),
+    rightName: boardName(upper(pick(state.team_b_short || state.team_b_name, state.team_a_short || state.team_a_name) || 'TEAM B')),
     // teamRgb, not hexToRgb: pure black is shown white, and no team colour can pass for the
     // panel's own "off" (ledColor.js).
     leftColor: teamRgb(pick(state.team_a_color, state.team_b_color)),
@@ -175,7 +176,7 @@ export function toBreakSections(state, {
   // write on a blank label does not leave the label blank — it leaves whatever the PREVIOUS
   // break screen put there, and the next countdown inherits it.
   out.push(attr('lbl', 'text', label ? String(label).toUpperCase() : ''))
-  const teamText = showTeam ? String(team).toUpperCase() : ''
+  const teamText = showTeam ? boardName(String(team).toUpperCase(), BREAK_NAME_WIDTH, 8) : ''
   out.push(attr('team', 'text', teamText))
   // Sized with the SAME per-side ceiling the operator set for the scoreboard, so a name they made
   // bigger stays bigger when that team calls a timeout instead of snapping back to the 15 baked
@@ -301,6 +302,48 @@ export function fitFontSize(str, maxWidth, { max = 24, min = 9 } = {}) {
   return min
 }
 
+// A team name that does not fit its box at `minSize` is shortened until it does (owner 26.11.2026:
+// OpenVolley's short label is now the full name less the club words, with no length cap, where a
+// scorer used to type at most 8 capitals). Step by step, keeping the team part (D1 vs D2) throughout:
+//   1. club-type words go (OpenVolley's list, teamIdentity.js): VBC KUESNACHT -> KUESNACHT
+//   2. the team part shrinks: DAMEN 2 -> D2, HERREN 1 -> H1, JUNIORINNEN U18 -> U18
+//   3. place words after the first become initials, 1-3 letter ones (AM, DE) go: ZÜRI UNTERLAND D2 -> ZÜRI U. D2
+//   4. the first word is cut, with a dot: MUSTERHAUSEN-BEISPIELAU AM SEEBLICK DAMEN 2 -> MUSTERHA. D2
+// A short first word stays with the next (ST. MUSTERBERG, LA CHAUX-DE-FONDS). A beach pair
+// (MOL/SOR) is left alone: cutting it would drop the second player.
+const NAME_MIN_SIZE = 11
+const CLUB_WORDS = new Set([
+  'VBC', 'VC', 'VB', 'VBG', 'VG', 'BC', 'TV', 'STV', 'DTV', 'KTV', 'TSV', 'SC', 'KSC', 'SV', 'SG', 'FC', 'USC',
+  'VOLLEY', 'VOLLEYBALL', 'VOLLEYBALLCLUB', 'VOLLEYCLUB', 'CLUB', 'TEAM',
+])
+const TEAM_WORDS = { DAMEN: 'D', DAMES: 'D', DONNE: 'D', FRAUEN: 'D', HERREN: 'H', HOMMES: 'H', UOMINI: 'H', 'MÄNNER': 'H' }
+const JUNIOR_WORDS = new Set(['JUNIORINNEN', 'JUNIOREN', 'JUNIORS', 'JUNIORES', 'JUNIORI'])
+const isTeamCode = (w) => /^[A-Z]{0,2}\d{1,2}$/.test(w) // D2, H1, U18, 2
+export function boardName(name, width = MATCH_NAME_WIDTH, minSize = NAME_MIN_SIZE) {
+  const fits = (s) => textWidth(s, minSize) <= width - 2
+  const whole = String(name).trim()
+  if (fits(whole) || whole.includes('/')) return whole
+  let words = whole.split(/\s+/)
+  const noClub = words.filter((w) => !CLUB_WORDS.has(w.replace(/\./g, '')))
+  if (noClub.length) words = noClub
+  const tail = []
+  if (words.length > 1 && isTeamCode(words[words.length - 1])) {
+    const code = words.pop()
+    const g = words.length > 1 && /^\d+$/.test(code) ? TEAM_WORDS[words[words.length - 1]] : undefined
+    if (g || (/^U\d/.test(code) && words.length > 1 && JUNIOR_WORDS.has(words[words.length - 1]))) words.pop()
+    tail.push(g ? g + code : code)
+  }
+  const join = (head) => [...head, ...tail].join(' ')
+  const lead = words[0].replace(/\./g, '').length <= 3 && words.length > 1 ? 2 : 1
+  const first = words.slice(0, lead).join(' '), rest = words.slice(lead)
+  const tries = [join(words), join([first, ...rest.filter((w) => w.length > 3).map((w) => w[0] + '.')])]
+  for (let n = first.length - 1; n >= 1; n--) {
+    const cut = first.slice(0, n).replace(/[\s.-]+$/, '') // never "CHAUX-." or "ST.."
+    if (cut) tries.push(join([cut + '.']))
+  }
+  return tries.find(fits) || tries[tries.length - 1]
+}
+
 // Idle screen for the club layout (`kscw_idle`): the KSC Wiedikon crest plus the two team
 // names, nothing else. That layout deliberately has no score/set/timeout sections, so this
 // must NOT send them — SetSections aborts on the first unknown section name (error 6) and
@@ -363,14 +406,19 @@ const RESULT_WIDTH = 188   // 192 less a 2px margin each side
 const RESULT_NAME_MIN = 12
 export function resultWinnerLine(winner, state) {
   const m = /^(.*) WINS$/.exec(String(winner))
-  if (!m || !state) return winner
+  if (!m) return winner
   const up = (s) => String(s || '').trim().toUpperCase()
-  for (const [short, name] of [[state.team_a_short, state.team_a_name], [state.team_b_short, state.team_b_name]]) {
+  const headline = (line) => fitFontSize(line, RESULT_WIDTH, { max: 17, min: 8 }) >= RESULT_NAME_MIN
+  for (const [short, name] of state ? [[state.team_a_short, state.team_a_name], [state.team_b_short, state.team_b_name]] : []) {
     if (up(short) !== m[1] || !up(name) || up(name) === m[1]) continue
     const full = `${up(name)} WINS`
-    return fitFontSize(full, RESULT_WIDTH, { max: 17, min: 8 }) >= RESULT_NAME_MIN ? full : winner
+    if (headline(full)) return full
+    break
   }
-  return winner
+  // Too long for a headline even as the short name (OpenVolley's have no cap since 26.11.2026):
+  // the name is shortened like on the scoreboard (boardName), WINS kept.
+  if (headline(winner)) return winner
+  return `${boardName(m[1], RESULT_WIDTH - textWidth(' WINS', RESULT_NAME_MIN), RESULT_NAME_MIN)} WINS`
 }
 
 export function toResultSections({ winner = '', score = '', history = '', color = CLUB_GOLD } = {}) {
