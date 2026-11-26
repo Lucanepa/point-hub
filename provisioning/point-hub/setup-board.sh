@@ -48,6 +48,7 @@ CONF
 sed -i 's/ *console=serial0,[0-9]*//' /boot/firmware/cmdline.txt
 # A quiet boot behind the Point Hub picture: no kernel text, no cursor, no Raspberry logos.
 # shellcheck source=../lib-provision.sh
+LP_NAME=setup-board  # lib-provision.sh names its backup dir after it; unset, lp_cmdline_edit aborts the run
 . "$REPO/provisioning/lib-provision.sh"
 # console=tty3: the kernel's and systemd's own messages (also at power-off, bench 16.11) go to a
 # console nobody looks at, not the screen's tty1; ssh is the way in for debugging.
@@ -202,7 +203,7 @@ echo "== control network: the cable never routes to the internet"
 # checks dnsmasq answers no DNS on the cable (port=0). See lock-control-network.sh.
 bash "$REPO/provisioning/lock-control-network.sh" --apply || echo "!! lock-control-network.sh failed — see above"
 install -m 0644 "$REPO/provisioning/ledbox-buffer-tmpfs.service" /etc/systemd/system/ledbox-buffer-tmpfs.service
-install -m 0755 "$REPO/provisioning/ledbox-buffer-tmpfs.sh" /usr/local/sbin/ledbox-buffer-tmpfs.sh
+install -m 0755 "$REPO/provisioning/ledbox-buffer-tmpfs.sh" /usr/local/sbin/ledbox-buffer-tmpfs
 
 echo "== services"
 for u in pointhubd.service pointhub-led.service pointhub-openscore.service pointhub-screen.service \
