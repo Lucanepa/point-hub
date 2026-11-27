@@ -1,7 +1,7 @@
 // node streampi/streampi-selftest.mjs — the pure parts of streampi.js: settings, camera and sound
 // card picking, ffmpeg's arguments. No camera, no ffmpeg, no browser.
 import assert from 'node:assert/strict'
-import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion } from './streampi.js'
+import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion, pickInputFormat, LEDBOX_OVERLAY } from './streampi.js'
 
 // settings → one stream: YouTube by default, the key after the slash, 1080p unless 720p
 const cfg = buildConfig({}, { overlayUrl: 'http://192.168.5.1:8890/overlay', streamKey: 'abcd-1234' })
@@ -9,7 +9,9 @@ assert.equal(cfg.OUTPUT, 'rtmps://a.rtmps.youtube.com:443/live2/abcd-1234')
 assert.equal(cfg.SIZE, '1920x1080')
 assert.equal(cfg.BITRATE, '4500k')
 assert.deepEqual(missing(cfg), [])
-assert.deepEqual(missing(buildConfig({}, {})), ['the score overlay address', 'the stream key'])
+assert.deepEqual(missing(buildConfig({}, {})), ['the stream key'], 'the LedBox overlay is the default address')
+assert.equal(buildConfig({}, {}).OVERLAY_URL, LEDBOX_OVERLAY)
+assert.deepEqual(missing(buildConfig({}, { overlayUrl: 'nope', streamKey: 'k' })), ['the score overlay address'])
 const c720 = buildConfig({}, { quality: '720p', platform: 'other', server: 'rtmp://example.org/live/', streamKey: 'k', source: 'test' })
 assert.equal(c720.SIZE, '1280x720')
 assert.equal(c720.OUTPUT, 'rtmp://example.org/live/k')
@@ -47,7 +49,8 @@ assert.equal(pickAudioCard(cards), 'OsmoAction6SN39')
 assert.equal(pickAudioCard(' 0 [Generic ]: HDA-Intel - HD-Audio Generic'), null)
 
 // ffmpeg: camera + microphone + scorebug pipe, all on the wall clock; steady fps; x264 off a Pi 4
-const a = ffmpegArgs(cfg, { video: '/dev/video2', audioCard: 'OsmoAction6SN39', pi4: false })
+const osmo = { format: 'h264', size: '1920x1080' }
+const a = ffmpegArgs(cfg, { video: '/dev/video2', audioCard: 'OsmoAction6SN39', pi4: false, input: osmo })
 const s = a.join(' ')
 assert.match(s, /-f v4l2 -input_format h264 -video_size 1920x1080 -framerate 30 -use_wallclock_as_timestamps 1 .*-i \/dev\/video2/)
 assert.match(s, /-f alsa -use_wallclock_as_timestamps 1 .*-i plughw:CARD=OsmoAction6SN39/)
@@ -71,8 +74,27 @@ assert.match(t, /-re -f lavfi -i testsrc2=size=1280x720:rate=30/)
 assert.match(t, /anullsrc/)
 assert.match(t, /-t 30 -y \/tmp\/x\.mkv$/)
 assert.ok(!t.includes('flv'))
-const pi = ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: true }).join(' ')
+const pi = ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: true, input: osmo }).join(' ')
 assert.match(pi, /-c:v h264_v4l2m2m -i \/dev\/video0/)
 assert.match(pi, /-c:v h264_v4l2m2m -b:v/)
+
+// camera formats: the Osmo's list (fw13, 26.11.2026) gives H.264 at 1080p
+const osmoList = `[video4linux2,v4l2 @ 0x5806d6ef2f40] Compressed:       mjpeg :          Motion-JPEG : 1280x720 720x1280 1920x1080 1080x1920
+[video4linux2,v4l2 @ 0x5806d6ef2f40] Compressed:        h264 :                H.264 : 1280x720 720x1280 1920x1080 1080x1920 3840x2160 2160x3840`
+assert.deepEqual(pickInputFormat(osmoList, '1920x1080'), { format: 'h264', size: '1920x1080' })
+// a cheap webcam: MJPEG at 720p only, raw at 640x480 → MJPEG 720p, scaled up (and padded) in the filter
+const cheap = `[video4linux2,v4l2 @ 0x1] Raw       :     yuyv422 :           YUYV 4:2:2 : 640x480 320x240
+[video4linux2,v4l2 @ 0x1] Compressed:       mjpeg :          Motion-JPEG : 1280x720 640x480`
+const pickCheap = pickInputFormat(cheap, '1920x1080')
+assert.deepEqual(pickCheap, { format: 'mjpeg', size: '1280x720' })
+const c = ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: false, input: pickCheap }).join(' ')
+assert.match(c, /-input_format mjpeg -video_size 1280x720/)
+assert.match(c, /fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080/)
+// a raw-only camera, and nothing usable at all (ffmpeg's own default, no -input_format)
+assert.deepEqual(pickInputFormat('[v4l2] Raw : yuyv422 : YUYV 4:2:2 : 640x480 1280x720', '1920x1080'), { format: 'yuyv422', size: '1280x720' })
+assert.equal(pickInputFormat('nothing here', '1920x1080'), null)
+assert.ok(!ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: false, input: null }).join(' ').includes('-input_format'))
+// the Osmo at its own size: no scaling
+assert.ok(!s.includes('scale='))
 
 console.log('streampi selftest: ok')

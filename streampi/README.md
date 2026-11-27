@@ -31,26 +31,51 @@ standard camera (UVC 1.50, H.264 up to 4K, MJPEG up to 1080p) and charges the ca
 
 ```bash
 git clone https://github.com/Lucanepa/point-hub && cd point-hub
-bash streampi/setup.sh                       # ffmpeg, chromium, node, the service
+bash streampi/setup.sh --tailscale           # ffmpeg, chromium, node, the service, the power-bank setting
 sudo -u $USER STATE_DIR=/var/lib/streampi node streampi/streampi.js set-pin 2468
 ```
 
 Then open `http://<pi-name>:8080` on a phone: PIN, the score overlay address, the stream key
 (YouTube Studio ▸ Go live ▸ Stream), quality, Save.
 
-## In the hall
+## Match day
 
-1. Camera on fully, USB cable in, tap **Webcam** on the camera.
-2. Power the Pi (it joins its Wi-Fi by itself).
-3. Phone: `http://<pi-name>:8080` ▸ **Start stream**. The page shows camera, sound, overlay, fps
-   and Mbit/s; it says what is wrong when something is (no camera, overlay not reachable, the
-   platform refused the stream).
+**At home, the day before**
+- [ ] Power bank charged (the display shows 100).
+- [ ] Osmo battery charged; a microSD in the Osmo if you also want to record.
+- [ ] YouTube Studio ▸ Go live ▸ Stream: the visibility (Unlisted for youth teams) and the title set.
+
+**In the hall, 20 minutes before**
+1. Tripod up, the box on it, the Osmo clicked onto the lid, the camera cable plugged into the Osmo.
+2. Flat network cable from the box's LEDBOX socket to the LedBox's network socket.
+3. Power bank into the shelf, its cable into POWER. The Pi starts (about 30 s).
+4. Osmo on fully, tap **Webcam** on its screen ("Webcam" shows at the bottom).
+5. Phone: `http://streampi:8080` (same Wi-Fi, or over Tailscale) ▸ **Picture: Test pattern** ▸
+   **Start stream**. Check in YouTube Studio that the test arrives, then **Stop**.
+6. **Picture: Camera** ▸ Save ▸ **Start stream**. Check the score bug in YouTube Studio's preview.
+
+**What the page says**
+
+| Status | Meaning | Do |
+|---|---|---|
+| Live · 30 fps · 4.5 Mbit/s | on air | nothing |
+| Waiting for the camera: "No camera" | the Pi sees no camera | Osmo on, cable in, tap Webcam |
+| Score overlay: Not reachable | no score from the LedBox | network cable in at both ends, LedBox on |
+| Trying again: "… Connection refused / I/O error" | YouTube refused or no internet | Wi-Fi ok? stream key right? live streaming enabled on the channel? |
+| Picture far below 30 fps | the Pi or the camera can't keep up | Quality ▸ 720p |
+| The page does not answer | phone and Pi not on the same network | same Wi-Fi, or Tailscale on the phone |
+
+**After the match:** Stop on the page, unplug the power bank, charge it.
+
+Any camera works that a laptop sees as a webcam (the Osmo Action 4/5/6, most action cams and USB
+webcams); a camera with only HDMI out needs an HDMI-to-USB capture dongle. The Pi takes H.264,
+else MJPEG, else raw video, at 1080p or the biggest size below it (scaled up).
 
 The score overlay address:
 
 | Score from | Address | Needs |
 |---|---|---|
-| The LedBox, network cable from the Pi to the board | `http://192.168.5.1:8890/overlay` | a cable (up to 100 m); no internet for the score |
+| The LedBox, network cable from the Pi to the board (**the default**) | `http://192.168.5.1:8890/overlay` | a cable (up to 100 m); no internet for the score. The LedBox gives the Pi an address on the cable but no internet route, so the stream keeps using Wi-Fi |
 | The LedBox over Tailscale | `http://openvolley:8890/overlay` | Tailscale on the Pi |
 | OpenVolley (any scorer) | `https://livescore.openvolley.app/board?overlay#ABCD2345` or `…#12345` | the scorer online |
 

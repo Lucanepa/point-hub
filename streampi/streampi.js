@@ -24,7 +24,7 @@
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { hashAdminPin, makeAdminPin, ADMIN_PIN_RE } from '../src/adminPin.js'
 
@@ -32,7 +32,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 export const DEFAULTS = {
   FPS: '30',
-  INPUT_FORMAT: 'h264', // the Osmo sends H.264 (cheap over USB) and MJPEG; h264 up to 4K, mjpeg up to 1080p
+  INPUT_FORMAT: 'auto', // what the camera offers: h264 (the Osmo), else mjpeg (most webcams, HDMI dongles), else raw
   X264_PRESET: 'veryfast',
   FEED_FPS: '4',
   AUDIO_DEVICE: 'auto',
@@ -46,6 +46,8 @@ export const QUALITY = {
 }
 
 // Where each platform takes a stream; the key goes after the slash. "other" = a full URL typed in.
+export const LEDBOX_OVERLAY = 'http://192.168.5.1:8890/overlay'
+
 export const PLATFORMS = {
   youtube: 'rtmps://a.rtmps.youtube.com:443/live2',
   twitch: 'rtmp://live.twitch.tv/app',
@@ -61,7 +63,8 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a)
  */
 export function buildConfig(env = {}, saved = {}) {
   const cfg = { ...DEFAULTS, ...QUALITY[saved.quality === '720p' ? '720p' : '1080p'] }
-  cfg.OVERLAY_URL = saved.overlayUrl || ''
+  // the LedBox's own scorebug over the network cable, unless the console names another page
+  cfg.OVERLAY_URL = saved.overlayUrl || LEDBOX_OVERLAY
   const server = saved.platform === 'other' ? (saved.server || '') : (PLATFORMS[saved.platform] || PLATFORMS.youtube)
   cfg.OUTPUT = server && saved.streamKey ? `${server.replace(/\/+$/, '')}/${saved.streamKey}` : (saved.platform === 'other' ? server : '')
   if (saved.source === 'test') cfg.VIDEO_DEVICE = 'test'
@@ -115,6 +118,41 @@ function listVideoNodes() {
   }))
 }
 
+/**
+ * What to ask the camera for, from `ffmpeg -f v4l2 -list_formats all` (its stderr): H.264 (the
+ * Osmo; least USB traffic), else MJPEG (most webcams and HDMI capture dongles), else raw, at the
+ * wanted size, else the biggest landscape size not wider than it (the picture is scaled up).
+ * Null when the list says nothing usable: ffmpeg then takes the camera's own default.
+ * @param {string} listText
+ * @param {string} want  '1920x1080'
+ * @returns {{ format: string, size: string } | null}
+ */
+export function pickInputFormat(listText, want) {
+  const offers = new Map() // format -> sizes
+  for (const line of String(listText).split('\n')) {
+    const m = line.match(/(Compressed|Raw)\s*:\s*(\S+)\s*:[^:]*:\s*(.*)$/)
+    if (!m) continue
+    const sizes = (m[3].match(/\b\d+x\d+\b/g) || [])
+    if (sizes.length) offers.set(m[2], sizes)
+  }
+  const raw = [...offers.keys()].filter((f) => !['h264', 'mjpeg', 'hevc'].includes(f))
+  for (const f of ['h264', 'mjpeg']) if (offers.get(f)?.includes(want)) return { format: f, size: want }
+  const wantW = Number(want.split('x')[0])
+  for (const f of ['h264', 'mjpeg', ...raw]) {
+    const fit = (offers.get(f) || [])
+      .map((sz) => sz.split('x').map(Number))
+      .filter(([w, h]) => w >= h && w <= wantW)
+      .sort((a, b) => b[0] * b[1] - a[0] * a[1])[0]
+    if (fit) return { format: f, size: fit.join('x') }
+  }
+  return null
+}
+
+function probeFormats(dev) {
+  const r = spawnSync(process.env.FFMPEG || 'ffmpeg', ['-hide_banner', '-f', 'v4l2', '-list_formats', 'all', '-i', dev], { encoding: 'utf8', timeout: 10000 })
+  return `${r.stderr || ''}${r.stdout || ''}`
+}
+
 const isPi4 = () => {
   try { return /Raspberry Pi 4|Compute Module 4/.test(fs.readFileSync('/proc/device-tree/model', 'utf8')) } catch { return false }
 }
@@ -141,7 +179,8 @@ export function overlayRegion(cfg) {
  * ffmpeg's arguments. Input 0 = the camera (or a test pattern), 1 = its microphone (or silence),
  * 2 = the scorebug pictures on stdin (overlayRegion's part of the frame). Pure, so the selftest holds it.
  * @param {object} cfg  buildConfig's answer
- * @param {{ video: string, audioCard: string|null, pi4: boolean }} hw  video 'test' = test pattern
+ * @param {{ video: string, audioCard: string|null, pi4: boolean, input?: { format: string, size: string } | null }} hw
+ *   video 'test' = test pattern; input = pickInputFormat's answer
  */
 export function ffmpegArgs(cfg, hw) {
   const region = overlayRegion(cfg)
@@ -151,14 +190,16 @@ export function ffmpegArgs(cfg, hw) {
   const bufsize = `${parseInt(bitrate, 10) * 2}${bitrate.replace(/^\d+/, '')}`
   const encoder = cfg.ENCODER === 'auto' ? (hw.pi4 ? 'h264_v4l2m2m' : 'libx264') : cfg.ENCODER
   // shortcut: the Pi 4 path (hardware decode + encode) is untested until a Pi 4 runs it; ENCODER=libx264 overrides
-  const decoder = cfg.DECODER || (hw.pi4 && cfg.INPUT_FORMAT === 'h264' ? 'h264_v4l2m2m' : null)
+  const input = cfg.INPUT_FORMAT === 'auto' ? (hw.input || null) : { format: cfg.INPUT_FORMAT, size: cfg.SIZE }
+  const decoder = cfg.DECODER || (hw.pi4 && input?.format === 'h264' ? 'h264_v4l2m2m' : null)
   const args = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-progress', 'pipe:1', '-stats_period', '5']
   if (hw.video === 'test') {
     // no camera: a moving test picture, to check the stream path at home or in the hall
     args.push('-re', '-f', 'lavfi', '-i', `testsrc2=size=${cfg.SIZE}:rate=${fps}`)
   } else {
-    args.push('-f', 'v4l2', '-input_format', cfg.INPUT_FORMAT, '-video_size', cfg.SIZE, '-framerate', String(fps),
-      '-use_wallclock_as_timestamps', '1', '-thread_queue_size', '512')
+    args.push('-f', 'v4l2')
+    if (input) args.push('-input_format', input.format, '-video_size', input.size)
+    args.push('-framerate', String(fps), '-use_wallclock_as_timestamps', '1', '-thread_queue_size', '512')
     if (decoder) args.push('-c:v', decoder)
     args.push('-i', hw.video)
   }
@@ -167,8 +208,13 @@ export function ffmpegArgs(cfg, hw) {
   else args.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000')
   // scorebug pictures on stdin, stamped when they arrive
   args.push('-f', 'image2pipe', '-framerate', cfg.FEED_FPS, '-use_wallclock_as_timestamps', '1', '-thread_queue_size', '64', '-i', 'pipe:0')
+  // a camera that gives another size (or shape) than the stream: scaled to fit, black bars if needed
+  const [w, h] = cfg.SIZE.split('x')
+  const camScale = hw.video !== 'test' && input?.size !== cfg.SIZE
+    ? `,scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2`
+    : ''
   args.push('-filter_complex',
-    `[0:v]fps=${fps}[cam];[2:v]format=rgba[bug];[cam][bug]overlay=${region.x}:${region.y}:eof_action=repeat:format=auto,format=yuv420p[v];[1:a]aresample=async=1000[a]`,
+    `[0:v]fps=${fps}${camScale}[cam];[2:v]format=rgba[bug];[cam][bug]overlay=${region.x}:${region.y}:eof_action=repeat:format=auto,format=yuv420p[v];[1:a]aresample=async=1000[a]`,
     '-map', '[v]', '-map', '[a]')
   if (encoder === 'libx264') {
     args.push('-c:v', 'libx264', '-preset', cfg.X264_PRESET, '-tune', 'zerolatency', '-profile:v', 'high')
@@ -242,7 +288,9 @@ export function makeStreamer({ env = process.env } = {}) {
       try { audioCard = pickAudioCard(fs.readFileSync('/proc/asound/cards', 'utf8')) } catch { /* no ALSA */ }
     } else if (!['auto', 'none'].includes(r.cfg.AUDIO_DEVICE)) audioCard = r.cfg.AUDIO_DEVICE
     status.sound = audioCard
-    const args = ffmpegArgs(r.cfg, { video, audioCard, pi4: isPi4() })
+    const input = video !== 'test' && r.cfg.INPUT_FORMAT === 'auto' ? pickInputFormat(probeFormats(video), r.cfg.SIZE) : null
+    if (input) log(`camera: ${input.format} ${input.size}`)
+    const args = ffmpegArgs(r.cfg, { video, audioCard, pi4: isPi4(), input })
     log(`stream: ${video}${audioCard ? ` + sound ${audioCard}` : ' (no sound card: silence)'} → ${maskOutput(r.cfg.OUTPUT)}`)
     Object.assign(status, { state: 'starting', detail: 'Connecting…' })
     const ff = spawn(env.FFMPEG || 'ffmpeg', args, { stdio: ['pipe', 'pipe', 'pipe'] })
