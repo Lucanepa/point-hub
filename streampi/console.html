@@ -80,6 +80,21 @@
     <p class="msg" id="runMsg" role="status"></p>
   </section>
 
+  <section class="card">
+    <p class="eyebrow">Wi-Fi</p>
+    <p class="big" style="font-size:18px" id="wifiNow">–</p>
+    <p class="detail" style="font-size:13px">Saved networks, best first. The Pi moves up to a better one in range by itself, but never during a stream.</p>
+    <div id="wifiSaved" style="display:flex;flex-direction:column;gap:8px"></div>
+    <p class="eyebrow" style="margin-top:6px">Join a network</p>
+    <div class="row">
+      <select id="wifiSsid" aria-label="Network" style="flex:1"><option value="">Press Scan…</option></select>
+      <button class="ghost" type="button" id="wifiScan">Scan</button>
+    </div>
+    <label for="wifiPw">Password (empty for an open network)<input id="wifiPw" type="password" autocomplete="off"></label>
+    <button class="dark" type="button" id="wifiJoin">Join</button>
+    <p class="msg" id="wifiMsg" role="status"></p>
+  </section>
+
   <form class="card" id="form">
     <p class="eyebrow">Settings</p>
     <label for="overlayUrl">Score overlay address
@@ -217,6 +232,44 @@
     poll()
   }
   $('stop').onclick = async () => { await api('/api/stop'); poll() }
+
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const wifiMsg = (r, okText) => { $('wifiMsg').className = r.ok ? 'msg ok' : 'msg err'; $('wifiMsg').textContent = r.ok ? okText : (r.error || 'Did not work') }
+  async function loadWifi() {
+    try {
+      const w = await (await fetch('/api/wifi', { cache: 'no-store' })).json()
+      $('wifiNow').textContent = w.current ? `On ${w.current.ssid} · signal ${w.current.signal}%` : (w.error ? 'Wi-Fi not available here' : 'Not connected')
+      $('wifiSaved').innerHTML = (w.saved || []).map((n, i) => `<div class="row" style="align-items:center">
+        <span style="flex:1;min-width:0;overflow-wrap:anywhere">${i + 1}. ${esc(n.ssid || n.name)}${w.current && w.current.ssid === n.ssid ? ' <b>(connected)</b>' : ''}</span>
+        <button class="ghost" type="button" data-wifi="up" data-name="${esc(n.name)}">Connect</button>
+        ${i ? `<button class="ghost" type="button" data-wifi="moveup" data-name="${esc(n.name)}" aria-label="Move ${esc(n.ssid)} up" title="Move up">↑</button>` : ''}
+        <button class="ghost" type="button" data-wifi="forget" data-name="${esc(n.name)}">Forget</button></div>`).join('')
+    } catch { $('wifiNow').textContent = 'The Stream Pi does not answer.' }
+  }
+  $('wifiSaved').onclick = async (e) => {
+    const b = e.target.closest('[data-wifi]'); if (!b) return
+    const what = b.dataset.wifi
+    $('wifiMsg').className = 'msg'; $('wifiMsg').textContent = what === 'up' ? 'Connecting… (the page may drop for a moment)' : ''
+    const r = await api(`/api/wifi/${what}`, { name: b.dataset.name })
+    wifiMsg(r, { up: 'Connected.', forget: 'Forgotten.', moveup: 'Moved up.' }[what])
+    loadWifi()
+  }
+  $('wifiScan').onclick = async () => {
+    $('wifiMsg').className = 'msg'; $('wifiMsg').textContent = 'Scanning…'
+    const r = await api('/api/wifi/scan')
+    if (!r.ok) return wifiMsg(r)
+    $('wifiSsid').innerHTML = r.networks.map((n) => `<option value="${esc(n.ssid)}">${esc(n.ssid)} · ${n.signal}% · ${esc(n.security || 'open')}</option>`).join('')
+    $('wifiMsg').textContent = `${r.networks.length} networks in range.`
+  }
+  $('wifiJoin').onclick = async () => {
+    $('wifiMsg').className = 'msg'; $('wifiMsg').textContent = 'Joining… (the page may drop for a moment)'
+    const r = await api('/api/wifi/join', { ssid: $('wifiSsid').value, password: $('wifiPw').value })
+    $('wifiPw').value = ''
+    wifiMsg(r, 'Joined and saved.')
+    loadWifi()
+  }
+  loadWifi()
+  setInterval(loadWifi, 15000)
   $('ytConnect').onclick = async () => {
     if (!(await save())) return
     const r = await api('/api/youtube/connect')

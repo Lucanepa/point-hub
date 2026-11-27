@@ -1,7 +1,7 @@
 // node streampi/streampi-selftest.mjs — the pure parts of streampi.js: settings, camera and sound
 // card picking, ffmpeg's arguments. No camera, no ffmpeg, no browser.
 import assert from 'node:assert/strict'
-import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion, pickInputFormat, LEDBOX_TAILNET, makeTitle, ytSetLiveTitle, ytDevicePoll } from './streampi.js'
+import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion, pickInputFormat, LEDBOX_TAILNET, makeTitle, ytSetLiveTitle, ytDevicePoll, splitTerse, bestNetwork } from './streampi.js'
 
 // settings → one stream: YouTube by default, the key after the slash, 1080p unless 720p
 const cfg = buildConfig({}, { overlayUrl: 'http://192.168.5.1:8890/overlay', streamKey: 'abcd-1234' })
@@ -129,5 +129,18 @@ assert.deepEqual(put, { id: 'b1', snippet: { title: 'X – Y · 28.11.2026', des
 // device flow: pending until the person said yes
 assert.equal(await ytDevicePoll('c', 's', 'd', async () => ({ ok: false, json: async () => ({ error: 'authorization_pending' }) })), null)
 assert.equal(await ytDevicePoll('c', 's', 'd', async () => ({ ok: true, json: async () => ({ refresh_token: 'R' }) })), 'R')
+
+// Wi-Fi: nmcli -t lines with escaped colons; the better saved network in range
+assert.deepEqual(splitTerse('yes:Luca\\:s Net:72'), ['yes', 'Luca:s Net', '72'])
+assert.deepEqual(splitTerse('a\\\\b:c'), ['a\\b', 'c'])
+const nets = [
+  { name: 'streampi-schulen', ssid: 'SCHULEN_KTZH', priority: 40 },
+  { name: 'streampi-kscw', ssid: 'KSCW_eScoresheet', priority: 30 },
+  { name: 'streampi-hotspot', ssid: 'Luca_Hotspot', priority: 20 },
+]
+assert.equal(bestNetwork(nets, ['KSCW_eScoresheet', 'SCHULEN_KTZH'], 'KSCW_eScoresheet').ssid, 'SCHULEN_KTZH', 'moves up')
+assert.equal(bestNetwork(nets, ['KSCW_eScoresheet', 'Luca_Hotspot'], 'KSCW_eScoresheet'), null, 'never down')
+assert.equal(bestNetwork(nets, ['Luca_Hotspot'], null).ssid, 'Luca_Hotspot', 'anything beats nothing')
+assert.equal(bestNetwork(nets, ['SCHULEN_KTZH'], 'Some_Cafe_WiFi').ssid, 'SCHULEN_KTZH', 'a saved one beats an unknown one')
 
 console.log('streampi selftest: ok')

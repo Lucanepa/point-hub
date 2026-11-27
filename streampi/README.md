@@ -31,7 +31,7 @@ standard camera (UVC 1.50, H.264 up to 4K, MJPEG up to 1080p) and charges the ca
 
 ```bash
 git clone https://github.com/Lucanepa/point-hub && cd point-hub
-bash streampi/setup.sh --tailscale --kscw-wifi   # + the club router KSCW_eScoresheet (password from the club vault)
+bash streampi/setup.sh --tailscale --wifi       # + the hall networks: SCHULEN_KTZH, KSCW_eScoresheet, Luca_Hotspot
 sudo -u $USER STATE_DIR=/var/lib/streampi node streampi/streampi.js set-pin 2468
 ```
 
@@ -70,6 +70,17 @@ Then open `http://<pi-name>:8080` on a phone: PIN, the score overlay address, th
 Any camera works that a laptop sees as a webcam (the Osmo Action 4/5/6, most action cams and USB
 webcams); a camera with only HDMI out needs an HDMI-to-USB capture dongle. The Pi takes H.264,
 else MJPEG, else raw video, at 1080p or the biggest size below it (scaled up).
+
+## Wi-Fi
+
+`setup.sh --wifi` saves the hall networks, best first: **SCHULEN_KTZH** (WPA2-Enterprise, the
+school login; careful: wrong details lock that account for up to 8 hours), **KSCW_eScoresheet** (the
+club router), **Luca_Hotspot**. The console page shows the current network and the saved list,
+scans, joins any other network (open or with a password; it lands at position "15", below the
+hotspot), connects a saved one, moves one up, forgets one. The Pi moves up to a better saved
+network in range every 2 minutes, but never during a stream, and the page refuses Wi-Fi changes
+while streaming. Never join the LedBox's own Wi-Fi (ledbox_C0270): it has no internet.
+Free_WLAN_KTZH (Swisscom, SMS login page) is not supported yet.
 
 ## Score: the LedBox first, OpenVolley as backup
 

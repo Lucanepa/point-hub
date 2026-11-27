@@ -24,7 +24,7 @@
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn, spawnSync, execFile } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { hashAdminPin, makeAdminPin, ADMIN_PIN_RE } from '../src/adminPin.js'
 
@@ -476,6 +476,89 @@ export function makeStreamer({ env = process.env, getSettings = () => ({}) } = {
   return { status, start, stop, running: () => !!run }
 }
 
+// ── Wi-Fi (NetworkManager) ───────────────────────────────────────────────────────────────────
+// The page can show the network, scan, join one, connect a saved one, forget one and move it up.
+// Order = NM autoconnect priority (higher first): setup.sh saves SCHULEN_KTZH 40, KSCW_eScoresheet
+// 30, Luca_Hotspot 20, open networks 10. NM only picks by priority when it (re)connects, so
+// bestNetwork() moves up to a better saved network that is in range, never during a stream.
+
+/** One line of `nmcli -t` output split at its unescaped colons. */
+export function splitTerse(line) {
+  const out = ['']
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '\\' && i + 1 < line.length) { out[out.length - 1] += line[++i]; continue }
+    if (line[i] === ':') { out.push(''); continue }
+    out[out.length - 1] += line[i]
+  }
+  return out
+}
+
+/**
+ * The saved network to move to, or null: in range, higher priority than the current one.
+ * @param {{ name: string, ssid: string, priority: number }[]} saved
+ * @param {string[]} visible  SSIDs in range
+ * @param {string|null} current  the connected SSID
+ */
+export function bestNetwork(saved, visible, current) {
+  const cur = saved.find((n) => n.ssid === current)
+  const curPrio = current ? (cur ? cur.priority : -Infinity) : -Infinity
+  const better = saved.filter((n) => visible.includes(n.ssid) && n.ssid !== current && n.priority > curPrio)
+  return better.sort((a, b) => b.priority - a.priority)[0] || null
+}
+
+const nm = (args) => new Promise((resolve, reject) => {
+  execFile('nmcli', args, { timeout: 45000 }, (err, stdout, stderr) => (err ? reject(new Error((stderr || err.message).trim())) : resolve(stdout)))
+})
+
+export const wifi = {
+  async current() {
+    const lines = (await nm(['-t', '-f', 'ACTIVE,SSID,SIGNAL', 'device', 'wifi'])).split('\n')
+    const row = lines.map(splitTerse).find((f) => f[0] === 'yes')
+    return row ? { ssid: row[1], signal: Number(row[2]) } : null
+  },
+  async scan() {
+    const lines = (await nm(['-t', '-f', 'SSID,SIGNAL,SECURITY', 'device', 'wifi', 'list', '--rescan', 'auto'])).split('\n')
+    const best = new Map()
+    for (const f of lines.map(splitTerse)) {
+      if (!f[0]) continue
+      const prev = best.get(f[0])
+      if (!prev || Number(f[1]) > prev.signal) best.set(f[0], { ssid: f[0], signal: Number(f[1]), security: f[2] || 'open' })
+    }
+    return [...best.values()].sort((a, b) => b.signal - a.signal)
+  },
+  async saved() {
+    const rows = (await nm(['-t', '-f', 'NAME,TYPE,AUTOCONNECT-PRIORITY', 'connection', 'show'])).split('\n').map(splitTerse)
+    const out = []
+    for (const [name, type, prio] of rows) {
+      if (type !== '802-11-wireless') continue
+      const ssid = (await nm(['-g', '802-11-wireless.ssid', 'connection', 'show', name])).trim()
+      out.push({ name, ssid, priority: Number(prio) || 0 })
+    }
+    return out.sort((a, b) => b.priority - a.priority)
+  },
+  async join(ssid, password) {
+    const name = `streampi-${ssid}`.slice(0, 60)
+    await nm(['connection', 'delete', name]).catch(() => {})
+    const args = ['device', 'wifi', 'connect', ssid, 'name', name]
+    if (password) args.push('password', password)
+    await nm(args)
+    await nm(['connection', 'modify', name, 'connection.autoconnect-priority', '15'])
+  },
+  up: (name) => nm(['connection', 'up', name]),
+  forget: (name) => nm(['connection', 'delete', name]),
+  // swap priorities with the network above
+  async moveUp(name) {
+    const list = await wifi.saved()
+    const i = list.findIndex((n) => n.name === name)
+    if (i <= 0) return
+    const above = list[i - 1]
+    const mine = list[i]
+    const top = above.priority === mine.priority ? above.priority + 1 : above.priority
+    await nm(['connection', 'modify', mine.name, 'connection.autoconnect-priority', String(top)])
+    await nm(['connection', 'modify', above.name, 'connection.autoconnect-priority', String(mine.priority)])
+  },
+}
+
 // ── settings + console ──────────────────────────────────────────────────────────────────────
 
 const SETTING_KEYS = ['overlayUrl', 'ovGame', 'platform', 'server', 'streamKey', 'quality', 'source', 'autostart', 'autoTitle', 'ytClientId', 'ytClientSecret']
@@ -539,6 +622,9 @@ function main() {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
       return res.end(page)
     }
+    if (req.method === 'GET' && url.pathname === '/api/wifi') {
+      try { return send(res, 200, { current: await wifi.current(), saved: await wifi.saved() }) } catch (err) { return send(res, 200, { error: err.message }) }
+    }
     if (req.method === 'GET' && url.pathname === '/api/status') {
       return send(res, 200, { ...streamer.status, settings: publicSettings(readSettings()), pinSet: pin.isSet(), ytFlow })
     }
@@ -580,6 +666,22 @@ function main() {
         return send(res, 200, { ok: true, ...ytFlow })
       } catch (err) { return send(res, 502, { error: `Google said: ${err.message}` }) }
     }
+    if (url.pathname.startsWith('/api/wifi/')) {
+      const body = (await readBody(req)) || {}
+      const action = url.pathname.slice('/api/wifi/'.length)
+      try {
+        if (action === 'scan') return send(res, 200, { ok: true, networks: await wifi.scan() })
+        if (streamer.running() && action !== 'moveup') return send(res, 409, { error: 'Stop the stream first: changing the Wi-Fi would cut it' })
+        if (action === 'join') {
+          if (!body.ssid) return send(res, 400, { error: 'Pick a network' })
+          await wifi.join(String(body.ssid).slice(0, 64), body.password ? String(body.password).slice(0, 128) : '')
+        } else if (action === 'up') await wifi.up(String(body.name))
+        else if (action === 'forget') await wifi.forget(String(body.name))
+        else if (action === 'moveup') await wifi.moveUp(String(body.name))
+        else return send(res, 404, { error: 'not found' })
+        return send(res, 200, { ok: true })
+      } catch (err) { return send(res, 502, { error: `Wi-Fi: ${err.message.slice(0, 200)}` }) }
+    }
     if (url.pathname === '/api/youtube/disconnect') {
       const s = readSettings(); delete s.ytRefresh; writeSettings(s); ytFlow = null
       return send(res, 200, { ok: true })
@@ -592,6 +694,15 @@ function main() {
   // A stream that was set to start by itself (power cut in the hall): start once the console is up.
   const saved = readSettings()
   if (saved.autostart && !missing(buildConfig(process.env, saved)).length) streamer.start(saved)
+  // Move up to a better saved network in range, every 2 minutes, never during a stream.
+  setInterval(async () => {
+    if (streamer.running()) return
+    try {
+      const [saved, cur, seen] = await Promise.all([wifi.saved(), wifi.current(), wifi.scan()])
+      const best = bestNetwork(saved, seen.map((n) => n.ssid), cur?.ssid || null)
+      if (best) { log(`wifi: moving to ${best.ssid} (higher in the list than ${cur?.ssid || 'nothing'})`); await wifi.up(best.name) }
+    } catch { /* no NetworkManager here (a laptop test) */ }
+  }, 120000)
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { streamer.stop(); setTimeout(() => process.exit(0), 1500) })
 }
 
