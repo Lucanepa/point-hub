@@ -1,0 +1,27 @@
+[Unit]
+Description=Stream Pi: USB camera + the board's scorebug -> YouTube/Twitch (console on :8080)
+Documentation=https://github.com/Lucanepa/point-hub/blob/main/streampi/README.md
+# A small computer next to the camera. A phone opens http://<this computer>:8080 to set the score
+# overlay address and the stream key, and to start or stop the stream. Installed by setup.sh,
+# which also writes the real checkout path and user into this file.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/point-hub/streampi
+# settings.json (with the stream key) and the PIN hash live here, 0600, owned by the user above
+Environment=STATE_DIR=/var/lib/streampi CONTROL_PORT=8080 CHROME_PATH=/usr/bin/chromium
+StateDirectory=streampi
+StateDirectoryMode=0700
+ExecStart=/usr/bin/node streampi.js
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
+# the camera (/dev/video*) and its microphone
+SupplementaryGroups=video audio
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

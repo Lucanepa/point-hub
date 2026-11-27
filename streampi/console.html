@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e2001a">
+<title>Stream Pi</title>
+<style>
+  /* Served by the Stream Pi itself, offline: system fonts, no CDN. Volleyball style: stone, white cards, one red. */
+  :root {
+    --bg: #f5f5f4; --card: #fff; --line: #e7e5e4; --fg: #1c1917; --muted: #57534e; --faint: #a8a29e;
+    --red: #e2001a; --red-hover: #be0014; --dark: #0f172a; --ok: #047857; --warn: #b45309; --err: #b91c1c;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); }
+  main { max-width: 560px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-right)) 40px max(16px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); margin: 0; }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #e7e5e4; color: var(--muted); }
+  .pill[data-state="live"] { background: #dcfce7; color: var(--ok); }
+  .pill[data-state="starting"], .pill[data-state="waiting"], .pill[data-state="retrying"] { background: #fef3c7; color: var(--warn); }
+  .big { font-size: 26px; font-weight: 700; margin: 0; }
+  .detail { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin: 0; font-size: 13px; }
+  .facts dt { color: var(--faint); }
+  .facts dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 600; border-radius: 12px; border: 1px solid transparent; min-height: 44px; padding: 0 16px; cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .primary { background: var(--red); color: #fff; flex: 1; }
+  .primary:hover:not(:disabled) { background: var(--red-hover); }
+  .dark { background: var(--dark); color: #fff; flex: 1; }
+  .ghost { background: #fff; border-color: var(--line); color: var(--muted); min-height: 36px; font-size: 13px; padding: 0 12px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  input, select { font: inherit; font-size: 16px; color: var(--fg); background: #fff; border: 1px solid #d6d3d1; border-radius: 10px; min-height: 44px; padding: 0 12px; width: 100%; }
+  .check { flex-direction: row; align-items: center; gap: 10px; font-weight: 500; color: var(--fg); }
+  .check input { width: 20px; min-height: 20px; }
+  .hint { font-size: 12px; font-weight: 400; color: var(--faint); }
+  .msg { margin: 0; font-size: 13px; min-height: 1.2em; }
+  .msg.err { color: var(--err); }
+  .msg.ok { color: var(--ok); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Stream Pi</h1>
+    <span class="pill" id="pill" data-state="stopped">Stopped</span>
+  </header>
+
+  <section class="card" id="lock" hidden>
+    <p class="eyebrow">Console PIN</p>
+    <label for="pin">PIN<input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12"></label>
+    <button class="dark" id="unlock" type="button">Unlock</button>
+    <p class="msg" id="lockMsg" role="status"></p>
+  </section>
+
+  <section class="card" aria-live="polite">
+    <p class="eyebrow">Stream</p>
+    <p class="big" id="state">Stopped</p>
+    <p class="detail" id="detail"></p>
+    <dl class="facts">
+      <dt>Camera</dt><dd id="fCamera">–</dd>
+      <dt>Sound</dt><dd id="fSound">–</dd>
+      <dt>Score overlay</dt><dd id="fOverlay">–</dd>
+      <dt>Picture</dt><dd id="fRate">–</dd>
+      <dt>Live for</dt><dd id="fSince">–</dd>
+      <dt>Sending to</dt><dd id="fOut">–</dd>
+    </dl>
+    <div class="row">
+      <button class="primary" id="start" type="button">Start stream</button>
+      <button class="dark" id="stop" type="button">Stop</button>
+    </div>
+    <p class="msg" id="runMsg" role="status"></p>
+  </section>
+
+  <form class="card" id="form">
+    <p class="eyebrow">Settings</p>
+    <label for="overlayUrl">Score overlay address
+      <input id="overlayUrl" type="url" placeholder="http://192.168.5.1:8890/overlay" autocomplete="off">
+      <span class="hint">The LedBox's own overlay, or OpenVolley's with a scoreboard code or game number after the #.</span>
+    </label>
+    <div class="row">
+      <button class="ghost" type="button" data-fill="http://192.168.5.1:8890/overlay">LedBox (cable)</button>
+      <button class="ghost" type="button" data-fill="http://openvolley:8890/overlay">LedBox (Tailscale)</button>
+      <button class="ghost" type="button" data-fill="https://livescore.openvolley.app/board?overlay#">OpenVolley code</button>
+    </div>
+    <label for="platform">Send to
+      <select id="platform">
+        <option value="youtube">YouTube</option>
+        <option value="twitch">Twitch</option>
+        <option value="facebook">Facebook</option>
+        <option value="other">Other (RTMP address)</option>
+      </select>
+    </label>
+    <label for="server" id="serverRow" hidden>RTMP address
+      <input id="server" type="text" placeholder="rtmp://server/app" autocomplete="off">
+    </label>
+    <label for="streamKey">Stream key
+      <input id="streamKey" type="password" autocomplete="off">
+      <span class="hint" id="keyHint">From YouTube Studio ▸ Go live ▸ Stream. Never shown again once saved.</span>
+    </label>
+    <label for="quality">Quality
+      <select id="quality">
+        <option value="1080p">1080p (about 4.5 Mbit/s upload)</option>
+        <option value="720p">720p (about 2.5 Mbit/s upload)</option>
+      </select>
+    </label>
+    <label for="source">Picture
+      <select id="source">
+        <option value="camera">Camera</option>
+        <option value="test">Test pattern (no camera)</option>
+      </select>
+    </label>
+    <label class="check" for="autostart"><input id="autostart" type="checkbox"> Start by itself after a power cut</label>
+    <button class="dark" type="submit">Save settings</button>
+    <p class="msg" id="formMsg" role="status"></p>
+  </form>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id)
+  const STATES = { stopped: 'Stopped', starting: 'Starting…', live: 'Live', waiting: 'Waiting for the camera', retrying: 'Trying again' }
+  let pin = ''
+  try { pin = sessionStorage.getItem('streampi-pin') || '' } catch { /* private window */ }
+  let filled = false
+
+  async function api(path, body) {
+    const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-pin': pin }, body: JSON.stringify(body || {}) })
+    const data = await res.json().catch(() => ({}))
+    if (res.status === 401 || res.status === 429 || res.status === 403) showLock(data.error)
+    return { ok: res.ok && data.ok !== false, ...data }
+  }
+  function showLock(text) {
+    $('lock').hidden = false
+    $('lockMsg').textContent = text || ''
+    $('lockMsg').className = 'msg err'
+  }
+  $('unlock').onclick = async () => {
+    pin = $('pin').value.trim()
+    const r = await api('/api/pin')
+    if (r.ok) {
+      try { sessionStorage.setItem('streampi-pin', pin) } catch { /* private window */ }
+      $('lock').hidden = true
+    }
+  }
+
+  const formValues = () => ({
+    overlayUrl: $('overlayUrl').value.trim(),
+    platform: $('platform').value,
+    server: $('server').value.trim(),
+    streamKey: $('streamKey').value.trim(),
+    quality: $('quality').value,
+    source: $('source').value,
+    autostart: $('autostart').checked,
+  })
+  function fill(s) {
+    $('overlayUrl').value = s.overlayUrl || ''
+    $('platform').value = s.platform || 'youtube'
+    $('server').value = s.server || ''
+    $('quality').value = s.quality || '1080p'
+    $('source').value = s.source || 'camera'
+    $('autostart').checked = !!s.autostart
+    $('streamKey').placeholder = s.streamKeySet ? 'Saved (leave empty to keep it)' : ''
+    $('serverRow').hidden = $('platform').value !== 'other'
+  }
+  $('platform').onchange = () => { $('serverRow').hidden = $('platform').value !== 'other' }
+  document.querySelectorAll('[data-fill]').forEach((b) => { b.onclick = () => { $('overlayUrl').value = b.dataset.fill; $('overlayUrl').focus() } })
+
+  async function save() {
+    const r = await api('/api/settings', formValues())
+    $('formMsg').textContent = r.ok ? 'Saved.' : (r.error || 'Could not save')
+    $('formMsg').className = r.ok ? 'msg ok' : 'msg err'
+    if (r.ok) { $('streamKey').value = ''; fill(r.settings) }
+    return r.ok
+  }
+  $('form').onsubmit = (e) => { e.preventDefault(); save() }
+  $('start').onclick = async () => {
+    $('start').disabled = true
+    $('runMsg').textContent = ''
+    if (await save()) {
+      const r = await api('/api/start')
+      $('runMsg').textContent = r.ok ? '' : (r.error || 'Could not start')
+      $('runMsg').className = 'msg err'
+    }
+    $('start').disabled = false
+    poll()
+  }
+  $('stop').onclick = async () => { await api('/api/stop'); poll() }
+
+  const mmss = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+  async function poll() {
+    try {
+      const s = await (await fetch('/api/status', { cache: 'no-store' })).json()
+      $('pill').dataset.state = s.state
+      $('pill').textContent = STATES[s.state] || s.state
+      $('state').textContent = STATES[s.state] || s.state
+      $('detail').textContent = s.detail || (s.state === 'live' ? 'The stream is on air.' : '')
+      $('fCamera').textContent = s.camera === 'test' ? 'Test pattern' : s.camera ? 'Connected' : '–'
+      $('fSound').textContent = s.sound ? 'Camera microphone' : (s.state === 'stopped' ? '–' : 'Silence')
+      $('fOverlay').textContent = { on: 'Showing', loading: 'Loading…', unreachable: 'Not reachable', off: '–' }[s.overlay] || '–'
+      const mbit = parseFloat(s.bitrate) / 1000
+      $('fRate').textContent = s.fps ? `${Math.round(s.fps)} fps · ${Number.isFinite(mbit) ? `${mbit.toFixed(1)} Mbit/s` : s.bitrate}` : '–'
+      $('fSince').textContent = s.since ? mmss(Date.now() - s.since) : '–'
+      $('fOut').textContent = s.output || '–'
+      $('stop').disabled = s.state === 'stopped'
+      $('start').disabled = s.state !== 'stopped'
+      if (!s.pinSet) showLock('No PIN set yet: run "node streampi.js set-pin <digits>" on the Stream Pi')
+      else if (!pin) $('lock').hidden = false
+      if (!filled) { fill(s.settings || {}); filled = true }
+    } catch {
+      $('detail').textContent = 'The Stream Pi does not answer.'
+    }
+  }
+  poll()
+  setInterval(poll, 2000)
+</script>
+</body>
+</html>
