@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 let failed = 0
-for (const [dir, mod] of [['firmware/pointhubd', 'test_pointhubd'], ['firmware/openscore', 'test_point_hub']]) {
+for (const [dir, mod] of [['firmware/pointhubd', 'test_pointhubd'], ['firmware/pointhubd', 'test_stusb4500_nvm'], ['firmware/openscore', 'test_point_hub']]) {
   const r = spawnSync('python3', ['-W', 'ignore', '-m', 'unittest', mod], { cwd: path.join(root, dir), encoding: 'utf8' })
   const last = (r.stderr || '').trim().split('\n').slice(-3).join(' | ')
   if (r.status === 0) console.log(`  ✅ ${mod}: ${last}`)
