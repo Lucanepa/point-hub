@@ -45,6 +45,9 @@ gpio=18=op,dh
 disable_splash=1
 # <<< point-hub
 CONF
+# /dev/i2c-N: without i2c-dev the bus is in the kernel but pointhubd cannot open it (mini, 27 Nov 2026).
+echo i2c-dev > /etc/modules-load.d/pointhub-i2c.conf
+modprobe i2c-dev || true
 sed -i 's/ *console=serial0,[0-9]*//' /boot/firmware/cmdline.txt
 # A quiet boot behind the Point Hub picture: no kernel text, no cursor, no Raspberry logos.
 # shellcheck source=../lib-provision.sh

@@ -736,7 +736,7 @@ def cmd_probe(env):
     """The bench's first question: is every part there? (BUILD.md section 10.1.)"""
     bus = open_configured_bus(env)
     if bus is None:
-        print("No I2C bus with any Point Hub part. Check dtparam=i2c_vc=on, then the wiring to pins 27/28.")
+        print("No I2C bus with any Point Hub part. Check that /dev/i2c-0 exists (dtoverlay=i2c0-pi5, module i2c-dev), then the wiring to pins 27/28.")
         return 1
     print("bus: /dev/i2c-%d" % bus.number)
     ok = True
