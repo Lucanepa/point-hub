@@ -65,7 +65,7 @@ export function buildConfig(env = {}, saved = {}) {
   const server = saved.platform === 'other' ? (saved.server || '') : (PLATFORMS[saved.platform] || PLATFORMS.youtube)
   cfg.OUTPUT = server && saved.streamKey ? `${server.replace(/\/+$/, '')}/${saved.streamKey}` : (saved.platform === 'other' ? server : '')
   if (saved.source === 'test') cfg.VIDEO_DEVICE = 'test'
-  for (const k of [...Object.keys(DEFAULTS), 'SIZE', 'BITRATE', 'OVERLAY_URL', 'OUTPUT', 'DURATION', 'CHROME_PATH', 'DECODER']) {
+  for (const k of [...Object.keys(DEFAULTS), 'SIZE', 'BITRATE', 'OVERLAY_URL', 'OUTPUT', 'DURATION', 'CHROME_PATH', 'DECODER', 'OVERLAY_REGION']) {
     if (env[k] != null && env[k] !== '') cfg[k] = String(env[k])
   }
   return cfg
@@ -120,12 +120,31 @@ const isPi4 = () => {
 }
 
 /**
+ * The part of the frame the scorebug can be in: half the width and 45 % of the height at the
+ * corner the overlay URL names (?corner=tl|tr|bl|br, the LedBox's own option; default top left).
+ * Only this part is captured and blended: a full transparent frame cost a Pi 5 a blend of two
+ * million pixels 30 times a second (27.11.2026). OVERLAY_REGION=full takes the whole frame (a big
+ * ?scale= on the LedBox page, or a page that draws elsewhere).
+ */
+export function overlayRegion(cfg) {
+  const [width, height] = cfg.SIZE.split('x').map(Number)
+  if (cfg.OVERLAY_REGION === 'full') return { x: 0, y: 0, width, height }
+  let corner = 'tl'
+  try { corner = new URL(cfg.OVERLAY_URL).searchParams.get('corner') || 'tl' } catch { /* not a URL: the default */ }
+  if (!/^[tb][lr]$/.test(corner)) corner = 'tl'
+  const w = Math.round(width / 4) * 2
+  const h = Math.round(height * 0.225) * 2
+  return { x: corner[1] === 'r' ? width - w : 0, y: corner[0] === 'b' ? height - h : 0, width: w, height: h }
+}
+
+/**
  * ffmpeg's arguments. Input 0 = the camera (or a test pattern), 1 = its microphone (or silence),
- * 2 = the scorebug pictures on stdin. Pure, so the selftest holds it.
+ * 2 = the scorebug pictures on stdin (overlayRegion's part of the frame). Pure, so the selftest holds it.
  * @param {object} cfg  buildConfig's answer
  * @param {{ video: string, audioCard: string|null, pi4: boolean }} hw  video 'test' = test pattern
  */
 export function ffmpegArgs(cfg, hw) {
+  const region = overlayRegion(cfg)
   const fps = Number(cfg.FPS)
   const gop = String(fps * 2) // a keyframe every 2 s: what YouTube asks for
   const bitrate = cfg.BITRATE
@@ -149,7 +168,7 @@ export function ffmpegArgs(cfg, hw) {
   // scorebug pictures on stdin, stamped when they arrive
   args.push('-f', 'image2pipe', '-framerate', cfg.FEED_FPS, '-use_wallclock_as_timestamps', '1', '-thread_queue_size', '64', '-i', 'pipe:0')
   args.push('-filter_complex',
-    `[0:v]fps=${fps}[cam];[2:v]format=rgba[bug];[cam][bug]overlay=0:0:eof_action=repeat:format=auto,format=yuv420p[v];[1:a]aresample=async=1000[a]`,
+    `[0:v]fps=${fps}[cam];[2:v]format=rgba[bug];[cam][bug]overlay=${region.x}:${region.y}:eof_action=repeat:format=auto,format=yuv420p[v];[1:a]aresample=async=1000[a]`,
     '-map', '[v]', '-map', '[a]')
   if (encoder === 'libx264') {
     args.push('-c:v', 'libx264', '-preset', cfg.X264_PRESET, '-tune', 'zerolatency', '-profile:v', 'high')
@@ -175,6 +194,7 @@ export function makeStreamer({ env = process.env } = {}) {
   async function renderer(r) {
     const { chromium } = await import(env.PLAYWRIGHT_CORE || 'playwright-core')
     const [width, height] = r.cfg.SIZE.split('x').map(Number)
+    const clip = overlayRegion(r.cfg)
     while (!r.stop) {
       try {
         r.browser = await chromium.launch({ executablePath: r.cfg.CHROME_PATH || undefined, args: ['--disable-gpu', '--hide-scrollbars'] })
@@ -184,7 +204,7 @@ export function makeStreamer({ env = process.env } = {}) {
         const capture = async () => {
           if (busy) { timer = setTimeout(capture, 100); return }
           busy = true
-          try { r.latest = await page.screenshot({ type: 'png', omitBackground: true }) } catch { /* page navigating */ }
+          try { r.latest = await page.screenshot({ type: 'png', omitBackground: true, clip }) } catch { /* page navigating */ }
           busy = false
         }
         const changed = () => { clearTimeout(timer); timer = setTimeout(capture, 80) }

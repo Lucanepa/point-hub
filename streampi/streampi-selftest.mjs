@@ -1,7 +1,7 @@
 // node streampi/streampi-selftest.mjs — the pure parts of streampi.js: settings, camera and sound
 // card picking, ffmpeg's arguments. No camera, no ffmpeg, no browser.
 import assert from 'node:assert/strict'
-import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs } from './streampi.js'
+import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion } from './streampi.js'
 
 // settings → one stream: YouTube by default, the key after the slash, 1080p unless 720p
 const cfg = buildConfig({}, { overlayUrl: 'http://192.168.5.1:8890/overlay', streamKey: 'abcd-1234' })
@@ -53,6 +53,13 @@ assert.match(s, /-f v4l2 -input_format h264 -video_size 1920x1080 -framerate 30 
 assert.match(s, /-f alsa -use_wallclock_as_timestamps 1 .*-i plughw:CARD=OsmoAction6SN39/)
 assert.match(s, /-f image2pipe -framerate 4 -use_wallclock_as_timestamps 1 .*-i pipe:0/)
 assert.match(s, /\[0:v\]fps=30\[cam\].*overlay=0:0:eof_action=repeat.*\[1:a\]aresample=async=1000\[a\]/)
+
+// only the scorebug's corner is captured and blended: half the width, 45 % of the height
+assert.deepEqual(overlayRegion(cfg), { x: 0, y: 0, width: 960, height: 486 })
+assert.deepEqual(overlayRegion({ ...cfg, OVERLAY_URL: 'http://b:8890/overlay?corner=br' }), { x: 960, y: 594, width: 960, height: 486 })
+assert.deepEqual(overlayRegion({ ...c720, OVERLAY_URL: 'http://b:8890/overlay?corner=tr' }), { x: 640, y: 0, width: 640, height: 324 })
+assert.deepEqual(overlayRegion({ ...cfg, OVERLAY_REGION: 'full' }), { x: 0, y: 0, width: 1920, height: 1080 })
+assert.match(ffmpegArgs({ ...cfg, OVERLAY_URL: 'http://b:8890/overlay?corner=bl' }, { video: 'test', audioCard: null, pi4: false }).join(' '), /overlay=0:594:/)
 assert.match(s, /-c:v libx264 -preset veryfast/)
 assert.match(s, /-b:v 4500k -maxrate 4500k -bufsize 9000k -g 60 -keyint_min 60/)
 assert.deepEqual(a.slice(-3), ['-f', 'flv', 'rtmps://a.rtmps.youtube.com:443/live2/abcd-1234'])

@@ -17,9 +17,12 @@ standard camera (UVC 1.50, H.264 up to 4K, MJPEG up to 1080p) and charges the ca
 
 ## What to buy
 
-- Raspberry Pi 4 (2 GB is enough): its chip encodes 1080p. A Pi 5 has no H.264 encoder and must do
-  it in software (720p likely fine, 1080p to be measured).
-- A small case with a heatsink, a 32 GB microSD, a 5 V 3 A USB-C supply or a USB-C power bank.
+- Raspberry Pi 5 (4 GB; 2 GB should do) with the Active Cooler. It has no H.264 encoder, so
+  ffmpeg encodes in software: measured 27.11 on a Pi 5 at about 2.1–2.4 of its 4 cores for
+  camera-like 1080p (see Checked). A Pi 4 is 2–3× slower: only its hardware encoder could do
+  1080p, and that path is untested.
+- A small case that fits the cooler, a 32 GB microSD, the 27 W Pi 5 USB-C supply or a USB-C PD
+  power bank.
 - A small powered USB hub (the Pi's ports cannot charge the camera for a whole match) and a short
   USB-C to USB-A data cable.
 - A clamp or 1/4" plate to hang the box on the camera tripod.
@@ -51,7 +54,9 @@ The score overlay address:
 | The LedBox over Tailscale | `http://openvolley:8890/overlay` | Tailscale on the Pi |
 | OpenVolley (any scorer) | `https://livescore.openvolley.app/board?overlay#ABCD2345` or `…#12345` | the scorer online |
 
-The LedBox page takes `?corner=tl|tr|bl|br` and `?scale=1.5` (see the main README).
+The LedBox page takes `?corner=tl|tr|bl|br` and `?scale=1.5` (see the main README). Only that
+corner of the frame (half the width, 45 % of the height) is captured and blended, which saves a
+Pi a lot of work; for a big `?scale=` or a page that draws elsewhere set `OVERLAY_REGION=full`.
 
 **Test pattern** (Picture ▸ Test pattern) streams a moving test picture instead of the camera: use
 it to check the stream key and the hall's upload before the match.
@@ -75,5 +80,12 @@ npm test                                       # the selftest (no camera, no ffm
   but the frame rate sank (12 → 5 fps). Fixed since by stamping every input with the wall clock and
   a steady `fps=` on the camera; the real camera has not been tried again yet.
 
-Not checked yet: a Raspberry Pi (Pi 4 hardware path, Pi 5 CPU), a real YouTube stream, a whole
-match on battery.
+- 27.11 on the MINI's Pi 5 (4 GB, Active Cooler), next to the board's own services (~1.2 cores):
+  the Stream Pi with the test pattern + the real `/overlay` held 30 fps, 0 dropped at 1080p and
+  720p; the whole Pi at ~76 % (1080p, corner crop) and ~50 % (720p). With a camera-like 1080p
+  H.264 clip as input, ffmpeg alone needed 2.1–2.4 cores and reached 0.92–0.96× real time beside
+  the board's services; a Pi 5 that only streams should keep up (to confirm). Max 60 °C, never
+  throttled.
+
+Not checked yet: a dedicated Stream Pi (1080p in real time with the real camera), the Pi 4
+hardware path, a real YouTube stream, a whole match on battery.
