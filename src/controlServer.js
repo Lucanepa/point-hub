@@ -815,7 +815,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       linked = null
       await stopCountdown({ expired: false, repaint: false })
       const lines = resultFromLiveState(state)
-      const clean = lines && { winner: resultLine(resultWinnerLine(resultLine(lines.winner, 24), state), 60), score: resultLine(lines.score, 24), history: resultLine(lines.history, 60) }
+      const clean = lines && { winner: resultLine(resultWinnerLine(resultLine(lines.winner, 60), state), 60), score: resultLine(lines.score, 24), history: resultLine(lines.history, 60) }
       let shown = false
       try { shown = !!(clean && ledbox && typeof ledbox.showResult === 'function' && await ledbox.showResult(clean)) } catch { shown = false }
       if (!shown) { try { await holdClock() } catch { /* the log has it */ } }
@@ -2014,7 +2014,7 @@ export function createControlServer({ hardware = null, localRelayUrl = null, boa
       // upper-cased for the board. Anything outside both sets is still dropped.
       const line = resultLine
       const color = HEX_COLOR.test(String(body.color || '')) ? teamRgb(body.color) : undefined
-      const winner = line(resultWinnerLine(line(body.winner, 24), sourceManager.getState()), 60)
+      const winner = line(resultWinnerLine(line(body.winner, 60), sourceManager.getState()), 60) // not 24: a long name kept its WINS only after resultWinnerLine shortened it
       const ok = ledbox && typeof ledbox.showResult === 'function'
         ? await ledbox.showResult({
           winner, score: line(body.score, 24), history: line(body.history, 60), color,
