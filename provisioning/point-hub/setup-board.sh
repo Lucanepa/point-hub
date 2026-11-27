@@ -39,6 +39,9 @@ enable_uart=0
 # I2C0 on GPIO0/1 for the hub. dtparam=i2c_vc=on is the Pi 4's switch and does nothing on the Pi 5
 # (bench, 10 Nov 2026): the Pi 5 needs its own overlay.
 dtoverlay=i2c0-pi5
+# The onboard RTC has no battery and would be rtc0, the one the kernel sets the time from. Off, so
+# the DS3231 is rtc0 (bench, 27 Nov 2026).
+dtparam=rtc=off
 dtoverlay=i2c-rtc,ds3231,i2c0
 gpio=18=op,dh
 # No rainbow square: the boot picture is ours (Plymouth, firmware/screen-splash)

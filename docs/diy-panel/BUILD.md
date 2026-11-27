@@ -1432,7 +1432,8 @@ to a WPA2 network. Then:
 ```ini
 # /boot/firmware/config.txt — both paths
 enable_uart=0                        # GPIO14 is OUT 3
-dtparam=i2c_vc=on                    # I²C0 on GPIO0/1 (pins 27/28)
+dtoverlay=i2c0-pi5                   # I²C0 on GPIO0/1 (pins 27/28); the Pi 5 needs this overlay
+dtparam=rtc=off                      # the onboard clock has no battery: off, so the DS3231 is rtc0
 dtoverlay=i2c-rtc,ds3231,i2c0        # DS3231 on I²C0
 gpio=18=op,dh                        # OE− high early: panels dark (second layer after the pull-up)
 
