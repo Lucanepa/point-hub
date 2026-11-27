@@ -77,7 +77,7 @@ These have **not been tested** or **not been decided**. The guide marks each one
 |---|---|---|---|
 | **First light on the Pi 5 + Piomatter** | **Passed 4 Nov 2026** with one module; **all eight modules lit on 16 Nov 2026** (owner saw them, TO-start flash included). Still open: confirm Ports 2 and 3 separately | before cutting | §10.2 |
 | **Screen flicker test** | **Passed 8 Nov 2026** on the bench, with both screens. Repeat it in the finished box: if the touchscreen makes the LED modules flicker, the screen stays out and the scorer uses a tablet on the DATA cable | at bring-up | §10.4 |
-| Screen pocket and flap | the bigger pocket may hit the top blocks or the handle trays; the cable slot on the wrong side; the HDMI adapter turning the cable the wrong way | dry fit, before cutting B's opening, the pocket or F | §8.5 |
+| Screen pocket and flap | the bigger pocket may hit the top blocks or the handle trays; the cable slot on the wrong side; the angled HDMI plug turning the cable the wrong way | dry fit, before cutting B's opening, the pocket or F | §8.5 |
 | **Bottom cap K vs backing plates Y** | both want the front/centre of the floor | dry fit, before gluing Y | §8.6 |
 | **Soak test** (2 h at the power cap) | the box runs too hot | **Open bench passed 17 Nov 2026** (§6); repeat in the closed box before the first match | §6 |
 | Cheeks H and stays vs the bench modules | the parts that close the side gaps may hit the bench modules | dry fit | §8.4 |
@@ -166,8 +166,7 @@ ones the club used in October 2026; "DIY store" means Jumbo, Hornbach, OBI or Co
 | Part | Spec | Qty | Where | ~CHF |
 |---|---|---|---|---|
 | Touchscreen | **MINIX SF16T Touch**, 16″, 1920 × 1200 (16:10), touch over USB (HID), about 8.3 W. Measured 357 × 236 mm and 11.5 mm at the thickest point (±1.5 mm): design for **359 × 238 × 12**. Its ports are on one long edge, at one end of a thicker strip on the back: HDMI (full size), USB-C, USB-C, 3.5 mm. It hangs **upside down**, ports at the top (§8.5) | 1 | Digitec (product 42926203) | Check |
-| Video cable | **micro-HDMI → HDMI**, about 0.5–1 m (the club has the one from the bench) | 1 | any shop | — |
-| HDMI adapter | **PowerGuard HDMI 2.1 8K 90° "Right"**, low profile, at the screen: it turns the cable **along the screen's edge**. A left/right type, never an up/down one: there is only about 12 mm of depth there. **Check** "Right" against "Left" (§8.5) | 1 | Digitec (product 25478363) | 13 |
+| Video cable | **RIIEYOCA micro-HDMI → HDMI, 90° "up angle"** on the HDMI end, 2 m (no shorter one comes in this angle; coil the slack with velcro). The angled plug goes in the screen and turns the cable **away from the glass, into the box**: the screen's HDMI socket has its narrow side to the glass. No separate adapter. Picture and touch tested on the bench, 27 Nov 2026. **Check** the direction at the dry fit (§8.5) | 1 | Amazon | 8 |
 | USB cables | **Ugreen right-angle USB-C → USB-A, 1 m, 18 W**: one for touch (to a Pi USB-A port), one for power (to the socket below) | 2 | any shop | Check |
 | Power socket | **USB-A socket with screw terminals** (5 V + GND), on fuse way 11 (§5.1) | 1 | any shop | Check |
 | Front frame | **3 mm poplar, 375 × 268**, window 351 × 230 cut at home: screwed onto the spacer strips, it holds the screen by its edges (§8.5) | 1 | Jumbo, with the lid (§8.2) | Check |
@@ -1041,10 +1040,10 @@ cables barely move when the flap opens. The picture and the touch are turned 180
   75°: if the hinges have no stop of their own, add a small block that the flap meets.
 - **Magnetic catch:** one Hettich catch at the bottom edge of the flap, screwed into a block, not
   into 6 mm plywood; pre-drill Ø2. If there is no counter-plate, screw on a steel washer.
-- **Cables:** three leave the screen at its top edge: video (micro-HDMI → HDMI, with the 90° adapter
+- **Cables:** three leave the screen at its top edge: video (micro-HDMI → HDMI, its 90° plug
   at the screen), touch (USB-C → USB-A to the Pi) and power (USB-C → USB-A to the socket on way 11).
-  The adapter must turn the cable **along the screen's edge**, left or right, never up or down: there
-  is only about 12 mm of depth there. The cables run along the top edge, out through the gap in the
+  The angled plug must turn the cable **away from the glass, into the box**: a straight plug sticks
+  out too far past the screen's edge. The cables run along the top edge, out through the gap in the
   strips and the slot in the side wall, with a loop inside the box so they flex rather than fold.
   **Check** that they do not pinch when the flap shuts.
 
@@ -1053,8 +1052,8 @@ cables barely move when the flap opens. The picture and the touch are turned 180
 - the pocket's top wall clears the top battens and the handle trays;
 - which top corner the screen's ports end up in, so you know which side wall gets the cable slot and
   where the strips leave their gap;
-- the HDMI adapter's direction: plug the cable in with the screen upside down, the way it will hang,
-  and check that "Right" (not "Left") turns it along the edge.
+- the angled HDMI plug's direction: plug the cable in with the screen upside down, the way it will
+  hang, and check that it turns the cable into the box and clears the pocket.
 
 **Flicker test:** passed on the bench on 8 Nov 2026 (§10.4). Repeat it at bring-up in the finished
 box; if the screen ever makes the modules flicker, keep the flap shut and the scorer uses a tablet on
@@ -1329,7 +1328,7 @@ and do the checks marked in §8 at the dry fit, not after the glue.
     K must clear it as well. Mark the posts' places.
 14. **Flap:** with B taped on, hold the pocket walls on the marked opening and do the checks in §8.5:
     the top wall clears the top battens and the handle trays, which top corner the screen's ports end
-    up in, and the HDMI adapter's direction. Then cut B's opening (as in step 2) and the cable slot in
+    up in, and the angled HDMI plug's direction. Then cut B's opening (as in step 2) and the cable slot in
     the side wall at the port corner. Fit the pocket, the flap with its three torque hinges and the
     catch; put the screen (or its outline on cardboard) on the flap; check the stop and the cable
     route (§8.5).
@@ -1591,7 +1590,7 @@ measure refresh and banding the same way once it exists.
 The MINIX passed this on the bench on 8 November 2026 (results below); do it again in the finished box.
 
 1. **Connect it** (Pi off): HDMI from the Pi 5's micro-HDMI port **next to its USB-C socket** (HDMI0;
-   the other port gave no picture) to the screen, through the 90° adapter; the touch cable to a Pi
+   the other port gave no picture) to the screen, angled plug at the screen; the touch cable to a Pi
    USB-A port; the power cable to the USB-A socket on fuse way 11.
 2. **Software:** `provisioning/point-hub/setup-board.sh` installs the screen's start script and writes
    `POINTHUB_SCREEN_ROTATE=180` to `/etc/default/pointhub-screen`, which turns the picture and the
@@ -1770,8 +1769,8 @@ kein Produkt, wird ohne Gewähr veröffentlicht und ist keine Rechtsberatung.
 - Adafruit Piomatter (HUB75 on the Raspberry Pi 5 through RP1 PIO) —
   <https://github.com/adafruit/Adafruit_Blinka_Raspberry_Pi5_Piomatter>
 - Adafruit Triple LED Matrix Bonnet — <https://www.adafruit.com/product/6358>
-- MINIX SF16T Touch (the scorer screen) — Digitec product 42926203; PowerGuard HDMI 2.1 8K 90°
-  adapter — Digitec product 25478363
+- MINIX SF16T Touch (the scorer screen) — Digitec product 42926203; RIIEYOCA micro-HDMI → HDMI
+  90° "up angle" cable, 2 m — Amazon
 - Waveshare 10.1inch DSI LCD (C) (the alternative screen) — Waveshare wiki
 - Mean Well RSD-60 datasheet — <https://www.meanwell.com/Upload/PDF/RSD-60/RSD-60-SPEC.PDF>
 - STUSB4500 NVM settings: SparkFun DEV-15801 and the STUSB4500 CircuitPython library documentation
