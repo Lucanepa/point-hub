@@ -46,7 +46,9 @@ export const QUALITY = {
 }
 
 // Where each platform takes a stream; the key goes after the slash. "other" = a full URL typed in.
-export const LEDBOX_OVERLAY = 'http://192.168.5.1:8890/overlay'
+export const LEDBOX_OVERLAY = 'http://192.168.5.1:8890/overlay' // over the network cable
+export const LEDBOX_TAILNET = 'http://ledbox-c0270:8890/overlay' // the hall LedBox over Tailscale
+export const OV_BOARD = 'https://livescore.openvolley.app/board' // OpenVolley's scorebug: ?overlay#<code or game number>
 
 export const PLATFORMS = {
   youtube: 'rtmps://a.rtmps.youtube.com:443/live2',
@@ -63,12 +65,15 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a)
  */
 export function buildConfig(env = {}, saved = {}) {
   const cfg = { ...DEFAULTS, ...QUALITY[saved.quality === '720p' ? '720p' : '1080p'] }
-  // the LedBox's own scorebug over the network cable, unless the console names another page
-  cfg.OVERLAY_URL = saved.overlayUrl || LEDBOX_OVERLAY
+  // A: the LedBox's own scorebug (over Tailscale unless the console names another page);
+  // B: OpenVolley's online scorebug for a game number or scoreboard code, when A can't be reached
+  cfg.OVERLAY_URL = saved.overlayUrl || LEDBOX_TAILNET
+  const game = String(saved.ovGame || '').replace(/[^A-Za-z0-9]/g, '')
+  cfg.FALLBACK_URL = game ? `${OV_BOARD}?overlay#${game}` : ''
   const server = saved.platform === 'other' ? (saved.server || '') : (PLATFORMS[saved.platform] || PLATFORMS.youtube)
   cfg.OUTPUT = server && saved.streamKey ? `${server.replace(/\/+$/, '')}/${saved.streamKey}` : (saved.platform === 'other' ? server : '')
   if (saved.source === 'test') cfg.VIDEO_DEVICE = 'test'
-  for (const k of [...Object.keys(DEFAULTS), 'SIZE', 'BITRATE', 'OVERLAY_URL', 'OUTPUT', 'DURATION', 'CHROME_PATH', 'DECODER', 'OVERLAY_REGION']) {
+  for (const k of [...Object.keys(DEFAULTS), 'SIZE', 'BITRATE', 'OVERLAY_URL', 'OUTPUT', 'DURATION', 'CHROME_PATH', 'DECODER', 'OVERLAY_REGION', 'FALLBACK_URL']) {
     if (env[k] != null && env[k] !== '') cfg[k] = String(env[k])
   }
   return cfg
@@ -229,12 +234,69 @@ export function ffmpegArgs(cfg, hw) {
   return args
 }
 
+/** "KSCW H1 – Volley Zürich · 28.11.2026" (Zurich date), or null without both names. */
+export function makeTitle(a, b, when = new Date()) {
+  const clean = (v) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 40)
+  if (!clean(a) || !clean(b)) return null
+  const d = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', year: 'numeric' }).format(when)
+  return `${clean(a)} – ${clean(b)} · ${d}`.slice(0, 100)
+}
+
+// ── YouTube: renaming the live broadcast (optional) ─────────────────────────────────────────
+// One-time permission with Google's device flow (a code typed on a phone, like a TV app), the
+// refresh token kept in settings.json (0600). Needs an OAuth client of type "TVs and Limited Input
+// devices" with the YouTube Data API v3 enabled, in a Google Cloud project of the channel's account.
+const YT_SCOPE = 'https://www.googleapis.com/auth/youtube'
+const form = (o) => ({ method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(o).toString() })
+
+export async function ytDeviceStart(clientId, fetchImpl = fetch) {
+  const r = await fetchImpl('https://oauth2.googleapis.com/device/code', form({ client_id: clientId, scope: YT_SCOPE }))
+  const j = await r.json()
+  if (!r.ok) throw new Error(j.error_description || j.error || `HTTP ${r.status}`)
+  return j // { device_code, user_code, verification_url, interval, expires_in }
+}
+
+/** One poll: the refresh token once the person said yes, null while they haven't yet. */
+export async function ytDevicePoll(clientId, clientSecret, deviceCode, fetchImpl = fetch) {
+  const r = await fetchImpl('https://oauth2.googleapis.com/token', form({ client_id: clientId, client_secret: clientSecret, device_code: deviceCode, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }))
+  const j = await r.json()
+  if (j.error === 'authorization_pending' || j.error === 'slow_down') return null
+  if (!r.ok || !j.refresh_token) throw new Error(j.error_description || j.error || `HTTP ${r.status}`)
+  return j.refresh_token
+}
+
+async function ytAccessToken(clientId, clientSecret, refreshToken, fetchImpl = fetch) {
+  const r = await fetchImpl('https://oauth2.googleapis.com/token', form({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' }))
+  const j = await r.json()
+  if (!r.ok) throw new Error(j.error_description || j.error || `HTTP ${r.status}`)
+  return j.access_token
+}
+
+/**
+ * Renames the channel's live broadcast. 'renamed', or 'none' while YouTube has no live broadcast
+ * yet (auto-start takes a moment after the stream begins).
+ */
+export async function ytSetLiveTitle(accessToken, title, fetchImpl = fetch) {
+  const api = 'https://www.googleapis.com/youtube/v3/liveBroadcasts'
+  const auth = { authorization: `Bearer ${accessToken}` }
+  const l = await fetchImpl(`${api}?part=snippet&broadcastStatus=active&broadcastType=all&maxResults=5`, { headers: auth })
+  const lj = await l.json()
+  if (!l.ok) throw new Error(lj.error?.message || `HTTP ${l.status}`)
+  const item = (lj.items || [])[0]
+  if (!item) return 'none'
+  if (item.snippet?.title === title) return 'renamed'
+  const snippet = { title, description: item.snippet?.description || '', scheduledStartTime: item.snippet?.scheduledStartTime || item.snippet?.actualStartTime }
+  const u = await fetchImpl(`${api}?part=snippet`, { method: 'PUT', headers: { ...auth, 'content-type': 'application/json' }, body: JSON.stringify({ id: item.id, snippet }) })
+  if (!u.ok) { const uj = await u.json().catch(() => ({})); throw new Error(uj.error?.message || `HTTP ${u.status}`) }
+  return 'renamed'
+}
+
 /**
  * One stream at a time: Chromium on the overlay page + ffmpeg, both started again after a
  * failure until stop(). `status` is what the console shows.
  */
-export function makeStreamer({ env = process.env } = {}) {
-  const status = { state: 'stopped', detail: '', camera: null, sound: null, overlay: 'off', fps: null, bitrate: null, speed: null, dropped: null, since: null, output: '' }
+export function makeStreamer({ env = process.env, getSettings = () => ({}) } = {}) {
+  const status = { state: 'stopped', detail: '', camera: null, sound: null, overlay: 'off', overlaySource: null, fps: null, bitrate: null, speed: null, dropped: null, since: null, output: '', title: null }
   let run = null // { cfg, stop: bool, ff, browser, latest }
 
   async function renderer(r) {
@@ -244,7 +306,8 @@ export function makeStreamer({ env = process.env } = {}) {
     while (!r.stop) {
       try {
         r.browser = await chromium.launch({ executablePath: r.cfg.CHROME_PATH || undefined, args: ['--disable-gpu', '--hide-scrollbars'] })
-        const page = await r.browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 })
+        const ctx = await r.browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 })
+        let page = await ctx.newPage()
         let timer = null
         let busy = false
         const capture = async () => {
@@ -254,18 +317,42 @@ export function makeStreamer({ env = process.env } = {}) {
           busy = false
         }
         const changed = () => { clearTimeout(timer); timer = setTimeout(capture, 80) }
-        await page.exposeFunction('__streampiChanged', changed)
-        await page.addInitScript(() => {
+        await ctx.exposeFunction('__streampiChanged', changed)
+        await ctx.addInitScript(() => {
           new MutationObserver(() => window.__streampiChanged?.()).observe(document, { subtree: true, childList: true, characterData: true, attributes: true })
         })
         await capture() // about:blank: a see-through frame of the right size before the page answers
-        await page.goto(r.cfg.OVERLAY_URL, { waitUntil: 'load', timeout: 20000 })
+        // A (the LedBox) first; B (OpenVolley) only when A doesn't answer
+        let source = 'ledbox'
+        try {
+          await page.goto(r.cfg.OVERLAY_URL, { waitUntil: 'load', timeout: 15000 })
+        } catch (err) {
+          if (!r.cfg.FALLBACK_URL) throw err
+          log('overlay: LedBox not reachable, using OpenVolley:', err.message.split('\n')[0])
+          source = 'openvolley'
+          // a fresh tab: the failed one is still busy loading Chromium's own error page
+          const failed = page
+          page = await ctx.newPage()
+          await failed.close().catch(() => {})
+          await page.goto(r.cfg.FALLBACK_URL, { waitUntil: 'load', timeout: 15000 })
+        }
+        r.page = page
+        r.source = source
         await capture()
-        status.overlay = 'on'
-        log('overlay: showing', r.cfg.OVERLAY_URL)
+        Object.assign(status, { overlay: 'on', overlaySource: source })
+        log('overlay: showing', source === 'ledbox' ? r.cfg.OVERLAY_URL : r.cfg.FALLBACK_URL)
         const safety = setInterval(changed, 2000) // a change the observer cannot see (a CSS animation's end)
+        // on B, look for A every 2 minutes and go back to it (a restart of this loop) once it answers
+        const backToA = source === 'openvolley' ? setInterval(async () => {
+          try {
+            const a = await fetch(r.cfg.OVERLAY_URL, { signal: AbortSignal.timeout(4000) })
+            if (a.ok) { log('overlay: LedBox reachable again'); r.browser?.close().catch(() => {}) }
+          } catch { /* still away */ }
+        }, 120000) : null
         await new Promise((resolve) => r.browser.on('disconnected', resolve))
         clearInterval(safety)
+        clearInterval(backToA)
+        r.page = null
       } catch (err) {
         if (!r.stop) { status.overlay = 'unreachable'; log('overlay:', err.message.split('\n')[0]) }
         try { await r.browser?.close() } catch { /* gone */ }
@@ -308,7 +395,7 @@ export function makeStreamer({ env = process.env } = {}) {
         if (i > 0) progress[line.slice(0, i).trim()] = line.slice(i + 1).trim()
         if (line.startsWith('progress=')) {
           Object.assign(status, { state: 'live', detail: '', fps: Number(progress.fps) || 0, bitrate: progress.bitrate, speed: progress.speed, dropped: Number(progress.drop_frames) || 0 })
-          if (!status.since) status.since = Date.now()
+          if (!status.since) { status.since = Date.now(); titleJob(r) }
           log(`stream: fps ${progress.fps} · ${progress.bitrate} · speed ${progress.speed} · dropped ${progress.drop_frames}`)
           progress = {}
         }
@@ -328,6 +415,34 @@ export function makeStreamer({ env = process.env } = {}) {
     })
   }
 
+  // The team names of the game on screen: the LedBox's JSON (A) or OpenVolley's scorebug page (B).
+  async function gameNames(r) {
+    if (r.source === 'ledbox') {
+      const j = await (await fetch(new URL('/api/overlay.json', r.cfg.OVERLAY_URL), { signal: AbortSignal.timeout(4000) })).json()
+      return j.status === 'idle' ? [] : [j.team_a_name, j.team_b_name]
+    }
+    if (r.source === 'openvolley' && r.page) {
+      return r.page.evaluate(() => [...document.querySelectorAll('[data-testid^="overlay-name-"]')].map((e) => e.getAttribute('title') || e.textContent))
+    }
+    return []
+  }
+
+  // Rename the live YouTube broadcast after the game, once, when it can (names known, broadcast up).
+  async function titleJob(r) {
+    const s = getSettings()
+    if (!s.autoTitle || !s.ytRefresh || !s.ytClientId || !s.ytClientSecret) return
+    for (let i = 0; i < 40 && !r.stop; i++) {
+      try {
+        const title = makeTitle(...(await gameNames(r)))
+        if (title) {
+          const token = await ytAccessToken(s.ytClientId, s.ytClientSecret, s.ytRefresh)
+          if (await ytSetLiveTitle(token, title) === 'renamed') { status.title = title; log('youtube: title', title); return }
+        }
+      } catch (err) { log('youtube: title not set yet:', err.message) }
+      await new Promise((res) => setTimeout(res, 30000))
+    }
+  }
+
   async function start(saved) {
     if (run) return { ok: false, error: 'already running' }
     const cfg = buildConfig(env, saved)
@@ -335,7 +450,7 @@ export function makeStreamer({ env = process.env } = {}) {
     if (gaps.length) return { ok: false, error: `Missing ${gaps.join(' and ')}` }
     const r = { cfg, stop: false, latest: null }
     run = r
-    Object.assign(status, { state: 'starting', detail: 'Starting…', output: maskOutput(cfg.OUTPUT), since: null, fps: null, bitrate: null, speed: null, dropped: null, overlay: 'loading' })
+    Object.assign(status, { state: 'starting', detail: 'Starting…', output: maskOutput(cfg.OUTPUT), since: null, fps: null, bitrate: null, speed: null, dropped: null, overlay: 'loading', overlaySource: null, title: null })
     renderer(r)
     // the first (blank) frame first, so ffmpeg never starts on an empty pipe
     const t0 = Date.now()
@@ -354,7 +469,7 @@ export function makeStreamer({ env = process.env } = {}) {
     if (r.ff) r.ff.kill('SIGINT') // ffmpeg ends the stream cleanly
     r.browser?.close().catch(() => {})
     run = null
-    Object.assign(status, { state: 'stopped', detail: '', overlay: 'off', since: null, fps: null, bitrate: null, speed: null })
+    Object.assign(status, { state: 'stopped', detail: '', overlay: 'off', overlaySource: null, since: null, fps: null, bitrate: null, speed: null })
     log('stream: stopped')
   }
 
@@ -363,15 +478,16 @@ export function makeStreamer({ env = process.env } = {}) {
 
 // ── settings + console ──────────────────────────────────────────────────────────────────────
 
-const SETTING_KEYS = ['overlayUrl', 'platform', 'server', 'streamKey', 'quality', 'source', 'autostart']
+const SETTING_KEYS = ['overlayUrl', 'ovGame', 'platform', 'server', 'streamKey', 'quality', 'source', 'autostart', 'autoTitle', 'ytClientId', 'ytClientSecret']
+const SECRET_KEYS = ['streamKey', 'ytClientSecret'] // an empty field keeps the saved value
 
 export function cleanSettings(body, prev = {}) {
   const out = { ...prev }
   for (const k of SETTING_KEYS) {
     if (!(k in (body || {}))) continue
     const v = body[k]
-    if (k === 'streamKey' && (v == null || v === '')) continue // empty = keep the saved key
-    if (k === 'autostart') out[k] = v === true
+    if (SECRET_KEYS.includes(k) && (v == null || v === '')) continue // empty = keep the saved key
+    if (k === 'autostart' || k === 'autoTitle') out[k] = v === true
     else out[k] = String(v ?? '').trim().slice(0, 500)
   }
   if (out.platform && !['youtube', 'twitch', 'facebook', 'other'].includes(out.platform)) out.platform = 'youtube'
@@ -381,7 +497,7 @@ export function cleanSettings(body, prev = {}) {
 }
 
 /** The settings as the console may see them: never the key itself. */
-export const publicSettings = (s) => ({ ...s, streamKey: undefined, streamKeySet: !!s.streamKey })
+export const publicSettings = (s) => ({ ...s, streamKey: undefined, streamKeySet: !!s.streamKey, ytClientSecret: undefined, ytClientSecretSet: !!s.ytClientSecret, ytRefresh: undefined, ytConnected: !!s.ytRefresh })
 
 function main() {
   const stateDir = process.env.STATE_DIR || path.join(HERE, '.state')
@@ -403,7 +519,8 @@ function main() {
     fs.renameSync(`${settingsFile}.tmp`, settingsFile)
   }
   const pin = makeAdminPin(pinFile)
-  const streamer = makeStreamer()
+  const streamer = makeStreamer({ getSettings: () => readSettings() })
+  let ytFlow = null // the device-flow code being shown, while the person approves it
   const page = fs.readFileSync(path.join(HERE, 'console.html'))
 
   const send = (res, code, body) => {
@@ -423,7 +540,7 @@ function main() {
       return res.end(page)
     }
     if (req.method === 'GET' && url.pathname === '/api/status') {
-      return send(res, 200, { ...streamer.status, settings: publicSettings(readSettings()), pinSet: pin.isSet() })
+      return send(res, 200, { ...streamer.status, settings: publicSettings(readSettings()), pinSet: pin.isSet(), ytFlow })
     }
     if (req.method !== 'POST' || !url.pathname.startsWith('/api/')) return send(res, 404, { error: 'not found' })
     // every change needs the PIN
@@ -443,6 +560,30 @@ function main() {
     if (url.pathname === '/api/start') return send(res, 200, await streamer.start(readSettings()))
     if (url.pathname === '/api/stop') { streamer.stop(); return send(res, 200, { ok: true }) }
     if (url.pathname === '/api/pin') return send(res, 200, { ok: true }) // only checks the PIN
+    if (url.pathname === '/api/youtube/connect') {
+      const s = readSettings()
+      if (!s.ytClientId || !s.ytClientSecret) return send(res, 400, { error: 'Save the Google client ID and secret first' })
+      try {
+        const flow = await ytDeviceStart(s.ytClientId)
+        ytFlow = { code: flow.user_code, url: flow.verification_url }
+        const until = Date.now() + flow.expires_in * 1000
+        ;(async () => {
+          while (Date.now() < until && ytFlow?.code === flow.user_code) {
+            await new Promise((r) => setTimeout(r, (flow.interval || 5) * 1000))
+            try {
+              const refresh = await ytDevicePoll(s.ytClientId, s.ytClientSecret, flow.device_code)
+              if (refresh) { writeSettings({ ...readSettings(), ytRefresh: refresh }); log('youtube: connected'); break }
+            } catch (err) { log('youtube: connect failed:', err.message); break }
+          }
+          ytFlow = null
+        })()
+        return send(res, 200, { ok: true, ...ytFlow })
+      } catch (err) { return send(res, 502, { error: `Google said: ${err.message}` }) }
+    }
+    if (url.pathname === '/api/youtube/disconnect') {
+      const s = readSettings(); delete s.ytRefresh; writeSettings(s); ytFlow = null
+      return send(res, 200, { ok: true })
+    }
     return send(res, 404, { error: 'not found' })
   })
   const port = Number(process.env.CONTROL_PORT || 8080)

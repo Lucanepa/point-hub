@@ -71,7 +71,35 @@ Any camera works that a laptop sees as a webcam (the Osmo Action 4/5/6, most act
 webcams); a camera with only HDMI out needs an HDMI-to-USB capture dongle. The Pi takes H.264,
 else MJPEG, else raw video, at 1080p or the biggest size below it (scaled up).
 
-The score overlay address:
+## Score: the LedBox first, OpenVolley as backup
+
+- **A (default): the hall LedBox over Tailscale**, `http://ledbox-c0270:8890/overlay`: the LedBox's
+  own scorebug, for every kind of match. Needs Tailscale on the Pi (`setup.sh --tailscale`) and
+  internet on both boxes.
+- **B (backup): OpenVolley's online scorebug** for the game number or scoreboard code typed on the
+  page, used when A doesn't answer; the Pi checks every 2 minutes and goes back to A. Needs the
+  scorer online, and OpenVolley PR #357 live.
+- A network cable to the LedBox (`http://192.168.5.1:8890/overlay`) still works, as an option.
+
+## YouTube title (optional)
+
+When the stream goes live the Pi renames the YouTube broadcast after the game, for example
+"KSCW H1 – Volley Zürich · 28.11.2026", with the names from the LedBox (A) or OpenVolley (B). Set
+up once, on the club's Google account:
+
+1. YouTube Studio ▸ Go live ▸ Stream: use the default stream key, turn on **Auto-start** and
+   **Auto-stop**, set the default title and visibility (Unlisted).
+2. [Google Cloud console](https://console.cloud.google.com/): new project ▸ enable **YouTube Data
+   API v3** ▸ OAuth consent screen (External, add the club account as a user, then **publish** it:
+   in "Testing" Google drops the permission after 7 days) ▸ Credentials ▸ OAuth client ID ▸ type
+   **TVs and Limited Input devices**. Copy the client ID and secret.
+3. Stream Pi page ▸ YouTube title: tick the box, paste the ID and secret, **Connect YouTube**, then
+   open the address shown on a phone and type the code, signed in with the club account.
+
+The page's "YouTube title" line shows the title once it is set. Without names (no match on the
+LedBox yet) the Pi keeps trying every 30 s for 20 minutes.
+
+The other score overlay addresses:
 
 | Score from | Address | Needs |
 |---|---|---|

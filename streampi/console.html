@@ -68,6 +68,7 @@
       <dt>Camera</dt><dd id="fCamera">–</dd>
       <dt>Sound</dt><dd id="fSound">–</dd>
       <dt>Score overlay</dt><dd id="fOverlay">–</dd>
+      <dt>YouTube title</dt><dd id="fTitle">–</dd>
       <dt>Picture</dt><dd id="fRate">–</dd>
       <dt>Live for</dt><dd id="fSince">–</dd>
       <dt>Sending to</dt><dd id="fOut">–</dd>
@@ -82,14 +83,17 @@
   <form class="card" id="form">
     <p class="eyebrow">Settings</p>
     <label for="overlayUrl">Score overlay address
-      <input id="overlayUrl" type="url" placeholder="http://192.168.5.1:8890/overlay" autocomplete="off">
-      <span class="hint">Empty = the LedBox over the network cable. Or OpenVolley's page with a scoreboard code or game number after the #.</span>
+      <input id="overlayUrl" type="url" placeholder="http://ledbox-c0270:8890/overlay" autocomplete="off">
+      <span class="hint">Empty = the hall LedBox over Tailscale.</span>
     </label>
     <div class="row">
+      <button class="ghost" type="button" data-fill="http://ledbox-c0270:8890/overlay">LedBox (Tailscale)</button>
       <button class="ghost" type="button" data-fill="http://192.168.5.1:8890/overlay">LedBox (cable)</button>
-      <button class="ghost" type="button" data-fill="http://openvolley:8890/overlay">LedBox (Tailscale)</button>
-      <button class="ghost" type="button" data-fill="https://livescore.openvolley.app/board?overlay#">OpenVolley code</button>
     </div>
+    <label for="ovGame">Backup: OpenVolley game number or scoreboard code
+      <input id="ovGame" type="text" inputmode="text" autocomplete="off" placeholder="e.g. 12345 or ABCD-2345">
+      <span class="hint">Used when the LedBox can't be reached (the scorer must be online). Leave empty for no backup.</span>
+    </label>
     <label for="platform">Send to
       <select id="platform">
         <option value="youtube">YouTube</option>
@@ -118,6 +122,20 @@
       </select>
     </label>
     <label class="check" for="autostart"><input id="autostart" type="checkbox"> Start by itself after a power cut</label>
+    <p class="eyebrow" style="margin-top:6px">YouTube title</p>
+    <label class="check" for="autoTitle"><input id="autoTitle" type="checkbox"> Name the YouTube broadcast after the game (e.g. "KSCW H1 – Volley Zürich · 28.11.2026")</label>
+    <label for="ytClientId">Google client ID
+      <input id="ytClientId" type="text" autocomplete="off">
+    </label>
+    <label for="ytClientSecret">Google client secret
+      <input id="ytClientSecret" type="password" autocomplete="off">
+      <span class="hint" id="ytHint">From the club's Google Cloud project (OAuth client "TVs and Limited Input devices"). Never shown again once saved.</span>
+    </label>
+    <div class="row">
+      <button class="ghost" type="button" id="ytConnect">Connect YouTube</button>
+      <button class="ghost" type="button" id="ytDisconnect">Disconnect</button>
+    </div>
+    <p class="msg" id="ytMsg" role="status"></p>
     <button class="dark" type="submit">Save settings</button>
     <p class="msg" id="formMsg" role="status"></p>
   </form>
@@ -151,6 +169,10 @@
 
   const formValues = () => ({
     overlayUrl: $('overlayUrl').value.trim(),
+    ovGame: $('ovGame').value.trim(),
+    autoTitle: $('autoTitle').checked,
+    ytClientId: $('ytClientId').value.trim(),
+    ytClientSecret: $('ytClientSecret').value.trim(),
     platform: $('platform').value,
     server: $('server').value.trim(),
     streamKey: $('streamKey').value.trim(),
@@ -160,6 +182,10 @@
   })
   function fill(s) {
     $('overlayUrl').value = s.overlayUrl || ''
+    $('ovGame').value = s.ovGame || ''
+    $('autoTitle').checked = !!s.autoTitle
+    $('ytClientId').value = s.ytClientId || ''
+    $('ytClientSecret').placeholder = s.ytClientSecretSet ? 'Saved (leave empty to keep it)' : ''
     $('platform').value = s.platform || 'youtube'
     $('server').value = s.server || ''
     $('quality').value = s.quality || '1080p'
@@ -175,7 +201,7 @@
     const r = await api('/api/settings', formValues())
     $('formMsg').textContent = r.ok ? 'Saved.' : (r.error || 'Could not save')
     $('formMsg').className = r.ok ? 'msg ok' : 'msg err'
-    if (r.ok) { $('streamKey').value = ''; fill(r.settings) }
+    if (r.ok) { $('streamKey').value = ''; $('ytClientSecret').value = ''; fill(r.settings) }
     return r.ok
   }
   $('form').onsubmit = (e) => { e.preventDefault(); save() }
@@ -191,6 +217,13 @@
     poll()
   }
   $('stop').onclick = async () => { await api('/api/stop'); poll() }
+  $('ytConnect').onclick = async () => {
+    if (!(await save())) return
+    const r = await api('/api/youtube/connect')
+    $('ytMsg').className = r.ok ? 'msg' : 'msg err'
+    $('ytMsg').textContent = r.ok ? `Open ${r.url} on your phone and enter the code ${r.code}, with the club's Google account.` : (r.error || 'Could not start')
+  }
+  $('ytDisconnect').onclick = async () => { await api('/api/youtube/disconnect'); $('ytMsg').textContent = 'Disconnected.'; poll() }
 
   const mmss = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
   async function poll() {
@@ -202,7 +235,11 @@
       $('detail').textContent = s.detail || (s.state === 'live' ? 'The stream is on air.' : '')
       $('fCamera').textContent = s.camera === 'test' ? 'Test pattern' : s.camera ? 'Connected' : '–'
       $('fSound').textContent = s.sound ? 'Camera microphone' : (s.state === 'stopped' ? '–' : 'Silence')
-      $('fOverlay').textContent = { on: 'Showing', loading: 'Loading…', unreachable: 'Not reachable', off: '–' }[s.overlay] || '–'
+      const from = { ledbox: 'from the LedBox', openvolley: 'from OpenVolley (backup)' }[s.overlaySource] || ''
+      $('fOverlay').textContent = ({ on: 'Showing', loading: 'Loading…', unreachable: 'Not reachable', off: '–' }[s.overlay] || '–') + (from ? ` ${from}` : '')
+      $('fTitle').textContent = s.title || (s.settings?.autoTitle ? (s.settings.ytConnected ? (s.state === 'stopped' ? 'set when live' : 'waiting for the game names…') : 'YouTube not connected') : 'off')
+      if (s.ytFlow) { $('ytMsg').className = 'msg'; $('ytMsg').textContent = `Open ${s.ytFlow.url} and enter the code ${s.ytFlow.code}.` }
+      else if (s.settings?.ytConnected && /code/.test($('ytMsg').textContent)) { $('ytMsg').className = 'msg ok'; $('ytMsg').textContent = 'YouTube connected.' }
       const mbit = parseFloat(s.bitrate) / 1000
       $('fRate').textContent = s.fps ? `${Math.round(s.fps)} fps · ${Number.isFinite(mbit) ? `${mbit.toFixed(1)} Mbit/s` : s.bitrate}` : '–'
       $('fSince').textContent = s.since ? mmss(Date.now() - s.since) : '–'

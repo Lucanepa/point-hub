@@ -1,7 +1,7 @@
 // node streampi/streampi-selftest.mjs — the pure parts of streampi.js: settings, camera and sound
 // card picking, ffmpeg's arguments. No camera, no ffmpeg, no browser.
 import assert from 'node:assert/strict'
-import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion, pickInputFormat, LEDBOX_OVERLAY } from './streampi.js'
+import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion, pickInputFormat, LEDBOX_TAILNET, makeTitle, ytSetLiveTitle, ytDevicePoll } from './streampi.js'
 
 // settings → one stream: YouTube by default, the key after the slash, 1080p unless 720p
 const cfg = buildConfig({}, { overlayUrl: 'http://192.168.5.1:8890/overlay', streamKey: 'abcd-1234' })
@@ -10,7 +10,10 @@ assert.equal(cfg.SIZE, '1920x1080')
 assert.equal(cfg.BITRATE, '4500k')
 assert.deepEqual(missing(cfg), [])
 assert.deepEqual(missing(buildConfig({}, {})), ['the stream key'], 'the LedBox overlay is the default address')
-assert.equal(buildConfig({}, {}).OVERLAY_URL, LEDBOX_OVERLAY)
+assert.equal(buildConfig({}, {}).OVERLAY_URL, LEDBOX_TAILNET)
+assert.equal(buildConfig({}, {}).FALLBACK_URL, '', 'no backup without a game number')
+assert.equal(buildConfig({}, { ovGame: 'abcd-2345' }).FALLBACK_URL, 'https://livescore.openvolley.app/board?overlay#abcd2345')
+assert.equal(buildConfig({}, { ovGame: ' 12345 ' }).FALLBACK_URL, 'https://livescore.openvolley.app/board?overlay#12345')
 assert.deepEqual(missing(buildConfig({}, { overlayUrl: 'nope', streamKey: 'k' })), ['the score overlay address'])
 const c720 = buildConfig({}, { quality: '720p', platform: 'other', server: 'rtmp://example.org/live/', streamKey: 'k', source: 'test' })
 assert.equal(c720.SIZE, '1280x720')
@@ -96,5 +99,35 @@ assert.equal(pickInputFormat('nothing here', '1920x1080'), null)
 assert.ok(!ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: false, input: null }).join(' ').includes('-input_format'))
 // the Osmo at its own size: no scaling
 assert.ok(!s.includes('scale='))
+
+// the YouTube title: both names and the Zurich date; nothing without both names
+assert.equal(makeTitle('KSCW H1', 'Volley Zürich', new Date('2026-11-28T19:30:00Z')), 'KSCW H1 – Volley Zürich · 28.11.2026')
+assert.equal(makeTitle('KSCW', '', new Date()), null)
+assert.equal(makeTitle('A', 'B', new Date('2026-11-28T23:30:00Z')), 'A – B · 29.11.2026', 'Zurich midnight, not UTC')
+// secrets never go to the console
+const pub = publicSettings({ streamKey: 'k', ytClientSecret: 's', ytRefresh: 'r', ytClientId: 'id' })
+assert.equal(pub.ytClientSecret, undefined); assert.equal(pub.ytRefresh, undefined)
+assert.equal(pub.ytConnected, true); assert.equal(pub.ytClientSecretSet, true); assert.equal(pub.ytClientId, 'id')
+assert.equal(cleanSettings({ ytClientSecret: '' }, { ytClientSecret: 'keep' }).ytClientSecret, 'keep')
+assert.equal(cleanSettings({ autoTitle: true }).autoTitle, true)
+
+// renaming: list the live broadcast, then PUT its snippet with the new title (fake YouTube)
+const calls = []
+const fakeYt = (live) => async (url, opts = {}) => {
+  calls.push({ url, opts })
+  if (!opts.method || opts.method === 'GET') return { ok: true, json: async () => ({ items: live ? [{ id: 'b1', snippet: { title: 'KSCW live', description: 'd', actualStartTime: '2026-11-28T19:00:00Z' } }] : [] }) }
+  return { ok: true, json: async () => ({}) }
+}
+assert.equal(await ytSetLiveTitle('tok', 'X – Y · 28.11.2026', fakeYt(false)), 'none', 'no live broadcast yet')
+calls.length = 0
+assert.equal(await ytSetLiveTitle('tok', 'X – Y · 28.11.2026', fakeYt(true)), 'renamed')
+assert.match(calls[0].url, /liveBroadcasts\?part=snippet&broadcastStatus=active/)
+assert.equal(calls[0].opts.headers.authorization, 'Bearer tok')
+const put = JSON.parse(calls[1].opts.body)
+assert.equal(calls[1].opts.method, 'PUT')
+assert.deepEqual(put, { id: 'b1', snippet: { title: 'X – Y · 28.11.2026', description: 'd', scheduledStartTime: '2026-11-28T19:00:00Z' } })
+// device flow: pending until the person said yes
+assert.equal(await ytDevicePoll('c', 's', 'd', async () => ({ ok: false, json: async () => ({ error: 'authorization_pending' }) })), null)
+assert.equal(await ytDevicePoll('c', 's', 'd', async () => ({ ok: true, json: async () => ({ refresh_token: 'R' }) })), 'R')
 
 console.log('streampi selftest: ok')
