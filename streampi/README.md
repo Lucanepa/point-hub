@@ -31,7 +31,7 @@ standard camera (UVC 1.50, H.264 up to 4K, MJPEG up to 1080p) and charges the ca
 
 ```bash
 git clone https://github.com/Lucanepa/point-hub && cd point-hub
-bash streampi/setup.sh --tailscale           # ffmpeg, chromium, node, the service, the power-bank setting
+bash streampi/setup.sh --tailscale --kscw-wifi   # + the club router KSCW_eScoresheet (password from the club vault)
 sudo -u $USER STATE_DIR=/var/lib/streampi node streampi/streampi.js set-pin 2468
 ```
 
