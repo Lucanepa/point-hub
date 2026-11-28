@@ -104,13 +104,17 @@ export function pickVideoDevice(nodes) {
   return other ? other.dev : null
 }
 
-/** The camera's sound card id from /proc/asound/cards (e.g. "OsmoAction6SN39"), or null. */
+/**
+ * The camera's sound card id from /proc/asound/cards: the Osmo's (e.g. "OsmoAction6SN39"), else
+ * any USB sound card (another camera in webcam mode, an HDMI capture dongle), else null (silence).
+ */
 export function pickAudioCard(cards) {
+  const usb = []
   for (const line of String(cards).split('\n')) {
     const m = line.match(/^\s*\d+\s+\[(\S+)\s*\]:\s+USB-Audio\s+-\s+(.*)$/)
-    if (m && /osmo|dji/i.test(m[2])) return m[1]
+    if (m) usb.push({ id: m[1], name: m[2] })
   }
-  return null
+  return (usb.find((c) => /osmo|dji/i.test(c.name)) || usb[0])?.id || null
 }
 
 function listVideoNodes() {

@@ -50,6 +50,10 @@ const cards = ` 0 [Generic        ]: HDA-Intel - HD-Audio Generic
                       DJI OsmoAction6_SN:398D5537 at usb-0000:c3:00.4-1, high speed`
 assert.equal(pickAudioCard(cards), 'OsmoAction6SN39')
 assert.equal(pickAudioCard(' 0 [Generic ]: HDA-Intel - HD-Audio Generic'), null)
+// another camera or an HDMI dongle: any USB sound card; the Osmo wins when both are there
+const dongle = ' 0 [Generic        ]: HDA-Intel - HD-Audio Generic\n 2 [MS2109         ]: USB-Audio - USB Video'
+assert.equal(pickAudioCard(dongle), 'MS2109')
+assert.equal(pickAudioCard(dongle + '\n' + cards), 'OsmoAction6SN39')
 
 // ffmpeg: camera + microphone + scorebug pipe, all on the wall clock; steady fps; x264 off a Pi 4
 const osmo = { format: 'h264', size: '1920x1080' }
