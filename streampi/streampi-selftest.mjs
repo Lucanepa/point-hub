@@ -1,0 +1,150 @@
+// node streampi/streampi-selftest.mjs — the pure parts of streampi.js: settings, camera and sound
+// card picking, ffmpeg's arguments. No camera, no ffmpeg, no browser.
+import assert from 'node:assert/strict'
+import { buildConfig, missing, maskOutput, cleanSettings, publicSettings, pickVideoDevice, pickAudioCard, ffmpegArgs, overlayRegion, pickInputFormat, LEDBOX_TAILNET, makeTitle, ytSetLiveTitle, ytDevicePoll, splitTerse, bestNetwork } from './streampi.js'
+
+// settings → one stream: YouTube by default, the key after the slash, 1080p unless 720p
+const cfg = buildConfig({}, { overlayUrl: 'http://192.168.5.1:8890/overlay', streamKey: 'abcd-1234' })
+assert.equal(cfg.OUTPUT, 'rtmps://a.rtmps.youtube.com:443/live2/abcd-1234')
+assert.equal(cfg.SIZE, '1920x1080')
+assert.equal(cfg.BITRATE, '4500k')
+assert.deepEqual(missing(cfg), [])
+assert.deepEqual(missing(buildConfig({}, {})), ['the stream key'], 'the LedBox overlay is the default address')
+assert.equal(buildConfig({}, {}).OVERLAY_URL, LEDBOX_TAILNET)
+assert.equal(buildConfig({}, {}).FALLBACK_URL, '', 'no backup without a game number')
+assert.equal(buildConfig({}, { ovGame: 'abcd-2345' }).FALLBACK_URL, 'https://livescore.openvolley.app/board?overlay#abcd2345')
+assert.equal(buildConfig({}, { ovGame: ' 12345 ' }).FALLBACK_URL, 'https://livescore.openvolley.app/board?overlay#12345')
+assert.deepEqual(missing(buildConfig({}, { overlayUrl: 'nope', streamKey: 'k' })), ['the score overlay address'])
+const c720 = buildConfig({}, { quality: '720p', platform: 'other', server: 'rtmp://example.org/live/', streamKey: 'k', source: 'test' })
+assert.equal(c720.SIZE, '1280x720')
+assert.equal(c720.OUTPUT, 'rtmp://example.org/live/k')
+assert.equal(c720.VIDEO_DEVICE, 'test')
+// the environment wins (tests write a file)
+assert.equal(buildConfig({ OUTPUT: '/tmp/x.mkv' }, { streamKey: 'k' }).OUTPUT, '/tmp/x.mkv')
+// the key never reaches a log line or the console
+assert.equal(maskOutput('rtmps://a.rtmps.youtube.com:443/live2/abcd-1234'), 'rtmps://a.rtmps.youtube.com:443/live2/•••')
+assert.equal(maskOutput('/tmp/x.mkv'), '/tmp/x.mkv')
+const saved = cleanSettings({ streamKey: 'secret', platform: 'nope', quality: '4k', autostart: 'yes' })
+assert.equal(saved.platform, 'youtube')
+assert.equal(saved.quality, '1080p')
+assert.equal(saved.autostart, false)
+assert.equal(cleanSettings({ streamKey: '' }, saved).streamKey, 'secret', 'an empty key field keeps the saved key')
+assert.equal(publicSettings(saved).streamKey, undefined)
+assert.equal(publicSettings(saved).streamKeySet, true)
+
+// camera: the Osmo's capture node (index 0), never its metadata node or the laptop's camera
+const fw13 = [
+  { dev: '/dev/video0', name: 'Laptop Webcam Module (2nd Gen)', index: '0\n' },
+  { dev: '/dev/video1', name: 'Laptop Webcam Module (2nd Gen)', index: '1\n' },
+  { dev: '/dev/video2', name: 'OsmoAction6_SN:398D5537: OsmoAc', index: '0\n' },
+  { dev: '/dev/video3', name: 'OsmoAction6_SN:398D5537: OsmoAc', index: '1\n' },
+]
+assert.equal(pickVideoDevice(fw13), '/dev/video2')
+assert.equal(pickVideoDevice(fw13.slice(0, 2)), null)
+assert.equal(pickVideoDevice([{ dev: '/dev/video0', name: 'USB Camera', index: '0' }]), '/dev/video0')
+
+// sound card: the Osmo's, as fw13's /proc/asound/cards lists it (26.11.2026)
+const cards = ` 0 [Generic        ]: HDA-Intel - HD-Audio Generic
+                      HD-Audio Generic at 0xb04c8000 irq 151
+ 3 [OsmoAction6SN39]: USB-Audio - OsmoAction6_SN:398D5537
+                      DJI OsmoAction6_SN:398D5537 at usb-0000:c3:00.4-1, high speed`
+assert.equal(pickAudioCard(cards), 'OsmoAction6SN39')
+assert.equal(pickAudioCard(' 0 [Generic ]: HDA-Intel - HD-Audio Generic'), null)
+// another camera or an HDMI dongle: any USB sound card; the Osmo wins when both are there
+const dongle = ' 0 [Generic        ]: HDA-Intel - HD-Audio Generic\n 2 [MS2109         ]: USB-Audio - USB Video'
+assert.equal(pickAudioCard(dongle), 'MS2109')
+assert.equal(pickAudioCard(dongle + '\n' + cards), 'OsmoAction6SN39')
+
+// ffmpeg: camera + microphone + scorebug pipe, all on the wall clock; steady fps; x264 off a Pi 4
+const osmo = { format: 'h264', size: '1920x1080' }
+const a = ffmpegArgs(cfg, { video: '/dev/video2', audioCard: 'OsmoAction6SN39', pi4: false, input: osmo })
+const s = a.join(' ')
+assert.match(s, /-f v4l2 -input_format h264 -video_size 1920x1080 -framerate 30 -use_wallclock_as_timestamps 1 .*-i \/dev\/video2/)
+assert.match(s, /-f alsa -use_wallclock_as_timestamps 1 .*-i plughw:CARD=OsmoAction6SN39/)
+assert.match(s, /-f image2pipe -framerate 4 -use_wallclock_as_timestamps 1 .*-i pipe:0/)
+assert.match(s, /\[0:v\]fps=30\[cam\].*overlay=0:0:eof_action=repeat.*\[1:a\]aresample=async=1000\[a\]/)
+
+// only the scorebug's corner is captured and blended: half the width, 45 % of the height
+assert.deepEqual(overlayRegion(cfg), { x: 0, y: 0, width: 960, height: 486 })
+assert.deepEqual(overlayRegion({ ...cfg, OVERLAY_URL: 'http://b:8890/overlay?corner=br' }), { x: 960, y: 594, width: 960, height: 486 })
+assert.deepEqual(overlayRegion({ ...c720, OVERLAY_URL: 'http://b:8890/overlay?corner=tr' }), { x: 640, y: 0, width: 640, height: 324 })
+assert.deepEqual(overlayRegion({ ...cfg, OVERLAY_REGION: 'full' }), { x: 0, y: 0, width: 1920, height: 1080 })
+assert.match(ffmpegArgs({ ...cfg, OVERLAY_URL: 'http://b:8890/overlay?corner=bl' }, { video: 'test', audioCard: null, pi4: false }).join(' '), /overlay=0:594:/)
+assert.match(s, /-c:v libx264 -preset veryfast/)
+assert.match(s, /-b:v 4500k -maxrate 4500k -bufsize 9000k -g 60 -keyint_min 60/)
+assert.deepEqual(a.slice(-3), ['-f', 'flv', 'rtmps://a.rtmps.youtube.com:443/live2/abcd-1234'])
+assert.ok(!s.includes('h264_v4l2m2m'))
+
+// test pattern: no camera, no microphone; a Pi 4: hardware decode + encode; a file: no -f flv
+const t = ffmpegArgs({ ...c720, OUTPUT: '/tmp/x.mkv', DURATION: '30' }, { video: 'test', audioCard: null, pi4: false }).join(' ')
+assert.match(t, /-re -f lavfi -i testsrc2=size=1280x720:rate=30/)
+assert.match(t, /anullsrc/)
+assert.match(t, /-t 30 -y \/tmp\/x\.mkv$/)
+assert.ok(!t.includes('flv'))
+const pi = ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: true, input: osmo }).join(' ')
+assert.match(pi, /-c:v h264_v4l2m2m -i \/dev\/video0/)
+assert.match(pi, /-c:v h264_v4l2m2m -b:v/)
+
+// camera formats: the Osmo's list (fw13, 26.11.2026) gives H.264 at 1080p
+const osmoList = `[video4linux2,v4l2 @ 0x5806d6ef2f40] Compressed:       mjpeg :          Motion-JPEG : 1280x720 720x1280 1920x1080 1080x1920
+[video4linux2,v4l2 @ 0x5806d6ef2f40] Compressed:        h264 :                H.264 : 1280x720 720x1280 1920x1080 1080x1920 3840x2160 2160x3840`
+assert.deepEqual(pickInputFormat(osmoList, '1920x1080'), { format: 'h264', size: '1920x1080' })
+// a cheap webcam: MJPEG at 720p only, raw at 640x480 → MJPEG 720p, scaled up (and padded) in the filter
+const cheap = `[video4linux2,v4l2 @ 0x1] Raw       :     yuyv422 :           YUYV 4:2:2 : 640x480 320x240
+[video4linux2,v4l2 @ 0x1] Compressed:       mjpeg :          Motion-JPEG : 1280x720 640x480`
+const pickCheap = pickInputFormat(cheap, '1920x1080')
+assert.deepEqual(pickCheap, { format: 'mjpeg', size: '1280x720' })
+const c = ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: false, input: pickCheap }).join(' ')
+assert.match(c, /-input_format mjpeg -video_size 1280x720/)
+assert.match(c, /fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080/)
+// a raw-only camera, and nothing usable at all (ffmpeg's own default, no -input_format)
+assert.deepEqual(pickInputFormat('[v4l2] Raw : yuyv422 : YUYV 4:2:2 : 640x480 1280x720', '1920x1080'), { format: 'yuyv422', size: '1280x720' })
+assert.equal(pickInputFormat('nothing here', '1920x1080'), null)
+assert.ok(!ffmpegArgs(cfg, { video: '/dev/video0', audioCard: null, pi4: false, input: null }).join(' ').includes('-input_format'))
+// the Osmo at its own size: no scaling
+assert.ok(!s.includes('scale='))
+
+// the YouTube title: both names and the Zurich date; nothing without both names
+assert.equal(makeTitle('KSCW H1', 'Volley Zürich', new Date('2026-11-28T19:30:00Z')), 'KSCW H1 – Volley Zürich · 28.11.2026')
+assert.equal(makeTitle('KSCW', '', new Date()), null)
+assert.equal(makeTitle('A', 'B', new Date('2026-11-28T23:30:00Z')), 'A – B · 29.11.2026', 'Zurich midnight, not UTC')
+// secrets never go to the console
+const pub = publicSettings({ streamKey: 'k', ytClientSecret: 's', ytRefresh: 'r', ytClientId: 'id' })
+assert.equal(pub.ytClientSecret, undefined); assert.equal(pub.ytRefresh, undefined)
+assert.equal(pub.ytConnected, true); assert.equal(pub.ytClientSecretSet, true); assert.equal(pub.ytClientId, 'id')
+assert.equal(cleanSettings({ ytClientSecret: '' }, { ytClientSecret: 'keep' }).ytClientSecret, 'keep')
+assert.equal(cleanSettings({ autoTitle: true }).autoTitle, true)
+
+// renaming: list the live broadcast, then PUT its snippet with the new title (fake YouTube)
+const calls = []
+const fakeYt = (live) => async (url, opts = {}) => {
+  calls.push({ url, opts })
+  if (!opts.method || opts.method === 'GET') return { ok: true, json: async () => ({ items: live ? [{ id: 'b1', snippet: { title: 'KSCW live', description: 'd', actualStartTime: '2026-11-28T19:00:00Z' } }] : [] }) }
+  return { ok: true, json: async () => ({}) }
+}
+assert.equal(await ytSetLiveTitle('tok', 'X – Y · 28.11.2026', fakeYt(false)), 'none', 'no live broadcast yet')
+calls.length = 0
+assert.equal(await ytSetLiveTitle('tok', 'X – Y · 28.11.2026', fakeYt(true)), 'renamed')
+assert.match(calls[0].url, /liveBroadcasts\?part=snippet&broadcastStatus=active/)
+assert.equal(calls[0].opts.headers.authorization, 'Bearer tok')
+const put = JSON.parse(calls[1].opts.body)
+assert.equal(calls[1].opts.method, 'PUT')
+assert.deepEqual(put, { id: 'b1', snippet: { title: 'X – Y · 28.11.2026', description: 'd', scheduledStartTime: '2026-11-28T19:00:00Z' } })
+// device flow: pending until the person said yes
+assert.equal(await ytDevicePoll('c', 's', 'd', async () => ({ ok: false, json: async () => ({ error: 'authorization_pending' }) })), null)
+assert.equal(await ytDevicePoll('c', 's', 'd', async () => ({ ok: true, json: async () => ({ refresh_token: 'R' }) })), 'R')
+
+// Wi-Fi: nmcli -t lines with escaped colons; the better saved network in range
+assert.deepEqual(splitTerse('yes:Luca\\:s Net:72'), ['yes', 'Luca:s Net', '72'])
+assert.deepEqual(splitTerse('a\\\\b:c'), ['a\\b', 'c'])
+const nets = [
+  { name: 'streampi-schulen', ssid: 'SCHULEN_KTZH', priority: 40 },
+  { name: 'streampi-kscw', ssid: 'KSCW_eScoresheet', priority: 30 },
+  { name: 'streampi-hotspot', ssid: 'Luca_Hotspot', priority: 20 },
+]
+assert.equal(bestNetwork(nets, ['KSCW_eScoresheet', 'SCHULEN_KTZH'], 'KSCW_eScoresheet').ssid, 'SCHULEN_KTZH', 'moves up')
+assert.equal(bestNetwork(nets, ['KSCW_eScoresheet', 'Luca_Hotspot'], 'KSCW_eScoresheet'), null, 'never down')
+assert.equal(bestNetwork(nets, ['Luca_Hotspot'], null).ssid, 'Luca_Hotspot', 'anything beats nothing')
+assert.equal(bestNetwork(nets, ['SCHULEN_KTZH'], 'Some_Cafe_WiFi').ssid, 'SCHULEN_KTZH', 'a saved one beats an unknown one')
+
+console.log('streampi selftest: ok')

@@ -1,0 +1,713 @@
+#!/usr/bin/env node
+// Stream Pi: a USB camera (a DJI Osmo Action 6 in Webcam mode) with the board's livestream
+// scorebug (/overlay, or any see-through page) laid over it, sent as one stream to YouTube, Twitch
+// or any RTMP server. Runs on a small computer next to the camera, so the board keeps driving its
+// panel and the camera can stand anywhere. A phone opens http://<stream-pi>:8080 to set it up and
+// start or stop it (console.html).
+//
+//   camera video (UVC, H.264) ──────────────────────────┐
+//   camera microphone (USB audio) ──────────────────────┤ ffmpeg: overlay → H.264 + AAC → RTMP
+//   Chromium renders the overlay page → a PNG on change ┘   (fed FEED_FPS times a second)
+//
+// The scorebug comes in through a pipe: ffmpeg's image2 demuxer (-loop 1) never re-reads a picture
+// that changed on disk, so the latest picture is written to ffmpeg's stdin instead. Every input is
+// stamped with the wall clock and the camera goes through fps=, so a camera that slows down (dim
+// light) gives a steady stream with repeated frames instead of a stalled one.
+//
+//   node streampi.js              the console + the stream (settings in STATE_DIR/settings.json)
+//   node streampi.js set-pin 1234 the console PIN (a scrypt hash in STATE_DIR/pin)
+//
+// Environment (a systemd EnvironmentFile on the Pi): STATE_DIR, CONTROL_PORT, CHROME_PATH,
+// PLAYWRIGHT_CORE, FFMPEG, plus the DEFAULTS below. OUTPUT and OVERLAY_URL in the environment win
+// over the console (tests write to a file with OUTPUT=/tmp/x.mkv DURATION=30).
+
+import fs from 'node:fs'
+import http from 'node:http'
+import path from 'node:path'
+import { spawn, spawnSync, execFile } from 'node:child_process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { hashAdminPin, makeAdminPin, ADMIN_PIN_RE } from '../src/adminPin.js'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+
+export const DEFAULTS = {
+  FPS: '30',
+  INPUT_FORMAT: 'auto', // what the camera offers: h264 (the Osmo), else mjpeg (most webcams, HDMI dongles), else raw
+  X264_PRESET: 'veryfast',
+  FEED_FPS: '4',
+  AUDIO_DEVICE: 'auto',
+  VIDEO_DEVICE: 'auto',
+  ENCODER: 'auto',
+}
+
+export const QUALITY = {
+  '720p': { SIZE: '1280x720', BITRATE: '2500k' },
+  '1080p': { SIZE: '1920x1080', BITRATE: '4500k' },
+}
+
+// Where each platform takes a stream; the key goes after the slash. "other" = a full URL typed in.
+export const LEDBOX_OVERLAY = 'http://192.168.5.1:8890/overlay' // over the network cable
+export const LEDBOX_TAILNET = 'http://ledbox-c0270:8890/overlay' // the hall LedBox over Tailscale
+export const OV_BOARD = 'https://livescore.openvolley.app/board' // OpenVolley's scorebug: ?overlay#<code or game number>
+
+export const PLATFORMS = {
+  youtube: 'rtmps://a.rtmps.youtube.com:443/live2',
+  twitch: 'rtmp://live.twitch.tv/app',
+  facebook: 'rtmps://live-api-s.facebook.com:443/rtmp',
+}
+
+const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a)
+
+/**
+ * What one stream runs with: DEFAULTS, then the console's saved settings, then the environment.
+ * @param {Record<string,string>} env
+ * @param {{ overlayUrl?, platform?, server?, streamKey?, quality?, source? }} saved
+ */
+export function buildConfig(env = {}, saved = {}) {
+  const cfg = { ...DEFAULTS, ...QUALITY[saved.quality === '720p' ? '720p' : '1080p'] }
+  // A: the LedBox's own scorebug (over Tailscale unless the console names another page);
+  // B: OpenVolley's online scorebug for a game number or scoreboard code, when A can't be reached
+  cfg.OVERLAY_URL = saved.overlayUrl || LEDBOX_TAILNET
+  const game = String(saved.ovGame || '').replace(/[^A-Za-z0-9]/g, '')
+  cfg.FALLBACK_URL = game ? `${OV_BOARD}?overlay#${game}` : ''
+  const server = saved.platform === 'other' ? (saved.server || '') : (PLATFORMS[saved.platform] || PLATFORMS.youtube)
+  cfg.OUTPUT = server && saved.streamKey ? `${server.replace(/\/+$/, '')}/${saved.streamKey}` : (saved.platform === 'other' ? server : '')
+  if (saved.source === 'test') cfg.VIDEO_DEVICE = 'test'
+  for (const k of [...Object.keys(DEFAULTS), 'SIZE', 'BITRATE', 'OVERLAY_URL', 'OUTPUT', 'DURATION', 'CHROME_PATH', 'DECODER', 'OVERLAY_REGION', 'FALLBACK_URL']) {
+    if (env[k] != null && env[k] !== '') cfg[k] = String(env[k])
+  }
+  return cfg
+}
+
+/** What is still missing before a stream can start, as words for the console. */
+export function missing(cfg) {
+  const out = []
+  if (!/^https?:\/\//i.test(cfg.OVERLAY_URL)) out.push('the score overlay address')
+  if (!cfg.OUTPUT) out.push('the stream key')
+  return out
+}
+
+/** The stream address with its key hidden, for logs and the console. */
+export const maskOutput = (url) => String(url || '').replace(/^(rtmps?:\/\/[^/]+\/.+?\/)[^/]+$/i, '$1•••')
+
+/**
+ * The camera's capture node: the first /dev/videoN whose name looks like the Osmo (else any
+ * camera that is not the laptop's own), and only index 0 — a UVC camera also makes a metadata
+ * node (index 1) that gives no picture.
+ * @param {{ name: string, index: string, dev: string }[]} nodes  from /sys/class/video4linux
+ */
+export function pickVideoDevice(nodes) {
+  const capture = nodes.filter((n) => n.index.trim() === '0')
+  const osmo = capture.find((n) => /osmo|dji/i.test(n.name))
+  if (osmo) return osmo.dev
+  const other = capture.find((n) => !/integrated|laptop|webcam module|facetime/i.test(n.name))
+  return other ? other.dev : null
+}
+
+/**
+ * The camera's sound card id from /proc/asound/cards: the Osmo's (e.g. "OsmoAction6SN39"), else
+ * any USB sound card (another camera in webcam mode, an HDMI capture dongle), else null (silence).
+ */
+export function pickAudioCard(cards) {
+  const usb = []
+  for (const line of String(cards).split('\n')) {
+    const m = line.match(/^\s*\d+\s+\[(\S+)\s*\]:\s+USB-Audio\s+-\s+(.*)$/)
+    if (m) usb.push({ id: m[1], name: m[2] })
+  }
+  return (usb.find((c) => /osmo|dji/i.test(c.name)) || usb[0])?.id || null
+}
+
+function listVideoNodes() {
+  const base = '/sys/class/video4linux'
+  if (!fs.existsSync(base)) return []
+  return fs.readdirSync(base).sort().map((d) => ({
+    dev: `/dev/${d}`,
+    name: fs.readFileSync(`${base}/${d}/name`, 'utf8').trim(),
+    index: fs.existsSync(`${base}/${d}/index`) ? fs.readFileSync(`${base}/${d}/index`, 'utf8') : '0',
+  }))
+}
+
+/**
+ * What to ask the camera for, from `ffmpeg -f v4l2 -list_formats all` (its stderr): H.264 (the
+ * Osmo; least USB traffic), else MJPEG (most webcams and HDMI capture dongles), else raw, at the
+ * wanted size, else the biggest landscape size not wider than it (the picture is scaled up).
+ * Null when the list says nothing usable: ffmpeg then takes the camera's own default.
+ * @param {string} listText
+ * @param {string} want  '1920x1080'
+ * @returns {{ format: string, size: string } | null}
+ */
+export function pickInputFormat(listText, want) {
+  const offers = new Map() // format -> sizes
+  for (const line of String(listText).split('\n')) {
+    const m = line.match(/(Compressed|Raw)\s*:\s*(\S+)\s*:[^:]*:\s*(.*)$/)
+    if (!m) continue
+    const sizes = (m[3].match(/\b\d+x\d+\b/g) || [])
+    if (sizes.length) offers.set(m[2], sizes)
+  }
+  const raw = [...offers.keys()].filter((f) => !['h264', 'mjpeg', 'hevc'].includes(f))
+  for (const f of ['h264', 'mjpeg']) if (offers.get(f)?.includes(want)) return { format: f, size: want }
+  const wantW = Number(want.split('x')[0])
+  for (const f of ['h264', 'mjpeg', ...raw]) {
+    const fit = (offers.get(f) || [])
+      .map((sz) => sz.split('x').map(Number))
+      .filter(([w, h]) => w >= h && w <= wantW)
+      .sort((a, b) => b[0] * b[1] - a[0] * a[1])[0]
+    if (fit) return { format: f, size: fit.join('x') }
+  }
+  return null
+}
+
+function probeFormats(dev) {
+  const r = spawnSync(process.env.FFMPEG || 'ffmpeg', ['-hide_banner', '-f', 'v4l2', '-list_formats', 'all', '-i', dev], { encoding: 'utf8', timeout: 10000 })
+  return `${r.stderr || ''}${r.stdout || ''}`
+}
+
+const isPi4 = () => {
+  try { return /Raspberry Pi 4|Compute Module 4/.test(fs.readFileSync('/proc/device-tree/model', 'utf8')) } catch { return false }
+}
+
+/**
+ * The part of the frame the scorebug can be in: half the width and 45 % of the height at the
+ * corner the overlay URL names (?corner=tl|tr|bl|br, the LedBox's own option; default top left).
+ * Only this part is captured and blended: a full transparent frame cost a Pi 5 a blend of two
+ * million pixels 30 times a second (27.11.2026). OVERLAY_REGION=full takes the whole frame (a big
+ * ?scale= on the LedBox page, or a page that draws elsewhere).
+ */
+export function overlayRegion(cfg) {
+  const [width, height] = cfg.SIZE.split('x').map(Number)
+  if (cfg.OVERLAY_REGION === 'full') return { x: 0, y: 0, width, height }
+  let corner = 'tl'
+  try { corner = new URL(cfg.OVERLAY_URL).searchParams.get('corner') || 'tl' } catch { /* not a URL: the default */ }
+  if (!/^[tb][lr]$/.test(corner)) corner = 'tl'
+  const w = Math.round(width / 4) * 2
+  const h = Math.round(height * 0.225) * 2
+  return { x: corner[1] === 'r' ? width - w : 0, y: corner[0] === 'b' ? height - h : 0, width: w, height: h }
+}
+
+/**
+ * ffmpeg's arguments. Input 0 = the camera (or a test pattern), 1 = its microphone (or silence),
+ * 2 = the scorebug pictures on stdin (overlayRegion's part of the frame). Pure, so the selftest holds it.
+ * @param {object} cfg  buildConfig's answer
+ * @param {{ video: string, audioCard: string|null, pi4: boolean, input?: { format: string, size: string } | null }} hw
+ *   video 'test' = test pattern; input = pickInputFormat's answer
+ */
+export function ffmpegArgs(cfg, hw) {
+  const region = overlayRegion(cfg)
+  const fps = Number(cfg.FPS)
+  const gop = String(fps * 2) // a keyframe every 2 s: what YouTube asks for
+  const bitrate = cfg.BITRATE
+  const bufsize = `${parseInt(bitrate, 10) * 2}${bitrate.replace(/^\d+/, '')}`
+  const encoder = cfg.ENCODER === 'auto' ? (hw.pi4 ? 'h264_v4l2m2m' : 'libx264') : cfg.ENCODER
+  // shortcut: the Pi 4 path (hardware decode + encode) is untested until a Pi 4 runs it; ENCODER=libx264 overrides
+  const input = cfg.INPUT_FORMAT === 'auto' ? (hw.input || null) : { format: cfg.INPUT_FORMAT, size: cfg.SIZE }
+  const decoder = cfg.DECODER || (hw.pi4 && input?.format === 'h264' ? 'h264_v4l2m2m' : null)
+  const args = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-progress', 'pipe:1', '-stats_period', '5']
+  if (hw.video === 'test') {
+    // no camera: a moving test picture, to check the stream path at home or in the hall
+    args.push('-re', '-f', 'lavfi', '-i', `testsrc2=size=${cfg.SIZE}:rate=${fps}`)
+  } else {
+    args.push('-f', 'v4l2')
+    if (input) args.push('-input_format', input.format, '-video_size', input.size)
+    args.push('-framerate', String(fps), '-use_wallclock_as_timestamps', '1', '-thread_queue_size', '512')
+    if (decoder) args.push('-c:v', decoder)
+    args.push('-i', hw.video)
+  }
+  // microphone, or silence (YouTube warns about a stream without sound)
+  if (hw.audioCard) args.push('-f', 'alsa', '-use_wallclock_as_timestamps', '1', '-thread_queue_size', '1024', '-i', `plughw:CARD=${hw.audioCard}`)
+  else args.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000')
+  // scorebug pictures on stdin, stamped when they arrive
+  args.push('-f', 'image2pipe', '-framerate', cfg.FEED_FPS, '-use_wallclock_as_timestamps', '1', '-thread_queue_size', '64', '-i', 'pipe:0')
+  // a camera that gives another size (or shape) than the stream: scaled to fit, black bars if needed
+  const [w, h] = cfg.SIZE.split('x')
+  const camScale = hw.video !== 'test' && input?.size !== cfg.SIZE
+    ? `,scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2`
+    : ''
+  args.push('-filter_complex',
+    `[0:v]fps=${fps}${camScale}[cam];[2:v]format=rgba[bug];[cam][bug]overlay=${region.x}:${region.y}:eof_action=repeat:format=auto,format=yuv420p[v];[1:a]aresample=async=1000[a]`,
+    '-map', '[v]', '-map', '[a]')
+  if (encoder === 'libx264') {
+    args.push('-c:v', 'libx264', '-preset', cfg.X264_PRESET, '-tune', 'zerolatency', '-profile:v', 'high')
+  } else {
+    args.push('-c:v', encoder)
+  }
+  args.push('-b:v', bitrate, '-maxrate', bitrate, '-bufsize', bufsize, '-g', gop, '-keyint_min', gop, '-sc_threshold', '0',
+    '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2')
+  if (cfg.DURATION) args.push('-t', cfg.DURATION)
+  if (/^rtmps?:\/\//i.test(cfg.OUTPUT)) args.push('-f', 'flv', cfg.OUTPUT)
+  else args.push('-y', cfg.OUTPUT)
+  return args
+}
+
+/** "KSCW H1 – Volley Zürich · 28.11.2026" (Zurich date), or null without both names. */
+export function makeTitle(a, b, when = new Date()) {
+  const clean = (v) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 40)
+  if (!clean(a) || !clean(b)) return null
+  const d = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', year: 'numeric' }).format(when)
+  return `${clean(a)} – ${clean(b)} · ${d}`.slice(0, 100)
+}
+
+// ── YouTube: renaming the live broadcast (optional) ─────────────────────────────────────────
+// One-time permission with Google's device flow (a code typed on a phone, like a TV app), the
+// refresh token kept in settings.json (0600). Needs an OAuth client of type "TVs and Limited Input
+// devices" with the YouTube Data API v3 enabled, in a Google Cloud project of the channel's account.
+const YT_SCOPE = 'https://www.googleapis.com/auth/youtube'
+const form = (o) => ({ method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(o).toString() })
+
+export async function ytDeviceStart(clientId, fetchImpl = fetch) {
+  const r = await fetchImpl('https://oauth2.googleapis.com/device/code', form({ client_id: clientId, scope: YT_SCOPE }))
+  const j = await r.json()
+  if (!r.ok) throw new Error(j.error_description || j.error || `HTTP ${r.status}`)
+  return j // { device_code, user_code, verification_url, interval, expires_in }
+}
+
+/** One poll: the refresh token once the person said yes, null while they haven't yet. */
+export async function ytDevicePoll(clientId, clientSecret, deviceCode, fetchImpl = fetch) {
+  const r = await fetchImpl('https://oauth2.googleapis.com/token', form({ client_id: clientId, client_secret: clientSecret, device_code: deviceCode, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }))
+  const j = await r.json()
+  if (j.error === 'authorization_pending' || j.error === 'slow_down') return null
+  if (!r.ok || !j.refresh_token) throw new Error(j.error_description || j.error || `HTTP ${r.status}`)
+  return j.refresh_token
+}
+
+async function ytAccessToken(clientId, clientSecret, refreshToken, fetchImpl = fetch) {
+  const r = await fetchImpl('https://oauth2.googleapis.com/token', form({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' }))
+  const j = await r.json()
+  if (!r.ok) throw new Error(j.error_description || j.error || `HTTP ${r.status}`)
+  return j.access_token
+}
+
+/**
+ * Renames the channel's live broadcast. 'renamed', or 'none' while YouTube has no live broadcast
+ * yet (auto-start takes a moment after the stream begins).
+ */
+export async function ytSetLiveTitle(accessToken, title, fetchImpl = fetch) {
+  const api = 'https://www.googleapis.com/youtube/v3/liveBroadcasts'
+  const auth = { authorization: `Bearer ${accessToken}` }
+  const l = await fetchImpl(`${api}?part=snippet&broadcastStatus=active&broadcastType=all&maxResults=5`, { headers: auth })
+  const lj = await l.json()
+  if (!l.ok) throw new Error(lj.error?.message || `HTTP ${l.status}`)
+  const item = (lj.items || [])[0]
+  if (!item) return 'none'
+  if (item.snippet?.title === title) return 'renamed'
+  const snippet = { title, description: item.snippet?.description || '', scheduledStartTime: item.snippet?.scheduledStartTime || item.snippet?.actualStartTime }
+  const u = await fetchImpl(`${api}?part=snippet`, { method: 'PUT', headers: { ...auth, 'content-type': 'application/json' }, body: JSON.stringify({ id: item.id, snippet }) })
+  if (!u.ok) { const uj = await u.json().catch(() => ({})); throw new Error(uj.error?.message || `HTTP ${u.status}`) }
+  return 'renamed'
+}
+
+/**
+ * One stream at a time: Chromium on the overlay page + ffmpeg, both started again after a
+ * failure until stop(). `status` is what the console shows.
+ */
+export function makeStreamer({ env = process.env, getSettings = () => ({}) } = {}) {
+  const status = { state: 'stopped', detail: '', camera: null, sound: null, overlay: 'off', overlaySource: null, fps: null, bitrate: null, speed: null, dropped: null, since: null, output: '', title: null }
+  let run = null // { cfg, stop: bool, ff, browser, latest }
+
+  async function renderer(r) {
+    const { chromium } = await import(env.PLAYWRIGHT_CORE || 'playwright-core')
+    const [width, height] = r.cfg.SIZE.split('x').map(Number)
+    const clip = overlayRegion(r.cfg)
+    while (!r.stop) {
+      try {
+        r.browser = await chromium.launch({ executablePath: r.cfg.CHROME_PATH || undefined, args: ['--disable-gpu', '--hide-scrollbars'] })
+        const ctx = await r.browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 })
+        let page = await ctx.newPage()
+        let timer = null
+        let busy = false
+        const capture = async () => {
+          if (busy) { timer = setTimeout(capture, 100); return }
+          busy = true
+          try { r.latest = await page.screenshot({ type: 'png', omitBackground: true, clip }) } catch { /* page navigating */ }
+          busy = false
+        }
+        const changed = () => { clearTimeout(timer); timer = setTimeout(capture, 80) }
+        await ctx.exposeFunction('__streampiChanged', changed)
+        await ctx.addInitScript(() => {
+          new MutationObserver(() => window.__streampiChanged?.()).observe(document, { subtree: true, childList: true, characterData: true, attributes: true })
+        })
+        await capture() // about:blank: a see-through frame of the right size before the page answers
+        // A (the LedBox) first; B (OpenVolley) only when A doesn't answer
+        let source = 'ledbox'
+        try {
+          await page.goto(r.cfg.OVERLAY_URL, { waitUntil: 'load', timeout: 15000 })
+        } catch (err) {
+          if (!r.cfg.FALLBACK_URL) throw err
+          log('overlay: LedBox not reachable, using OpenVolley:', err.message.split('\n')[0])
+          source = 'openvolley'
+          // a fresh tab: the failed one is still busy loading Chromium's own error page
+          const failed = page
+          page = await ctx.newPage()
+          await failed.close().catch(() => {})
+          await page.goto(r.cfg.FALLBACK_URL, { waitUntil: 'load', timeout: 15000 })
+        }
+        r.page = page
+        r.source = source
+        await capture()
+        Object.assign(status, { overlay: 'on', overlaySource: source })
+        log('overlay: showing', source === 'ledbox' ? r.cfg.OVERLAY_URL : r.cfg.FALLBACK_URL)
+        const safety = setInterval(changed, 2000) // a change the observer cannot see (a CSS animation's end)
+        // on B, look for A every 2 minutes and go back to it (a restart of this loop) once it answers
+        const backToA = source === 'openvolley' ? setInterval(async () => {
+          try {
+            const a = await fetch(r.cfg.OVERLAY_URL, { signal: AbortSignal.timeout(4000) })
+            if (a.ok) { log('overlay: LedBox reachable again'); r.browser?.close().catch(() => {}) }
+          } catch { /* still away */ }
+        }, 120000) : null
+        await new Promise((resolve) => r.browser.on('disconnected', resolve))
+        clearInterval(safety)
+        clearInterval(backToA)
+        r.page = null
+      } catch (err) {
+        if (!r.stop) { status.overlay = 'unreachable'; log('overlay:', err.message.split('\n')[0]) }
+        try { await r.browser?.close() } catch { /* gone */ }
+      }
+      if (!r.stop) await new Promise((res) => setTimeout(res, 5000))
+    }
+  }
+
+  function ffmpegLoop(r) {
+    if (r.stop) return
+    const video = r.cfg.VIDEO_DEVICE === 'auto' ? pickVideoDevice(listVideoNodes()) : r.cfg.VIDEO_DEVICE
+    status.camera = video
+    if (!video) {
+      Object.assign(status, { state: 'waiting', detail: 'No camera: plug in the Osmo and tap Webcam on it' })
+      r.retry = setTimeout(() => ffmpegLoop(r), 3000)
+      return
+    }
+    let audioCard = null
+    if (r.cfg.AUDIO_DEVICE === 'auto' && video !== 'test') {
+      try { audioCard = pickAudioCard(fs.readFileSync('/proc/asound/cards', 'utf8')) } catch { /* no ALSA */ }
+    } else if (!['auto', 'none'].includes(r.cfg.AUDIO_DEVICE)) audioCard = r.cfg.AUDIO_DEVICE
+    status.sound = audioCard
+    const input = video !== 'test' && r.cfg.INPUT_FORMAT === 'auto' ? pickInputFormat(probeFormats(video), r.cfg.SIZE) : null
+    if (input) log(`camera: ${input.format} ${input.size}`)
+    const args = ffmpegArgs(r.cfg, { video, audioCard, pi4: isPi4(), input })
+    log(`stream: ${video}${audioCard ? ` + sound ${audioCard}` : ' (no sound card: silence)'} → ${maskOutput(r.cfg.OUTPUT)}`)
+    Object.assign(status, { state: 'starting', detail: 'Connecting…' })
+    const ff = spawn(env.FFMPEG || 'ffmpeg', args, { stdio: ['pipe', 'pipe', 'pipe'] })
+    r.ff = ff
+    let full = false
+    ff.stdin.on('drain', () => { full = false })
+    ff.stdin.on('error', () => { /* ffmpeg gone: the exit handler decides */ })
+    const feed = setInterval(() => {
+      if (r.latest && !full && ff.stdin.writable) full = !ff.stdin.write(r.latest)
+    }, 1000 / Number(r.cfg.FEED_FPS))
+    let progress = {}
+    ff.stdout.on('data', (b) => {
+      for (const line of b.toString().split('\n')) {
+        const i = line.indexOf('=')
+        if (i > 0) progress[line.slice(0, i).trim()] = line.slice(i + 1).trim()
+        if (line.startsWith('progress=')) {
+          Object.assign(status, { state: 'live', detail: '', fps: Number(progress.fps) || 0, bitrate: progress.bitrate, speed: progress.speed, dropped: Number(progress.drop_frames) || 0 })
+          if (!status.since) { status.since = Date.now(); titleJob(r) }
+          log(`stream: fps ${progress.fps} · ${progress.bitrate} · speed ${progress.speed} · dropped ${progress.drop_frames}`)
+          progress = {}
+        }
+      }
+    })
+    let tail = ''
+    ff.stderr.on('data', (b) => { tail = (tail + b.toString()).slice(-2000) })
+    ff.on('exit', (code) => {
+      clearInterval(feed)
+      r.ff = null
+      if (r.stop) return
+      if (code === 0 && r.cfg.DURATION) { log('stream: done'); stop(); return }
+      const last = tail.trim().split('\n').slice(-2).join(' | ').replace(r.cfg.OUTPUT, maskOutput(r.cfg.OUTPUT))
+      log(`stream: ffmpeg stopped (${code}): ${last}`)
+      Object.assign(status, { state: 'retrying', detail: `Stream stopped, trying again: ${last.slice(0, 200)}`, since: null })
+      r.retry = setTimeout(() => ffmpegLoop(r), 5000)
+    })
+  }
+
+  // The team names of the game on screen: the LedBox's JSON (A) or OpenVolley's scorebug page (B).
+  async function gameNames(r) {
+    if (r.source === 'ledbox') {
+      const j = await (await fetch(new URL('/api/overlay.json', r.cfg.OVERLAY_URL), { signal: AbortSignal.timeout(4000) })).json()
+      return j.status === 'idle' ? [] : [j.team_a_name, j.team_b_name]
+    }
+    if (r.source === 'openvolley' && r.page) {
+      return r.page.evaluate(() => [...document.querySelectorAll('[data-testid^="overlay-name-"]')].map((e) => e.getAttribute('title') || e.textContent))
+    }
+    return []
+  }
+
+  // Rename the live YouTube broadcast after the game, once, when it can (names known, broadcast up).
+  async function titleJob(r) {
+    const s = getSettings()
+    if (!s.autoTitle || !s.ytRefresh || !s.ytClientId || !s.ytClientSecret) return
+    for (let i = 0; i < 40 && !r.stop; i++) {
+      try {
+        const title = makeTitle(...(await gameNames(r)))
+        if (title) {
+          const token = await ytAccessToken(s.ytClientId, s.ytClientSecret, s.ytRefresh)
+          if (await ytSetLiveTitle(token, title) === 'renamed') { status.title = title; log('youtube: title', title); return }
+        }
+      } catch (err) { log('youtube: title not set yet:', err.message) }
+      await new Promise((res) => setTimeout(res, 30000))
+    }
+  }
+
+  async function start(saved) {
+    if (run) return { ok: false, error: 'already running' }
+    const cfg = buildConfig(env, saved)
+    const gaps = missing(cfg)
+    if (gaps.length) return { ok: false, error: `Missing ${gaps.join(' and ')}` }
+    const r = { cfg, stop: false, latest: null }
+    run = r
+    Object.assign(status, { state: 'starting', detail: 'Starting…', output: maskOutput(cfg.OUTPUT), since: null, fps: null, bitrate: null, speed: null, dropped: null, overlay: 'loading', overlaySource: null, title: null })
+    renderer(r)
+    // the first (blank) frame first, so ffmpeg never starts on an empty pipe
+    const t0 = Date.now()
+    while (!r.latest && !r.stop && Date.now() - t0 < 30000) await new Promise((res) => setTimeout(res, 100))
+    if (r.stop) return { ok: false, error: 'stopped' }
+    if (!r.latest) { stop(); Object.assign(status, { detail: 'The browser for the overlay did not start' }); return { ok: false, error: status.detail } }
+    ffmpegLoop(r)
+    return { ok: true }
+  }
+
+  function stop() {
+    const r = run
+    if (!r) return
+    r.stop = true
+    clearTimeout(r.retry)
+    if (r.ff) r.ff.kill('SIGINT') // ffmpeg ends the stream cleanly
+    r.browser?.close().catch(() => {})
+    run = null
+    Object.assign(status, { state: 'stopped', detail: '', overlay: 'off', overlaySource: null, since: null, fps: null, bitrate: null, speed: null })
+    log('stream: stopped')
+  }
+
+  return { status, start, stop, running: () => !!run }
+}
+
+// ── Wi-Fi (NetworkManager) ───────────────────────────────────────────────────────────────────
+// The page can show the network, scan, join one, connect a saved one, forget one and move it up.
+// Order = NM autoconnect priority (higher first): setup.sh saves SCHULEN_KTZH 40, KSCW_eScoresheet
+// 30, Luca_Hotspot 20, open networks 10. NM only picks by priority when it (re)connects, so
+// bestNetwork() moves up to a better saved network that is in range, never during a stream.
+
+/** One line of `nmcli -t` output split at its unescaped colons. */
+export function splitTerse(line) {
+  const out = ['']
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '\\' && i + 1 < line.length) { out[out.length - 1] += line[++i]; continue }
+    if (line[i] === ':') { out.push(''); continue }
+    out[out.length - 1] += line[i]
+  }
+  return out
+}
+
+/**
+ * The saved network to move to, or null: in range, higher priority than the current one.
+ * @param {{ name: string, ssid: string, priority: number }[]} saved
+ * @param {string[]} visible  SSIDs in range
+ * @param {string|null} current  the connected SSID
+ */
+export function bestNetwork(saved, visible, current) {
+  const cur = saved.find((n) => n.ssid === current)
+  const curPrio = current ? (cur ? cur.priority : -Infinity) : -Infinity
+  const better = saved.filter((n) => visible.includes(n.ssid) && n.ssid !== current && n.priority > curPrio)
+  return better.sort((a, b) => b.priority - a.priority)[0] || null
+}
+
+const nm = (args) => new Promise((resolve, reject) => {
+  execFile('nmcli', args, { timeout: 45000 }, (err, stdout, stderr) => (err ? reject(new Error((stderr || err.message).trim())) : resolve(stdout)))
+})
+
+export const wifi = {
+  async current() {
+    const lines = (await nm(['-t', '-f', 'ACTIVE,SSID,SIGNAL', 'device', 'wifi'])).split('\n')
+    const row = lines.map(splitTerse).find((f) => f[0] === 'yes')
+    return row ? { ssid: row[1], signal: Number(row[2]) } : null
+  },
+  async scan() {
+    const lines = (await nm(['-t', '-f', 'SSID,SIGNAL,SECURITY', 'device', 'wifi', 'list', '--rescan', 'auto'])).split('\n')
+    const best = new Map()
+    for (const f of lines.map(splitTerse)) {
+      if (!f[0]) continue
+      const prev = best.get(f[0])
+      if (!prev || Number(f[1]) > prev.signal) best.set(f[0], { ssid: f[0], signal: Number(f[1]), security: f[2] || 'open' })
+    }
+    return [...best.values()].sort((a, b) => b.signal - a.signal)
+  },
+  async saved() {
+    const rows = (await nm(['-t', '-f', 'NAME,TYPE,AUTOCONNECT-PRIORITY', 'connection', 'show'])).split('\n').map(splitTerse)
+    const out = []
+    for (const [name, type, prio] of rows) {
+      if (type !== '802-11-wireless') continue
+      const ssid = (await nm(['-g', '802-11-wireless.ssid', 'connection', 'show', name])).trim()
+      out.push({ name, ssid, priority: Number(prio) || 0 })
+    }
+    return out.sort((a, b) => b.priority - a.priority)
+  },
+  async join(ssid, password) {
+    const name = `streampi-${ssid}`.slice(0, 60)
+    await nm(['connection', 'delete', name]).catch(() => {})
+    const args = ['device', 'wifi', 'connect', ssid, 'name', name]
+    if (password) args.push('password', password)
+    await nm(args)
+    await nm(['connection', 'modify', name, 'connection.autoconnect-priority', '15'])
+  },
+  up: (name) => nm(['connection', 'up', name]),
+  forget: (name) => nm(['connection', 'delete', name]),
+  // swap priorities with the network above
+  async moveUp(name) {
+    const list = await wifi.saved()
+    const i = list.findIndex((n) => n.name === name)
+    if (i <= 0) return
+    const above = list[i - 1]
+    const mine = list[i]
+    const top = above.priority === mine.priority ? above.priority + 1 : above.priority
+    await nm(['connection', 'modify', mine.name, 'connection.autoconnect-priority', String(top)])
+    await nm(['connection', 'modify', above.name, 'connection.autoconnect-priority', String(mine.priority)])
+  },
+}
+
+// ── settings + console ──────────────────────────────────────────────────────────────────────
+
+const SETTING_KEYS = ['overlayUrl', 'ovGame', 'platform', 'server', 'streamKey', 'quality', 'source', 'autostart', 'autoTitle', 'ytClientId', 'ytClientSecret']
+const SECRET_KEYS = ['streamKey', 'ytClientSecret'] // an empty field keeps the saved value
+
+export function cleanSettings(body, prev = {}) {
+  const out = { ...prev }
+  for (const k of SETTING_KEYS) {
+    if (!(k in (body || {}))) continue
+    const v = body[k]
+    if (SECRET_KEYS.includes(k) && (v == null || v === '')) continue // empty = keep the saved key
+    if (k === 'autostart' || k === 'autoTitle') out[k] = v === true
+    else out[k] = String(v ?? '').trim().slice(0, 500)
+  }
+  if (out.platform && !['youtube', 'twitch', 'facebook', 'other'].includes(out.platform)) out.platform = 'youtube'
+  if (out.quality && !QUALITY[out.quality]) out.quality = '1080p'
+  if (out.source && !['camera', 'test'].includes(out.source)) out.source = 'camera'
+  return out
+}
+
+/** The settings as the console may see them: never the key itself. */
+export const publicSettings = (s) => ({ ...s, streamKey: undefined, streamKeySet: !!s.streamKey, ytClientSecret: undefined, ytClientSecretSet: !!s.ytClientSecret, ytRefresh: undefined, ytConnected: !!s.ytRefresh })
+
+function main() {
+  const stateDir = process.env.STATE_DIR || path.join(HERE, '.state')
+  fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 })
+  const settingsFile = path.join(stateDir, 'settings.json')
+  const pinFile = path.join(stateDir, 'pin')
+
+  if (process.argv[2] === 'set-pin') {
+    const pin = process.argv[3] || ''
+    if (!ADMIN_PIN_RE.test(pin)) { console.error('a PIN is 4 to 12 digits'); process.exit(1) }
+    fs.writeFileSync(pinFile, hashAdminPin(pin), { mode: 0o600 })
+    console.log('console PIN set')
+    return
+  }
+
+  const readSettings = () => { try { return JSON.parse(fs.readFileSync(settingsFile, 'utf8')) } catch { return {} } }
+  const writeSettings = (s) => {
+    fs.writeFileSync(`${settingsFile}.tmp`, JSON.stringify(s, null, 2), { mode: 0o600 })
+    fs.renameSync(`${settingsFile}.tmp`, settingsFile)
+  }
+  const pin = makeAdminPin(pinFile)
+  const streamer = makeStreamer({ getSettings: () => readSettings() })
+  let ytFlow = null // the device-flow code being shown, while the person approves it
+  const page = fs.readFileSync(path.join(HERE, 'console.html'))
+
+  const send = (res, code, body) => {
+    res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+    res.end(JSON.stringify(body))
+  }
+  const readBody = (req) => new Promise((resolve) => {
+    let b = ''
+    req.on('data', (c) => { b += c; if (b.length > 20000) req.destroy() })
+    req.on('end', () => { try { resolve(JSON.parse(b || '{}')) } catch { resolve(null) } })
+  })
+
+  const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, 'http://x')
+    if (req.method === 'GET' && url.pathname === '/') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+      return res.end(page)
+    }
+    if (req.method === 'GET' && url.pathname === '/api/wifi') {
+      try { return send(res, 200, { current: await wifi.current(), saved: await wifi.saved() }) } catch (err) { return send(res, 200, { error: err.message }) }
+    }
+    if (req.method === 'GET' && url.pathname === '/api/status') {
+      return send(res, 200, { ...streamer.status, settings: publicSettings(readSettings()), pinSet: pin.isSet(), ytFlow })
+    }
+    if (req.method !== 'POST' || !url.pathname.startsWith('/api/')) return send(res, 404, { error: 'not found' })
+    // every change needs the PIN
+    const check = pin.check(req.headers['x-pin'])
+    if (!check.ok) {
+      if (check.unset) return send(res, 403, { error: 'No PIN set yet: run `node streampi.js set-pin <digits>` on the Stream Pi' })
+      if (check.locked) return send(res, 429, { error: `Too many wrong PINs: wait ${Math.ceil(check.retryAfterMs / 1000)} s` })
+      return send(res, 401, { error: 'Wrong PIN' })
+    }
+    if (url.pathname === '/api/settings') {
+      const body = await readBody(req)
+      if (!body) return send(res, 400, { error: 'not JSON' })
+      const next = cleanSettings(body, readSettings())
+      writeSettings(next)
+      return send(res, 200, { ok: true, settings: publicSettings(next) })
+    }
+    if (url.pathname === '/api/start') return send(res, 200, await streamer.start(readSettings()))
+    if (url.pathname === '/api/stop') { streamer.stop(); return send(res, 200, { ok: true }) }
+    if (url.pathname === '/api/pin') return send(res, 200, { ok: true }) // only checks the PIN
+    if (url.pathname === '/api/youtube/connect') {
+      const s = readSettings()
+      if (!s.ytClientId || !s.ytClientSecret) return send(res, 400, { error: 'Save the Google client ID and secret first' })
+      try {
+        const flow = await ytDeviceStart(s.ytClientId)
+        ytFlow = { code: flow.user_code, url: flow.verification_url }
+        const until = Date.now() + flow.expires_in * 1000
+        ;(async () => {
+          while (Date.now() < until && ytFlow?.code === flow.user_code) {
+            await new Promise((r) => setTimeout(r, (flow.interval || 5) * 1000))
+            try {
+              const refresh = await ytDevicePoll(s.ytClientId, s.ytClientSecret, flow.device_code)
+              if (refresh) { writeSettings({ ...readSettings(), ytRefresh: refresh }); log('youtube: connected'); break }
+            } catch (err) { log('youtube: connect failed:', err.message); break }
+          }
+          ytFlow = null
+        })()
+        return send(res, 200, { ok: true, ...ytFlow })
+      } catch (err) { return send(res, 502, { error: `Google said: ${err.message}` }) }
+    }
+    if (url.pathname.startsWith('/api/wifi/')) {
+      const body = (await readBody(req)) || {}
+      const action = url.pathname.slice('/api/wifi/'.length)
+      try {
+        if (action === 'scan') return send(res, 200, { ok: true, networks: await wifi.scan() })
+        if (streamer.running() && action !== 'moveup') return send(res, 409, { error: 'Stop the stream first: changing the Wi-Fi would cut it' })
+        if (action === 'join') {
+          if (!body.ssid) return send(res, 400, { error: 'Pick a network' })
+          await wifi.join(String(body.ssid).slice(0, 64), body.password ? String(body.password).slice(0, 128) : '')
+        } else if (action === 'up') await wifi.up(String(body.name))
+        else if (action === 'forget') await wifi.forget(String(body.name))
+        else if (action === 'moveup') await wifi.moveUp(String(body.name))
+        else return send(res, 404, { error: 'not found' })
+        return send(res, 200, { ok: true })
+      } catch (err) { return send(res, 502, { error: `Wi-Fi: ${err.message.slice(0, 200)}` }) }
+    }
+    if (url.pathname === '/api/youtube/disconnect') {
+      const s = readSettings(); delete s.ytRefresh; writeSettings(s); ytFlow = null
+      return send(res, 200, { ok: true })
+    }
+    return send(res, 404, { error: 'not found' })
+  })
+  const port = Number(process.env.CONTROL_PORT || 8080)
+  server.listen(port, () => log(`console: http://<this computer>:${port}`))
+
+  // A stream that was set to start by itself (power cut in the hall): start once the console is up.
+  const saved = readSettings()
+  if (saved.autostart && !missing(buildConfig(process.env, saved)).length) streamer.start(saved)
+  // Move up to a better saved network in range, every 2 minutes, never during a stream.
+  setInterval(async () => {
+    if (streamer.running()) return
+    try {
+      const [saved, cur, seen] = await Promise.all([wifi.saved(), wifi.current(), wifi.scan()])
+      const best = bestNetwork(saved, seen.map((n) => n.ssid), cur?.ssid || null)
+      if (best) { log(`wifi: moving to ${best.ssid} (higher in the list than ${cur?.ssid || 'nothing'})`); await wifi.up(best.name) }
+    } catch { /* no NetworkManager here (a laptop test) */ }
+  }, 120000)
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { streamer.stop(); setTimeout(() => process.exit(0), 1500) })
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main()

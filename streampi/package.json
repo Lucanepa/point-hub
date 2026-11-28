@@ -1,0 +1,13 @@
+{
+  "name": "streampi",
+  "private": true,
+  "type": "module",
+  "description": "USB camera + the board's livestream scorebug -> one RTMP stream (YouTube, Twitch) or a file",
+  "scripts": {
+    "start": "node streampi.js",
+    "test": "node streampi-selftest.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.63.0"
+  }
+}
